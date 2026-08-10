@@ -82,6 +82,7 @@ import {
   getMergedProjects,
   getProjectById,
   subscribeApiProjects,
+  upsertApiProject,
 } from "@/workspace/project-registry";
 import {
   conversationBelongsToProject,
@@ -1713,7 +1714,13 @@ export default function ConversationCenter() {
     setProjectLookupDone(false);
     void fetchProjectByIdFromApi(projectId)
       .then((row) => {
-        if (!cancelled) setChatSessionProject(row ?? undefined);
+        if (cancelled) return;
+        if (row) {
+          upsertApiProject(row);
+          setChatSessionProject(row);
+        } else {
+          setChatSessionProject(undefined);
+        }
       })
       .finally(() => {
         if (!cancelled) setProjectLookupDone(true);
@@ -1738,15 +1745,22 @@ export default function ConversationCenter() {
 
   useEffect(() => {
     if (!userId || !projectId || !projectLookupDone) return;
-    const p = getProjectById(projectId);
-    if (getProjectRole(userId, projectId, p?.createdBy) === "guest") {
+    const p = getProjectById(projectId) ?? chatSessionProject;
+    if (!p) {
       navigate("/app/projects", { replace: true });
       return;
     }
-    if (!p) {
+    if (getProjectRole(userId, projectId, p.createdBy) === "guest") {
       navigate("/app/projects", { replace: true });
     }
-  }, [userId, projectId, projectLookupDone, navigate, apiProjectsTick]);
+  }, [
+    userId,
+    projectId,
+    projectLookupDone,
+    navigate,
+    apiProjectsTick,
+    chatSessionProject,
+  ]);
 
   const resourceDemo = useMemo(
     () => getProjectResourceDemo(projectId ?? ""),
