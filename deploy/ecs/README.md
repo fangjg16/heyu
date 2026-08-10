@@ -4,6 +4,8 @@
 后端：本机 Docker Compose（见 [`docker-compose.yml`](./docker-compose.yml)）  
 正式域名后置：见 [`../docs/DOMAIN-CUTOVER.md`](../../docs/DOMAIN-CUTOVER.md)
 
+**若机器上仍有 Nathan 时期 `/fop/biz`（Postgres + fop-web:18080）**：先归档改端口并存，再部署本手册。见 [`../docs/ECS-NATHAN-ARCHIVE.md`](../../docs/ECS-NATHAN-ARCHIVE.md) 与 [`scripts/archive-nathan-fop.sh`](./scripts/archive-nathan-fop.sh)。
+
 ## 0. 你需要事先准备
 
 1. 阿里云账号（实名 + 余额/按量）
@@ -47,11 +49,20 @@ docker version
 docker compose version
 ```
 
+## 3b. （可选）本机已有 Nathan `/fop/biz` 时
+
+```bash
+# 快照后：标记归档 + 18080→127.0.0.1:28080 + heyu.hk 改跳转 Pages
+bash deploy/ecs/scripts/archive-nathan-fop.sh
+```
+
+旧栈可继续在高位端口本机访问供借鉴；公网与日常只使用下文新栈。
+
 ## 4. 拉取代码并配置密钥
 
 ```bash
-git clone https://github.com/fangjg16/heyu.git
-cd heyu
+git clone https://github.com/fangjg16/heyu.git   # 建议放到 /opt/heyu
+cd heyu   # 或 cd /opt/heyu
 cp deploy/ecs/.env.example deploy/ecs/.env
 nano deploy/ecs/.env   # 填入 LLM / MySQL / MinIO / HERMES / JFO_INTERNAL_KEY
 ```
