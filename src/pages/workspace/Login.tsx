@@ -6,10 +6,10 @@ import { loadSessionToken, loadSessionUserId } from "@/workspace/session";
 const REMEMBER_USER_KEY = "fo-login-remember-user";
 
 const DEMO_IDENTITIES = [
-  { name: "BingheSu", role: "项目负责人", username: "binghe.su" },
-  { name: "分析师", role: "投研分析", username: "analyst" },
-  { name: "管理员", role: "平台管理", username: "admin" },
-  { name: "访客", role: "Guest 浏览", username: "guest" },
+  { name: "BingheSu", role: "项目负责人", username: "binghesu" },
+  { name: "JimmyHuang", role: "Core 核心级", username: "jimmyhuang" },
+  { name: "管理员", role: "平台管理", username: "candiceguo" },
+  { name: "访客", role: "Guest 浏览", username: "janicehi" },
 ] as const;
 
 export default function Login() {

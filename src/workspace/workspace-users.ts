@@ -47,11 +47,15 @@ export function isPlatformAdminUser(userId: string | null | undefined): boolean 
   return Boolean(session?.id === uid && session.isPlatformAdmin);
 }
 
-/** 账号默认角色是否为 Guest（目录仅见已加入/创建的项目） */
+/** 账号默认角色是否为 Guest（侧栏对话入口等；平台管理员除外） */
 export function isAccountGuestUser(userId: string | null | undefined): boolean {
   const uid = (userId ?? "").trim();
   if (!uid) return false;
-  return !isPlatformAdminUser(uid);
+  if (isPlatformAdminUser(uid)) return false;
+  const role = String(getUserById(uid)?.defaultRole ?? "guest")
+    .trim()
+    .toLowerCase();
+  return role === "guest" || role === "";
 }
 
 export function getProjectRole(
