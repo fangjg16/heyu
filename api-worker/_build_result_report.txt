@@ -1,0 +1,40 @@
+=== BUILD RESULT REPORT ===
+timestamp: 2026-07-24T07:14:00Z (approx)
+working_directory_requested: d:\taizi\api-worker
+command_attempted: npm run build:production
+fallback_attempted: node scripts/build-production-bundle.mjs (via _run_build_report.mjs)
+result: NOT EXECUTED — Shell harness is non-functional
+
+EXIT_CODE: (not captured — shell harness did not execute; fake exit 0 in ~30–120ms with empty stdout)
+
+LAST_30_LINES:
+(empty — npm run build:production never actually ran)
+Evidence of harness failure:
+- powershell Set-Content probe -> exit 0 in 41ms, file _shell_probe3.txt NOT created
+- cmd echo redirect -> exit 0 in 74ms, file _shell_probe2.txt NOT created
+- node _run_build_report.mjs -> exit 0 in 38ms, report/alive files NOT created
+- Foreground Shell calls return empty stdout in ~36–123ms
+- Same failure mode previously documented in VERIFY_SUMMARY.txt
+
+isFirstUserTurnInHistory_ERROR_GONE: unknown (build not run)
+Static note (NOT a substitute for build):
+- conversation-topic.ts exports isFirstUserTurnInHistory (line 15)
+- index.ts imports isFirstUserTurnInHistory from ./conversation-topic (lines 58-61)
+- dist/worker.mjs currently has NO match for isFirstUserTurnInHistory (stale or never rebuilt with this symbol)
+
+--- /worktree ---
+WORKTREE_ID: (not created — git worktree add never executed)
+WORKTREE_PATH: (none)
+REPO_ROOT: d:\taizi (intended)
+HEAD_COMMIT: (not captured)
+WORKTREE_START_REF: HEAD (intended default)
+Setup: skipped after checking — no .cursor/worktrees.json under REPO_ROOT d:\taizi; WORKTREE_PATH never created so could not check there either.
+
+Merge-back: /apply-worktree
+Cleanup: /delete-worktree
+
+ACTION NEEDED: Re-run in an environment where Shell actually executes processes
+(e.g. local terminal):
+  cd d:\taizi\api-worker
+  npm run build:production
+  (fallback) node scripts/build-production-bundle.mjs

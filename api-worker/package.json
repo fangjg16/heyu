@@ -1,0 +1,33 @@
+{
+  "name": "jfo-api-worker",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "node scripts/dev-local-with-mysql.mjs",
+    "dev:local": "node scripts/dev-local-with-mysql.mjs",
+    "dev:watch": "node scripts/dev-local-with-mysql.mjs --watch",
+    "mysql:bridge": "node scripts/mysql-local-bridge.mjs",
+    "skills:bridge": "node scripts/skills-bridge.mjs",
+    "mysql:migrate:local": "node scripts/run-mysql-migrations.mjs",
+    "seed:workspace-users": "node scripts/seed-workspace-users.mjs",
+    "seed:hermes-skills": "node scripts/seed-hermes-skills-from-fs.mjs",
+    "seed:kn-chapter-templates": "node scripts/seed-kn-chapter-templates.mjs",
+    "start": "node scripts/http-server.mjs",
+    "start:production": "node scripts/http-server.mjs",
+    "build:production": "node scripts/build-production-bundle.mjs",
+    "build:watch": "node scripts/build-production-bundle.mjs --watch"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1075.0",
+    "@cloudflare/workers-types": "^4.20250320.0",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "aws4fetch": "^1.0.20",
+    "esbuild": "^0.27.7",
+    "miniflare": "^4.20260518.0",
+    "mysql2": "^3.22.5",
+    "unpdf": "^1.4.0",
+    "xlsx": "^0.18.5"
+  }
+}

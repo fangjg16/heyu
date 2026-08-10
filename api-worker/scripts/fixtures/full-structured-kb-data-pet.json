@@ -1,0 +1,253 @@
+{
+  "type": "structured-kb-data",
+  "schemaVersion": "2.91",
+  "mode": "full",
+  "summary": "PET 源天生物全量 structured KB 测试 fixture",
+  "config": {
+    "displayOrder": [
+      "snapshot",
+      "target-overview",
+      "industry-market",
+      "business-operations",
+      "resource-network",
+      "legal-ownership",
+      "regulatory-compliance",
+      "comps-benchmark",
+      "valuation-returns",
+      "diligence-gaps",
+      "risks-mitigation",
+      "timeline-milestones",
+      "decision-framework"
+    ],
+    "projectType": "biotech",
+    "renderingMode": "chinese-only",
+    "multiAsset": false,
+    "configVersion": 1
+  },
+  "meta": {
+    "title": "PET 源天生物",
+    "subtitle": "放射性药物与源天生物平台",
+    "mastheadSubtitle": "PET Radiopharmaceutical · Project Knowledge Base",
+    "lead": "基于 BP 与内部讨论的结构化全量 KB 渲染测试；不代表投资结论。",
+    "autoSummary": "本 fixture 验证 Worker 从 structured-kb-data 确定性渲染 v2.91 十三板块知识网络。",
+    "navTitle": "项目知识网络",
+    "status": "内部讨论",
+    "stage": "早期线索",
+    "footerBrand": "联合家办 · PET 测试",
+    "version": "v1.0",
+    "date": "2026-06-20"
+  },
+  "maturity": {
+    "factorA": "42%",
+    "factorANote": "十三板块均已填充 fixture 数据",
+    "factorB": "25%",
+    "factorBNote": "来源含用户 BP 与公开资料占位",
+    "combined": "35%",
+    "tier": "Early stage"
+  },
+  "slots": {
+    "snapshot": {
+      "stage": "临床前/产业化过渡",
+      "status": "资料请求中",
+      "keyFacts": [
+        { "项目项": "赛道", "内容": "PET 放射性药物", "证据/来源": "BP" },
+        { "项目项": "阶段", "内容": "早期线索", "证据/来源": "内部讨论" }
+      ],
+      "gaps": [{ "text": "产能与注册路径待核实", "confidence": "gap" }]
+    },
+    "target-overview": {
+      "assetSummary": [
+        {
+          "资产/权利/能力": "放射性药物管线",
+          "定义与范围": "诊断/治疗用 PET 药物",
+          "可投资性": "待验证",
+          "关键证据/缺口": "注册与产能"
+        }
+      ]
+    },
+    "industry-market": {
+      "marketDrivers": [
+        {
+          "主题": "PET 影像需求",
+          "事实/数据": "肿瘤筛查与精准诊疗驱动",
+          "投资含义": "需求侧有长期支撑",
+          "来源": "公开行业资料"
+        }
+      ]
+    },
+    "business-operations": {
+      "journeyMap": {
+        "stages": ["研发", "注册", "生产", "商业化"],
+        "lanes": [{ "label": "主路径", "nodes": ["候选分子", "IND", "上市", "医院覆盖"] }]
+      },
+      "customerBuyer": [
+        {
+          "客户/受众/付费方": "三甲医院核医学科",
+          "需求": "稳定供应与合规",
+          "获客/渠道": "经销商与直销",
+          "验证状态": "意向阶段"
+        }
+      ]
+    },
+    "resource-network": {
+      "parties": [
+        {
+          "主体/资源": "生产合作方",
+          "关系与作用": "GMP 产能",
+          "强度/可验证性": "待签",
+          "依赖与风险": "产能瓶颈"
+        }
+      ]
+    },
+    "legal-ownership": {
+      "entities": [
+        {
+          "主体/权利": "源天生物",
+          "角色/归属": "项目主体",
+          "限制/负担": "待核实",
+          "证据/缺口": "股权结构"
+        }
+      ]
+    },
+    "regulatory-compliance": {
+      "jurisdictionRows": [
+        {
+          "监管/规则": "放射性药品注册",
+          "适用原因": "产品上市必备",
+          "状态/许可": "评估中",
+          "红线/下一步": "补充注册路径"
+        }
+      ]
+    },
+    "comps-benchmark": {
+      "compsRows": [
+        {
+          "可比对象": "国内 PET 药物企业",
+          "可比逻辑": "同赛道商业化阶段",
+          "指标/倍数": "待收集",
+          "可借鉴/差异": "产能与渠道差异"
+        }
+      ]
+    },
+    "valuation-returns": {
+      "scenarios": [
+        { "label": "Base", "value": "待测算", "detail": "依赖产能释放节奏" },
+        { "label": "Downside", "value": "注册延迟", "detail": "现金流承压" }
+      ],
+      "sensitivityItems": [
+        {
+          "敏感变量": "注册周期",
+          "影响方向": "现金流",
+          "阈值/区间": "+12 个月",
+          "观察方式": "监管沟通记录"
+        }
+      ]
+    },
+    "diligence-gaps": {
+      "questionGroups": [
+        {
+          "priority": "P1",
+          "title": "产能与注册",
+          "questions": [
+            {
+              "question": "GMP 产线是否已就绪？",
+              "whyItMatters": "影响商业化时间表",
+              "owner": "运营",
+              "requiredEvidence": "产线审计报告"
+            }
+          ]
+        }
+      ]
+    },
+    "risks-mitigation": {
+      "riskRows": [
+        {
+          "level": "高",
+          "risk": "注册路径不确定",
+          "cause": "监管要求变化",
+          "impact": "推迟收入",
+          "mitigation": "聘请顾问预审",
+          "evidenceSourceIds": ["U-1"]
+        }
+      ]
+    },
+    "timeline-milestones": {
+      "occurred": [
+        {
+          "date": "2026-06-01",
+          "title": "收到 BP",
+          "detail": "项目方提供 2026 年 4 月简版 BP。",
+          "phase": "occurred",
+          "evidenceSourceIds": ["U-1"]
+        }
+      ],
+      "inProgress": [
+        {
+          "title": "内部初评",
+          "detail": "团队完成首轮阅读与问题清单。",
+          "phase": "inProgress"
+        }
+      ],
+      "future": [
+        {
+          "date": "T+30",
+          "title": "资料补齐会议",
+          "detail": "与项目方核对产能与注册问题。",
+          "phase": "future"
+        }
+      ]
+    },
+    "decision-framework": {
+      "recommendation": "建议继续资料请求，暂不进入 IC。",
+      "decisionTable": [
+        {
+          "选项": "继续跟踪",
+          "好处": "保留选项价值",
+          "代价/风险": "投入研究时间",
+          "适用条件": "30 天内补齐 P1 资料"
+        }
+      ],
+      "nextActions": [
+        { "下一步": "发送尽调清单", "Owner": "投资团队", "时间": "T+3", "交付物": "问题清单" }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "U-1",
+      "type": "用户上传",
+      "title": "源天生物 BP 2026年4月简版",
+      "author": "项目方",
+      "excerpt": "PET 药物管线、产能规划与融资需求摘要。",
+      "usedIn": ["snapshot", "timeline-milestones", "risks-mitigation"]
+    },
+    {
+      "id": "A-1",
+      "type": "公开资料",
+      "title": "PET 影像与放射性药物行业概览",
+      "author": "公开研报",
+      "excerpt": "用于行业背景与需求驱动假设。",
+      "usedIn": ["industry-market"]
+    }
+  ],
+  "terms": [
+    {
+      "term": "PET",
+      "definition": "正电子发射断层成像，常用于肿瘤等疾病的影像诊断。",
+      "context": "行业背景"
+    },
+    {
+      "term": "放射性药物",
+      "definition": "含有放射性核素、用于诊断或治疗的药品。",
+      "context": "监管合规"
+    }
+  ],
+  "dataDictionary": [
+    {
+      "field": "注册周期",
+      "definition": "从 IND/临床到获批上市的预计月数。",
+      "sample": "需监管顾问工作底稿",
+      "caveat": "fixture 占位，非真实预测。"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "projectId": "proj-7c0f947a6a00",
+  "jobId": "3f4e996b-1cbb-4ac0-8b1c-64e65fd556a0",
+  "status": "completed",
+  "wallSec": 269,
+  "error": null,
+  "answer": "Batch 2 smoke 通过（未发布 KB）。\nslot quality：business-operations:pass(100), legal-ownership:pass(72), regulatory-compliance:pass(72)。\n耗时：265s；repair=否。",
+  "slotBatchProgress": null,
+  "batch2Slots": [
+    "business-operations",
+    "legal-ownership",
+    "regulatory-compliance"
+  ],
+  "kbUnchanged": true
+}

@@ -1,0 +1,136 @@
+import tailwindcssAnimate from "tailwindcss-animate";
+
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: ["class"],
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: [
+          "Noto Sans SC",
+          "PingFang SC",
+          "Microsoft YaHei",
+          "system-ui",
+          "sans-serif",
+        ],
+        display: ["Noto Serif SC", "Noto Sans SC", "STSong", "serif"],
+        mono: ["JetBrains Mono", "ui-monospace", "Consolas", "monospace"],
+      },
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        "nav-button": "hsl(var(--nav-button))",
+        "hero-bg": "hsl(var(--hero-bg))",
+        "surface-alt": "hsl(var(--surface-alt))",
+        wine: {
+          DEFAULT: "hsl(var(--wine))",
+          hover: "hsl(var(--wine-hover))",
+          muted: "hsl(var(--wine-muted))",
+          mid: "hsl(var(--wine-mid))",
+          "mid-foreground": "hsl(var(--wine-mid-foreground))",
+          deep: "hsl(var(--wine-deep))",
+          "deep-foreground": "hsl(var(--wine-deep-foreground))",
+          foreground: "hsl(var(--wine-foreground))",
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      keyframes: {
+        "fade-up": {
+          "0%": {
+            opacity: "0",
+            transform: "translateY(20px)",
+            filter: "blur(4px)",
+          },
+          "100%": {
+            opacity: "1",
+            transform: "translateY(0)",
+            filter: "blur(0)",
+          },
+        },
+        "fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        "pulse-dot": {
+          "0%, 100%": {
+            opacity: "1",
+            boxShadow: "0 0 0 0 rgba(14, 165, 233, 0.4)",
+          },
+          "50%": {
+            opacity: "0.75",
+            boxShadow: "0 0 0 6px rgba(14, 165, 233, 0)",
+          },
+        },
+        typing: {
+          "0%, 60%, 100%": { transform: "translateY(0)", opacity: "0.35" },
+          "30%": { transform: "translateY(-3px)", opacity: "1" },
+        },
+        "scroll-hint": {
+          "0%, 100%": {
+            opacity: "0.2",
+            transform: "translateX(-50%) translateY(0)",
+          },
+          "50%": {
+            opacity: "0.45",
+            transform: "translateX(-50%) translateY(6px)",
+          },
+        },
+        "login-blob": {
+          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1)" },
+          "33%": { transform: "translate3d(24px, -30px, 0) scale(1.06)" },
+          "66%": { transform: "translate3d(-20px, 18px, 0) scale(0.95)" },
+        },
+        "login-float": {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-14px)" },
+        },
+        "login-pulse-soft": {
+          "0%, 100%": { opacity: "0.28" },
+          "50%": { opacity: "0.62" },
+        },
+      },
+      animation: {
+        "fade-up": "fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        "fade-in": "fade-in 0.5s ease-out forwards",
+        "pulse-dot": "pulse-dot 2s ease infinite",
+        typing: "typing 1s ease-in-out infinite",
+        "scroll-hint": "scroll-hint 2.5s ease-in-out infinite",
+        "login-blob":
+          "login-blob 18s cubic-bezier(0.45, 0, 0.55, 1) infinite",
+        "login-float":
+          "login-float 7s cubic-bezier(0.4, 0, 0.2, 1) infinite",
+        "login-pulse-soft":
+          "login-pulse-soft 6.5s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+      },
+    },
+  },
+  plugins: [tailwindcssAnimate],
+};

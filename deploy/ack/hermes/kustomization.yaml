@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: jfo
+resources:
+  - namespace.yaml
+  - pvc.yaml
+  - hermes-gateway.yaml
+  - skills-bridge.yaml
+  - rbac-api-worker-restart.yaml
+# secret.example.yaml 勿直接 apply；先 kubectl create secret 或复制后 apply

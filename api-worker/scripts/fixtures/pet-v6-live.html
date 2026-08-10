@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PET 源天生物 · 项目知识网络</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#f5f0e8;--ink:#2d241e;--ink-soft:#4a4540;--ink-faint:#888;--burgundy:#722f37;--serif:"Playfair Display","Noto Serif SC",Georgia,serif;--sans:"Inter","Noto Sans SC","PingFang SC",system-ui,sans-serif}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);font-size:15px;line-height:1.65;color:var(--ink);background:var(--paper);background-image:url("https://www.transparenttextures.com/patterns/natural-paper.png");-webkit-font-smoothing:antialiased}
+.kb-shell{display:grid;grid-template-columns:15.5rem minmax(0,1fr);gap:0;max-width:84rem;margin:0 auto;align-items:start}
+.kb-nav{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:2.5rem 1rem 2.5rem 2rem;background:rgba(114,47,55,.04);border-right:1px solid rgba(114,47,55,.14)}
+.kb-nav-title{font-family:var(--serif);font-size:.95rem;font-style:italic;color:var(--burgundy);margin-bottom:1.1rem;line-height:1.3}
+.kb-nav ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.4rem}
+.kb-nav-btn{display:flex;align-items:center;gap:.55rem;width:100%;text-align:left;font-family:var(--sans);font-size:.78rem;font-weight:600;line-height:1.3;color:var(--burgundy);background:transparent;border:1px solid rgba(114,47,55,.28);border-radius:4px;padding:.5rem .7rem;cursor:pointer;transition:background .12s,color .12s}
+.kb-nav-btn:hover{background:rgba(114,47,55,.1)}
+.kb-nav-btn .kb-nav-num{flex-shrink:0;width:1.4rem;height:1.4rem;border-radius:50%;border:1px solid rgba(114,47,55,.4);display:inline-flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:700}
+.kb-nav-btn.active{background:var(--burgundy);color:#fff;border-color:var(--burgundy)}
+.kb-nav-btn.active .kb-nav-num{border-color:rgba(255,255,255,.55);color:#fff}
+.kb-content{padding:4rem 2.5rem;min-width:0}
+.kb-panel{display:none}
+.kb-panel.active{display:block}
+@media(max-width:860px){
+  .kb-shell{grid-template-columns:1fr}
+  .kb-nav{position:static;height:auto;border-right:none;border-bottom:1px solid rgba(114,47,55,.14);padding:1rem 1.25rem}
+  .kb-nav ul{flex-direction:row;flex-wrap:wrap;gap:.4rem}
+  .kb-nav-btn{width:auto}
+  .kb-content{padding:2.5rem 1.25rem}
+}
+.kb-summary{background:#efe7da;border-left:4px solid var(--burgundy);border-radius:0 6px 6px 0;padding:1.25rem 1.5rem;margin:0 0 2.5rem}
+.kb-summary .kb-summary-label{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:rgba(114,47,55,.7);margin-bottom:.45rem}
+.kb-summary p{font-size:.92rem;line-height:1.7;color:var(--ink);margin:0}
+.masthead{border-bottom:2px solid var(--burgundy);padding-bottom:3rem;margin-bottom:3rem}
+.masthead-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(10.5rem,14rem);gap:2.5rem 3rem;align-items:start;margin-bottom:2rem}
+@media(max-width:760px){.masthead-split{grid-template-columns:1fr;gap:1.75rem}.masthead-meta{max-width:16rem}}
+.masthead-badges{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-bottom:1.1rem}
+.conf-badge{display:inline-block;background:var(--burgundy);color:#fff;font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:.32rem .6rem;border-radius:2px}
+.ai-badge{display:inline-block;font-size:.58rem;color:var(--burgundy);border:1px solid rgba(114,47,55,.28);padding:2px 6px;border-radius:2px;font-weight:600;letter-spacing:.04em;background:rgba(255,255,255,.4)}
+.masthead h1{font-family:var(--serif);font-size:clamp(1.85rem,4.2vw,3rem);color:var(--burgundy);line-height:1.12;margin-bottom:.65rem;max-width:28rem}
+.masthead h1 .sub{font-size:clamp(1.25rem,3vw,2rem);opacity:.85;font-style:italic;font-weight:400;display:block;margin-top:.35rem}
+.masthead-subtitle{font-size:.78rem;color:var(--ink-faint);font-weight:400;letter-spacing:.02em;line-height:1.45;margin-bottom:1.1rem;max-width:32rem}
+.masthead-lead{font-size:.92rem;color:var(--ink-soft);font-weight:400;line-height:1.7;max-width:36rem}
+.masthead-meta{margin:0;padding-top:.15rem}
+.masthead-meta dl{margin:0}
+.meta-row{display:grid;grid-template-columns:1fr auto;gap:.75rem 1.25rem;padding:.6rem 0;border-bottom:1px solid rgba(114,47,55,.12);align-items:center}
+.meta-row:first-child{padding-top:0}
+.meta-row:last-child{border-bottom:none;padding-bottom:0}
+.meta-row dt{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:.56rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#999;margin:0}
+.meta-row dd{font-size:.78rem;font-weight:600;color:var(--ink);text-align:right;margin:0;white-space:nowrap}
+.stage-pill{display:inline-block;background:#1a1a1a;color:#fff;font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:.28rem .55rem;border-radius:2px}
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin-top:2rem;background:rgba(114,47,55,.18)}
+@media(max-width:800px){.stat-row{grid-template-columns:1fr}}
+.stat-item{padding:1.25rem 1.35rem;min-height:6.5rem;display:flex;flex-direction:column;justify-content:center}
+.stat-item-a{background:#e6ddd1;color:var(--ink)}
+.stat-item-a .stat-label{color:rgba(45,36,30,.62)}
+.stat-item-a .stat-value{color:var(--burgundy)}
+.stat-item-a .stat-note{color:rgba(45,36,30,.58);font-style:italic}
+.stat-item-b{background:#8f4a52;color:#fff}
+.stat-item-b .stat-label{color:rgba(255,255,255,.78)}
+.stat-item-b .stat-value{color:#fff}
+.stat-item-b .stat-note{color:rgba(255,255,255,.82)}
+.stat-item-c{background:var(--burgundy);color:#fff}
+.stat-item-c .stat-label{color:rgba(255,255,255,.78)}
+.stat-item-c .stat-value{color:#fff}
+.stat-item-c .stat-note{color:rgba(255,255,255,.92);font-weight:700;font-style:normal;text-transform:uppercase;letter-spacing:.06em;font-size:.62rem}
+.stat-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:.35rem}
+.stat-value{font-family:var(--serif);font-size:clamp(2rem,4vw,2.75rem);font-weight:700;line-height:1;margin:.2rem 0 .55rem}
+.stat-note{font-size:.65rem;margin:0}
+.kb-lang-toggle{display:flex;gap:.5rem;align-items:center;margin-top:.75rem}
+.lang-btn{background:none;border:none;font-family:var(--sans);font-size:.75rem;font-weight:500;color:var(--ink-faint);cursor:pointer;padding:.2rem .4rem;border-radius:3px}
+.lang-btn.active{font-weight:700;color:var(--burgundy)}
+.lang-btn:hover{color:var(--burgundy)}
+[lang="en"]{display:none}
+.kb-en-mode [lang="zh"]{display:none}
+.kb-en-mode [lang="en"]{display:block}
+.pulse{width:10px;height:10px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.block{margin-bottom:4rem}
+.section-title{font-family:var(--serif);font-size:1.75rem;color:var(--burgundy);margin-bottom:1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+.section-num{width:2rem;height:2rem;border-radius:50%;background:var(--burgundy);color:#fff;font-family:var(--sans);font-size:.75rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.section-sub{color:rgba(114,47,55,.6);font-weight:700;text-transform:uppercase;letter-spacing:.15em;font-size:.7rem;margin-bottom:2rem}
+h3{font-family:var(--serif);font-size:1.15rem;font-style:italic;color:var(--burgundy);margin:2rem 0 1rem}
+p{margin-bottom:.75rem;color:#4a4540}
+table{width:100%;border-collapse:collapse;margin:1rem 0 1.5rem;font-size:.875rem}
+table th{text-align:left;padding:12px 16px;border-top:2px solid var(--burgundy);border-bottom:1px solid var(--burgundy);font-family:var(--serif);font-weight:700;color:var(--burgundy);background:rgba(114,47,55,.05)}
+table td{padding:12px 16px;border-bottom:1px solid rgba(114,47,55,.1);vertical-align:top}
+tr.highlight-row td{background:rgba(114,47,55,.08)!important;font-weight:500}
+.project-timeline{max-width:58rem}
+.project-timeline .tl-item{margin-bottom:1.45rem}
+.project-timeline .tl-head{display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;margin-bottom:.28rem}
+.project-timeline .tl-kind{font-size:.62rem;font-weight:700;letter-spacing:.04em;color:var(--burgundy)}
+.project-timeline .tl-note{font-size:.76rem;color:var(--ink-soft);margin:.25rem 0 0}
+.project-timeline .tl-source{font-size:.66rem;margin-left:.35rem;vertical-align:super}
+.tl-item.timeline-ongoing::before,.tl-item.timeline-dependency::before{background:#9fb7cc}
+.tl-item.timeline-deadline::before{background:#f59e0b}
+.tag{font-size:.68rem;padding:1px 5px;border-radius:3px;white-space:nowrap}
+.tag-verified{background:#e8f5e9;color:#2e7d32}.tag-party{background:#fef9e7;color:#8b6914}
+.tag-analyst{background:#eef2f7;color:#3d5a80}.tag-unconfirmed{background:#f0eeea;color:#888}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.68rem;font-weight:600;border:1px solid rgba(114,47,55,.15)}
+.badge-green{background:#eef6f0;color:#2d5a3d}.badge-amber{background:#faf6ef;color:#8b6914}
+.badge-red{background:rgba(114,47,55,.1);color:var(--burgundy)}.badge-blue{background:#f0f3f7;color:#3d4a5c}
+.callout{border-left:4px solid;padding:1rem 1.25rem;margin:1.25rem 0;border-radius:0 6px 6px 0}
+.callout.info{border-color:#5a7a9a;background:#f0f4f8}.callout.info .callout-title{color:var(--burgundy);font-weight:700;margin-bottom:.5rem}
+.callout.missing{border-color:#c45c26;background:#fef6ef}.callout.missing .callout-title{color:#a34b1e;font-weight:700;margin-bottom:.5rem}
+.callout.warning{border-color:var(--burgundy);background:#fdf5f4}.callout.warning .callout-title{color:var(--burgundy);font-weight:700;margin-bottom:.5rem}
+.callout.success{border-color:#4a6741;background:#f2f7f0}.callout.success .callout-title{color:#4a6741;font-weight:700;margin-bottom:.5rem}
+.callout-hint{font-size:.75rem;color:#888;font-style:italic;margin-top:.5rem}.callout ul{margin:.5rem 0 0 1.25rem}.callout li{margin-bottom:.35rem;font-size:.875rem}
+.risk-score{display:inline-flex;align-items:center;justify-content:center;min-width:1.75rem;height:1.75rem;padding:0 .35rem;border-radius:4px;font-weight:700;font-size:.7rem;color:#fff}
+.risk-critical{background:#b91c1c}.risk-high{background:#c2410c}.risk-medium{background:#ca8a04;color:#1a1a1a}.risk-low{background:#16a34a}
+.risk-matrix-table td:first-child{width:3.75rem}
+.risk-level{display:inline-flex;align-items:center;justify-content:center;min-width:2rem;min-height:2rem;padding:.22rem .35rem;border-radius:4px;font-size:.68rem;font-weight:700;line-height:1.15;color:#fff;text-align:center}
+.risk-level-critical{background:#b91c1c}.risk-level-high{background:#c2410c}.risk-level-medium{background:#ca8a04;color:#1a1a1a}.risk-level-low{background:#4a6741}
+.risk-meta,.oq-meta{font-size:.68rem;color:#888;margin-top:.3rem;line-height:1.45}
+.oq-group{border:1px solid rgba(114,47,55,.16);border-radius:6px;background:rgba(255,255,255,.42);margin:1rem 0;overflow:hidden}
+.oq-group>summary{list-style:none;cursor:pointer;padding:.95rem 1.1rem;display:flex;align-items:center;gap:.75rem;color:var(--burgundy)}
+.oq-group>summary::-webkit-details-marker{display:none}
+.oq-group>summary::before{content:"⌄";font-size:.7rem;transform:rotate(-90deg);transition:transform .12s}
+.oq-group[open]>summary::before{transform:rotate(0deg)}
+.oq-title{font-family:var(--serif);font-size:1rem;font-style:italic;flex:1}
+.oq-count{font-size:.68rem;font-weight:700;color:#888}
+.oq-list{padding:0 1.25rem 1.1rem 1.75rem;margin:0}
+.oq-item{list-style:none;margin:.7rem 0;color:var(--ink);line-height:1.75}
+.oq-num{font-weight:700;color:var(--burgundy);margin-right:.35rem}
+.oq-action{color:var(--ink-soft)}
+.timeline{position:relative;padding-left:1.5rem;margin:1rem 0}.timeline::before{content:"";position:absolute;left:.2rem;top:0;bottom:0;width:2px;background:rgba(114,47,55,.15)}
+.tl-item{position:relative;margin-bottom:1.1rem;padding-left:1.25rem}.tl-item::before{content:"";position:absolute;left:-1.35rem;top:.35rem;width:14px;height:14px;border-radius:50%;background:var(--burgundy);border:3px solid var(--paper)}
+.tl-item.pending::before{background:#f59e0b}
+.tl-date{font-size:.7rem;font-weight:700;color:var(--burgundy);text-transform:uppercase;display:inline-block;margin-right:.5rem}
+.tl-text{font-size:.875rem;color:#4a4540}
+.tl-tree{margin:1rem 0}
+.tl-year{border:1px solid rgba(114,47,55,.16);border-radius:6px;margin:.6rem 0;background:rgba(255,255,255,.4);overflow:hidden}
+.tl-year>summary{list-style:none;cursor:pointer;padding:.8rem 1.1rem;display:flex;align-items:center;gap:.7rem;font-family:var(--serif);font-size:1.1rem;color:var(--burgundy)}
+.tl-year>summary::-webkit-details-marker{display:none}
+.tl-year>summary::before{content:"▸";font-size:.7rem;transition:transform .12s}
+.tl-year[open]>summary::before{transform:rotate(90deg)}
+.tl-year-sum{margin-left:auto;font-family:var(--sans);font-size:.72rem;font-style:italic;color:var(--ink-soft);font-weight:400}
+.tl-year-body{padding:.2rem 1.1rem 1rem 1.6rem}
+.tl-month{border-left:2px solid rgba(114,47,55,.18);margin:.4rem 0 .4rem .3rem}
+.tl-month>summary{list-style:none;cursor:pointer;padding:.45rem .8rem;font-size:.82rem;font-weight:700;color:var(--burgundy)}
+.tl-month>summary::-webkit-details-marker{display:none}
+.tl-month>summary::before{content:"▸";font-size:.6rem;margin-right:.4rem;display:inline-block;transition:transform .12s}
+.tl-month[open]>summary::before{transform:rotate(90deg)}
+.tl-month-body{padding:.1rem 0 .4rem 1.1rem}
+.scenario-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(114,47,55,.15);border:1px solid rgba(114,47,55,.15);margin:1.25rem 0}
+@media(max-width:700px){.scenario-cards{grid-template-columns:1fr}}
+.scenario-card{background:var(--paper);padding:1.25rem;text-align:center}
+.scenario-card.base{background:rgba(114,47,55,.06);box-shadow:inset 0 3px 0 var(--burgundy)}
+.scenario-card .sc-label{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:.5rem}
+.scenario-card.base .sc-label{color:var(--burgundy)}
+.scenario-card .sc-irr{font-family:var(--serif);font-size:2rem;font-weight:700;color:var(--burgundy)}
+.scenario-card.down .sc-irr{color:#6b5344}.scenario-card.up .sc-irr{color:#4a6741}
+.scenario-card .sc-detail{font-size:.75rem;color:#666;margin-top:.5rem;line-height:1.45}
+.org-chart{background:rgba(255,255,255,.5);border:1px solid rgba(114,47,55,.1);padding:2rem;margin:1.5rem 0;border-radius:8px;text-align:center}
+.org-node{border:2px solid var(--burgundy);padding:.85rem;background:#fff;display:inline-block;min-width:11rem;margin:.25rem;font-size:.85rem}
+.org-node.highlight{background:rgba(114,47,55,.08)}
+.org-node small{display:block;font-size:.6rem;text-transform:uppercase;font-weight:700;color:#888;margin-bottom:.25rem}
+.org-node strong{font-family:var(--serif);color:var(--burgundy)}
+.org-line{width:2px;height:1.5rem;background:var(--burgundy);margin:0 auto}
+.org-branch{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:.5rem}
+.journey-wrap{overflow-x:auto;margin:1.25rem 0}
+.journey{display:grid;grid-template-columns:7.5rem repeat(var(--journey-cols,4),minmax(7rem,1fr));column-gap:.3rem;row-gap:.45rem;min-width:42rem}
+.journey-corner{min-height:0}
+.journey-stage{text-align:center;font-family:var(--sans);font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--burgundy);padding:.45rem .3rem;border-bottom:2px solid var(--burgundy);align-self:end}
+.journey-lane-label{font-size:.72rem;font-weight:700;color:var(--burgundy);display:flex;align-items:center;padding-right:.35rem;line-height:1.35}
+.journey-node{background:rgba(255,255,255,.5);border:1px solid rgba(114,47,55,.2);border-radius:5px;padding:.55rem .6rem;font-size:.74rem;color:var(--ink-soft)}
+.journey-node.empty{background:transparent;border:1px dashed rgba(114,47,55,.15)}
+.journey-node.priority{border-color:var(--burgundy);box-shadow:inset 0 0 0 1px rgba(114,47,55,.15)}
+.bmc{display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:auto auto;gap:1px;background:rgba(114,47,55,.18);border:1px solid rgba(114,47,55,.18);margin:1.25rem 0}
+.bmc-cell{background:var(--paper);padding:.85rem .9rem;min-height:6rem}
+.bmc-cell h5{font-family:var(--sans);font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--burgundy);margin:0 0 .4rem}
+.bmc-cell ul{margin:0 0 0 1rem;padding:0;font-size:.78rem;color:var(--ink-soft);line-height:1.5}
+.bmc-cell li{margin-bottom:.2rem}
+.bmc-kp{grid-row:1/2}.bmc-ka{grid-column:2/3;grid-row:1/2}.bmc-kr{grid-column:2/3;grid-row:2/3}
+.bmc-vp{grid-column:3/4;grid-row:1/3;background:rgba(114,47,55,.06)}
+.bmc-cr{grid-column:4/5;grid-row:1/2}.bmc-ch{grid-column:4/5;grid-row:2/3}
+.bmc-cs{grid-column:5/6;grid-row:1/3}
+.bmc-cost{grid-column:1/4;grid-row:3/4}.bmc-rev{grid-column:4/6;grid-row:3/4}
+@media(max-width:760px){.bmc{grid-template-columns:1fr}.bmc-cell{grid-column:auto!important;grid-row:auto!important}}
+.pf-step{flex:1;min-width:8rem;display:flex;flex-direction:column;border:1px solid rgba(114,47,55,.2);border-radius:5px;background:rgba(255,255,255,.5);overflow:hidden}
+.process-flow{display:flex;align-items:stretch;gap:0;margin:1.25rem 0;overflow-x:auto;min-width:36rem}
+.pf-step-end{border-color:var(--burgundy)}
+.pf-step-label{font-family:var(--sans);font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--burgundy);padding:.4rem .7rem;border-bottom:1px solid rgba(114,47,55,.15);background:rgba(114,47,55,.04)}
+.pf-step-body{flex:1;padding:.6rem .7rem;font-size:.76rem;color:var(--ink-soft);line-height:1.5}
+.pf-step-margin{font-size:.65rem;font-weight:700;color:var(--burgundy);padding:.35rem .7rem;border-top:1px solid rgba(114,47,55,.15);background:rgba(114,47,55,.04);text-align:right}
+.pf-margin-total{background:var(--burgundy);color:#fff;border-top:none}
+.pf-arrow{display:flex;align-items:center;padding:0 .3rem;color:var(--burgundy);font-size:1.1rem;flex-shrink:0;opacity:.5}
+.topic{border:1px solid rgba(114,47,55,.16);border-radius:6px;margin:.85rem 0;background:rgba(255,255,255,.4);overflow:hidden}
+.topic>summary{list-style:none;cursor:pointer;padding:.85rem 1.1rem;display:flex;align-items:center;gap:.6rem;font-family:var(--serif);font-style:italic;font-size:1rem;color:var(--burgundy)}
+.topic>summary::-webkit-details-marker{display:none}
+.topic>summary::before{content:"▸";font-style:normal;font-size:.7rem;color:var(--burgundy);transition:transform .12s}
+.topic[open]>summary::before{transform:rotate(90deg)}
+.topic>summary .topic-count{margin-left:auto;font-family:var(--sans);font-style:normal;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint)}
+.topic-body{padding:0 1.1rem 1rem 2.1rem}
+.topic-body .topic-q{font-size:.85rem;color:var(--ink-soft);margin:.4rem 0;padding-left:.75rem;border-left:2px solid rgba(114,47,55,.2)}
+.topic-q .topic-q-status{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-left:.4rem}
+.tag .tag-src{font-weight:700}
+.tag-attrib{font-size:.62rem;color:var(--ink-faint);font-style:italic;margin-left:.15rem}
+.cite-ref,.term-ref{position:relative}.cite-ref a,.term-marker{color:var(--burgundy);text-decoration:none;font-size:.75em;vertical-align:super}
+.anchor-highlight,.anchor-highlight td{background:rgba(245,158,11,.14)!important;outline:1px solid rgba(114,47,55,.28);outline-offset:-1px}
+.tooltip{display:none;position:absolute;bottom:calc(100% + 4px);left:0;z-index:100;width:320px;padding:.75rem 1rem;background:#fff;border:1px solid rgba(114,47,55,.2);font-size:.8rem;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.cite-ref:hover .tooltip,.term-ref:hover .tooltip{display:block}
+.tooltip-title{font-weight:700;color:var(--burgundy);display:block;margin-bottom:.25rem}
+.tooltip-source{display:block;font-size:.7rem;color:var(--ink-faint);margin-bottom:.25rem}
+.tooltip-preview{display:block;font-style:italic;color:var(--ink-soft)}
+.adv-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0}
+@media(max-width:600px){.adv-grid{grid-template-columns:1fr}}
+.adv-grid .pros{background:#f0f7f1;padding:1rem;border-radius:6px}.adv-grid .cons{background:#fdf5f4;padding:1rem;border-radius:6px}
+.adv-grid h4{font-family:var(--serif);color:var(--burgundy);margin-bottom:.5rem;font-size:.95rem}
+.adv-grid ul{margin-left:1.25rem;font-size:.85rem}
+.valuation-box{background:#fff;padding:1.5rem;border-top:2px solid var(--burgundy);margin:1rem 0;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.valuation-box .big{font-family:var(--serif);font-size:2.25rem;font-weight:700;color:var(--burgundy)}
+.glossary-grid{display:grid;grid-template-columns:1fr 1fr;gap:.35rem 2rem;font-size:.8rem}
+@media(max-width:600px){.glossary-grid{grid-template-columns:1fr}}
+.glossary-row{display:flex;gap:1rem;border-bottom:1px solid #e0dcd5;padding:.45rem 0}
+.glossary-row .term{font-weight:700;color:var(--burgundy);width:9rem;flex-shrink:0}
+.glossary-term{font-weight:800;color:var(--burgundy);background:rgba(114,47,55,.08);border-left:3px solid var(--burgundy);padding:.2rem .45rem;border-radius:3px;display:inline-block}
+.glossary-row .def{color:#666}
+.footer{text-align:center;padding:3rem 0 2rem;border-top:2px solid var(--burgundy);margin-top:2rem}
+.footer .brand{font-family:var(--serif);font-size:1.75rem;color:var(--burgundy);font-style:italic;margin-bottom:1rem}
+.footer p{font-size:.72rem;color:#999;line-height:1.6}
+sup{font-size:.65em;color:var(--burgundy)}
+.partial-line{font-size:.8rem;color:#a34b1e;font-style:italic;border-left:2px solid #c45c26;padding-left:.5rem;margin:.5rem 0}
+.section-lead{font-size:.88rem;color:var(--ink-soft);font-style:italic;margin-bottom:1.5rem;padding:.6rem 1rem;border-left:3px solid rgba(114,47,55,.25);background:rgba(114,47,55,.03)}
+</style>
+</head>
+<body>
+
+<!-- KB-CONFIG
+schema-version: 2.91
+display-order: snapshot, target-overview, industry-market, business-operations, legal-ownership, regulatory-compliance, resource-network, comps-benchmark, valuation-returns, diligence-gaps, risks-mitigation, timeline-milestones, decision-framework
+project-type: biotech
+rendering-mode: chinese-only
+multi-asset: false
+config-version: 1
+quality-coverage: 100
+display-order-history:
+  2026-06-20 | structured-full | Worker deterministic render
+-->
+
+<div class="kb-shell">
+
+  <!-- ═══════════════════════════════════════════════════
+       LEFT NAV — generated from render manifest
+       Renderer fills nav title and nav items.
+       Each item: <li><button class="kb-nav-btn" data-target="ANCHOR"><span class="kb-nav-num">NUMERAL</span>LABEL</button></li>
+       Overview button is always first and always has class="kb-nav-btn active"
+       Appendix items use style="font-size:.52rem;width:2rem" on kb-nav-num
+  ════════════════════════════════════════════════════ -->
+  <nav class="kb-nav" aria-label="板块导航">
+    <p class="kb-nav-title">项目知识网络</p>
+    <ul>
+      <li><button class="kb-nav-btn active" data-target="overview"><span class="kb-nav-num">◎</span>项目总览</button></li>
+      <li><button class="kb-nav-btn" data-target="snapshot"><span class="kb-nav-num">一</span><span>项目快照</span></button></li>
+<li><button class="kb-nav-btn" data-target="target-overview"><span class="kb-nav-num">二</span><span>资产构成 / 标的概况</span></button></li>
+<li><button class="kb-nav-btn" data-target="industry-market"><span class="kb-nav-num">三</span><span>行业背景与市场格局</span></button></li>
+<li><button class="kb-nav-btn" data-target="business-operations"><span class="kb-nav-num">四</span><span>业务模式与运营假设</span></button></li>
+<li><button class="kb-nav-btn" data-target="legal-ownership"><span class="kb-nav-num">五</span><span>法律结构与权属关系</span></button></li>
+<li><button class="kb-nav-btn" data-target="regulatory-compliance"><span class="kb-nav-num">六</span><span>监管合规与许可路径</span></button></li>
+<li><button class="kb-nav-btn" data-target="resource-network"><span class="kb-nav-num">七</span><span>资源网络与关键协作</span></button></li>
+<li><button class="kb-nav-btn" data-target="comps-benchmark"><span class="kb-nav-num">八</span><span>市场对标与可比案例</span></button></li>
+<li><button class="kb-nav-btn" data-target="valuation-returns"><span class="kb-nav-num">九</span><span>投资回报与敏感性分析</span></button></li>
+<li><button class="kb-nav-btn" data-target="diligence-gaps"><span class="kb-nav-num">十</span><span>待确认问题 / 尽调缺口</span></button></li>
+<li><button class="kb-nav-btn" data-target="risks-mitigation"><span class="kb-nav-num">十一</span><span>关键风险与缓释</span></button></li>
+<li><button class="kb-nav-btn" data-target="timeline-milestones"><span class="kb-nav-num">十二</span><span>项目时间轴</span></button></li>
+<li><button class="kb-nav-btn" data-target="decision-framework"><span class="kb-nav-num">十三</span><span>决策框架</span></button></li>
+<li><button class="kb-nav-btn" data-target="source-index"><span class="kb-nav-num" style="font-size:.52rem;width:2rem">A</span><span>来源索引</span></button></li>
+<li><button class="kb-nav-btn" data-target="glossary"><span class="kb-nav-num" style="font-size:.52rem;width:2rem">B</span><span>术语表</span></button></li>
+<li><button class="kb-nav-btn" data-target="data-dictionary"><span class="kb-nav-num" style="font-size:.52rem;width:2rem">C</span><span>数据字典</span></button></li>
+<li><button class="kb-nav-btn" data-target="version-ledger"><span class="kb-nav-num" style="font-size:.52rem;width:2rem">D</span><span>版本记录</span></button></li>
+    </ul>
+  </nav>
+
+  <main class="kb-content">
+
+    <!-- ═══════════════════════════════════════════════════
+         OVERVIEW PANEL — masthead + kb-summary only
+         Always first, always active on load
+    ════════════════════════════════════════════════════ -->
+    <section class="block kb-panel active" id="overview">
+      <header class="masthead">
+        <div class="masthead-split">
+          <div class="masthead-main">
+            <div class="masthead-badges">
+              <span class="conf-badge">CONFIDENTIAL</span>
+              <span class="ai-badge">🤖 AI-Generated · v2.91-full</span>
+              <!-- Bilingual toggle: only rendered when bilingual=true -->
+              
+            </div>
+            <h1>PET 源天生物<span class="sub">废弃PET塑料酶法再生及产业化</span></h1>
+            <p class="masthead-subtitle">Enzymatic PET Recycling · Project Knowledge Base</p>
+            <p class="masthead-lead">基于2026年4月私募融资BP与公开行业政策梳理；不代表最终投资结论。</p>
+          </div>
+          <aside class="masthead-meta" aria-label="文档元数据">
+            <dl>
+              <div class="meta-row"><dt>Version</dt><dd>v2.91-full</dd></div>
+              <div class="meta-row"><dt>Date</dt><dd>2026-06-20</dd></div>
+              <div class="meta-row"><dt>Status</dt><dd>内部尽调</dd></div>
+              <div class="meta-row"><dt>Stage</dt><dd><span class="stage-pill">产业化初期</span></dd></div>
+            </dl>
+          </aside>
+        </div>
+        <div class="stat-row">
+          <div class="stat-item stat-item-a">
+            <div class="stat-label">Factor A · Content Completeness</div>
+            <div class="stat-value">70%</div>
+            <p class="stat-note">Content Completeness 70/100（rich contract）</p>
+          </div>
+          <div class="stat-item stat-item-b">
+            <div class="stat-label">Factor B · Source Diversity</div>
+            <div class="stat-value">20%</div>
+            <p class="stat-note">单一来源（项目 BP/卖方材料），Factor B 上限 20–25%</p>
+          </div>
+          <div class="stat-item stat-item-c">
+            <div class="stat-label">Combined Maturity</div>
+            <div class="stat-value">45%</div>
+            <p class="stat-note">Early — 结构较完整但来源单一，需多源验证</p>
+          </div>
+        </div>
+      </header>
+
+      <div class="kb-summary">
+        <p class="kb-summary-label">项目概览 · 自动生成</p>
+        <p>全量结构化KB v2.91，涵盖技术路线、产能规划、头部客户验证及财务预测。</p>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         CONTENT PANELS — one per active slot
+         Renderer fills all rendered slot HTML.
+         Each slot shell:
+           <section class="block kb-panel" id="ANCHOR">
+             <h2 class="section-title"><span class="section-num">NUMERAL</span>中文标题 / English Title</h2>
+             <p class="section-sub">副标题（可选）</p>
+             [section body HTML]
+           </section>
+
+         Component templates for all sections (Section 四 visualizations,
+         Org Chart, Scenario Cards, Timeline 三子块, Callouts, Topics,
+         Advantage Grid, Valuation Box) are in assets/components.html.
+    ════════════════════════════════════════════════════ -->
+    <section class="block kb-panel" id="snapshot"><h2 class="section-title"><span class="section-num">一</span>项目快照</h2><aside class="callout info"><div class="callout-title">一句话判断</div><p>源天生物以国际领先的酶法再生PET技术切入千亿级强制再生材料市场，百吨级产线已跑通、千吨级在建、头部客户验证完成，具备产业化早期高成长标的特征，但财务审计与万吨级落地确定性待核实。</p></aside><table><thead><tr><th>项目项</th><th>内容</th><th>证据/来源</th></tr></thead><tbody><tr><td>公司主体</td><td>源天生物科技（天津）有限公司，2022年10月成立，落地天津经济技术开发区</td><td>BP #U-1</td></tr><tr><td>核心技术</td><td>废弃PET塑料酶法再生（rPTA/rMEG），常温常压降解，产率&gt;95%</td><td>BP #U-1</td></tr><tr><td>产能阶段</td><td>百吨级已投产近1年；5000吨级2026年2月开工，Q3建成，2027Q1产能爬坡</td><td>BP #U-1</td></tr><tr><td>知识产权</td><td>国内专利42项，国际17项，已授权12项；15篇JCR一区TOP论文</td><td>BP #U-1</td></tr><tr><td>商业验证</td><td>切入宜家、安踏、欧莱雅、NIKE等供应链，签rPTA千万级订单（2000吨）</td><td>BP #U-1</td></tr><tr><td>资质认证</td><td>全球首个生物酶法再生GRS认证；15项行业大赛奖项（2025）</td><td>BP #U-1</td></tr><tr><td>融资轮次</td><td>私募融资（轮次未明确），BP日期2026年4月</td><td>BP #U-1</td></tr></tbody></table><aside class="callout warning"><div class="callout-title">资料缺口</div><p>财务审计底稿缺失：百吨级产线实际营收、毛利、现金流数据未提供，无法验证商业化真实跑通情况</p></aside><aside class="callout warning"><div class="callout-title">资料缺口</div><p>股权穿透明细缺失：历史股东变更、期权池设置、实际控制人认定待核实</p></aside><aside class="callout warning"><div class="callout-title">资料缺口</div><p>万吨级产线环评批复未提供：10万吨级产线（2027-2030）用地与环评进度不明</p></aside></section>
+
+<section class="block kb-panel" id="target-overview"><h2 class="section-title"><span class="section-num">二</span>资产构成 / 标的概况</h2><table><thead><tr><th>资产/权利/能力</th><th>定义与范围</th><th>可投资性</th><th>关键证据/缺口</th></tr></thead><tbody><tr><td>酶法再生PET技术平台</td><td>常温常压生物酶降解PET为rPTA/rMEG，适用于纤维级/食品级/膜级，1.5m³反应器PTA产量&gt;450g/L</td><td>已验证（纤维→瓶/膜全品类循环）</td><td>GRS全球认证；食品级FDA/EFSA审批待补充</td></tr><tr><td>产线资产</td><td>百吨级（已产）+ 5000吨级（2026Q3建成）+ 10万吨级（2027-2030规划）</td><td>在建</td><td>设备采购合同/工程进度报告/环评批复待核实</td></tr><tr><td>知识产权组合</td><td>42项国内+17项国际专利，15篇JCR一区TOP论文，覆盖酶筛选/降解/聚合全链条</td><td>高壁垒</td><td>专利清单与法律状态检索报告待提供</td></tr><tr><td>客户供应链准入</td><td>宜家、安踏、欧莱雅、NIKE、迪桑特、LULU等头部品牌供应商资质</td><td>商业护城河</td><td>长协订单条款/定价机制待核实</td></tr></tbody></table><aside class="callout warning"><div class="callout-title">资料缺口</div><p>交易要素：暂无有效数据。</p></aside><table><thead><tr><th>关键主张</th><th>依据</th><th>缺口</th></tr></thead><tbody><tr><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td></tr></tbody></table><aside class="callout warning"><div class="callout-title">资料缺口</div><p>技术平台边界：是否覆盖PA6酶法再生（BP提及但无详细数据），产业化优先级待明确</p></aside></section>
+
+<section class="block kb-panel" id="industry-market"><h2 class="section-title"><span class="section-num">三</span>行业背景与市场格局</h2><table><thead><tr><th>主题</th><th>事实/数据</th><th>投资含义</th><th>来源</th></tr></thead><tbody><tr><td>全球强制再生含量政策</td><td>欧盟PPWR（2025.2生效，2030年PET再生含量30%、2040年50%）；美国加州（2022年起15%+，2030年50%）；中国十五五（废塑料资源化率≥60%）</td><td>政策强制驱动需求从'可选项'变'必选项'，锁定长期增量市场</td><td>BP/公开政策</td></tr><tr><td>品牌方承诺与需求缺口</td><td>宜家(100万吨)、Zara(15万吨)、阿迪/耐克(各10万吨)、欧莱雅(15万吨)、联合利华(12万吨)承诺高比例再生材料</td><td>头部客户锁定长期采购意向，溢价空间明确；总需求超1700万吨/年</td><td>BP</td></tr><tr><td>技术路线迭代趋势</td><td>物理法(865万吨, ~1万/吨) → 化学法(15万吨, ~1.7万/吨) → 生物法(在建, ~1.6-2万/吨)</td><td>生物法兼具食品级品质与较低能耗，代表下一代技术方向，溢价空间30-100%</td><td>BP</td></tr></tbody></table><table><thead><tr><th>价值链环节</th><th>描述</th><th>壁垒/机会</th></tr></thead><tbody><tr><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td></tr></tbody></table><table><thead><tr><th>政策/监管</th><th>要点</th><th>影响</th></tr></thead><tbody><tr><td></td><td></td><td>直接拉动rPET需求</td></tr><tr><td></td><td></td><td>出口欧洲品牌必须采购再生材料</td></tr></tbody></table><aside class="callout warning"><div class="callout-title">低置信度</div><p>公开行业规模数据（1700万吨需求、2000亿产值）来源未标注，需第三方报告交叉验证</p></aside></section>
+
+<section class="block kb-panel" id="business-operations"><h2 class="section-title"><span class="section-num">四</span>业务模式与运营假设</h2><div class="journey-wrap"><div class="journey" style="--journey-cols:5"><div class="journey-corner"></div><div class="journey-stage">研发与中试</div><div class="journey-stage">百吨级产线</div><div class="journey-stage">千吨级产线</div><div class="journey-stage">万吨级产线</div><div class="journey-stage">全球规模化供应</div><div class="journey-lane-label">产能路径</div><div class="journey-node">1.5m³中试</div><div class="journey-node">500吨/年</div><div class="journey-node">5000吨/年(2026Q3)</div><div class="journey-node">3万吨(2027)</div><div class="journey-node">10万吨(2030)</div><div class="journey-lane-label">产品路径</div><div class="journey-node">纤维→纤维(T恤/鞋)</div><div class="journey-node">纤维→瓶(PET瓶)</div><div class="journey-node">纤维→膜</div><div class="journey-node">食品级(待批)</div><div class="journey-node">工业级规模化</div></div></div><table><thead><tr><th>应用/产品场景</th><th>价值主张</th><th>证据/缺口</th></tr></thead><tbody><tr><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td></tr></tbody></table><table><thead><tr><th>客户/受众/付费方</th><th>需求</th><th>获客/渠道</th><th>验证状态</th></tr></thead><tbody><tr><td>服装/运动品牌（NIKE、安踏、迪桑特、LULU）</td><td>高端再生聚酯面料（rPTA聚合）</td><td>直接供应/战略合作/安踏创新加速器</td><td>内部验证完成/洽谈千吨级订单/已签2000吨rPTA订单</td></tr><tr><td>家居/日化（宜家、欧莱雅）</td><td>食品级/包装级再生PET</td><td>供应链准入/绿色采购</td><td>宜家战略订单(2026年3000吨,2027年3万吨)/欧莱雅已进入供应链</td></tr><tr><td>汽车/能源化工（丰田、三井物产）</td><td>车用/工业级再生材料</td><td>合资/股权合作+销售/日本建厂</td><td>签战略合作协议（销售+股权+海外布局）</td></tr></tbody></table><table><thead><tr><th>收入来源</th><th>定价/费率</th><th>成本/履约</th><th>单位经济/KPI</th></tr></thead><tbody><tr><td></td><td></td><td></td><td></td></tr></tbody></table><table><thead><tr><th>瓶颈</th><th>影响</th><th>缓释</th></tr></thead><tbody><tr><td>产能爬坡周期</td><td>2026Q3建成→2027Q1满产，6个月爬坡期现金流压力</td><td></td></tr><tr><td>食品级认证</td><td>高溢价市场进入推迟</td><td></td></tr></tbody></table><aside class="callout warning"><div class="callout-title">资料缺口</div><p>单位成本结构（酶成本/能耗/人工/折旧）未披露，无法测算毛利率</p></aside></section>
+
+<section class="block kb-panel" id="legal-ownership"><h2 class="section-title"><span class="section-num">五</span>法律结构与权属关系</h2><table><thead><tr><th>主体/权利</th><th>角色/归属</th><th>限制/负担</th><th>证据/缺口</th></tr></thead><tbody><tr><td>源天生物科技（天津）有限公司</td><td>项目运营与融资主体，2022年10月成立，落地天津经开区</td><td>待核实（股权质押/对赌条款/优先权）</td><td>股权穿透图/历史股东变更/公司章程待提供</td></tr><tr><td>核心专利（42项国内+17项国际）</td><td>公司名下（待核实职务发明/共有专利情况）</td><td>待核实（专利质押/许可限制）</td><td>专利证书/法律状态检索报告待提供</td></tr><tr><td>天津大学技术授权</td><td>技术依托方（全产业链生物制造平台+吨级中试基地）</td><td>技术授权条款/收益分成待明确</td><td>产学研合作协议/知识产权归属协议待提供</td></tr></tbody></table><table><thead><tr><th>合同权利</th><th>范围</th><th>限制</th><th>证据</th></tr></thead><tbody><tr><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td></tr></tbody></table><aside class="callout warning"><div class="callout-title">资料缺口</div><p>天津大学技术授权是否排他？源天生物是否拥有完全商业化权利？</p></aside><aside class="callout warning"><div class="callout-title">资料缺口</div><p>核心技术人员是否签署竞业禁止/知识产权归属协议？</p></aside></section>
+
+<section class="block kb-panel" id="regulatory-compliance"><h2 class="section-title"><span class="section-num">六</span>监管合规与许可路径</h2><table><thead><tr><th>监管/规则</th><th>适用原因</th><th>状态/许可</th><th>红线/下一步</th></tr></thead><tbody><tr><td>GRS（全球回收标准）认证</td><td>再生材料国际市场准入必备</td><td>已获全球首个生物酶法再生GRS认证</td><td>维持认证年度审核；核实证书编号与发证机构</td></tr><tr><td>食品级接触材料审批（FDA/EFSA/NMPA）</td><td>rPET用于食品饮料包装须通过安全评估</td><td>全球首个酶法再生PET瓶已制成（2024.11），但正式审批文件未披露</td><td>补充食品级安全评估报告/审批进度</td></tr><tr><td>环评与能评</td><td>化工/生物制造产线建设前置审批</td><td>5000吨级已开工（2026.2.9），环评应已获批</td><td>核实5000吨级环评批复文件；10万吨级环评进度待查</td></tr><tr><td>安全生产许可</td><td>生物酶制剂生产/储存涉及安全管理</td><td>未披露</td><td>核实安全生产许可证/应急预案备案</td></tr></tbody></table><table><thead><tr><th>许可要求</th><th>状态</th><th>负责人</th></tr></thead><tbody><tr><td></td><td>待申请/审批中</td><td></td></tr></tbody></table><aside class="callout warning"><div class="callout-title">资料缺口</div><p>5000吨级产线环评批复文件未提供；10万吨级产线环评尚未启动或进度不明</p></aside><aside class="callout warning"><div class="callout-title">资料缺口</div><p>安全生产许可/排污许可等常规化工资质未披露</p></aside></section>
+
+<section class="block kb-panel" id="resource-network"><h2 class="section-title"><span class="section-num">七</span>资源网络与关键协作</h2><table><thead><tr><th>主体/资源</th><th>关系与作用</th><th>强度/可验证性</th><th>依赖与风险</th></tr></thead><tbody><tr><td>天津大学</td><td>技术依托方（全产业链生物制造平台+吨级中试孵化基地）</td><td>强（产学研孵化/博士后创新创业大赛一等奖）</td><td>技术授权排他性/核心人员绑定/收益分成</td></tr><tr><td>宜家/莱卡</td><td>首批战略客户+产品联合开发（废棉/废氨纶高值化再生）</td><td>强（已签战略订单/初步实验验证成功）</td><td>单一客户集中度/订单约束力</td></tr><tr><td>安踏体育用品</td><td>创新加速器成员（先进材料-安创新星A-Star）+ 目标供应高端产品线</td><td>强（已获奖项/验证中）</td><td>安踏内部决策周期</td></tr><tr><td>丰田/三井物产</td><td>海外渠道+资本合作+日本建厂（战略合作协议）</td><td>中（协议签署，实质性落地待观察）</td><td>跨国合规/地缘政治/外汇</td></tr><tr><td>开云集团/欧莱雅</td><td>可持续创新奖项背书+供应链准入</td><td>中（奖项/命题奖，订单规模待确认）</td><td>品牌方可持续承诺执行力</td></tr></tbody></table><table><thead><tr><th>能力</th><th>来源</th><th>缺口</th></tr></thead><tbody><tr><td>产学研一体化平台</td><td></td><td></td></tr><tr><td>头部品牌供应链准入</td><td></td><td></td></tr></tbody></table><aside class="callout warning"><div class="callout-title">资料缺口</div><p>缺乏规模化生产运营经验的合伙人/COO（目前偏研发导向）</p></aside><aside class="callout warning"><div class="callout-title">资料缺口</div><p>海外建厂（日本）本地化团队尚未组建</p></aside></section>
+
+<section class="block kb-panel" id="comps-benchmark"><h2 class="section-title"><span class="section-num">八</span>市场对标与可比案例</h2><table><thead><tr><th>可比对象</th><th>可比逻辑</th><th>指标/倍数</th><th>可借鉴/差异</th></tr></thead><tbody><tr><td>Carbios（法国）</td><td>全球酶法回收龙头，与万凯合作5万吨工厂</td><td>规划产能5万吨; 酶法效率~42%（源天&gt;95%，为其2.25倍）</td><td>源天产率更高/产业化进度领先；Carbios资本实力更强/上市地位</td></tr><tr><td>浙江佳人（化学法）</td><td>国内再生聚酯头部企业</td><td>产能3-15万吨; 价格~1.7万/吨; 化学法能耗高</td><td>化学法成本高/产品等级受限；生物法常温常压优势明显，但规模尚小</td></tr><tr><td>Indorama Ventures（泰国）</td><td>全球最大PET生产商之一，物理法回收布局</td><td>物理法产能巨大; 价格~1万/吨</td><td>巨头转型慢/物理法产品等级低；源天专注生物法细分赛道</td></tr><tr><td>杜邦（美国）</td><td>化工巨头再生材料布局</td><td>化学法产能5-8万吨/年</td><td>杜邦品牌/渠道优势强；源天技术效率领先</td></tr></tbody></table><aside class="callout warning"><div class="callout-title">低置信度</div><p>生物法再生PET处于产业化早期，可比公司多为物理法/化学法巨头，直接估值对标需谨慎</p></aside><aside class="callout warning"><div class="callout-title">低置信度</div><p>Carbios为最接近可比对象（同为酶法），但其上市地位/资本结构/地域市场与源天差异较大</p></aside></section>
+
+<section class="block kb-panel" id="valuation-returns"><h2 class="section-title"><span class="section-num">九</span>投资回报与敏感性分析</h2><div class="scenario-cards"><div class="scenario-card down"><div class="sc-label">Downside Case</div><div class="sc-irr">产能爬坡延迟+认证受阻</div><div class="sc-detail">5000吨级产线延期6-12个月，食品级认证未获批，2027-2028收入仅达预测50-60%（6000-8000万/年），现金流紧张需额外融资</div></div><div class="scenario-card base"><div class="sc-label">Base Case</div><div class="sc-irr">按BP预测兑现</div><div class="sc-detail">2026年1000吨/1800万 → 2027年6000吨/1.1亿 → 2028年1.6万吨/2.7亿 → 2029年6万吨/10亿 → 2030年12万吨/15亿；生物法rPTA售价1.6-2.0万/吨，毛利维持40%+</div></div><div class="scenario-card up"><div class="sc-label">Upside Case</div><div class="sc-irr">政策加速+食品级突破+溢价上行</div><div class="sc-detail">欧盟/中国强制再生比例提前执行，食品级FDA/EFSA获批，rPTA单价突破2万/吨，2030年收入超18亿；技术授权收入贡献10%+</div></div></div><aside class="callout warning"><div class="callout-title">资料缺口</div><p>投资现金流：暂无有效数据。</p></aside><table><thead><tr><th>敏感变量</th><th>影响方向</th><th>阈值/区间</th><th>观察方式</th></tr></thead><tbody><tr><td>rPTA销售单价</td><td>收入/毛利</td><td>1.6-2.0万/吨（±20%对收入影响±20%）</td><td>长协订单价格/季度调价机制</td></tr><tr><td>产能爬坡进度</td><td>现金流/折旧</td><td>2026Q3→2027Q1（延迟6个月则当年收入-50%）</td><td>产线建设月报/设备调试进度</td></tr><tr><td>酶成本下降曲线</td><td>毛利率</td><td>规模化后酶成本有望下降30-50%</td><td>季度成本核算</td></tr></tbody></table><aside class="callout warning"><div class="callout-title">资料缺口</div><p>BP未披露本轮融资金额、估值、资金用途明细，无法测算MOIC/IRR</p></aside><aside class="callout warning"><div class="callout-title">资料缺口</div><p>CAPEX明细（5000吨级/10万吨级设备投资/土地/土建）未提供，无法验证财务预测合理性</p></aside><aside class="callout warning"><div class="callout-title">资料缺口</div><p>单位成本结构（酶/能耗/人工/折旧）缺失，毛利率预测无法交叉验证</p></aside></section>
+
+<section class="block kb-panel" id="diligence-gaps"><h2 class="section-title"><span class="section-num">十</span>待确认问题 / 尽调缺口</h2><details class="topic" open><summary><span class="badge badge-red">P1</span> 财务与股权（投资决策前置）<span class="topic-count">4 项 · P1</span></summary><div class="topic-body"><table><thead><tr><th>问题/主张</th><th>证据强度</th><th>Owner</th><th>紧急程度/阻塞</th><th>需要资料/动作</th></tr></thead><tbody><tr><td>百吨级产线（500吨/年）实际营收、毛利、现金流数据？</td><td>待补证据</td><td>财务尽调</td><td>P1</td><td>近两年审计报告/银行流水/纳税申报</td></tr><tr><td>历史股东变更、期权池设置、实际控制人认定？</td><td>待补证据</td><td>法务尽调</td><td>P1</td><td>股权穿透图/股东协议/公司章程</td></tr><tr><td>本轮融资金额、投前估值、资金用途明细？</td><td>待补证据</td><td>投资团队</td><td>P1</td><td>Term Sheet/融资计划/资金预算</td></tr><tr><td>天津大学技术授权条款（排他性/收益分成/期限）？</td><td>待补证据</td><td>法务尽调</td><td>P1</td><td>产学研合作协议/知识产权归属协议</td></tr></tbody></table></div></details><details class="topic" open><summary><span class="badge badge-amber">P2</span> 技术与产能（产业化确定性）<span class="topic-count">4 项 · P2</span></summary><div class="topic-body"><table><thead><tr><th>问题/主张</th><th>证据强度</th><th>Owner</th><th>紧急程度/阻塞</th><th>需要资料/动作</th></tr></thead><tbody><tr><td>5000吨级产线设备供应商、采购合同、付款节点？</td><td>待补证据</td><td>运营尽调</td><td>P2</td><td>设备采购合同/付款凭证/工程进度</td></tr><tr><td>10万吨级产线用地、环评批复、能评审批进度？</td><td>待补证据</td><td>法务/政府关系</td><td>P2</td><td>土地出让合同/环评批复/能评批复</td></tr><tr><td>食品级认证（FDA/EFSA/NMPA）申请进度与预沟通结果？</td><td>待补证据</td><td>监管事务</td><td>P2</td><td>申请材料/预审意见/时间表</td></tr><tr><td>核心技术人员背景、竞业禁止、知识产权归属？</td><td>待补证据</td><td>HR/法务</td><td>P2</td><td>核心团队简历/竞业协议/职务发明协议</td></tr></tbody></table></div></details><details class="topic" open><summary><span class="badge badge-gray">P3</span> 商业与合规（次要但重要）<span class="topic-count">2 项 · P3</span></summary><div class="topic-body"><table><thead><tr><th>问题/主张</th><th>证据强度</th><th>Owner</th><th>紧急程度/阻塞</th><th>需要资料/动作</th></tr></thead><tbody><tr><td>已签2000吨rPTA订单的合同全文（定价/交付/违约条款）？</td><td>待补证据</td><td>法务/商业尽调</td><td>P3</td><td>销售合同全文</td></tr><tr><td>安全生产许可/排污许可等常规化工资质？</td><td>待补证据</td><td>合规尽调</td><td>P3</td><td>许可证清单</td></tr></tbody></table></div></details></section>
+
+<section class="block kb-panel" id="risks-mitigation"><h2 class="section-title"><span class="section-num">十一</span>关键风险与缓释</h2><table class="risk-matrix-table"><thead><tr><th>级别</th><th>风险</th><th>原因</th><th>触发条件</th><th>影响</th><th>证据</th><th>缓释/负责人/状态</th></tr></thead><tbody><tr><td><span class="risk-level risk-level-high">高</span></td><td>万吨级产线建设不及预期</td><td>资金缺口/审批延迟/工程问题/设备交付延迟</td><td></td><td>2028-2030收入无法兑现，财务预测偏差50%+</td><td><sup class="cite-ref"><a href="#source-U-1">[U-1]</a></sup></td><td>分期建设降低单期CAPEX压力；引入产业资本共同投资；争取政府配套与绿色通道</td></tr><tr><td><span class="risk-level risk-level-high">高</span></td><td>食品级认证周期长或受阻</td><td>各国监管标准差异/酶法再生食品安全性数据不足/审批流程复杂</td><td></td><td>高溢价市场（食品饮料包装）进入推迟2-3年，收入结构降级为纤维级为主</td><td><sup class="cite-ref"><a href="#source-U-1">[U-1]</a></sup></td><td>先攻纤维级/工业级市场确保现金流；同步推进FDA/EFSA/NMPA审批；聘请第三方毒理评估机构</td></tr><tr><td><span class="risk-level risk-level-medium">中</span></td><td>巨头（Carbios/杜邦/Indorama）技术追赶</td><td>行业热度高，研发投入大，巨头资本实力雄厚</td><td></td><td>技术壁垒被削弱，价格战压缩毛利，市场份额流失</td><td><sup class="cite-ref"><a href="#source-U-1">[U-1]</a></sup></td><td>持续专利布局构筑IP护城河；绑定头部客户签长协锁定产能；加速产业化抢占时间窗口</td></tr><tr><td><span class="risk-level risk-level-medium">中</span></td><td>单一客户集中度风险</td><td>宜家/安踏等头部客户占收入比例过高</td><td></td><td>大客户流失或砍单导致收入断崖式下滑</td><td><sup class="cite-ref"><a href="#source-U-1">[U-1]</a></sup></td><td>多元化客户结构（汽车/能源化工/食品饮料）；签长期框架协议降低违约风险</td></tr><tr><td><span class="risk-level risk-level-medium">中</span></td><td>核心技术人员流失</td><td>初创企业激励不足/巨头挖角/天津大学人员流动</td><td></td><td>技术迭代停滞/产线调试受阻/专利纠纷</td><td><sup class="cite-ref"><a href="#source-U-1">[U-1]</a></sup></td><td>完善期权池与长期激励计划；签署竞业禁止协议；建立技术文档化体系降低个人依赖</td></tr><tr><td><span class="risk-level risk-level-low">低</span></td><td>政策突变（再生比例要求下调/补贴取消）</td><td>政府更迭/经济下行/行业游说</td><td></td><td>需求增速放缓，但强制政策已立法（欧盟PPWR/加州法案），短期风险低</td><td><sup class="cite-ref"><a href="#source-U-1">[U-1]</a></sup></td><td>多元化地域市场（中/欧/美/日/韩）降低单一政策依赖；成本持续下降即使无补贴仍具经济性</td></tr></tbody></table></section>
+
+<section class="block kb-panel" id="timeline-milestones"><h2 class="section-title"><span class="section-num">十二</span>项目时间轴</h2><p class="section-sub">PROJECT TIMELINE · 仅记录项目自身节点，不放行业动向、市场趋势或研究动作</p><h3>8.1 已发生关键事件</h3><div class="timeline project-timeline "><div class="tl-item"><span class="tl-date">2022-10</span><span class="tl-text"><strong>公司成立</strong> 源天生物科技（天津）有限公司成立，落地天津经济技术开发区。 <sup class="cite-ref"><a href="#source-U-1">[U-1]</a></sup></span></div><div class="tl-item"><span class="tl-date">2024-05</span><span class="tl-text"><strong>国际首件酶法再生衣物</strong> 制成国际首件酶法再生T恤和运动鞋，实现纤维到纤维循环。 <sup class="cite-ref"><a href="#source-U-1">[U-1]</a></sup></span></div><div class="tl-item"><span class="tl-date">2024-11</span><span class="tl-text"><strong>全球首个酶法再生PET瓶</strong> 制成全球首个酶法再生PET瓶，实现纤维到瓶的升级循环。 <sup class="cite-ref"><a href="#source-U-1">[U-1]</a></sup></span></div><div class="tl-item"><span class="tl-date">2025</span><span class="tl-text"><strong>获GRS认证+多项行业大奖</strong> 核心产品rPTA获得全球首个生物酶法再生GRS认证；荣获15项行业大赛奖项（海河英才一等奖/开云可持续创新先锋十强等）。 <sup class="cite-ref"><a href="#source-U-1">[U-1]</a></sup></span></div><div class="tl-item"><span class="tl-date">2026-02-09</span><span class="tl-text"><strong>5000吨级产线开工</strong> 5000吨级产线正式开工建设。 <sup class="cite-ref"><a href="#source-U-1">[U-1]</a></sup></span></div><div class="tl-item"><span class="tl-date">2026-03</span><span class="tl-text"><strong>宜家战略订单签订</strong> 与宜家签订战略订单：2026年3000吨，2027年3万吨。 <sup class="cite-ref"><a href="#source-U-1">[U-1]</a></sup></span></div></div><h3>8.2 正在推进</h3><div class="timeline project-timeline "><div class="tl-item timeline-ongoing"><span class="tl-date">进行中</span><span class="tl-text"><strong>5000吨级产线建设与调试</strong> 2026年Q3搭建设完成，2027年Q1产能爬坡完成。</span></div><div class="tl-item timeline-ongoing"><span class="tl-date">进行中</span><span class="tl-text"><strong>头部客户订单交付</strong> 已签2000吨rPTA销售订单（NIKE/迪桑特/LULU供应商）；宜家/安踏/欧莱雅等2026-2027年终端产品上架。</span></div></div><h3>8.3 未来关键节点</h3><div class="timeline project-timeline "><div class="tl-item timeline-deadline"><span class="tl-date">2026-Q3</span><span class="tl-text"><strong>5000吨级产线建成</strong> 搭建设完成，进入调试阶段。</span></div><div class="tl-item timeline-deadline"><span class="tl-date">2027-Q1</span><span class="tl-text"><strong>5000吨级产能爬坡完成</strong> 满产运行，当年产量目标6000吨，销售收入1.1亿。</span></div><div class="tl-item timeline-deadline"><span class="tl-date">2027</span><span class="tl-text"><strong>10万吨级一期（3万吨）开工</strong> 启动万吨级产线建设。</span></div><div class="tl-item timeline-deadline"><span class="tl-date">2028</span><span class="tl-text"><strong>10万吨级二期（7万吨）开工</strong> 完成首期投产，启动二期7万吨产线建设。</span></div><div class="tl-item timeline-deadline"><span class="tl-date">2030</span><span class="tl-text"><strong>10万吨级满产</strong> 目标产量12万吨，销售收入15亿。</span></div></div><aside class="callout warning"><div class="callout-title">资料缺口</div><p>BP未披露本轮融资close时间节点，投资窗口期不明</p></aside></section>
+
+<section class="block kb-panel" id="decision-framework"><h2 class="section-title"><span class="section-num">十三</span>决策框架</h2><aside class="callout info"><div class="callout-title">条件式建议</div><p>建议推进至IC前尽调（P1/P2清单补齐）。技术国际领先（酶法产率&gt;95%为Carbios的2.25倍）、政策强制驱动需求、头部客户验证完成并签订千万级订单，具备高成长潜力；需核实财务底稿（百吨级实际营收）、股权清晰度与万吨级产线落地确定性后再做投资决定。</p></aside><table><thead><tr><th>投资论点</th><th>证据</th><th>前置条件</th><th>反证/风险</th></tr></thead><tbody><tr><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td></tr></tbody></table><table><thead><tr><th>选项</th><th>好处</th><th>代价/风险</th><th>适用条件</th></tr></thead><tbody><tr><td>领投/跟投A轮</td><td>锁定生物法再生PET全球龙头份额，享受政策强制红利与食品级溢价，潜在回报10x+</td><td>产能爬坡与认证周期长（2-3年），短期现金流压力，万吨级CAPEX大</td><td>P1财务/股权尽调无重大瑕疵，估值合理（对应2030年15亿收入P/S 3-5x），团队激励到位</td></tr><tr><td>观望/债权介入</td><td>控制股权风险，观察5000吨产线实际跑通情况与食品级认证进度</td><td>可能错失早期入股机会，品牌方可能抢先锁定产能导致份额稀释</td><td>对万吨级CAPEX/团队背景/技术可放大性存疑，或当前估值过高</td></tr></tbody></table><table><thead><tr><th>下一步</th><th>Owner</th><th>时间</th><th>交付物</th></tr></thead><tbody><tr><td>发送P1尽调清单（财务审计/股权穿透/融资条款）</td><td>投资团队</td><td>T+3工作日</td><td>问题清单与资料索引</td></tr><tr><td>实地走访5000吨产线施工现场</td><td>运营专家/外部顾问</td><td>T+7工作日</td><td>现场尽调报告（工程进度/设备/团队）</td></tr><tr><td>GRS认证与专利法律状态核实</td><td>法务</td><td>T+10工作日</td><td>合规备忘录（证书编号/专利清单/法律状态）</td></tr><tr><td>食品级监管预沟通</td><td>监管事务顾问</td><td>T+14工作日</td><td>FDA/EFSA/NMPA审批路径与时间表评估</td></tr></tbody></table><aside class="callout warning"><div class="callout-title">资料缺口</div><p>触发器：暂无有效数据。</p></aside></section>
+
+    <!-- ═══════════════════════════════════════════════════
+         APPENDIX A — 来源索引 (omit entire section if empty)
+    ════════════════════════════════════════════════════ -->
+    <section class="block kb-panel" id="source-index"><h2 class="section-title"><span class="section-num">A</span>附录 A · 来源索引</h2><table><thead><tr><th>ID</th><th>类型</th><th>标题</th><th>主体</th><th>摘录/说明</th><th>影响章节</th></tr></thead><tbody><tr><td><span id="source-U-1">U-1</span></td><td>用户上传</td><td>源天生物bp 2026年4月 简版.pdf</td><td>项目方</td><td>废弃PET塑料酶法再生及产业化私募融资商业计划书，含技术路线、产能规划、客户订单、财务预测与行业政策梳理。</td><td>snapshot, target-overview, industry-market, business-operations, resource-network, legal-ownership, regulatory-compliance, comps-benchmark, valuation-returns, diligence-gaps, risks-mitigation, timeline-milestones, decision-framework</td></tr></tbody></table></section>
+
+    <!-- ═══════════════════════════════════════════════════
+         APPENDIX B — 术语表 (omit entire section if empty)
+    ════════════════════════════════════════════════════ -->
+    <section class="block kb-panel" id="glossary"><h2 class="section-title"><span class="section-num">B</span>附录 B · 术语表</h2><div class="glossary-row" id="term-rpta"><span class="term">rPTA</span><span>再生精对苯二甲酸（Recycled PTA），酶法降解PET的核心产物，用于聚合高品质再生PET（纤维级/食品级/膜级）。</span><span>技术/产品</span></div><div class="glossary-row" id="term-rmeg"><span class="term">rMEG</span><span>再生乙二醇（Recycled Monoethylene Glycol），PET降解另一主要产物，可与rPTA聚合生成rPET。</span><span>技术/产品</span></div><div class="glossary-row" id="term-grs"><span class="term">GRS</span><span>Global Recycled Standard（全球回收标准），验证产品回收材料含量及供应链社会责任、环境实践的国际认证。</span><span>监管/认证</span></div><div class="glossary-row" id="term-ppwr"><span class="term">PPWR</span><span>欧盟《包装和包装废弃物法规》（Packaging and Packaging Waste Regulation），强制规定塑料包装再生含量目标（2030年PET 30%，2040年50%）。</span><span>行业政策</span></div><div class="glossary-row" id="term-酶法再生"><span class="term">酶法再生</span><span>利用生物酶在常温常压下降解PET为单体（rPTA/rMEG），再重新聚合为食品级/高品质rPET的技术路线。</span><span>技术路线</span></div></section>
+
+    <section class="block kb-panel" id="data-dictionary"><h2 class="section-title"><span class="section-num">C</span>附录 C · 数据字典、模型假设与数据证据底稿</h2><table><thead><tr><th>字段/模型项</th><th>口径/公式</th><th>样本范围/清洗逻辑</th><th>Caveat</th></tr></thead><tbody><tr><td>rPTA产率</td><td>单位反应体积内PTA产量（g/L），衡量酶法降解效率的核心指标。</td><td>&gt;450g/L，产率&gt;95%（源天数据）；Carbios约200g/L/42%</td><td>中试数据（1.5m³反应器），万吨级放大效应待验证</td></tr><tr><td>生物法rPET价格</td><td>酶法再生PET切片市场报价区间。</td><td>1.6-2.0万元/吨</td><td>随认证等级（纤维级下限/食品级上限）波动；长协订单可能有折扣</td></tr><tr><td>产能爬坡周期</td><td>产线建成至满产运行的时间。</td><td>5000吨级：2026Q3建成 → 2027Q1满产（约6个月）</td><td>首次产业化产线，实际爬坡可能延长至9-12个月</td></tr></tbody></table></section>
+
+    <section class="block kb-panel" id="version-ledger"><h2 class="section-title"><span class="section-num">D</span>附录 D · 版本记录</h2><table><thead><tr><th>版本</th><th>时间</th><th>父版本</th><th>来源</th><th>变更摘要</th></tr></thead><tbody><tr><td>v1</td><td>2026-06-04 08:39</td><td>none</td><td>Hermes</td><td>hermes-file-put</td></tr><tr><td>v2</td><td>2026-06-18 04:00</td><td>v1</td><td>Hermes</td><td>hermes-file-put</td></tr><tr><td>v3</td><td>2026-06-19 19:43</td><td>v2</td><td>Hermes</td><td>hermes-file-put</td></tr><tr><td>v4</td><td>2026-06-20 04:26</td><td>v3</td><td>JensenFang</td><td>基于《源天生物BP 2026年4月 简版.pdf》全量重构知识网络。覆盖13个核心板块：公司已建成国际首套百吨级rPTA产线，5000吨级产线于2026年2月开工（Q3建成）；技术端掌握42项国内+17项国际专利，获全球首个生物酶法再生GRS认证；商业端已切入宜家、安踏、欧莱雅、NIKE等头部品牌供应链，签订rPTA千万级订单；财务预测2026-2030年收入从1800万跃升至15亿。资料缺口主要集中于财务审计底稿、股权穿透细节及万吨级产线环评批复。</td></tr><tr><td>v5</td><td>2026-06-20 05:36</td><td>v4</td><td>JensenFang</td><td>基于《源天生物BP 2026年4月 简版.pdf》全量重构知识网络。公司已建成国际首套百吨级rPTA产线（产率&gt;95%），5000吨级产线2026年2月开工、Q3建成；掌握42项国内+17项国际专利，获全球首个生物酶法再生GRS认证；商业端切入宜家、安踏、欧莱雅、NIKE等头部供应链，签rPTA千万级订单；财务预测2026-2030年收入1800万→15亿。资料缺口集中于财务审计、股权穿透、万吨级环评及食品级审批。</td></tr><tr><td>v6</td><td>2026-06-20 06:12</td><td>v5</td><td>JensenFang</td><td>基于《源天生物BP 2026年4月 简版.pdf》全量重构知识网络。覆盖13个核心板块：公司已建成国际首套百吨级rPTA产线（产率&gt;95%），5000吨级产线2026年2月开工、Q3建成；掌握42项国内+17项国际专利，获全球首个生物酶法再生GRS认证；商业端切入宜家、安踏、欧莱雅、NIKE等头部供应链，签rPTA千万级订单；财务预测2026-2030年收入1800万→15亿。资料缺口集中于财务审计、股权穿透、万吨级环评及食品级审批。</td></tr></tbody></table></section>
+
+    <!-- ═══════════════════════════════════════════════════
+    ════════════════════════════════════════════════════ -->
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p class="brand">联合家办 · 源天生物</p>
+      <p>本文档由 AI 辅助生成，仅供内部研究参考，不构成投资建议。所有数据须经独立核实后方可用于决策。</p>
+      <p style="margin-top:.5rem;color:#bbb">Generated 2026-06-20 00:00</p>
+    </footer>
+
+  </main>
+</div>
+
+<!-- Panel switcher + bilingual toggle JS — DO NOT MODIFY -->
+<script>
+(function(){
+  var btns = document.querySelectorAll('.kb-nav-btn');
+  var panels = document.querySelectorAll('.kb-panel');
+  function activate(id){
+    panels.forEach(function(p){ p.classList.toggle('active', p.id === id); });
+    btns.forEach(function(b){ b.classList.toggle('active', b.dataset.target === id); });
+  }
+  function show(id){
+    activate(id);
+    if (history.replaceState) history.replaceState(null, '', '#' + id);
+    window.scrollTo(0, 0);
+  }
+  function revealAnchor(anchorId){
+    var el = document.getElementById(anchorId);
+    if (!el) return false;
+    var panel = el.closest('.kb-panel');
+    if (panel) activate(panel.id);
+    if (history.replaceState) history.replaceState(null, '', '#' + anchorId);
+    var target = el.closest('tr') || el;
+    document.querySelectorAll('.anchor-highlight').forEach(function(x){ x.classList.remove('anchor-highlight'); });
+    target.classList.add('anchor-highlight');
+    setTimeout(function(){ target.scrollIntoView({behavior:'smooth', block:'center'}); }, 0);
+    return true;
+  }
+  btns.forEach(function(b){
+    b.addEventListener('click', function(){ show(b.dataset.target); });
+  });
+  document.querySelectorAll('.cite-ref a[href^="#"], .term-ref a[href^="#"]').forEach(function(a){
+    a.addEventListener('click', function(ev){
+      var id = a.getAttribute('href').slice(1);
+      if (revealAnchor(id)) ev.preventDefault();
+    });
+  });
+  var hash = (location.hash || '').replace('#','');
+  if (hash && document.getElementById(hash)) {
+    var hashed = document.getElementById(hash);
+    if (hashed.classList.contains('kb-panel')) show(hash);
+    else revealAnchor(hash);
+  }
+  var toggle = document.getElementById('lang-toggle');
+  if (toggle) {
+    toggle.style.display = 'flex';
+    toggle.querySelectorAll('.lang-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        document.body.classList.toggle('kb-en-mode', btn.dataset.lang === 'en');
+        toggle.querySelectorAll('.lang-btn').forEach(function(b){
+          b.classList.toggle('active', b.dataset.lang === btn.dataset.lang);
+          b.setAttribute('aria-pressed', b.dataset.lang === btn.dataset.lang);
+        });
+      });
+    });
+  }
+})();
+</script>
+</body>
+</html>

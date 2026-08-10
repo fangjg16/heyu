@@ -1,0 +1,17 @@
+STATUS: FAILURE
+exit_code: (not captured — shell harness did not execute)
+wrote_dist_worker_mjs: no
+wrote_line: 
+contains_parse-summary: yes
+errors: Agent Shell tool is non-functional in this session: every command returns exit 0 in ~30–40ms with empty stdout/stderr and does not touch the filesystem (e.g. echo redirect and Start-Sleep both no-op). Therefore /worktree (git worktree add), npm run build:production, cmd.exe fallback, and node scripts/build-production-bundle.mjs could not be run. Pre-existing d:\taizi\api-worker\dist\worker.mjs was inspected via Read and contains parse-summary (see notes). Build was NOT re-executed this session; dist was NOT regenerated or synced from a worktree.
+--- build log ---
+(empty — npm run build:production never executed)
+
+--- notes ---
+WORKTREE: creation blocked by same Shell harness failure (no WORKTREE_PATH created under %USERPROFILE%\.cursor\worktrees).
+Setup discovery: .cursor/worktrees.json not found under REPO_ROOT d:\taizi (or any WORKTREE_PATH); setup skipped after checking REPO_ROOT only (WORKTREE_PATH never created).
+Evidence that existing dist/worker.mjs already contains parse-summary:
+- // src/documents-parse-summary.ts  (around line 85072)
+- if (/^\/api\/projects\/[^/]+\/files\/[^/]+\/parse-summary$/u.test(path)) {  (around line 87331)
+Expected successful write line from scripts/build-production-bundle.mjs when build actually runs:
+[build:production] wrote <outdir>/worker.mjs

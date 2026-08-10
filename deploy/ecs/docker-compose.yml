@@ -1,0 +1,206 @@
+# ECS production stack (phase 1: no custom domain)
+# Usage (on ECS, from repo root):
+#   cp deploy/ecs/.env.example deploy/ecs/.env   # fill secrets
+#   docker compose -f deploy/ecs/docker-compose.yml --env-file deploy/ecs/.env up -d --build
+#
+# Public HTTPS for API: cloudflared quick tunnel (URL in `docker compose logs -f cloudflared`)
+
+name: heyu-jfo
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-yuhu_hk}
+      MYSQL_USER: ${MYSQL_USER:-jfo}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - jfo
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    networks:
+      - jfo
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET:-family-office-platform}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        i=0
+        until mc alias set local http://minio:9000 "$$MINIO_ACCESS_KEY" "$$MINIO_SECRET_KEY"; do
+          i=$$((i+1))
+          if [ "$$i" -gt 30 ]; then exit 1; fi
+          sleep 2
+        done
+        mc mb -p "local/$$MINIO_BUCKET" || true
+    networks:
+      - jfo
+    restart: "no"
+
+  mysql-bridge:
+    build:
+      context: ../../api-worker
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["node", "scripts/mysql-local-bridge.mjs"]
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_USER: ${MYSQL_USER:-jfo}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-yuhu_hk}
+      MYSQL_BRIDGE_HOST: 0.0.0.0
+      MYSQL_BRIDGE_PORT: "8790"
+      MYSQL_BRIDGE_KEY: ${MYSQL_BRIDGE_KEY:-}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8790/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - jfo
+
+  jfo-api:
+    build:
+      context: ../../api-worker
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: "8787"
+      DB_DRIVER: mysql
+      FILE_DRIVER: minio
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_USER: ${MYSQL_USER:-jfo}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-yuhu_hk}
+      MYSQL_BRIDGE_URL: http://mysql-bridge:8790
+      MYSQL_BRIDGE_KEY: ${MYSQL_BRIDGE_KEY:-}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET:-family-office-platform}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+      MINIO_MAX_UPLOAD_BYTES: ${MINIO_MAX_UPLOAD_BYTES:-52428800}
+      DASHSCOPE_API_KEY: ${LLM_API_KEY}
+      DASHSCOPE_BASE_URL: ${LLM_API_BASE_URL}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      HERMES_BASE_URL: http://hermes:8642
+      HERMES_API_KEY: ${HERMES_API_KEY}
+      HERMES_MODEL: ${LLM_MODEL:-qwen-plus}
+      JFO_INTERNAL_KEY: ${JFO_INTERNAL_KEY}
+      JFO_API_PUBLIC_BASE: ${JFO_API_PUBLIC_BASE}
+      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-https://fangjg16.github.io}
+    depends_on:
+      mysql-bridge:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      hermes:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8787/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+    networks:
+      - jfo
+
+  hermes:
+    image: nousresearch/hermes-agent:latest
+    restart: unless-stopped
+    command: gateway run
+    environment:
+      API_SERVER_ENABLED: "true"
+      API_SERVER_HOST: 0.0.0.0
+      API_SERVER_KEY: ${HERMES_API_KEY}
+      OPENAI_API_BASE: ${LLM_API_BASE_URL}
+      OPENAI_API_KEY: ${LLM_API_KEY}
+      MODEL_DEFAULT: ${LLM_MODEL:-qwen-plus}
+      JFO_API_PUBLIC_BASE: http://jfo-api:8787
+      JFO_INTERNAL_KEY: ${JFO_INTERNAL_KEY}
+      JFO_DEFAULT_USER_ID: ${JFO_DEFAULT_USER_ID:-CandiceGuo}
+      HERMES_SKILLS_DIR: /opt/data/skills
+    volumes:
+      - hermes_data:/opt/data
+      - ../../hermes-railway/skills:/opt/data/skills:ro
+      - ../../hermes-railway/SOUL-JFO-KB.md:/opt/data/SOUL.md:ro
+    networks:
+      - jfo
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://jfo-api:8787
+    depends_on:
+      jfo-api:
+        condition: service_healthy
+    networks:
+      - jfo
+
+  # Optional phase-2 reverse proxy (uncomment + set DOMAIN after you own a domain)
+  # caddy:
+  #   image: caddy:2
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./Caddyfile:/etc/caddy/Caddyfile:ro
+  #     - caddy_data:/data
+  #     - caddy_config:/config
+  #   depends_on:
+  #     - jfo-api
+  #   networks:
+  #     - jfo
+
+volumes:
+  mysql_data:
+  minio_data:
+  hermes_data:
+  # caddy_data:
+  # caddy_config:
+
+networks:
+  jfo:
+    driver: bridge

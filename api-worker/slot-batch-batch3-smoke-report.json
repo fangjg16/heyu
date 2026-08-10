@@ -1,0 +1,35 @@
+{
+  "projectId": "proj-7c0f947a6a00",
+  "jobId": "98cbe8c7-b079-4df2-ae60-395d98ec1322",
+  "status": "completed",
+  "wallSec": 766,
+  "error": null,
+  "batch3Slots": [
+    "resource-network",
+    "comps-benchmark",
+    "valuation-returns"
+  ],
+  "jsonParsed": true,
+  "repairTriggered": true,
+  "repairJsonValid": true,
+  "durationSec": 762,
+  "slotQuality": [
+    {
+      "slot": "resource-network",
+      "ok": true,
+      "score": 80
+    },
+    {
+      "slot": "comps-benchmark",
+      "ok": true,
+      "score": 80
+    },
+    {
+      "slot": "valuation-returns",
+      "ok": true,
+      "score": 100
+    }
+  ],
+  "kbUnchanged": true,
+  "answer": "Batch 3 smoke 通过（未发布 KB）。\nslot quality：resource-network:pass(80), comps-benchmark:pass(80), valuation-returns:pass(100)。\n耗时：762s；repair=是。\njsonParsed=true；repairJsonValid=true。"
+}

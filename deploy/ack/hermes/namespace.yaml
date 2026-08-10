@@ -1,0 +1,7 @@
+# 若集群已有同名 namespace 可跳过
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jfo
+  labels:
+    app.kubernetes.io/part-of: jfo

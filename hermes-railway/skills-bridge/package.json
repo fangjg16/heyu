@@ -1,0 +1,12 @@
+{
+  "name": "jfo-skills-bridge",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node ../../api-worker/scripts/skills-bridge.mjs"
+  }
+}

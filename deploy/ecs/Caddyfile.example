@@ -1,0 +1,5 @@
+# Phase 2 (after you have a real domain). Rename/copy to Caddyfile and enable the
+# caddy service in docker-compose.yml. Replace api.example.com with your host.
+api.example.com {
+	reverse_proxy jfo-api:8787
+}

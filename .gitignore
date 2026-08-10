@@ -1,0 +1,28 @@
+# Dependencies
+node_modules
+api-worker/node_modules
+dist
+api-worker/dist
+api-worker/.wrangler
+
+# Local / generated secrets — never commit
+local.dev.secrets.env
+.env
+.env.*
+!.env.example
+!**/.env.example
+api-worker/.dev.vars
+hermes-railway/.env.docker.local
+deploy/ecs/.env
+
+# OS / IDE / junk
+.DS_Store
+Thumbs.db
+*.log
+.idea
+.vscode
+hs_err_pid*.log
+
+# Local data
+.data/
+*.sql.gz

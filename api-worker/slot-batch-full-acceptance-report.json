@@ -1,0 +1,180 @@
+{
+  "projectId": "proj-7c0f947a6a00",
+  "jobId": "05b570ef-f6a7-4834-a968-5ac6c0f4ee35",
+  "status": "failed",
+  "versionBefore": null,
+  "versionLabelBefore": null,
+  "versionAfter": null,
+  "versionLabelAfter": null,
+  "d1VersionIncremented": false,
+  "publishSucceeded": false,
+  "kbPreserved": true,
+  "wallSec": 810,
+  "batchDurationSumSec": 433,
+  "orchestration": "slot-batched-4-batch",
+  "comparisonNote": "Monolithic 全量 JSON 曾出现超时/僵尸 job；slot-batched 按批校验，失败 batch 不污染已接受 slot。",
+  "batches": [
+    {
+      "batch": 1,
+      "batchIndex": 0,
+      "slots": [
+        "snapshot",
+        "target-overview",
+        "industry-market"
+      ],
+      "durationSec": 159,
+      "repairDurationSec": null,
+      "jsonParsed": true,
+      "repairTriggered": false,
+      "repairJsonValid": null,
+      "batchSucceeded": true,
+      "failed": false,
+      "slotQuality": [
+        {
+          "slot": "snapshot",
+          "score": 100,
+          "ok": true,
+          "gapFirstMode": false,
+          "factCoverage": null,
+          "gapCoverage": null,
+          "issues": []
+        },
+        {
+          "slot": "target-overview",
+          "score": 100,
+          "ok": true,
+          "gapFirstMode": false,
+          "factCoverage": null,
+          "gapCoverage": null,
+          "issues": []
+        },
+        {
+          "slot": "industry-market",
+          "score": 100,
+          "ok": true,
+          "gapFirstMode": false,
+          "factCoverage": null,
+          "gapCoverage": null,
+          "issues": []
+        }
+      ],
+      "injection": {
+        "deepRefs": 4,
+        "hintFiles": 9,
+        "planMust": 11,
+        "planShould": 7,
+        "digest": true
+      }
+    },
+    {
+      "batch": 2,
+      "batchIndex": 1,
+      "slots": [
+        "business-operations",
+        "legal-ownership",
+        "regulatory-compliance"
+      ],
+      "durationSec": 274,
+      "repairDurationSec": null,
+      "jsonParsed": true,
+      "repairTriggered": false,
+      "repairJsonValid": null,
+      "batchSucceeded": true,
+      "failed": false,
+      "slotQuality": [
+        {
+          "slot": "business-operations",
+          "score": 100,
+          "ok": true,
+          "gapFirstMode": false,
+          "factCoverage": null,
+          "gapCoverage": null,
+          "issues": []
+        },
+        {
+          "slot": "legal-ownership",
+          "score": 72,
+          "ok": true,
+          "gapFirstMode": true,
+          "factCoverage": 54,
+          "gapCoverage": 100,
+          "issues": []
+        },
+        {
+          "slot": "regulatory-compliance",
+          "score": 72,
+          "ok": true,
+          "gapFirstMode": true,
+          "factCoverage": 0,
+          "gapCoverage": 100,
+          "issues": []
+        }
+      ],
+      "injection": {
+        "deepRefs": 3,
+        "hintFiles": 6,
+        "planMust": 10,
+        "planShould": 7,
+        "digest": false
+      }
+    },
+    {
+      "batch": 3,
+      "batchIndex": 2,
+      "slots": [
+        "resource-network",
+        "comps-benchmark",
+        "valuation-returns"
+      ],
+      "durationSec": null,
+      "repairDurationSec": null,
+      "jsonParsed": false,
+      "repairTriggered": true,
+      "repairJsonValid": false,
+      "batchSucceeded": false,
+      "failed": true,
+      "slotQuality": [],
+      "injection": {
+        "deepRefs": 3,
+        "hintFiles": 6,
+        "planMust": 11,
+        "planShould": 7,
+        "digest": false
+      }
+    },
+    {
+      "batch": 4,
+      "batchIndex": 3,
+      "slots": [
+        "diligence-gaps",
+        "risks-mitigation",
+        "timeline-milestones",
+        "decision-framework"
+      ],
+      "durationSec": null,
+      "repairDurationSec": null,
+      "jsonParsed": null,
+      "repairTriggered": false,
+      "repairJsonValid": null,
+      "batchSucceeded": false,
+      "failed": false,
+      "slotQuality": [],
+      "injection": null
+    }
+  ],
+  "error": "structured-slot-batch JSON 解析失败",
+  "failure": {
+    "batch": 3,
+    "slots": [
+      "resource-network",
+      "comps-benchmark",
+      "valuation-returns"
+    ],
+    "repairAttempt": 1,
+    "message": "structured-slot-batch JSON 解析失败",
+    "jsonParsed": false,
+    "repairJsonValid": false,
+    "gaps": [],
+    "recommendation": "先做 batch 3 专用 smoke，勿改全局 contract"
+  }
+}

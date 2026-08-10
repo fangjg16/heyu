@@ -1,0 +1,39 @@
+# 赋给运行 api-worker 的 ServiceAccount：仅可 get/patch hermes-gateway Deployment
+# 将 ServiceAccount 名改为你们现网 api-worker 使用的 SA（下方示例 jfo-api-worker）
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jfo-api-worker
+  namespace: jfo
+  labels:
+    app.kubernetes.io/name: jfo-api-worker
+    app.kubernetes.io/part-of: jfo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: hermes-gateway-restarter
+  namespace: jfo
+  labels:
+    app.kubernetes.io/part-of: jfo
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["hermes-gateway"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jfo-api-worker-hermes-restart
+  namespace: jfo
+  labels:
+    app.kubernetes.io/part-of: jfo
+subjects:
+  - kind: ServiceAccount
+    name: jfo-api-worker
+    namespace: jfo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hermes-gateway-restarter

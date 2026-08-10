@@ -1,0 +1,84 @@
+{
+  "projectId": "proj-7c0f947a6a00",
+  "auditedAt": "2026-06-22T06:57:25.914Z",
+  "htmlBytes": 56855,
+  "strictPass": true,
+  "strictIssues": [],
+  "d1Version": "v3",
+  "pageVersion": "v2",
+  "versionLabel": "2",
+  "versionConsistent": false,
+  "qualityCoverage": "85",
+  "maturity": {
+    "factorA": "50%",
+    "factorB": "50%",
+    "combined": "50%"
+  },
+  "maturityNumeric": true,
+  "emptyTbodyRows": 0,
+  "emptyTdCells": 22,
+  "emptyTdBySection": [
+    {
+      "section": "appendix:source-index",
+      "count": 12,
+      "samples": [
+        "<td><span id=\"source-U-1\">U-1</span></td><td>用户上传</td><td>文字记录：中亚贸易项目讨论 2026年5月21日</td><td></td><td></td><td></td>",
+        "<td><span id=\"source-U-1\">U-1</span></td><td>用户上传</td><td>文字记录：中亚贸易项目讨论 2026年5月21日</td><td></td><td></td><td></td>",
+        "<td><span id=\"source-U-1\">U-1</span></td><td>用户上传</td><td>文字记录：中亚贸易项目讨论 2026年5月21日</td><td></td><td></td><td></td>"
+      ]
+    },
+    {
+      "section": "decision-framework",
+      "count": 4,
+      "samples": [
+        "<td>安排与新疆外管局/央行的监管沟通会议，取得 Trade Credit 书面意见</td><td>项目方法务</td><td>2026-07-31</td><td></td>",
+        "<td>完成项目公司注册并取得营业执照，明确股权结构</td><td>项目发起方</td><td>2026-08-15</td><td></td>",
+        "<td>对哈方合作方进行独立尽调（资信+诉讼+制裁筛查）</td><td>背景调查团队</td><td>2026-08-31</td><td></td>"
+      ]
+    },
+    {
+      "section": "comps-benchmark",
+      "count": 3,
+      "samples": [
+        "<td>口岸物流与供应链平台</td><td>跨境履约能力</td><td></td><td>差异：资产更重（自建仓储）；启示：轻资产撮合 vs 控货模式估值差异</td>",
+        "<td>进口分销商（铜加工下游）</td><td>渠道与终端客户重叠</td><td></td><td>差异：品类单一；启示：周转与账期假设待验证</td>",
+        "<td>中亚贸易综合服务提供商</td><td>地缘市场与政策通道</td><td></td><td>差异：含关务+物流综合服务；启示：本平台服务边界待确认</td>"
+      ]
+    },
+    {
+      "section": "valuation-returns",
+      "count": 3,
+      "samples": [
+        "<td>供应链履约保证金/押金</td><td></td><td>口岸仓储押金、物流承运商保证金、质量检验预付款；金额取决于首年贸易量假设</td>",
+        "<td>合规与许可获取</td><td></td><td>进出口许可证、关务代理费、法律意见书、配额申请费用；政策性支出，不可省略</td>",
+        "<td>营运资金（首批易货标的采购）</td><td></td><td>铜/石油首批采购预付款或定金；金额由 SKU 数量×单价×付款条款决定，目前均未披露</td>"
+      ]
+    }
+  ],
+  "appendices": [
+    {
+      "id": "source-index",
+      "present": true
+    },
+    {
+      "id": "glossary",
+      "present": true
+    },
+    {
+      "id": "data-dictionary",
+      "present": true
+    },
+    {
+      "id": "version-ledger",
+      "present": true
+    }
+  ],
+  "citations": {
+    "refs": 15,
+    "broken": []
+  },
+  "detailsTopicMentions": 0,
+  "riskLevelBadges": 11,
+  "timelineProjectOnly": true,
+  "slotsPresent": 13
+}

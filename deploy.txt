@@ -1,0 +1,13 @@
+#此文件用于devops流水线，该工程一共有3个服务，需要发哪个就打开前面的注释
+
+#后端服务
+api-worker
+
+#前端服务
+web
+
+#hermes技能
+#hermes-skills
+
+#mysql桥接服务，一般日常不需要发，保持注释即可
+#mysql-bridge

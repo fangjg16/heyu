@@ -1,0 +1,93 @@
+# Skills Bridge：与 hermes-gateway 共挂 hermes-data PVC，写 /opt/data/skills
+# 镜像：用包含本仓库 api-worker/scripts 的 Node 镜像（示例名需换成你们 CI 构建产物）
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skills-bridge
+  namespace: jfo
+  labels:
+    app.kubernetes.io/name: skills-bridge
+    app.kubernetes.io/part-of: jfo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: skills-bridge
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: skills-bridge
+        app.kubernetes.io/part-of: jfo
+    spec:
+      containers:
+        - name: skills-bridge
+          image: jfo/skills-bridge:latest
+          imagePullPolicy: IfNotPresent
+          workingDir: /app/api-worker
+          command: ["node", "scripts/skills-bridge.mjs"]
+          ports:
+            - name: http
+              containerPort: 8791
+          env:
+            - name: HERMES_HOME
+              value: /opt/data
+            - name: HERMES_SKILLS_SOURCE
+              value: /opt/data/skills
+            - name: HERMES_SKILLS_DIR
+              value: /opt/data/skills
+            - name: SKILLS_VOLUME_MODE
+              value: "1"
+            - name: SKILLS_BRIDGE_HOST
+              value: "0.0.0.0"
+            - name: SKILLS_BRIDGE_PORT
+              value: "8791"
+            - name: SKILLS_BRIDGE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-runtime
+                  key: SKILLS_BRIDGE_KEY
+          volumeMounts:
+            - name: hermes-data
+              mountPath: /opt/data
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: 128Mi
+            limits:
+              cpu: "500m"
+              memory: 512Mi
+      volumes:
+        - name: hermes-data
+          persistentVolumeClaim:
+            claimName: hermes-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: skills-bridge
+  namespace: jfo
+  labels:
+    app.kubernetes.io/name: skills-bridge
+    app.kubernetes.io/part-of: jfo
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: skills-bridge
+  ports:
+    - name: http
+      port: 8791
+      targetPort: http

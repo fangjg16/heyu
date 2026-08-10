@@ -1,0 +1,309 @@
+import type { AppDatabase } from "./app-database";
+
+export type ProjectPhase =
+  | "Active（资源筹备中）"
+  | "Completed（已签约）"
+  | "Paused（暂停）"
+  | "Cancelled（已取消）";
+
+/** 目录可见性：半开放 | 内部邀请（public 为历史值，视同半开放） */
+export type ProjectOpenness = "partial" | "invite";
+
+export type ProjectRow = {
+  id: string;
+  name: string;
+  category: string;
+  phase: ProjectPhase;
+  summary: string;
+  guest_summary: string;
+  openness?: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string | null;
+};
+
+export type ProjectJson = {
+  id: string;
+  name: string;
+  category: string;
+  phase: ProjectPhase;
+  summary: string;
+  guestSummary: string;
+  openness: ProjectOpenness;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export function normalizeProjectOpenness(raw: unknown): ProjectOpenness {
+  const v = String(raw ?? "")
+    .trim()
+    .toLowerCase();
+  if (v === "invite") return "invite";
+  // partial / public / 缺省：目录对内部账号可见
+  return "partial";
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+export function rowToJson(row: ProjectRow): ProjectJson {
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    phase: row.phase,
+    summary: row.summary,
+    guestSummary: row.guest_summary,
+    openness: normalizeProjectOpenness(row.openness),
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+const PROJECT_SELECT_WITH_OPENNESS = `SELECT id, name, category, phase, summary, guest_summary, openness,
+            created_by, created_at, updated_at, deleted_at
+     FROM projects`;
+const PROJECT_SELECT_LEGACY = `SELECT id, name, category, phase, summary, guest_summary,
+            created_by, created_at, updated_at
+     FROM projects`;
+
+function isMissingColumn(err: unknown, column: string): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? "");
+  const re = new RegExp(
+    `Unknown column ['\`]?${column}['\`]?|no such column:\\s*${column}`,
+    "i",
+  );
+  return re.test(msg);
+}
+
+function isMissingOpennessColumn(err: unknown): boolean {
+  return isMissingColumn(err, "openness");
+}
+
+function isMissingDeletedAtColumn(err: unknown): boolean {
+  return isMissingColumn(err, "deleted_at");
+}
+
+function notDeletedClause(hasDeletedAt: boolean): string {
+  return hasDeletedAt ? " WHERE (deleted_at IS NULL OR deleted_at = '')" : "";
+}
+
+export async function listProjects(env: { DB: AppDatabase }): Promise<ProjectJson[]> {
+  try {
+    const { results } = await env.DB.prepare(
+      `${PROJECT_SELECT_WITH_OPENNESS}${notDeletedClause(true)} ORDER BY updated_at DESC`,
+    ).all<ProjectRow>();
+    return (results ?? []).map(rowToJson);
+  } catch (e) {
+    if (isMissingDeletedAtColumn(e)) {
+      try {
+        const { results } = await env.DB.prepare(
+          `SELECT id, name, category, phase, summary, guest_summary, openness,
+                  created_by, created_at, updated_at
+           FROM projects ORDER BY updated_at DESC`,
+        ).all<ProjectRow>();
+        return (results ?? []).map(rowToJson);
+      } catch (e2) {
+        if (!isMissingOpennessColumn(e2)) throw e2;
+        const { results } = await env.DB.prepare(
+          `${PROJECT_SELECT_LEGACY} ORDER BY updated_at DESC`,
+        ).all<ProjectRow>();
+        return (results ?? []).map(rowToJson);
+      }
+    }
+    if (!isMissingOpennessColumn(e)) throw e;
+    const { results } = await env.DB.prepare(
+      `${PROJECT_SELECT_LEGACY} ORDER BY updated_at DESC`,
+    ).all<ProjectRow>();
+    return (results ?? []).map(rowToJson);
+  }
+}
+
+export async function getProjectById(
+  env: { DB: AppDatabase },
+  id: string,
+): Promise<ProjectJson | null> {
+  try {
+    const row = await env.DB.prepare(
+      `${PROJECT_SELECT_WITH_OPENNESS} WHERE id = ? AND (deleted_at IS NULL OR deleted_at = '')`,
+    )
+      .bind(id)
+      .first<ProjectRow>();
+    return row ? rowToJson(row) : null;
+  } catch (e) {
+    if (isMissingDeletedAtColumn(e)) {
+      try {
+        const row = await env.DB.prepare(
+          `SELECT id, name, category, phase, summary, guest_summary, openness,
+                  created_by, created_at, updated_at
+           FROM projects WHERE id = ?`,
+        )
+          .bind(id)
+          .first<ProjectRow>();
+        return row ? rowToJson(row) : null;
+      } catch (e2) {
+        if (!isMissingOpennessColumn(e2)) throw e2;
+        const row = await env.DB.prepare(`${PROJECT_SELECT_LEGACY} WHERE id = ?`)
+          .bind(id)
+          .first<ProjectRow>();
+        return row ? rowToJson(row) : null;
+      }
+    }
+    if (!isMissingOpennessColumn(e)) throw e;
+    const row = await env.DB.prepare(`${PROJECT_SELECT_LEGACY} WHERE id = ?`)
+      .bind(id)
+      .first<ProjectRow>();
+    return row ? rowToJson(row) : null;
+  }
+}
+
+/** 仅用 ASCII，避免 PATCH 路径含中文导致边缘 404 */
+export function buildProjectId(_name: string): string {
+  const suffix = crypto.randomUUID().replace(/-/gu, "").slice(0, 12);
+  return `proj-${suffix}`;
+}
+
+export async function createProject(
+  env: { DB: AppDatabase },
+  input: {
+    name: string;
+    summary: string;
+    guestSummary?: string;
+    category?: string;
+    phase?: ProjectPhase;
+    openness?: ProjectOpenness | string;
+    createdBy?: string | null;
+  },
+): Promise<ProjectJson> {
+  const t = nowIso();
+  const id = buildProjectId(input.name);
+  const guestSummary =
+    (input.guestSummary ?? "").trim() ||
+    "项目在管推进中，详情按权限展示。";
+  const openness =
+    input.openness !== undefined && String(input.openness).trim() !== ""
+      ? normalizeProjectOpenness(input.openness)
+      : "partial";
+  await env.DB.prepare(
+    `INSERT INTO projects (
+      id, name, category, phase, summary, guest_summary, openness,
+      created_by, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(
+      id,
+      input.name.trim(),
+      (input.category ?? "未分类").trim() || "未分类",
+      input.phase ?? "Active（资源筹备中）",
+      input.summary.trim(),
+      guestSummary,
+      openness,
+      input.createdBy ?? null,
+      t,
+      t,
+    )
+    .run();
+  const created = await getProjectById(env, id);
+  if (!created) throw new Error("项目创建后读取失败");
+  return created;
+}
+
+const VALID_PHASES: ProjectPhase[] = [
+  "Active（资源筹备中）",
+  "Completed（已签约）",
+  "Paused（暂停）",
+  "Cancelled（已取消）",
+];
+
+export function normalizeProjectPhase(raw: string | undefined): ProjectPhase {
+  const p = (raw ?? "").trim() as ProjectPhase;
+  return VALID_PHASES.includes(p) ? p : "Active（资源筹备中）";
+}
+
+export async function updateProject(
+  env: { DB: AppDatabase },
+  id: string,
+  input: {
+    name?: string;
+    summary?: string;
+    guestSummary?: string;
+    category?: string;
+    phase?: ProjectPhase;
+    openness?: ProjectOpenness | string;
+  },
+): Promise<ProjectJson | null> {
+  const existing = await getProjectById(env, id);
+  if (!existing) return null;
+
+  const name = (input.name ?? existing.name).trim();
+  if (!name) throw new Error("项目名称不能为空");
+
+  const summary = (input.summary ?? existing.summary).trim();
+  const guestSummary = (input.guestSummary ?? existing.guestSummary).trim();
+  const category = ((input.category ?? existing.category).trim() || "未分类");
+  const phase = input.phase ?? existing.phase;
+  const openness =
+    input.openness !== undefined
+      ? normalizeProjectOpenness(input.openness)
+      : existing.openness;
+
+  await env.DB.prepare(
+    `UPDATE projects
+     SET name = ?, category = ?, phase = ?, summary = ?, guest_summary = ?,
+         openness = ?, updated_at = ?
+     WHERE id = ?`,
+  )
+    .bind(
+      name,
+      category,
+      phase,
+      summary,
+      guestSummary,
+      openness,
+      nowIso(),
+      id,
+    )
+    .run();
+
+  return getProjectById(env, id);
+}
+
+/**
+ * 软删除项目：仅标记 deleted_at，保留资料、对话、知识网络与对象存储。
+ * 兼容旧名 deleteProjectCascade。
+ */
+export async function softDeleteProject(
+  env: { DB: AppDatabase },
+  projectId: string,
+): Promise<boolean> {
+  const existing = await getProjectById(env, projectId);
+  if (!existing) return false;
+
+  const t = nowIso();
+  try {
+    await env.DB.prepare(
+      `UPDATE projects
+       SET deleted_at = ?, updated_at = ?
+       WHERE id = ? AND (deleted_at IS NULL OR deleted_at = '')`,
+    )
+      .bind(t, t, projectId)
+      .run();
+  } catch (e) {
+    if (!isMissingDeletedAtColumn(e)) throw e;
+    // 未迁移时拒绝硬删，避免误清资料
+    throw new Error("软删除列未迁移（缺少 projects.deleted_at），请先执行 migration 0013");
+  }
+  return true;
+}
+
+/** @deprecated 使用 softDeleteProject；保留别名避免调用方遗漏 */
+export async function deleteProjectCascade(
+  env: { DB: AppDatabase },
+  projectId: string,
+): Promise<boolean> {
+  return softDeleteProject(env, projectId);
+}

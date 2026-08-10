@@ -1,0 +1,92 @@
+{
+  "projectId": "proj-7c0f947a6a00",
+  "jobId": "938d970f-af77-4bf5-aa66-5bb709c99cb2",
+  "resumePublishOnly": true,
+  "status": "completed",
+  "publishSucceeded": true,
+  "wallSec": 7,
+  "versionBefore": 2,
+  "versionAfter": 3,
+  "versionLabelAfter": "2",
+  "d1LastJobId": "938d970f-af77-4bf5-aa66-5bb709c99cb2",
+  "kbPreservedOnFailure": false,
+  "publishStep": null,
+  "publishError": null,
+  "assembledHtmlBytes": null,
+  "chatSync": {
+    "jobCompleted": true,
+    "hasAnswer": true,
+    "hasKnowledgeNetworkHtml": true,
+    "answerPreview": "批次 1/4 完成 snapshot、target-overview、industry-market。项目定位为中国-中亚数字化易货贸易平台，依托新疆兵团配额与霍尔果斯口岸政策；铜+石油为核心易货标的。海关数据证实中亚铜/油气进口规模与趋势；行业侧铜需求受 AI 算力与 PCB 驱动。缺口：下游销售渠道、账期模型、合作实体与监管许可待核实。\n\n已通过 **structured-slot-batch"
+  },
+  "error": null,
+  "htmlAnalysis": {
+    "strictPass": true,
+    "htmlBytes": 56855,
+    "emptyTbodyRows": 0,
+    "emptyTdCells": 22,
+    "slotsPresent": 13,
+    "appendices": [
+      {
+        "id": "source-index",
+        "ok": true
+      },
+      {
+        "id": "glossary",
+        "ok": true
+      },
+      {
+        "id": "data-dictionary",
+        "ok": true
+      },
+      {
+        "id": "version-ledger",
+        "ok": true
+      }
+    ],
+    "appendicesAllPresent": true,
+    "citationRefs": 15,
+    "brokenCitationTargets": [],
+    "citationsOk": true,
+    "versionDisplay": "v2",
+    "qualityCoverage": "85",
+    "maturity": {
+      "a": "NUMERAL",
+      "b": "NUMERAL",
+      "combined": "NUMERAL"
+    },
+    "versionLedgerRows": 4
+  },
+  "publishSummary": {
+    "factorA": "NUMERAL",
+    "factorB": "NUMERAL",
+    "combined": "NUMERAL",
+    "qualityCoverage": "85",
+    "htmlBytes": 56855,
+    "emptyTbodyRows": 0,
+    "emptyTdCells": 22,
+    "appendicesAD": [
+      {
+        "id": "source-index",
+        "ok": true
+      },
+      {
+        "id": "glossary",
+        "ok": true
+      },
+      {
+        "id": "data-dictionary",
+        "ok": true
+      },
+      {
+        "id": "version-ledger",
+        "ok": true
+      }
+    ],
+    "appendicesAllPresent": true,
+    "citationsOk": true,
+    "citationRefs": 15,
+    "versionLedgerPresent": true,
+    "versionLedgerRowCount": 4
+  }
+}

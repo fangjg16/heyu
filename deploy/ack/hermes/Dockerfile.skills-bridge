@@ -1,0 +1,12 @@
+# 构建：在仓库根目录
+#   docker build -f deploy/ack/hermes/Dockerfile.skills-bridge -t jfo/skills-bridge:latest .
+FROM node:20-alpine
+WORKDIR /app
+COPY api-worker/scripts/skills-bridge.mjs \
+     api-worker/scripts/skills-http.mjs \
+     api-worker/scripts/skills-fs.mjs \
+     ./api-worker/scripts/
+ENV NODE_ENV=production
+EXPOSE 8791
+WORKDIR /app/api-worker
+CMD ["node", "scripts/skills-bridge.mjs"]

@@ -1,0 +1,9 @@
+node_modules
+dist
+.wrangler
+.dev.vars
+*.log
+slot-batch-*.json
+slot-batch-*.log
+kb-v3-audit-report.json
+fixtures

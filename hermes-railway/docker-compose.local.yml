@@ -1,0 +1,18 @@
+# 本地 Windows：Hermes Gateway（不依赖 Railway）
+# 数据卷：%USERPROFILE%\.jfo-local\hermes  →  /opt/data
+# 启动：docker compose -f docker-compose.local.yml up -d
+
+services:
+  hermes:
+    image: nousresearch/hermes-agent:latest
+    container_name: jfo-hermes-local
+    restart: unless-stopped
+    command: gateway run
+    ports:
+      - "8642:8642"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ${JFO_HERMES_DATA:-${USERPROFILE}/.jfo-local/hermes}:/opt/data
+    env_file:
+      - .env.docker.local
