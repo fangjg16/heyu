@@ -133,7 +133,9 @@ function isHermesUpstreamMisconfigError(message: string): boolean {
     m.includes("undefined") ||
     m.includes("返回了网页") ||
     m.includes("enotfound") ||
-    m.includes("fetch failed")
+    m.includes("fetch failed") ||
+    // Hermes/代理偶发把上游异常收成 Cloudflare 风格文案
+    m.includes("internal error; reference")
   );
 }
 
