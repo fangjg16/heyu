@@ -646,7 +646,7 @@ function ProjectWorkspaceLayout() {
 
         {overviewError ? (
           <div className="mx-auto max-w-[1600px] px-8 pt-3 md:px-10">
-            <p className="rounded-xl border border-[rgba(202,33,55,0.25)] bg-[rgba(202,33,55,0.06)] px-3.5 py-2 text-[12.5px] text-[#CA2137]">
+            <p className="rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
               {overviewError}
             </p>
           </div>
@@ -666,7 +666,7 @@ function ProjectWorkspaceLayout() {
                 <button
                   type="button"
                   onClick={goDraftReview}
-                  className="shrink-0 font-semibold text-[#CA2137] underline-offset-2 hover:underline"
+                  className="shrink-0 font-semibold text-[#A06358] underline-offset-2 hover:underline"
                 >
                   进入审核
                 </button>

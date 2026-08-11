@@ -172,7 +172,7 @@ export function AdminLlmSettingsSection() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-[15px] font-semibold text-[#1F2423]">
-            <KeyRound className="h-4 w-4 text-[#CA2137]" />
+            <KeyRound className="h-4 w-4 text-[#A06358]" />
             模型与密钥
           </div>
           <p className="mt-1.5 max-w-[640px] text-[12.5px] leading-relaxed text-[#59625F]">
@@ -199,7 +199,7 @@ export function AdminLlmSettingsSection() {
               type="button"
               onClick={() => void onRefreshModels()}
               disabled={busy}
-              className="inline-flex items-center gap-1 text-[11.5px] font-medium text-[#CA2137] hover:underline disabled:opacity-50"
+              className="inline-flex items-center gap-1 text-[11.5px] font-medium text-[#A06358] hover:underline disabled:opacity-50"
             >
               {refreshModelsBusy ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -213,7 +213,7 @@ export function AdminLlmSettingsSection() {
             value={model}
             onChange={(e) => setModel(e.target.value)}
             disabled={busy || modelOptions.length === 0}
-            className="mt-1.5 h-10 w-full rounded-[10px] border border-[rgba(78,66,57,0.14)] bg-white px-3 text-[13px] text-[#1F2423] outline-none focus:border-[rgba(202,33,55,0.45)]"
+            className="mt-1.5 h-10 w-full rounded-[10px] border border-[rgba(78,66,57,0.14)] bg-white px-3 text-[13px] text-[#1F2423] outline-none focus:border-[rgba(160,99,88,0.45)]"
           >
             {modelOptions.map((p) => (
               <option key={p} value={p}>
@@ -242,13 +242,13 @@ export function AdminLlmSettingsSection() {
                 ? `已保存（${settings.apiKeyHint || "****"}），留空则不修改`
                 : "粘贴 API Key"
             }
-            className="mt-1.5 h-10 w-full rounded-[10px] border border-[rgba(78,66,57,0.14)] bg-white px-3 text-[13px] text-[#1F2423] outline-none focus:border-[rgba(202,33,55,0.45)]"
+            className="mt-1.5 h-10 w-full rounded-[10px] border border-[rgba(78,66,57,0.14)] bg-white px-3 text-[13px] text-[#1F2423] outline-none focus:border-[rgba(160,99,88,0.45)]"
           />
         </label>
       </div>
 
       {error ? (
-        <p className="mt-4 rounded-xl border border-[rgba(202,33,55,0.25)] bg-[rgba(202,33,55,0.06)] px-3.5 py-2 text-[12.5px] text-[#CA2137]">
+        <p className="mt-4 rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
           {error}
         </p>
       ) : null}
@@ -263,7 +263,7 @@ export function AdminLlmSettingsSection() {
           type="button"
           onClick={() => void onSave()}
           disabled={busy || !model.trim()}
-          className="inline-flex h-9 items-center justify-center rounded-[9px] bg-[#CA2137] px-4 text-[12.5px] font-medium text-white hover:bg-[#AD1A2D] disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-9 items-center justify-center rounded-[9px] bg-[#A06358] px-4 text-[12.5px] font-medium text-white hover:bg-[#8F564C] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {saveBusy ? (
             <>
@@ -278,7 +278,7 @@ export function AdminLlmSettingsSection() {
           type="button"
           onClick={() => void onTest()}
           disabled={busy}
-          className="inline-flex h-9 items-center justify-center rounded-[9px] border border-[rgba(202,33,55,0.3)] bg-transparent px-4 text-[12.5px] font-medium text-[#CA2137] hover:bg-[#F8EDEE] disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-9 items-center justify-center rounded-[9px] border border-[rgba(160,99,88,0.3)] bg-transparent px-4 text-[12.5px] font-medium text-[#A06358] hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {testBusy ? (
             <>

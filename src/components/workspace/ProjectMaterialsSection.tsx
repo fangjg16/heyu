@@ -168,7 +168,7 @@ function tagsForFile(
 ): FileTag[] {
   const tags: FileTag[] = [];
   if (file.scope === "package" && !canDownload) {
-    tags.push({ label: "受限", bg: "#F8EDEE", fg: "#CA2137" });
+    tags.push({ label: "受限", bg: "#EFE7E6", fg: "#A06358" });
     return tags;
   }
   if (uiStatus === "parsing") {
@@ -193,8 +193,8 @@ function tagsForFile(
   if (file.scope === "session") {
     tags.push({
       label: "对话上传",
-      bg: "rgba(202,33,55,0.1)",
-      fg: "#CA2137",
+      bg: "rgba(160,99,88,0.1)",
+      fg: "#A06358",
     });
   }
   return tags;
@@ -1162,7 +1162,7 @@ export function ProjectMaterialsSection({
                     type="button"
                     disabled={!detail.canPreview}
                     onClick={() => openPreview(detail.file!.id)}
-                    className="inline-flex h-[38px] shrink-0 items-center gap-2 whitespace-nowrap rounded-[10px] border border-[rgba(202,33,55,0.3)] bg-transparent px-[15px] text-[13px] font-medium text-[hsl(var(--wine))] hover:bg-[#F8EDEE] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex h-[38px] shrink-0 items-center gap-2 whitespace-nowrap rounded-[10px] border border-[rgba(160,99,88,0.3)] bg-transparent px-[15px] text-[13px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Eye className="h-4 w-4" strokeWidth={1.8} aria-hidden />
                     预览文件
@@ -1272,7 +1272,7 @@ export function ProjectMaterialsSection({
                         selection.kind === "folder" ? selection.path : "",
                       )
                     }
-                    className="h-[38px] rounded-[10px] border border-[rgba(202,33,55,0.3)] bg-transparent px-4 text-[13px] font-medium text-[hsl(var(--wine))] hover:bg-[#F8EDEE] disabled:opacity-50"
+                    className="h-[38px] rounded-[10px] border border-[rgba(160,99,88,0.3)] bg-transparent px-4 text-[13px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:opacity-50"
                   >
                     ＋ 新增子文件夹
                   </button>
@@ -1550,8 +1550,8 @@ function TreeRow({
         )}
         style={{
           paddingLeft: 10 + depth * 18,
-          background: selected ? "#F8EDEE" : "transparent",
-          color: selected ? "#CA2137" : "#4a524e",
+          background: selected ? "#EFE7E6" : "transparent",
+          color: selected ? "#A06358" : "#4a524e",
         }}
         title={canDrag ? "拖到文件夹可移动" : undefined}
       >
@@ -1579,7 +1579,7 @@ function TreeRow({
             type="button"
             title="预览文件"
             aria-label="预览文件"
-            className="inline-flex h-[25px] w-[25px] shrink-0 items-center justify-center rounded-[7px] text-[hsl(var(--warm-charcoal-muted))] hover:bg-[rgba(202,33,55,0.08)] hover:text-[hsl(var(--wine))]"
+            className="inline-flex h-[25px] w-[25px] shrink-0 items-center justify-center rounded-[7px] text-[hsl(var(--warm-charcoal-muted))] hover:bg-[rgba(160,99,88,0.08)] hover:text-[hsl(var(--wine))]"
             onClick={(e) => {
               e.stopPropagation();
               onPreview(node.id);
@@ -1625,11 +1625,11 @@ function TreeRow({
         style={{
           paddingLeft: 10 + depth * 18,
           background: isDrag
-            ? "rgba(202,33,55,0.08)"
+            ? "rgba(160,99,88,0.08)"
             : selected
-              ? "#F8EDEE"
+              ? "#EFE7E6"
               : "transparent",
-          color: selected ? "#CA2137" : "#1F2423",
+          color: selected ? "#A06358" : "#1F2423",
         }}
         onClick={() => {
           setSelection({ kind: "folder", path: node.path });
@@ -1684,7 +1684,7 @@ function TreeRow({
         {isSession ? (
           <span
             className="shrink-0 rounded-lg px-1.5 py-px text-[9.5px]"
-            style={{ background: "rgba(202,33,55,0.1)", color: "#CA2137" }}
+            style={{ background: "rgba(160,99,88,0.1)", color: "#A06358" }}
           >
             对话上传
           </span>
@@ -1811,7 +1811,7 @@ function FilePreviewModal({
     >
       <div className="flex max-h-full w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.12)] bg-[hsl(var(--paper))] shadow-2xl">
         <div className="flex items-center gap-3 border-b border-[rgba(78,66,57,0.1)] px-4 py-3">
-          <div className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] bg-[#F8EDEE] text-[11px] font-bold text-[hsl(var(--wine))]">
+          <div className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] bg-[#EFE7E6] text-[11px] font-bold text-[hsl(var(--wine))]">
             {format}
           </div>
           <div className="min-w-0 flex-1">

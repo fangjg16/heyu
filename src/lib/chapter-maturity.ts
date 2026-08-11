@@ -134,7 +134,7 @@ export function computeProjectResearchMaturity(
 }
 
 export function maturityScoreClass(score: number): string {
-  if (score < 25) return "text-[#CA2137]";
+  if (score < 25) return "text-[#A06358]";
   if (score < 50) return "text-[#B07d1f]";
   return "text-[#3F6F63]";
 }

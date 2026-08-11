@@ -41,9 +41,9 @@ type ProjectRelationGraphProps = {
 
 function statusDot(node: ProjectGraphNode): string {
   if (node.type === "project") return "rgba(255,255,255,0.92)";
-  if (node.status === "conflict") return "#CA2137";
+  if (node.status === "conflict") return "#A06358";
   if (node.status === "unverified") return "#D59A2F";
-  if (node.kind === "方案") return "#AD1A2D";
+  if (node.kind === "方案") return "#8F564C";
   return "#3F6F63";
 }
 
@@ -86,7 +86,7 @@ function GraphNodeDrawer({
           : e.label || otherId,
         color:
           e.status === "conflict"
-            ? "#CA2137"
+            ? "#A06358"
             : e.status === "unverified" || e.status === "inferred"
               ? "#D59A2F"
               : "#5E9B75",
@@ -134,7 +134,7 @@ function GraphNodeDrawer({
       >
         <div className="flex items-start justify-between gap-3 border-b border-[rgba(78,66,57,0.1)] px-6 py-5">
           <div className="min-w-0">
-            <div className="text-[11.5px] font-medium text-[#CA2137]">
+            <div className="text-[11.5px] font-medium text-[#A06358]">
               项目关系 · {node.kind || "节点"}
             </div>
             <h2
@@ -163,7 +163,7 @@ function GraphNodeDrawer({
               className={cn(
                 "rounded-lg px-[11px] py-1 text-[11px] font-medium",
                 node.status === "conflict"
-                  ? "bg-[#F8EDEE] text-[#CA2137]"
+                  ? "bg-[#EFE7E6] text-[#A06358]"
                   : "bg-[rgba(78,66,57,0.08)] text-[#59625F]",
               )}
             >
@@ -206,12 +206,12 @@ function GraphNodeDrawer({
           <button
             type="button"
             onClick={goKnowledge}
-            className="flex items-center justify-between rounded-lg text-left text-[12.5px] text-[#1F2423] transition-colors hover:text-[#CA2137]"
+            className="flex items-center justify-between rounded-lg text-left text-[12.5px] text-[#1F2423] transition-colors hover:text-[#A06358]"
           >
             <span>
-              <span className="text-[#CA2137]">●</span> 跳转到关联研究内容
+              <span className="text-[#A06358]">●</span> 跳转到关联研究内容
             </span>
-            <span className="text-[11px] text-[#CA2137]">查看 →</span>
+            <span className="text-[11px] text-[#A06358]">查看 →</span>
           </button>
         </div>
 
@@ -226,7 +226,7 @@ function GraphNodeDrawer({
           <button
             type="button"
             onClick={goKnowledge}
-            className="h-[42px] flex-1 rounded-[11px] border-none bg-[#CA2137] text-[13px] font-medium text-white"
+            className="h-[42px] flex-1 rounded-[11px] border-none bg-[#A06358] text-[13px] font-medium text-white"
           >
             查看关联章节 →
           </button>
@@ -312,7 +312,7 @@ export function ProjectRelationGraph({
               className={cn(
                 "h-[34px] rounded-[9px] border px-3.5 text-[12.5px]",
                 activeFilter
-                  ? "border-[rgba(202,33,55,0.3)] bg-[#F8EDEE] text-[#CA2137]"
+                  ? "border-[rgba(160,99,88,0.3)] bg-[#EFE7E6] text-[#A06358]"
                   : "border-[rgba(78,66,57,0.14)] bg-[rgba(255,252,248,0.6)] text-[#59625F]",
               )}
             >
@@ -346,7 +346,7 @@ export function ProjectRelationGraph({
                 x2={to.x ?? 50}
                 y2={to.y ?? 50}
                 stroke={
-                  conflict ? "rgba(202,33,55,0.42)" : "rgba(78,66,57,0.27)"
+                  conflict ? "rgba(160,99,88,0.42)" : "rgba(78,66,57,0.27)"
                 }
                 strokeWidth={conflict ? 0.48 : 0.32}
                 strokeDasharray={dashed ? "1.4 1.1" : undefined}
@@ -377,12 +377,12 @@ export function ProjectRelationGraph({
           const selected = activeId === node.id;
           const border =
             node.status === "conflict"
-              ? "rgba(202,33,55,0.45)"
+              ? "rgba(160,99,88,0.45)"
               : node.status === "unverified"
                 ? "rgba(213,154,47,0.48)"
                 : "rgba(63,111,99,0.4)";
           const bg = main
-            ? "#CA2137"
+            ? "#A06358"
             : node.status === "conflict"
               ? "#F9EEEE"
               : "rgba(255,252,248,0.96)";
@@ -398,7 +398,7 @@ export function ProjectRelationGraph({
                 top: `${node.y ?? 50}%`,
                 background: bg,
                 borderColor: selected
-                  ? "rgba(202,33,55,0.65)"
+                  ? "rgba(160,99,88,0.65)"
                   : main
                     ? "transparent"
                     : border,
@@ -408,7 +408,7 @@ export function ProjectRelationGraph({
                 fontSize: main ? 14 : 12.5,
                 fontWeight: main ? 700 : 500,
                 boxShadow: selected
-                  ? "0 0 0 3px rgba(202,33,55,0.18), 0 5px 16px rgba(102,80,60,0.16)"
+                  ? "0 0 0 3px rgba(160,99,88,0.18), 0 5px 16px rgba(102,80,60,0.16)"
                   : main
                     ? "0 5px 16px rgba(102,80,60,0.22)"
                     : undefined,
