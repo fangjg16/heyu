@@ -1,11 +1,12 @@
 # Build production Worker bundle + runtime image for ECS / Docker Compose
+# Build context must be the repo root (see deploy/ecs/docker-compose.yml).
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY api-worker/package.json api-worker/package-lock.json ./
 RUN npm ci
-COPY tsconfig.json ./
-COPY src ./src
-COPY scripts ./scripts
+COPY api-worker/tsconfig.json ./
+COPY api-worker/src ./src
+COPY api-worker/scripts ./scripts
 RUN npm run build:production
 
 FROM node:22-bookworm-slim
@@ -20,12 +21,15 @@ ENV HOST=0.0.0.0
 ENV PORT=8787
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
-COPY package.json package-lock.json ./
+# Chapter Markdown templates for seed:kn-chapter-templates
+ENV KN_DOCS_ROOT=/docs/knowledge-network
+COPY api-worker/package.json api-worker/package-lock.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
-COPY scripts ./scripts
-COPY schema.mysql.sql ./
-COPY migrations ./migrations
+COPY api-worker/scripts ./scripts
+COPY api-worker/schema.mysql.sql ./
+COPY api-worker/migrations ./migrations
+COPY docs/knowledge-network /docs/knowledge-network
 EXPOSE 8787 8790
 # Default: API. Override command for mysql-bridge.
 CMD ["node", "scripts/http-server.mjs"]

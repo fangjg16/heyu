@@ -63,8 +63,8 @@ services:
 
   mysql-bridge:
     build:
-      context: ../../api-worker
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: api-worker/Dockerfile
     restart: unless-stopped
     command: ["node", "scripts/mysql-local-bridge.mjs"]
     environment:
@@ -95,8 +95,8 @@ services:
 
   jfo-api:
     build:
-      context: ../../api-worker
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: api-worker/Dockerfile
     restart: unless-stopped
     environment:
       HOST: 0.0.0.0

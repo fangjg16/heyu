@@ -11,7 +11,10 @@ import mysql from "mysql2/promise";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = path.resolve(root, "..");
-const knRoot = path.join(repoRoot, "docs", "knowledge-network");
+const knRoot = (
+  process.env.KN_DOCS_ROOT?.trim() ||
+  path.join(repoRoot, "docs", "knowledge-network")
+);
 const chaptersRoot = path.join(knRoot, "chapters");
 const force = process.argv.includes("--force");
 
