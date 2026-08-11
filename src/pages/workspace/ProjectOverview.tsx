@@ -110,6 +110,12 @@ function ownerDisplayName(createdBy: string | null | undefined): string {
   return prettyMemberName(name) || "—";
 }
 
+/** 项目广场：展示全开放项目（含本人已加入的，便于核对开放程度） */
+function isPlazaDiscoverable(project: WorkspaceProject): boolean {
+  const o = String(project.openness ?? "").trim().toLowerCase();
+  return o !== "invite";
+}
+
 function ProjectCard({
   project,
   userId,
@@ -397,7 +403,7 @@ export default function ProjectOverview() {
     ? visibleProjects.filter((p) => {
         const role = getProjectRole(userId, p.id, p.createdBy);
         if (portfolioTab === "mine" && role === "guest") return false;
-        if (portfolioTab === "plaza" && role !== "guest") return false;
+        if (portfolioTab === "plaza" && !isPlazaDiscoverable(p)) return false;
         if (phaseFilter !== "all" && p.phase !== phaseFilter) return false;
         if (roleFilter !== "all" && role !== roleFilter) return false;
         if (!projectMatchesQuery(p, searchQuery)) return false;
@@ -410,9 +416,7 @@ export default function ProjectOverview() {
       ).length
     : 0;
   const plazaCount = userId
-    ? visibleProjects.filter(
-        (p) => getProjectRole(userId, p.id, p.createdBy) === "guest"
-      ).length
+    ? visibleProjects.filter((p) => isPlazaDiscoverable(p)).length
     : 0;
 
   const resetCreateForm = () => {
@@ -556,7 +560,7 @@ export default function ProjectOverview() {
               项目库
             </h1>
             <p className="mt-2 text-[hsl(var(--warm-charcoal-muted))]">
-              管理已加入项目，并在项目广场发现可申请加入的协作机会。
+              管理已加入项目；全开放项目会出现在项目广场，供内部账号发现与申请加入。
             </p>
             {projectsLoading ? (
               <p className="mt-2 text-xs text-[hsl(var(--warm-charcoal-muted))]">
@@ -704,16 +708,16 @@ export default function ProjectOverview() {
                 ? "未找到匹配项目"
                 : portfolioTab === "mine"
                   ? "暂无已加入项目"
-                  : "暂无匹配项目"}
+                  : "暂无全开放项目"}
             </p>
             <p className="mt-2 text-sm text-[hsl(var(--warm-charcoal-muted))]">
               {searchQuery.trim()
                 ? "尝试更换关键词，或清除搜索后浏览全部项目。"
                 : portfolioTab === "mine"
-                  ? "切换到项目广场浏览可申请的协作机会，或新建项目。"
+                  ? "切换到项目广场浏览全开放协作机会，或新建项目。"
                   : isAccountGuestUser(userId)
                     ? "暂无可见项目。请联系管理员将您加入成员。"
-                    : "尝试切换筛选条件，或点击「新建项目」。"}
+                    : "将项目开放程度设为「全开放」后会出现在此；内部邀请项目仅成员可见。"}
             </p>
           </div>
         )}
