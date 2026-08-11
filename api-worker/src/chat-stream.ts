@@ -65,12 +65,37 @@ export function transformOpenAiStreamToJfo(
             if (payload === "[DONE]") continue;
             try {
               const json = JSON.parse(payload) as {
-                choices?: { delta?: { content?: string }; finish_reason?: string }[];
+                choices?: {
+                  delta?: {
+                    content?: string | null;
+                    reasoning_content?: string | null;
+                  };
+                  message?: {
+                    content?: string | null;
+                    reasoning_content?: string | null;
+                  };
+                  finish_reason?: string;
+                }[];
               };
-              const delta = json.choices?.[0]?.delta?.content ?? "";
-              if (delta) {
-                full += delta;
-                controller.enqueue(enc.encode(sseLine("delta", { text: delta })));
+              const choice = json.choices?.[0];
+              const deltaText =
+                choice?.delta?.content ??
+                choice?.message?.content ??
+                "";
+              // Qwen3.x thinking：最终正文有时只在 reasoning 流里，或 content 为空
+              const reasoningDelta =
+                choice?.delta?.reasoning_content ??
+                choice?.message?.reasoning_content ??
+                "";
+              const piece =
+                typeof deltaText === "string" && deltaText
+                  ? deltaText
+                  : typeof reasoningDelta === "string"
+                    ? reasoningDelta
+                    : "";
+              if (piece) {
+                full += piece;
+                controller.enqueue(enc.encode(sseLine("delta", { text: piece })));
               }
             } catch {
               /* 忽略单行解析失败 */
@@ -121,7 +146,12 @@ export async function fetchChatCompletionsStream(
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({ model, messages, stream: true }),
+    body: JSON.stringify({
+      model,
+      messages,
+      stream: true,
+      enable_thinking: false,
+    }),
   });
 
   if (!res.ok) {
