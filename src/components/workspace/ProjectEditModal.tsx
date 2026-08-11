@@ -18,14 +18,14 @@ const OPENNESS_OPTIONS: {
 }[] = [
   {
     value: "partial",
-    title: "半开放",
+    title: "全开放",
     description:
-      "内部账号（非 Guest）可在项目总览看到该项目；未加入成员仅为访客级。",
+      "内部账号可在项目广场发现该项目；未加入成员仅为访客级，可申请加入。",
   },
   {
     value: "invite",
     title: "内部邀请",
-    description: "仅创建人与已加入成员可在项目总览看到该项目。",
+    description: "仅创建人与已加入成员可在项目库看到该项目。",
   },
 ];
 

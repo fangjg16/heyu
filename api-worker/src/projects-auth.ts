@@ -80,7 +80,7 @@ function isDirectoryDiscoverable(openness: string | null | undefined): boolean {
 /**
  * 项目总览目录可见性：
  * 1. 平台管理员：全部
- * 2. 登录用户：已加入/自建，或半开放（partial/public）可发现
+ * 2. 登录用户：已加入/自建，或全开放（partial/public）可发现
  * 3. 未登录：非 invite
  */
 export async function filterProjectsForDirectory(

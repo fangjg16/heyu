@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS projects (
   phase VARCHAR(128) NOT NULL DEFAULT 'Active（资源筹备中）' COMMENT '项目阶段',
   summary LONGTEXT NOT NULL COMMENT '内部成员可见摘要',
   guest_summary LONGTEXT NOT NULL COMMENT '访客可见摘要',
-  openness VARCHAR(16) NOT NULL DEFAULT 'partial' COMMENT '目录可见性：partial=半开放；invite=内部邀请；public为历史值视同半开放',
+  openness VARCHAR(16) NOT NULL DEFAULT 'partial' COMMENT '目录可见性：partial=全开放；invite=内部邀请；public为历史值视同全开放',
   created_by VARCHAR(128) NULL COMMENT '创建人用户 ID',
   created_at VARCHAR(32) NOT NULL COMMENT '创建时间（ISO 8601）',
   updated_at VARCHAR(32) NOT NULL COMMENT '更新时间（ISO 8601）',

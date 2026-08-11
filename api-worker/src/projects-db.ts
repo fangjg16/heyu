@@ -6,7 +6,7 @@ export type ProjectPhase =
   | "Paused（暂停）"
   | "Cancelled（已取消）";
 
-/** 目录可见性：半开放 | 内部邀请（public 为历史值，视同半开放） */
+/** 目录可见性：全开放 | 内部邀请（partial/public 为全开放；invite 为内部邀请） */
 export type ProjectOpenness = "partial" | "invite";
 
 export type ProjectRow = {
@@ -41,7 +41,7 @@ export function normalizeProjectOpenness(raw: unknown): ProjectOpenness {
     .trim()
     .toLowerCase();
   if (v === "invite") return "invite";
-  // partial / public / 缺省：目录对内部账号可见
+  // partial / public / 缺省：全开放（目录对内部账号可见）
   return "partial";
 }
 

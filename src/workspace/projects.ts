@@ -5,7 +5,7 @@ export type ProjectPhase =
   | "Paused（暂停）"
   | "Cancelled（已取消）";
 
-/** 目录可见性：半开放 | 内部邀请 */
+/** 目录可见性：全开放 | 内部邀请（wire：partial | invite） */
 export type ProjectOpenness = "partial" | "invite";
 
 export type WorkspaceProject = {
@@ -17,7 +17,7 @@ export type WorkspaceProject = {
   summary: string;
   /** Guest 在卡片上仅见该句（不含具体机构/金额） */
   guestSummary: string;
-  /** 目录可见性：partial=半开放；invite=仅成员可见 */
+  /** 目录可见性：partial=全开放；invite=仅成员可见 */
   openness?: ProjectOpenness;
   /** 云端新建项目：创建人 userId，用于编辑/删除鉴权 */
   createdBy?: string | null;
