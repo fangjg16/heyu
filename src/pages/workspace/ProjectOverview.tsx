@@ -278,7 +278,7 @@ function ProjectCard({
               ? "border border-transparent bg-transparent text-[hsl(var(--wine))] hover:bg-[hsl(var(--wine)/0.06)]"
               : requested || joining
                 ? "cursor-default border border-[rgba(78,66,57,0.1)] bg-[rgba(78,66,57,0.06)] text-[#969E9A]"
-                : "border border-[rgba(202,33,55,0.28)] bg-transparent text-[hsl(var(--wine))] hover:bg-[hsl(var(--wine-muted))]"
+                : "border border-[rgba(160,99,88,0.28)] bg-transparent text-[hsl(var(--wine))] hover:bg-[hsl(var(--wine-muted))]"
           )}
         >
           {actionLabel}

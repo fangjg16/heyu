@@ -701,7 +701,7 @@ export function ProjectKnowledgeNetworkSection({
                   ? "输入对本节内容的改写指令，例如：把研究结论写得更简洁"
                   : "请先使用顶栏「更新全部章节」生成内容后再改写"
               }
-              className="min-h-[52px] flex-1 resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/80 px-3.5 py-2.5 text-[13px] leading-relaxed text-[#1F2423] outline-none placeholder:text-[#969E9A] focus:border-[rgba(202,33,55,0.35)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-h-[52px] flex-1 resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/80 px-3.5 py-2.5 text-[13px] leading-relaxed text-[#1F2423] outline-none placeholder:text-[#969E9A] focus:border-[rgba(160,99,88,0.35)] disabled:cursor-not-allowed disabled:opacity-60"
             />
             <button
               type="button"
@@ -712,14 +712,14 @@ export function ProjectKnowledgeNetworkSection({
                 sectionBusy !== null ||
                 !instruction.trim()
               }
-              className="h-10 shrink-0 rounded-[9px] bg-[#CA2137] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#AD1A2D] disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-10 shrink-0 rounded-[9px] bg-[#A06358] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#8F564C] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {sectionBusy === "revise" ? "改写中…" : "发送"}
             </button>
           </div>
 
           {error ? (
-            <p className="rounded-xl border border-[rgba(202,33,55,0.25)] bg-[rgba(202,33,55,0.06)] px-3.5 py-2 text-[12.5px] text-[#CA2137]">
+            <p className="rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
               {error}
             </p>
           ) : null}
@@ -736,8 +736,8 @@ export function ProjectKnowledgeNetworkSection({
                     className={cn(
                       "h-[34px] whitespace-nowrap rounded-lg px-3.5 text-[12.5px] transition-colors",
                       active
-                        ? "bg-[#F8EDEE] font-semibold text-[#CA2137]"
-                        : "bg-transparent font-normal text-[#59625F] hover:bg-[rgba(202,33,55,0.04)]",
+                        ? "bg-[#EFE7E6] font-semibold text-[#A06358]"
+                        : "bg-transparent font-normal text-[#59625F] hover:bg-[rgba(160,99,88,0.04)]",
                     )}
                   >
                     {g.label}
@@ -759,7 +759,7 @@ export function ProjectKnowledgeNetworkSection({
                     className={cn(
                       "h-[42px] whitespace-nowrap border-b-2 px-3.5 text-[13px] transition-colors",
                       active
-                        ? "border-[#CA2137] font-semibold text-[#CA2137]"
+                        ? "border-[#A06358] font-semibold text-[#A06358]"
                         : "border-transparent font-normal text-[#59625F] hover:text-[#1F2423]",
                     )}
                   >
@@ -828,7 +828,7 @@ export function ProjectKnowledgeNetworkSection({
                             ? "本章尚无内容，请先使用顶栏「更新全部章节」生成"
                             : "生成本章更新草案（正式版本不会被覆盖），审核后再发布"
                       }
-                      className="h-9 w-full whitespace-nowrap rounded-[9px] border border-[rgba(202,33,55,0.3)] bg-transparent px-2.5 text-[12px] font-medium text-[#CA2137] transition-colors hover:bg-[#F8EDEE] disabled:cursor-not-allowed disabled:opacity-50"
+                      className="h-9 w-full whitespace-nowrap rounded-[9px] border border-[rgba(160,99,88,0.3)] bg-transparent px-2.5 text-[12px] font-medium text-[#A06358] transition-colors hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {sectionBusy
                         ? "生成草案中…"
@@ -909,7 +909,7 @@ export function ProjectKnowledgeNetworkSection({
                                 className={cn(
                                   "shrink-0 rounded-[7px] px-1.5 py-0.5 text-[9.5px]",
                                   q.priority === "P1" &&
-                                    "bg-[#F8EDEE] text-[#CA2137]",
+                                    "bg-[#EFE7E6] text-[#A06358]",
                                   q.priority === "P2" &&
                                     "bg-[rgba(213,154,47,0.15)] text-[#B07d1f]",
                                   q.priority === "P3" &&
@@ -930,7 +930,7 @@ export function ProjectKnowledgeNetworkSection({
                       <button
                         type="button"
                         onClick={goToQuestions}
-                        className="h-[34px] border-none bg-transparent p-0 text-[12px] font-medium text-[#CA2137]"
+                        className="h-[34px] border-none bg-transparent p-0 text-[12px] font-medium text-[#A06358]"
                       >
                         查看全部待确认问题 →
                       </button>
@@ -940,7 +940,7 @@ export function ProjectKnowledgeNetworkSection({
                   <button
                     type="button"
                     onClick={focusChat}
-                    className="mt-4 h-9 w-full rounded-[9px] border border-[rgba(202,33,55,0.3)] bg-transparent text-[12px] font-medium text-[#CA2137] transition-colors hover:bg-[#F8EDEE]"
+                    className="mt-4 h-9 w-full rounded-[9px] border border-[rgba(160,99,88,0.3)] bg-transparent text-[12px] font-medium text-[#A06358] transition-colors hover:bg-[#EFE7E6]"
                   >
                     围绕本章提问
                   </button>
@@ -952,7 +952,7 @@ export function ProjectKnowledgeNetworkSection({
       ) : view === "sources" ? (
         <div className="overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.76)]">
           <div className="border-b border-[rgba(78,66,57,0.1)] px-8 py-7">
-            <div className="text-[11px] tracking-wide text-[#CA2137]">
+            <div className="text-[11px] tracking-wide text-[#A06358]">
               知识网络资料
             </div>
             <div className="mt-2 font-[family-name:var(--font-serif,serif)] text-[27px] font-semibold text-[#1F2423]">
@@ -964,7 +964,7 @@ export function ProjectKnowledgeNetworkSection({
           </div>
           <div ref={sourcesPaneRef} className="px-8 py-[30px]">
             {error && view === "sources" ? (
-              <p className="mb-4 rounded-xl border border-[rgba(202,33,55,0.25)] bg-[rgba(202,33,55,0.06)] px-3.5 py-2 text-[12.5px] text-[#CA2137]">
+              <p className="mb-4 rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
                 {error}
               </p>
             ) : null}
@@ -974,7 +974,7 @@ export function ProjectKnowledgeNetworkSection({
               </div>
             ) : sourcesHtml?.trim() ? (
               <div
-                className="kn-sources-html text-[13px] leading-[1.65] text-[#1F2423] [&_table]:w-full [&_table]:border-collapse [&_tbody_td:first-child]:whitespace-nowrap [&_tbody_td:first-child]:font-semibold [&_tbody_td:first-child]:text-[#CA2137] [&_td]:border [&_td]:border-[rgba(78,66,57,0.12)] [&_td]:px-3.5 [&_td]:py-3 [&_th]:whitespace-nowrap [&_th]:border [&_th]:border-[rgba(78,66,57,0.12)] [&_th]:bg-[rgba(78,66,57,0.05)] [&_th]:px-3.5 [&_th]:py-3 [&_th]:text-left [&_th]:text-[12px] [&_th]:font-semibold [&_th]:text-[#59625F] [&_tr.kn-source-flash]:bg-[rgba(202,33,55,0.08)] [&_tr]:scroll-mt-24"
+                className="kn-sources-html text-[13px] leading-[1.65] text-[#1F2423] [&_table]:w-full [&_table]:border-collapse [&_tbody_td:first-child]:whitespace-nowrap [&_tbody_td:first-child]:font-semibold [&_tbody_td:first-child]:text-[#A06358] [&_td]:border [&_td]:border-[rgba(78,66,57,0.12)] [&_td]:px-3.5 [&_td]:py-3 [&_th]:whitespace-nowrap [&_th]:border [&_th]:border-[rgba(78,66,57,0.12)] [&_th]:bg-[rgba(78,66,57,0.05)] [&_th]:px-3.5 [&_th]:py-3 [&_th]:text-left [&_th]:text-[12px] [&_th]:font-semibold [&_th]:text-[#59625F] [&_tr.kn-source-flash]:bg-[rgba(160,99,88,0.08)] [&_tr]:scroll-mt-24"
                 dangerouslySetInnerHTML={{ __html: sourcesHtml }}
               />
             ) : (
@@ -989,7 +989,7 @@ export function ProjectKnowledgeNetworkSection({
       ) : view === "glossary" ? (
         <div className="overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.76)]">
           <div className="border-b border-[rgba(78,66,57,0.1)] px-8 py-7">
-            <div className="text-[11px] tracking-wide text-[#CA2137]">
+            <div className="text-[11px] tracking-wide text-[#A06358]">
               知识网络资料
             </div>
             <div className="mt-2 font-[family-name:var(--font-serif,serif)] text-[27px] font-semibold text-[#1F2423]">
@@ -1001,7 +1001,7 @@ export function ProjectKnowledgeNetworkSection({
           </div>
           <div className="px-8 py-[30px]">
             {error && view === "glossary" ? (
-              <p className="mb-4 rounded-xl border border-[rgba(202,33,55,0.25)] bg-[rgba(202,33,55,0.06)] px-3.5 py-2 text-[12.5px] text-[#CA2137]">
+              <p className="mb-4 rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
                 {error}
               </p>
             ) : null}
@@ -1027,7 +1027,7 @@ export function ProjectKnowledgeNetworkSection({
         <div className="overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.76)]">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(78,66,57,0.1)] px-6 py-4">
             <div>
-              <div className="text-[11px] tracking-wide text-[#CA2137]">
+              <div className="text-[11px] tracking-wide text-[#A06358]">
                 版本浏览（只读）
               </div>
               <div className="mt-1 font-[family-name:var(--font-serif,serif)] text-[22px] font-semibold text-[#1F2423]">
@@ -1051,7 +1051,7 @@ export function ProjectKnowledgeNetworkSection({
             </button>
           </div>
           {versionsError ? (
-            <p className="mx-6 mt-4 rounded-xl border border-[rgba(202,33,55,0.25)] bg-[rgba(202,33,55,0.06)] px-3.5 py-2 text-[12.5px] text-[#CA2137]">
+            <p className="mx-6 mt-4 rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
               {versionsError}
             </p>
           ) : null}
@@ -1064,7 +1064,7 @@ export function ProjectKnowledgeNetworkSection({
                 className={cn(
                   "h-8 rounded-lg px-3 text-[12.5px]",
                   versionSectionId === s.id
-                    ? "bg-[#F8EDEE] font-semibold text-[#CA2137]"
+                    ? "bg-[#EFE7E6] font-semibold text-[#A06358]"
                     : "text-[#59625F] hover:bg-[rgba(78,66,57,0.05)]",
                 )}
               >
@@ -1088,7 +1088,7 @@ export function ProjectKnowledgeNetworkSection({
       ) : (
         <div className="overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.76)]">
           <div className="border-b border-[rgba(78,66,57,0.1)] px-8 py-7">
-            <div className="text-[11px] tracking-wide text-[#CA2137]">
+            <div className="text-[11px] tracking-wide text-[#A06358]">
               知识网络版本
             </div>
             <div className="mt-2 font-[family-name:var(--font-serif,serif)] text-[27px] font-semibold text-[#1F2423]">
@@ -1101,7 +1101,7 @@ export function ProjectKnowledgeNetworkSection({
           </div>
           <div className="px-6 py-5">
             {versionsError ? (
-              <p className="mb-4 rounded-xl border border-[rgba(202,33,55,0.25)] bg-[rgba(202,33,55,0.06)] px-3.5 py-2 text-[12.5px] text-[#CA2137]">
+              <p className="mb-4 rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
                 {versionsError}
               </p>
             ) : null}
@@ -1150,7 +1150,7 @@ export function ProjectKnowledgeNetworkSection({
                           {v.archivedAt
                             ? new Date(v.archivedAt).toLocaleString("zh-CN")
                             : "—"}
-                          <div className="mt-0.5 text-[#CA2137]">查看</div>
+                          <div className="mt-0.5 text-[#A06358]">查看</div>
                         </div>
                       </button>
                     </li>

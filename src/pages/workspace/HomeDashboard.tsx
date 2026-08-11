@@ -21,7 +21,7 @@ import type { ProjectPhase, WorkspaceProject } from "@/workspace/projects";
 const C = {
   ink: "#1F2423",
   muted: "#59625F",
-  wine: "#CA2137",
+  wine: "#A06358",
   wineDeep: "#922233",
   paper: "rgba(255,252,248,0.82)",
   line: "rgba(78,66,57,0.1)",
@@ -91,7 +91,7 @@ function stageLabel(p: WorkspaceProject): string {
 
 function iconTone(index: number): { bg: string; fg: string } {
   const tones = [
-    { bg: "#F8EDEE", fg: C.wine },
+    { bg: "#EFE7E6", fg: C.wine },
     { bg: "rgba(94,155,117,0.14)", fg: C.greenDeep },
     { bg: "rgba(213,154,47,0.14)", fg: C.amber },
   ];
@@ -467,7 +467,7 @@ export default function HomeDashboard() {
                   color: "inherit",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(202,33,55,0.03)";
+                  e.currentTarget.style.background = "rgba(160,99,88,0.03)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = "transparent";
@@ -572,7 +572,7 @@ export default function HomeDashboard() {
                   transition: "border-color 0.15s ease",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(202,33,55,0.3)";
+                  e.currentTarget.style.borderColor = "rgba(160,99,88,0.3)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.borderColor = C.line;

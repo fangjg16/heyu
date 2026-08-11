@@ -17,8 +17,8 @@ import {
 const RISK_CLASS: Record<ApiRisk, string> = {
   safe: "bg-[rgba(47,107,79,0.12)] text-[#2F6B4F]",
   write: "bg-[rgba(176,125,31,0.12)] text-[#8A6218]",
-  destructive: "bg-[rgba(202,33,55,0.12)] text-[#CA2137]",
-  llm: "bg-[rgba(202,33,55,0.1)] text-[#7A1624]",
+  destructive: "bg-[rgba(160,99,88,0.12)] text-[#A06358]",
+  llm: "bg-[rgba(160,99,88,0.1)] text-[#722F37]",
   internal: "bg-[rgba(78,66,57,0.1)] text-[#59625F]",
 };
 
@@ -160,7 +160,7 @@ export function AdminApiProbeSection() {
     <div className="overflow-hidden rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.82)]">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[rgba(78,66,57,0.1)] px-5 py-4">
         <div className="flex items-start gap-2">
-          <Activity className="mt-0.5 h-4 w-4 text-[#CA2137]" strokeWidth={2} />
+          <Activity className="mt-0.5 h-4 w-4 text-[#A06358]" strokeWidth={2} />
           <div>
             <h2 className="text-[15px] font-semibold text-[#1F2423]">
               API 测试
@@ -175,7 +175,7 @@ export function AdminApiProbeSection() {
             value={projectId}
             onChange={(e) => setProjectId(e.target.value)}
             placeholder="projectId（可空，自动取列表首项）"
-            className="h-9 min-w-[220px] rounded-lg border border-[rgba(78,66,57,0.14)] bg-white/80 px-3 text-[12.5px] outline-none focus:border-[rgba(202,33,55,0.35)]"
+            className="h-9 min-w-[220px] rounded-lg border border-[rgba(78,66,57,0.14)] bg-white/80 px-3 text-[12.5px] outline-none focus:border-[rgba(160,99,88,0.35)]"
           />
           <label className="inline-flex items-center gap-1.5 text-[12px] text-[#59625F]">
             <input
@@ -189,7 +189,7 @@ export function AdminApiProbeSection() {
             type="button"
             onClick={() => void onRunSafe()}
             disabled={running}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#CA2137] px-3.5 text-[12.5px] font-medium text-white hover:bg-[#AD1A2D] disabled:opacity-45"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#A06358] px-3.5 text-[12.5px] font-medium text-white hover:bg-[#8F564C] disabled:opacity-45"
           >
             {running ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -202,7 +202,7 @@ export function AdminApiProbeSection() {
       </div>
 
       {error ? (
-        <p className="mx-5 mt-4 rounded-xl border border-[rgba(202,33,55,0.25)] bg-[rgba(202,33,55,0.06)] px-3.5 py-2 text-[12.5px] text-[#CA2137]">
+        <p className="mx-5 mt-4 rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
           {error}
         </p>
       ) : null}
@@ -243,7 +243,7 @@ export function AdminApiProbeSection() {
                         className={cn(
                           "flex w-full flex-col rounded-lg px-2.5 py-2 text-left transition-colors",
                           selectedId === e.id
-                            ? "bg-[#F8EDEE] text-[#CA2137]"
+                            ? "bg-[#EFE7E6] text-[#A06358]"
                             : "text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]",
                         )}
                       >
@@ -275,7 +275,7 @@ export function AdminApiProbeSection() {
                                   ? "bg-[rgba(78,66,57,0.08)] text-[#969E9A]"
                                   : r.ok
                                     ? "bg-[rgba(47,107,79,0.12)] text-[#2F6B4F]"
-                                    : "bg-[rgba(202,33,55,0.12)] text-[#CA2137]",
+                                    : "bg-[rgba(160,99,88,0.12)] text-[#A06358]",
                               )}
                             >
                               {r.skipped
@@ -311,7 +311,7 @@ export function AdminApiProbeSection() {
                   type="button"
                   onClick={() => void onProbeSelected()}
                   disabled={running}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[rgba(202,33,55,0.3)] px-3 text-[12px] font-medium text-[#CA2137] hover:bg-[#F8EDEE] disabled:opacity-45"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[rgba(160,99,88,0.3)] px-3 text-[12px] font-medium text-[#A06358] hover:bg-[#EFE7E6] disabled:opacity-45"
                 >
                   <Play className="h-3.5 w-3.5" />
                   探测本条
@@ -351,7 +351,7 @@ export function AdminApiProbeSection() {
               <input
                 value={manualPath}
                 onChange={(e) => setManualPath(e.target.value)}
-                className="h-9 min-w-[240px] flex-1 rounded-lg border border-[rgba(78,66,57,0.14)] bg-white px-3 font-mono text-[12.5px] outline-none focus:border-[rgba(202,33,55,0.35)]"
+                className="h-9 min-w-[240px] flex-1 rounded-lg border border-[rgba(78,66,57,0.14)] bg-white px-3 font-mono text-[12.5px] outline-none focus:border-[rgba(160,99,88,0.35)]"
                 placeholder="/api/..."
               />
               <button
@@ -375,7 +375,7 @@ export function AdminApiProbeSection() {
                 rows={6}
                 spellCheck={false}
                 placeholder="JSON body（可选）"
-                className="mt-2 w-full resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white px-3 py-2 font-mono text-[12px] outline-none focus:border-[rgba(202,33,55,0.35)]"
+                className="mt-2 w-full resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white px-3 py-2 font-mono text-[12px] outline-none focus:border-[rgba(160,99,88,0.35)]"
               />
             ) : null}
             {manualResult ? (

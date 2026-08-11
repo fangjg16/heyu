@@ -4,52 +4,52 @@
 
 @layer base {
   /**
-   * 默认：朱红主色（由原型酒红 #A3262C 提亮饱和，约 #CA2137，避免深底发闷褐）
+   * 默认：波西米亚 brand-kit v1 经典酒红（hsl 5° 32% 46% ≈ #A06358）
    */
   :root {
-    --wine: 352 72% 46%;
-    --wine-hover: 352 74% 39%;
-    --wine-muted: 352 42% 95%;
+    --wine: 5 32% 46%;
+    --wine-hover: 5 34% 40%;
+    --wine-muted: 5 24% 92%;
     --wine-foreground: 36 40% 98%;
-    --wine-mid: 352 64% 40%;
+    --wine-mid: 353 32% 43%;
     --wine-mid-foreground: 36 40% 98%;
-    --wine-deep: 352 68% 34%;
+    --wine-deep: 353 42% 32%;
     --wine-deep-foreground: 36 40% 98%;
-    --linen: 36 31% 95%;
-    --sand: 34 18% 90%;
+    --linen: 36 32% 94%;
+    --sand: 34 22% 88%;
     --paper: 36 40% 98%;
-    --warm-charcoal: 165 7% 13%;
-    --warm-charcoal-muted: 160 5% 37%;
-    --terracotta: 38 70% 51%;
-    --sage: 145 28% 42%;
-    --ink-soft: 160 5% 37%;
-    --success: 145 28% 49%;
-    --hero-bg: 165 8% 10%;
+    --warm-charcoal: 25 18% 18%;
+    --warm-charcoal-muted: 25 10% 45%;
+    --terracotta: 18 28% 58%;
+    --sage: 145 18% 42%;
+    --ink-soft: 25 10% 45%;
+    --success: 145 18% 42%;
+    --hero-bg: 25 22% 11%;
     --hero-foreground: 36 28% 92%;
-    --hero-muted: 160 6% 55%;
+    --hero-muted: 30 12% 62%;
 
     --background: var(--linen);
     --foreground: var(--warm-charcoal);
     --primary: var(--wine);
     --primary-foreground: var(--wine-foreground);
     --secondary: var(--sand);
-    --secondary-foreground: 165 6% 22%;
-    --muted: 36 18% 91%;
+    --secondary-foreground: 25 16% 28%;
+    --muted: 35 18% 90%;
     --muted-foreground: var(--warm-charcoal-muted);
     --accent: var(--wine-muted);
-    --accent-foreground: 352 58% 34%;
+    --accent-foreground: 5 28% 38%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --border: 34 12% 84%;
-    --input: 36 20% 93%;
+    --border: 34 16% 82%;
+    --input: 35 20% 91%;
     --ring: var(--wine);
-    --radius: 0.75rem;
+    --radius: 0.875rem;
     --nav-button: var(--sand);
     --surface-alt: var(--sand);
-    --landing-accent: 352 78% 58%;
-    --gradient-start: 352 78% 56%;
-    --gradient-mid: 352 72% 46%;
-    --gradient-end: 352 55% 38%;
+    --landing-accent: var(--wine);
+    --gradient-start: 5 36% 52%;
+    --gradient-mid: 5 32% 46%;
+    --gradient-end: 353 42% 32%;
 
     --glass-bg: rgba(255, 252, 248, 0.2);
     --glass-bg-hover: rgba(255, 252, 248, 0.3);
@@ -57,14 +57,14 @@
     --glass-saturate: 165%;
     --glass-border: rgba(255, 255, 255, 0.38);
     --glass-rim: rgba(255, 255, 255, 0.52);
-    --glass-edge: rgba(31, 36, 35, 0.06);
+    --glass-edge: rgba(25, 18, 18, 0.06);
     --glass-shadow:
-      0 12px 40px rgba(31, 36, 35, 0.1),
+      0 12px 40px rgba(25, 18, 18, 0.1),
       inset 0 1px 0 rgba(255, 255, 255, 0.42);
-    --glass-radius: 1.25rem;
+    --glass-radius: 1.5rem;
 
-    --glass-hero-bg: rgba(31, 36, 35, 0.36);
-    --glass-hero-bg-hover: rgba(42, 48, 47, 0.42);
+    --glass-hero-bg: rgba(42, 32, 30, 0.36);
+    --glass-hero-bg-hover: rgba(52, 40, 37, 0.42);
     --glass-hero-blur: 36px;
     --glass-hero-saturate: 130%;
     --glass-hero-border: rgba(255, 248, 240, 0.14);
@@ -72,7 +72,7 @@
     --glass-hero-shadow:
       0 16px 48px rgba(0, 0, 0, 0.28),
       inset 0 1px 0 rgba(255, 248, 240, 0.14);
-    --glass-hero-radius: 1.25rem;
+    --glass-hero-radius: 1.5rem;
 
     color-scheme: light;
   }
@@ -89,7 +89,7 @@
     --hero-bg: 25 22% 11%;
     --hero-foreground: 36 28% 92%;
     --hero-muted: 30 12% 62%;
-    --landing-accent: 352 78% 58%;
+    --landing-accent: var(--wine);
     color-scheme: dark;
   }
 
@@ -109,8 +109,8 @@
   .login-page input:-webkit-autofill:hover,
   .login-page input:-webkit-autofill:focus {
     -webkit-box-shadow: 0 0 0 1000px hsl(36 40% 98%) inset;
-    -webkit-text-fill-color: hsl(165 7% 13%);
-    caret-color: hsl(165 7% 13%);
+    -webkit-text-fill-color: hsl(25 18% 18%);
+    caret-color: hsl(25 18% 18%);
     transition: background-color 99999s ease-out 0s;
   }
 
@@ -177,24 +177,24 @@
     --primary: var(--wine);
     --primary-foreground: var(--wine-foreground);
     --secondary: 36 22% 92%;
-    --secondary-foreground: 165 6% 22%;
-    --muted: 36 18% 91%;
+    --secondary-foreground: 25 16% 28%;
+    --muted: 35 18% 90%;
     --muted-foreground: var(--warm-charcoal-muted);
     --accent: var(--wine-muted);
-    --accent-foreground: 352 58% 34%;
+    --accent-foreground: 5 28% 38%;
     --destructive: 0 72% 46%;
     --destructive-foreground: 0 0% 99%;
-    --border: 34 12% 84%;
-    --input: 36 20% 93%;
+    --border: 34 16% 82%;
+    --input: 35 20% 91%;
     --ring: var(--wine);
-    --radius: 0.75rem;
+    --radius: 0.875rem;
     --nav-button: 36 20% 93%;
     --hero-bg: var(--linen);
     --surface-alt: 36 18% 92%;
-    --gradient-start: 352 78% 56%;
-    --gradient-mid: 352 72% 46%;
-    --gradient-end: 352 55% 38%;
-    --landing-accent: 352 78% 58%;
+    --gradient-start: 5 36% 52%;
+    --gradient-mid: 5 32% 46%;
+    --gradient-end: 353 42% 32%;
+    --landing-accent: var(--wine);
     color-scheme: light;
     font-size: 15.5px;
     line-height: 1.6;
@@ -253,13 +253,13 @@
     margin-inline: auto;
   }
 
-  /** Hero 主标题：清晰朱红渐变（深底可读，避免闷褐） */
+  /** Hero 主标题：brand-kit 经典酒红（与 --wine 同系，略提亮高光） */
   .text-gradient-landing {
     background: linear-gradient(
       135deg,
-      hsl(352 82% 62%) 0%,
-      hsl(var(--landing-accent)) 42%,
-      hsl(var(--wine)) 100%
+      hsl(5 36% 54%) 0%,
+      hsl(var(--wine)) 55%,
+      hsl(var(--wine-deep)) 100%
     );
     -webkit-background-clip: text;
     background-clip: text;
