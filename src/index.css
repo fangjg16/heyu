@@ -4,16 +4,16 @@
 
 @layer base {
   /**
-   * 默认：投研工作台原型色板（#A3262C + #F6F3EE）
+   * 默认：朱红主色（由原型酒红 #A3262C 提亮饱和，避免深底发闷褐）
    */
   :root {
-    --wine: 357 62% 39%;
-    --wine-hover: 357 63% 33%;
-    --wine-muted: 357 40% 95%;
+    --wine: 352 72% 46%;
+    --wine-hover: 352 74% 39%;
+    --wine-muted: 352 42% 95%;
     --wine-foreground: 36 40% 98%;
-    --wine-mid: 357 55% 36%;
+    --wine-mid: 352 64% 40%;
     --wine-mid-foreground: 36 40% 98%;
-    --wine-deep: 357 63% 33%;
+    --wine-deep: 352 68% 34%;
     --wine-deep-foreground: 36 40% 98%;
     --linen: 36 31% 95%;
     --sand: 34 18% 90%;
@@ -37,7 +37,7 @@
     --muted: 36 18% 91%;
     --muted-foreground: var(--warm-charcoal-muted);
     --accent: var(--wine-muted);
-    --accent-foreground: 357 55% 32%;
+    --accent-foreground: 352 58% 34%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
     --border: 34 12% 84%;
@@ -46,10 +46,10 @@
     --radius: 0.75rem;
     --nav-button: var(--sand);
     --surface-alt: var(--sand);
-    --landing-accent: var(--wine);
-    --gradient-start: 357 62% 44%;
-    --gradient-mid: 357 55% 36%;
-    --gradient-end: 36 28% 72%;
+    --landing-accent: 352 78% 58%;
+    --gradient-start: 352 78% 56%;
+    --gradient-mid: 352 72% 46%;
+    --gradient-end: 352 55% 38%;
 
     --glass-bg: rgba(255, 252, 248, 0.2);
     --glass-bg-hover: rgba(255, 252, 248, 0.3);
@@ -89,7 +89,7 @@
     --hero-bg: 25 22% 11%;
     --hero-foreground: 36 28% 92%;
     --hero-muted: 30 12% 62%;
-    --landing-accent: var(--wine);
+    --landing-accent: 352 78% 58%;
     color-scheme: dark;
   }
 
@@ -181,7 +181,7 @@
     --muted: 36 18% 91%;
     --muted-foreground: var(--warm-charcoal-muted);
     --accent: var(--wine-muted);
-    --accent-foreground: 357 55% 32%;
+    --accent-foreground: 352 58% 34%;
     --destructive: 0 72% 46%;
     --destructive-foreground: 0 0% 99%;
     --border: 34 12% 84%;
@@ -191,10 +191,10 @@
     --nav-button: 36 20% 93%;
     --hero-bg: var(--linen);
     --surface-alt: 36 18% 92%;
-    --gradient-start: 357 62% 44%;
-    --gradient-mid: 357 55% 36%;
-    --gradient-end: 36 24% 68%;
-    --landing-accent: var(--wine);
+    --gradient-start: 352 78% 56%;
+    --gradient-mid: 352 72% 46%;
+    --gradient-end: 352 55% 38%;
+    --landing-accent: 352 78% 58%;
     color-scheme: light;
     font-size: 15.5px;
     line-height: 1.6;
@@ -253,13 +253,13 @@
     margin-inline: auto;
   }
 
-  /** Hero 主标题：暖色轻渐变（非科技蓝） */
+  /** Hero 主标题：清晰朱红渐变（深底可读，避免闷褐） */
   .text-gradient-landing {
     background: linear-gradient(
       135deg,
-      hsl(357 62% 48%) 0%,
-      hsl(var(--wine)) 45%,
-      hsl(357 40% 36%) 100%
+      hsl(352 82% 62%) 0%,
+      hsl(var(--landing-accent)) 42%,
+      hsl(var(--wine)) 100%
     );
     -webkit-background-clip: text;
     background-clip: text;

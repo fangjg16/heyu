@@ -13,39 +13,42 @@
     <style id="brand-tokens">
 /* 合域品牌 Token · 内联以便单文件下载 / file:// 离线打开（源文件：design/brand-tokens.css） */
 /**
- * 合域 · 波西米亚品牌 Token v1
+ * 合域 · 品牌 Token v2（对齐投研工作台原型 20260717）
  * 单一事实来源：design/brand-kit.html 与本文件保持一致；落地实现时同步至 src/index.css
  */
 :root {
   /* ── 语义：设计意义锚点 ── */
   --brand-name: "合域";
 
-  /* ── 酒红阶（5° 主色；深/中档对齐知识网络 HTML #722f37 / #8f4a52） ── */
-  --wine: 5 32% 46%;
-  --wine-hover: 5 34% 40%;
-  --wine-muted: 5 24% 92%;
+  /* ── 朱红阶（原 #A3262C 偏闷褐；提亮饱和，深色底与浅色台都更干净） ── */
+  --wine: 352 72% 46%;
+  --wine-hover: 352 74% 39%;
+  --wine-muted: 352 42% 95%;
   --wine-foreground: 36 40% 98%;
-  /** 中酒红 · Factor B 色块 */
-  --wine-mid: 353 32% 43%;
+  /** 中朱红 */
+  --wine-mid: 352 64% 40%;
   --wine-mid-foreground: 36 40% 98%;
-  /** 深酒红 · 综合成熟度 / --burgundy */
-  --wine-deep: 353 42% 32%;
+  /** 深朱红 */
+  --wine-deep: 352 68% 34%;
   --wine-deep-foreground: 36 40% 98%;
 
-  /* ── 米色体系 ── */
-  --linen: 36 32% 94%;
-  --sand: 34 22% 88%;
-  --warm-charcoal: 25 18% 18%;
-  --warm-charcoal-muted: 25 10% 45%;
+  /* ── 米色 / 墨色（原型 #F6F3EE / #1F2423 / #59625F） ── */
+  --linen: 36 31% 95%;
+  --sand: 34 18% 90%;
+  --paper: 36 40% 98%;
+  --warm-charcoal: 165 7% 13%;
+  --warm-charcoal-muted: 160 5% 37%;
 
-  /* ── 点缀色 ── */
-  --terracotta: 18 28% 58%;
-  --sage: 145 18% 42%;
+  /* ── 点缀色（原型 green / amber） ── */
+  --terracotta: 38 70% 51%;
+  --sage: 145 28% 42%;
+  --ink-soft: 160 5% 37%;
+  --success: 145 28% 49%;
 
   /* ── Hero 深色区 ── */
-  --hero-bg: 25 22% 11%;
+  --hero-bg: 165 8% 10%;
   --hero-foreground: 36 28% 92%;
-  --hero-muted: 30 12% 62%;
+  --hero-muted: 160 6% 55%;
 
   /* ── 浅色正文区（映射 shadcn 变量） ── */
   --background: var(--linen);
@@ -53,19 +56,19 @@
   --primary: var(--wine);
   --primary-foreground: var(--wine-foreground);
   --secondary: var(--sand);
-  --secondary-foreground: 25 16% 28%;
-  --muted: 35 18% 90%;
+  --secondary-foreground: 165 6% 22%;
+  --muted: 36 18% 91%;
   --muted-foreground: var(--warm-charcoal-muted);
   --accent: var(--wine-muted);
-  --accent-foreground: 5 28% 38%;
-  --border: 34 16% 82%;
-  --input: 35 20% 91%;
+  --accent-foreground: 352 58% 34%;
+  --border: 34 12% 84%;
+  --input: 36 20% 93%;
   --ring: var(--wine);
-  --radius: 0.875rem;
-  --landing-accent: var(--wine);
+  --radius: 0.75rem;
+  --landing-accent: 352 78% 58%;
 
   /**
-   * 毛玻璃 · 浅色正文区（低不透明 + 较强模糊，保留背后色块透视）
+   * 毛玻璃 · 浅色正文区
    */
   --glass-bg: rgba(255, 252, 248, 0.2);
   --glass-bg-hover: rgba(255, 252, 248, 0.3);
@@ -73,17 +76,17 @@
   --glass-saturate: 165%;
   --glass-border: rgba(255, 255, 255, 0.38);
   --glass-rim: rgba(255, 255, 255, 0.52);
-  --glass-edge: rgba(25, 18, 18, 0.06);
+  --glass-edge: rgba(31, 36, 35, 0.06);
   --glass-shadow:
-    0 12px 40px rgba(25, 18, 18, 0.1),
+    0 12px 40px rgba(31, 36, 35, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.42);
-  --glass-radius: 1.5rem;
+  --glass-radius: 1.25rem;
 
   /**
-   * 毛玻璃 · Hero 深色区（参考 Nodum：高 blur、暗底、细亮描边）
+   * 毛玻璃 · Hero 深色区
    */
-  --glass-hero-bg: rgba(42, 32, 30, 0.36);
-  --glass-hero-bg-hover: rgba(52, 40, 37, 0.42);
+  --glass-hero-bg: rgba(31, 36, 35, 0.36);
+  --glass-hero-bg-hover: rgba(42, 48, 47, 0.42);
   --glass-hero-blur: 36px;
   --glass-hero-saturate: 130%;
   --glass-hero-border: rgba(255, 248, 240, 0.14);
@@ -91,7 +94,7 @@
   --glass-hero-shadow:
     0 16px 48px rgba(0, 0, 0, 0.28),
     inset 0 1px 0 rgba(255, 248, 240, 0.14);
-  --glass-hero-radius: 1.5rem;
+  --glass-hero-radius: 1.25rem;
 }
 
 .glass-bohemian {
@@ -128,7 +131,7 @@
     168deg,
     rgba(255, 248, 240, 0.14) 0%,
     var(--glass-hero-bg) 38%,
-    rgba(28, 20, 18, 0.32) 100%
+    rgba(20, 24, 23, 0.32) 100%
   );
   backdrop-filter: blur(var(--glass-hero-blur)) saturate(var(--glass-hero-saturate));
   -webkit-backdrop-filter: blur(var(--glass-hero-blur)) saturate(var(--glass-hero-saturate));
@@ -147,7 +150,7 @@
     168deg,
     rgba(255, 248, 240, 0.18) 0%,
     var(--glass-hero-bg-hover) 38%,
-    rgba(32, 24, 22, 0.38) 100%
+    rgba(24, 28, 27, 0.38) 100%
   );
   border-color: rgba(255, 248, 240, 0.18);
 }
@@ -157,7 +160,7 @@
     168deg,
     rgba(255, 248, 240, 0.14) 0%,
     var(--glass-hero-bg) 38%,
-    rgba(28, 20, 18, 0.32) 100%
+    rgba(20, 24, 23, 0.32) 100%
   );
   backdrop-filter: blur(var(--glass-hero-blur)) saturate(var(--glass-hero-saturate));
   -webkit-backdrop-filter: blur(var(--glass-hero-blur)) saturate(var(--glass-hero-saturate));

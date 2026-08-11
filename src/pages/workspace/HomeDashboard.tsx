@@ -21,8 +21,8 @@ import type { ProjectPhase, WorkspaceProject } from "@/workspace/projects";
 const C = {
   ink: "#1F2423",
   muted: "#59625F",
-  wine: "#A3262C",
-  wineDeep: "#8B1F24",
+  wine: "#CA2137",
+  wineDeep: "#922233",
   paper: "rgba(255,252,248,0.82)",
   line: "rgba(78,66,57,0.1)",
   amber: "#D59A2F",
