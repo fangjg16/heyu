@@ -6,16 +6,16 @@
   /* ── 语义：设计意义锚点 ── */
   --brand-name: "合域";
 
-  /* ── 酒红阶（原型 #A3262C / #8B1F24 / #F7EDEE） ── */
-  --wine: 357 62% 39%;
-  --wine-hover: 357 63% 33%;
-  --wine-muted: 357 40% 95%;
+  /* ── 朱红阶（原 #A3262C 偏闷褐；提亮饱和，深色底与浅色台都更干净） ── */
+  --wine: 352 72% 46%;
+  --wine-hover: 352 74% 39%;
+  --wine-muted: 352 42% 95%;
   --wine-foreground: 36 40% 98%;
-  /** 中酒红 */
-  --wine-mid: 357 55% 36%;
+  /** 中朱红 */
+  --wine-mid: 352 64% 40%;
   --wine-mid-foreground: 36 40% 98%;
-  /** 深酒红 */
-  --wine-deep: 357 63% 33%;
+  /** 深朱红 */
+  --wine-deep: 352 68% 34%;
   --wine-deep-foreground: 36 40% 98%;
 
   /* ── 米色 / 墨色（原型 #F6F3EE / #1F2423 / #59625F） ── */
@@ -46,12 +46,12 @@
   --muted: 36 18% 91%;
   --muted-foreground: var(--warm-charcoal-muted);
   --accent: var(--wine-muted);
-  --accent-foreground: 357 55% 32%;
+  --accent-foreground: 352 58% 34%;
   --border: 34 12% 84%;
   --input: 36 20% 93%;
   --ring: var(--wine);
   --radius: 0.75rem;
-  --landing-accent: var(--wine);
+  --landing-accent: 352 78% 58%;
 
   /**
    * 毛玻璃 · 浅色正文区

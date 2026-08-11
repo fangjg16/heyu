@@ -34,7 +34,13 @@ export async function callChatCompletions(
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({ model, messages, stream: false }),
+    // Qwen3.x：关闭 thinking，避免只返回 reasoning_content、content 为空
+    body: JSON.stringify({
+      model,
+      messages,
+      stream: false,
+      enable_thinking: false,
+    }),
   });
 
   const rawText = await res.text();
@@ -59,9 +65,18 @@ export async function callChatCompletions(
     throw new Error(String(err));
   }
 
-  const choice = raw.choices as { message?: { content?: string } }[] | undefined;
+  const choice = raw.choices as
+    | {
+        message?: {
+          content?: string | null;
+          reasoning_content?: string | null;
+        };
+      }[]
+    | undefined;
+  const message = choice?.[0]?.message;
   const answer =
-    choice?.[0]?.message?.content?.trim() ||
+    message?.content?.trim() ||
+    message?.reasoning_content?.trim() ||
     (raw.answer as string) ||
     (raw.output as string) ||
     "";
@@ -133,7 +148,9 @@ function isHermesUpstreamMisconfigError(message: string): boolean {
     m.includes("undefined") ||
     m.includes("返回了网页") ||
     m.includes("enotfound") ||
-    m.includes("fetch failed")
+    m.includes("fetch failed") ||
+    // Hermes/代理偶发把上游异常收成 Cloudflare 风格文案
+    m.includes("internal error; reference")
   );
 }
 

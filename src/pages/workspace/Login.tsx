@@ -6,10 +6,10 @@ import { loadSessionToken, loadSessionUserId } from "@/workspace/session";
 const REMEMBER_USER_KEY = "fo-login-remember-user";
 
 const DEMO_IDENTITIES = [
-  { name: "BingheSu", role: "项目负责人", username: "binghe.su" },
-  { name: "分析师", role: "投研分析", username: "analyst" },
-  { name: "管理员", role: "平台管理", username: "admin" },
-  { name: "访客", role: "Guest 浏览", username: "guest" },
+  { name: "BingheSu", role: "项目负责人", username: "binghesu" },
+  { name: "JimmyHuang", role: "Core 核心级", username: "jimmyhuang" },
+  { name: "管理员", role: "平台管理", username: "candiceguo" },
+  { name: "访客", role: "Guest 浏览", username: "janicehi" },
 ] as const;
 
 export default function Login() {
@@ -68,13 +68,13 @@ export default function Login() {
             className="pointer-events-none absolute inset-0 h-full w-full opacity-50"
             aria-hidden
           >
-            <g stroke="rgba(163,38,44,0.16)" strokeWidth="1" fill="none">
+            <g stroke="rgba(202,33,55,0.16)" strokeWidth="1" fill="none">
               <path d="M80 120 L240 200 L180 360 L360 300 L480 420" />
               <path d="M240 200 L300 90 L460 160 L480 420 L520 560" />
               <path d="M180 360 L120 520 L320 560 L360 300" />
               <path d="M320 560 L480 600 L520 560" />
             </g>
-            <g fill="rgba(163,38,44,0.5)">
+            <g fill="rgba(202,33,55,0.5)">
               <circle cx="80" cy="120" r="3.5" />
               <circle cx="240" cy="200" r="4.5" />
               <circle cx="300" cy="90" r="3" />

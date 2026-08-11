@@ -63,6 +63,7 @@ function WorkspaceChatRedirect() {
   const navigate = useNavigate();
   const userId = loadSessionUserId();
   const [ready, setReady] = useState(false);
+  const [empty, setEmpty] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -89,12 +90,38 @@ function WorkspaceChatRedirect() {
     if (!ready) return;
     let cancelled = false;
     void resolveChatEntryPathAsync(userId).then((path) => {
-      if (!cancelled) navigate(path, { replace: true });
+      if (cancelled) return;
+      if (!path) {
+        setEmpty(true);
+        return;
+      }
+      navigate(path, { replace: true });
     });
     return () => {
       cancelled = true;
     };
   }, [ready, userId, navigate]);
+
+  if (empty) {
+    return (
+      <WorkspaceShell>
+        <div className="mx-auto flex min-h-[50vh] max-w-lg flex-col items-center justify-center px-8 py-16 text-center">
+          <h1 className="font-display text-2xl font-semibold text-[hsl(var(--wine))]">
+            还没有可进入的对话
+          </h1>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            对话中心挂在具体项目下。请先到项目库新建或加入一个项目，再从项目进入对话。
+          </p>
+          <Link
+            to="/app/projects"
+            className="mt-8 inline-flex h-11 items-center rounded-xl bg-[hsl(var(--wine))] px-6 text-sm font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+          >
+            去项目库创建
+          </Link>
+        </div>
+      </WorkspaceShell>
+    );
+  }
 
   return (
     <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
@@ -619,7 +646,7 @@ function ProjectWorkspaceLayout() {
 
         {overviewError ? (
           <div className="mx-auto max-w-[1600px] px-8 pt-3 md:px-10">
-            <p className="rounded-xl border border-[rgba(163,38,44,0.25)] bg-[rgba(163,38,44,0.06)] px-3.5 py-2 text-[12.5px] text-[#A3262C]">
+            <p className="rounded-xl border border-[rgba(202,33,55,0.25)] bg-[rgba(202,33,55,0.06)] px-3.5 py-2 text-[12.5px] text-[#CA2137]">
               {overviewError}
             </p>
           </div>
@@ -639,7 +666,7 @@ function ProjectWorkspaceLayout() {
                 <button
                   type="button"
                   onClick={goDraftReview}
-                  className="shrink-0 font-semibold text-[#A3262C] underline-offset-2 hover:underline"
+                  className="shrink-0 font-semibold text-[#CA2137] underline-offset-2 hover:underline"
                 >
                   进入审核
                 </button>

@@ -250,7 +250,7 @@ function ChapterBody({ c, centered }: { c: ScrollChapter; centered: boolean }) {
       <div className="mt-8 flex flex-wrap gap-3">
         <a
           href="#contact"
-          className="inline-flex rounded-sm bg-[hsl(var(--wine))] px-7 py-3 text-sm font-medium text-[hsl(var(--wine-foreground))] transition-colors hover:bg-[hsl(5_34%_40%)]"
+          className="inline-flex rounded-sm bg-[hsl(var(--wine))] px-7 py-3 text-sm font-medium text-[hsl(var(--wine-foreground))] transition-colors hover:bg-[hsl(var(--wine-hover))]"
         >
           预约产品演示
         </a>

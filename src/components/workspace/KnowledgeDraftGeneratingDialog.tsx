@@ -78,7 +78,7 @@ export function KnowledgeDraftGeneratingDialog({
         </button>
 
         <div className="px-7 pb-6 pt-7">
-          <div className="text-[11px] font-medium tracking-wide text-[#A3262C]">
+          <div className="text-[11px] font-medium tracking-wide text-[#CA2137]">
             生成知识网络更新草案
           </div>
           <h2
@@ -123,7 +123,7 @@ export function KnowledgeDraftGeneratingDialog({
                   : ""}
               </span>
               {failed > 0 ? (
-                <span className="text-[#A3262C]">失败 {failed}</span>
+                <span className="text-[#CA2137]">失败 {failed}</span>
               ) : (
                 <span className="text-[#59625F]">
                   {finished
@@ -138,7 +138,7 @@ export function KnowledgeDraftGeneratingDialog({
               <div
                 className={cn(
                   "h-full transition-[width] duration-300",
-                  finished ? "bg-[#2F6B4F]" : "bg-[#A3262C]",
+                  finished ? "bg-[#2F6B4F]" : "bg-[#CA2137]",
                 )}
                 style={{ width: `${pct}%` }}
               />
@@ -146,7 +146,7 @@ export function KnowledgeDraftGeneratingDialog({
           </div>
 
           {error ? (
-            <p className="mt-3 rounded-xl border border-[rgba(163,38,44,0.25)] bg-[rgba(163,38,44,0.06)] px-3.5 py-2 text-[12.5px] text-[#A3262C]">
+            <p className="mt-3 rounded-xl border border-[rgba(202,33,55,0.25)] bg-[rgba(202,33,55,0.06)] px-3.5 py-2 text-[12.5px] text-[#CA2137]">
               {error}
             </p>
           ) : null}
@@ -163,7 +163,7 @@ export function KnowledgeDraftGeneratingDialog({
               type="button"
               onClick={onGoReview}
               disabled={!canReview}
-              className="inline-flex h-10 items-center rounded-[11px] bg-[#A3262C] px-4 text-[13.5px] font-medium text-white hover:bg-[#8B1F24] disabled:cursor-not-allowed disabled:opacity-45"
+              className="inline-flex h-10 items-center rounded-[11px] bg-[#CA2137] px-4 text-[13.5px] font-medium text-white hover:bg-[#AD1A2D] disabled:cursor-not-allowed disabled:opacity-45"
             >
               前往审核
             </button>

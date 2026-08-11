@@ -19,4 +19,11 @@ if [[ -d "$ROOT/api-worker/migrations" ]]; then
   done
 fi
 
+echo "[migrate] seeding workspace demo users ..."
+"${COMPOSE[@]}" exec -T jfo-api node scripts/seed-workspace-users.mjs
+
+echo "[migrate] seeding knowledge-network chapter templates ..."
+"${COMPOSE[@]}" exec -T jfo-api node scripts/seed-kn-chapter-templates.mjs
+
 echo "[migrate] done. Check: curl -sS \"\${JFO_API_PUBLIC_BASE}/api/health\""
+echo "[migrate] demo login e.g. jimmyhuang / jfo2026 (see api-worker/scripts/seed-workspace-users.mjs)"

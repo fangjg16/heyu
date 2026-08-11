@@ -85,9 +85,9 @@ function kindClass(kind: ChangeKind): string {
     case "added":
       return "bg-[rgba(47,107,79,0.12)] text-[#2F6B4F]";
     case "changed":
-      return "bg-[rgba(163,38,44,0.1)] text-[#A3262C]";
+      return "bg-[rgba(202,33,55,0.1)] text-[#CA2137]";
     case "failed":
-      return "bg-[rgba(163,38,44,0.14)] text-[#A3262C]";
+      return "bg-[rgba(202,33,55,0.14)] text-[#CA2137]";
     case "revising":
       return "bg-[rgba(176,125,31,0.12)] text-[#8A6218]";
     case "unchanged":
@@ -517,7 +517,7 @@ export default function KnowledgeChapterDraftReviewPage() {
       <div className="mx-auto max-w-[1600px] px-6 py-6 md:px-10">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="text-[11px] font-medium tracking-wide text-[#A3262C]">
+            <div className="text-[11px] font-medium tracking-wide text-[#CA2137]">
               知识网络 · 更新审核
             </div>
             <h1 className="mt-1 font-[family-name:var(--font-serif,serif)] text-[26px] font-semibold text-[#1F2423]">
@@ -532,14 +532,14 @@ export default function KnowledgeChapterDraftReviewPage() {
           </div>
           <Link
             to={`/app/projects/${projectId}/knowledge`}
-            className="text-[13px] font-medium text-[#A3262C] hover:underline"
+            className="text-[13px] font-medium text-[#CA2137] hover:underline"
           >
             返回知识网络
           </Link>
         </div>
 
         {error ? (
-          <p className="mb-4 rounded-xl border border-[rgba(163,38,44,0.25)] bg-[rgba(163,38,44,0.06)] px-3.5 py-2 text-[12.5px] text-[#A3262C]">
+          <p className="mb-4 rounded-xl border border-[rgba(202,33,55,0.25)] bg-[rgba(202,33,55,0.06)] px-3.5 py-2 text-[12.5px] text-[#CA2137]">
             {error}
           </p>
         ) : null}
@@ -568,7 +568,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                       className={cn(
                         "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-[12.5px] transition-colors",
                         selectedId === r.id
-                          ? "bg-[#F7EDEE] font-semibold text-[#A3262C]"
+                          ? "bg-[#F8EDEE] font-semibold text-[#CA2137]"
                           : "text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]",
                       )}
                     >
@@ -652,7 +652,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                       selected?.kind === "revising"
                     }
                     placeholder="输入对草案的改写指令，例如：把研究结论写得更简洁"
-                    className="min-h-[48px] min-w-[220px] flex-1 resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/80 px-3 py-2 text-[13px] leading-relaxed text-[#1F2423] outline-none placeholder:text-[#969E9A] focus:border-[rgba(163,38,44,0.35)] disabled:opacity-60"
+                    className="min-h-[48px] min-w-[220px] flex-1 resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/80 px-3 py-2 text-[13px] leading-relaxed text-[#1F2423] outline-none placeholder:text-[#969E9A] focus:border-[rgba(202,33,55,0.35)] disabled:opacity-60"
                   />
                   <button
                     type="button"
@@ -663,7 +663,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                       !instruction.trim() ||
                       selected?.kind === "revising"
                     }
-                    className="h-10 shrink-0 rounded-[9px] bg-[#A3262C] px-4 text-[13px] font-medium text-white hover:bg-[#8B1F24] disabled:cursor-not-allowed disabled:opacity-45"
+                    className="h-10 shrink-0 rounded-[9px] bg-[#CA2137] px-4 text-[13px] font-medium text-white hover:bg-[#AD1A2D] disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     {reviseBusy || selected?.kind === "revising"
                       ? "改写中…"
@@ -676,8 +676,8 @@ export default function KnowledgeChapterDraftReviewPage() {
                 {!selected ? (
                   <p className="text-[13px] text-[#969E9A]">暂无章节</p>
                 ) : selected.kind === "failed" ? (
-                  <div className="rounded-xl border border-[rgba(163,38,44,0.2)] bg-[rgba(163,38,44,0.05)] px-4 py-5">
-                    <p className="text-[13px] font-medium text-[#A3262C]">
+                  <div className="rounded-xl border border-[rgba(202,33,55,0.2)] bg-[rgba(202,33,55,0.05)] px-4 py-5">
+                    <p className="text-[13px] font-medium text-[#CA2137]">
                       本章生成失败，无法单独发布
                     </p>
                     <p className="mt-2 whitespace-pre-wrap text-[12.5px] text-[#59625F]">
@@ -736,9 +736,9 @@ export default function KnowledgeChapterDraftReviewPage() {
                         )}
                       </div>
                     </div>
-                    <div className="rounded-xl border border-[rgba(163,38,44,0.18)] bg-white/70">
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[rgba(163,38,44,0.12)] px-3 py-2">
-                        <div className="text-[12px] font-semibold text-[#A3262C]">
+                    <div className="rounded-xl border border-[rgba(202,33,55,0.18)] bg-white/70">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[rgba(202,33,55,0.12)] px-3 py-2">
+                        <div className="text-[12px] font-semibold text-[#CA2137]">
                           待审核草案
                           {editing ? (
                             <span className="ml-2 font-normal text-[#8A6218]">
@@ -753,7 +753,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                                 type="button"
                                 onClick={startEdit}
                                 disabled={!canEditDraft}
-                                className="h-7 rounded-md border border-[rgba(163,38,44,0.3)] px-2.5 text-[11.5px] font-medium text-[#A3262C] hover:bg-[#F7EDEE] disabled:opacity-45"
+                                className="h-7 rounded-md border border-[rgba(202,33,55,0.3)] px-2.5 text-[11.5px] font-medium text-[#CA2137] hover:bg-[#F8EDEE] disabled:opacity-45"
                               >
                                 编辑
                               </button>
@@ -771,7 +771,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                                   type="button"
                                   onClick={() => void saveEdit()}
                                   disabled={editBusy}
-                                  className="h-7 rounded-md bg-[#A3262C] px-2.5 text-[11.5px] font-medium text-white hover:bg-[#8B1F24] disabled:opacity-45"
+                                  className="h-7 rounded-md bg-[#CA2137] px-2.5 text-[11.5px] font-medium text-white hover:bg-[#AD1A2D] disabled:opacity-45"
                                 >
                                   {editBusy ? "保存中…" : "保存草案"}
                                 </button>
@@ -789,7 +789,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                             className={cn(
                               HTML_PANE,
                               editing &&
-                                "outline outline-2 outline-[rgba(163,38,44,0.25)] outline-offset-2 rounded-md",
+                                "outline outline-2 outline-[rgba(202,33,55,0.25)] outline-offset-2 rounded-md",
                             )}
                             {...(editing
                               ? {}
@@ -822,7 +822,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                             part.type === "add" &&
                               "bg-[rgba(47,107,79,0.12)] text-[#1F4D35]",
                             part.type === "remove" &&
-                              "bg-[rgba(163,38,44,0.1)] text-[#7A1C20] line-through",
+                              "bg-[rgba(202,33,55,0.1)] text-[#7A1624] line-through",
                             part.type === "equal" && "text-[#59625F]",
                           )}
                         >
@@ -849,7 +849,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                 </div>
                 <div className="flex justify-between gap-2">
                   <dt className="text-[#59625F]">失败章节</dt>
-                  <dd className="font-semibold text-[#A3262C]">{failedCount}</dd>
+                  <dd className="font-semibold text-[#CA2137]">{failedCount}</dd>
                 </div>
                 <div className="flex justify-between gap-2">
                   <dt className="text-[#59625F]">基于版本</dt>
@@ -884,7 +884,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                     label: selected.label,
                   });
                 }}
-                className="mt-5 flex h-10 w-full items-center justify-center rounded-[11px] bg-[#A3262C] text-[13.5px] font-medium text-white hover:bg-[#8B1F24] disabled:cursor-not-allowed disabled:opacity-45"
+                className="mt-5 flex h-10 w-full items-center justify-center rounded-[11px] bg-[#CA2137] text-[13.5px] font-medium text-white hover:bg-[#AD1A2D] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 {busy === "publish" && confirm?.type === "one"
                   ? "发布中…"
@@ -896,7 +896,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                 type="button"
                 disabled={!canPublishChanged || editing}
                 onClick={() => setConfirm({ type: "changed" })}
-                className="mt-2.5 flex h-10 w-full items-center justify-center rounded-[11px] border border-[hsl(var(--wine)/0.35)] bg-[hsl(var(--wine-muted))] text-[13.5px] font-medium text-[hsl(var(--wine))] hover:bg-[#F7EDEE] disabled:cursor-not-allowed disabled:opacity-45"
+                className="mt-2.5 flex h-10 w-full items-center justify-center rounded-[11px] border border-[hsl(var(--wine)/0.35)] bg-[hsl(var(--wine-muted))] text-[13.5px] font-medium text-[hsl(var(--wine))] hover:bg-[#F8EDEE] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 {busy === "publish" && confirm?.type === "changed"
                   ? "发布中…"
@@ -948,7 +948,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                   }
                 }}
                 disabled={busy === "publish"}
-                className="h-10 flex-1 rounded-xl bg-[#A3262C] text-sm font-semibold text-white"
+                className="h-10 flex-1 rounded-xl bg-[#CA2137] text-sm font-semibold text-white"
               >
                 {busy === "publish" ? "发布中…" : "确认发布"}
               </button>

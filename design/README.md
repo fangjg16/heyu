@@ -33,7 +33,7 @@ pnpm brand-kit:bundle
 
 ## 已定稿要点
 
-- 主色：原型酒红 **#A3262C**（`hsl(357, 62%, 39%)`）；hover **#8B1F24**
+- 主色：朱红 **#CA2137**（`hsl(352 72% 46%)`）；hover **#AD1A2D**（旧 dusty wine `#A3262C` 已弃用）
 - 页面底 **#F6F3EE**；纸面 **#FCFAF6**；墨色 **#1F2423** / **#59625F**
 - 辅色：绿 `#3F6F63` / `#5E9B75`；琥珀 `#D59A2F`
 - 衬线：**Noto Serif SC**（标题）；正文 **Noto Sans SC**
