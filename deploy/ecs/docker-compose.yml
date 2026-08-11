@@ -149,14 +149,20 @@ services:
   hermes:
     image: nousresearch/hermes-agent:latest
     restart: unless-stopped
-    command: gateway run
+    entrypoint: ["/bin/bash", "/jfo/hermes-entrypoint.sh"]
     environment:
+      HERMES_HOME: /opt/data
       API_SERVER_ENABLED: "true"
       API_SERVER_HOST: 0.0.0.0
       API_SERVER_KEY: ${HERMES_API_KEY}
+      # Custom DashScope / OpenAI-compatible (entrypoint also writes config.yaml)
       OPENAI_API_BASE: ${LLM_API_BASE_URL}
+      OPENAI_BASE_URL: ${LLM_API_BASE_URL}
       OPENAI_API_KEY: ${LLM_API_KEY}
+      DASHSCOPE_API_KEY: ${LLM_API_KEY}
       MODEL_DEFAULT: ${LLM_MODEL:-qwen-plus}
+      LLM_MODEL: ${LLM_MODEL:-qwen-plus}
+      HERMES_YOLO_MODE: "1"
       JFO_API_PUBLIC_BASE: http://jfo-api:8787
       JFO_INTERNAL_KEY: ${JFO_INTERNAL_KEY}
       JFO_DEFAULT_USER_ID: ${JFO_DEFAULT_USER_ID:-CandiceGuo}
@@ -165,6 +171,7 @@ services:
       - hermes_data:/opt/data
       - ../../hermes-railway/skills:/opt/data/skills:ro
       - ../../hermes-railway/SOUL-JFO-KB.md:/opt/data/SOUL.md:ro
+      - ./scripts/hermes-entrypoint.sh:/jfo/hermes-entrypoint.sh:ro
     networks:
       - jfo
 

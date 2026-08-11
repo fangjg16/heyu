@@ -127,7 +127,8 @@ curl -sS "$JFO_API_PUBLIC_BASE/api/health"
 | Pages 能开但登录/对话失败 | 检查 `VITE_AI_CHAT_ENDPOINT`、Tunnel 是否仍有效、CORS `ALLOWED_ORIGIN` |
 | `/api/health` 里 db 失败 | `migrate.sh`；看 `mysql-bridge` 日志 |
 | 上传失败 | `minio-init` 是否成功；`MINIO_*` 与 bucket 名 |
-| Hermes 401 | `HERMES_API_KEY` 与容器 `API_SERVER_KEY` 一致 |
+| Hermes 401 / Missing Authentication header | 深度任务：确认 `LLM_API_KEY` 有效；`docker compose ... up -d --force-recreate hermes`，看日志是否有 `provider=custom`；新版 Hermes 需 `config.yaml`（由 `scripts/hermes-entrypoint.sh` 写入） |
+| Hermes 401（调用 Gateway） | `HERMES_API_KEY` 与容器 `API_SERVER_KEY` 一致 |
 | Tunnel URL 变了 | 更新 `.env` 的 `JFO_API_PUBLIC_BASE` + GitHub Secret 并重新部署 Pages |
 | OOM | 升配 ECS 内存；`docker stats` |
 
