@@ -274,7 +274,7 @@ export function WorkspaceTopBar({
                   e.stopPropagation();
                   logout();
                 }}
-                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] font-medium text-[#1F2423] transition-colors hover:bg-[rgba(163,38,44,0.06)] hover:text-[#A3262C]"
+                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] font-medium text-[#1F2423] transition-colors hover:bg-[rgba(202,33,55,0.06)] hover:text-[#CA2137]"
               >
                 <LogOut className="h-4 w-4 shrink-0" strokeWidth={1.8} />
                 退出登录

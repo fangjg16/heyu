@@ -64,7 +64,7 @@ export function ProjectOverviewPanel({
 
   if (error) {
     return (
-      <p className="rounded-xl border border-[rgba(163,38,44,0.25)] bg-[rgba(163,38,44,0.06)] px-3.5 py-2 text-[12.5px] text-[#A3262C]">
+      <p className="rounded-xl border border-[rgba(202,33,55,0.25)] bg-[rgba(202,33,55,0.06)] px-3.5 py-2 text-[12.5px] text-[#CA2137]">
         {error}
       </p>
     );

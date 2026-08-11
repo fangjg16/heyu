@@ -20,7 +20,7 @@ import {
 import type { WorkspaceRole } from "@/workspace/types";
 
 const AVATAR_TONES = [
-  "#A3262C",
+  "#CA2137",
   "#3F6F63",
   "#B07d1f",
   "#5E7A9B",
@@ -305,7 +305,7 @@ export function ProjectWorkspaceHeader({
                 ? "生成全部章节更新草案（正式版本不会被覆盖）"
                 : "无权限更新知识网络章节"
             }
-            className="inline-flex h-10 items-center gap-1.5 rounded-[11px] border border-[hsl(var(--wine)/0.35)] bg-[hsl(var(--wine-muted))] px-4 text-[13.5px] font-medium text-[hsl(var(--wine))] transition-colors hover:bg-[#F7EDEE] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-10 items-center gap-1.5 rounded-[11px] border border-[hsl(var(--wine)/0.35)] bg-[hsl(var(--wine-muted))] px-4 text-[13.5px] font-medium text-[hsl(var(--wine))] transition-colors hover:bg-[#F8EDEE] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <RefreshCw
               className={cn("h-3.5 w-3.5", allChaptersBusy && "animate-spin")}
@@ -327,7 +327,7 @@ export function ProjectWorkspaceHeader({
               {` · 已用时 ${formatElapsedMs(allChaptersProgress.elapsedMs)}`}
             </span>
             {allChaptersProgress.failed > 0 ? (
-              <span className="text-[#A3262C]">
+              <span className="text-[#CA2137]">
                 失败 {allChaptersProgress.failed}
               </span>
             ) : (
@@ -336,7 +336,7 @@ export function ProjectWorkspaceHeader({
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[rgba(78,66,57,0.1)]">
             <div
-              className="h-full bg-[#A3262C] transition-[width] duration-300"
+              className="h-full bg-[#CA2137] transition-[width] duration-300"
               style={{
                 width: `${Math.min(
                   100,

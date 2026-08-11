@@ -874,25 +874,25 @@
         <span class="chapter-num">三</span>
         <h2>色彩</h2>
         <p>
-          主色为 <span class="serif">5°</span> 经典酒红——偏波尔多、略正式；饱和度约 32%，明度约
-          46%。另设<strong>中酒红</strong>与<strong>深酒红</strong>两档（对齐项目知识网络 HTML 的 Factor B /
-          综合成熟度色块），用于强调条、统计块与深色底上的白字，避免仅靠主色加透明度「伪深色」。
+          主色为 <span class="serif">352°</span> 朱红——比旧版 dusty wine（#A3262C）更饱和、更亮，深色落地页与浅色工作台都不发闷褐。
+          另设<strong>中朱红</strong>与<strong>深朱红</strong>两档（对齐知识网络 Factor B / 综合成熟度色块），用于强调条、统计块与深色底上的白字。
+          落地页标题另用更亮的 <code>--landing-accent</code>（约 #E74057）。
         </p>
 
         <div class="palette-strip">
           <div class="palette-row">
-            <div class="palette-chip" style="background: hsl(5, 32%, 46%)"></div>
+            <div class="palette-chip" style="background: hsl(var(--wine))"></div>
             <div>
-              <div class="name">经典酒红 · <code>--wine</code></div>
-              <div class="code">hsl(5, 32%, 46%) · #A06358</div>
-              <div class="use">主按钮、链接、章节强调</div>
+              <div class="name">朱红 · <code>--wine</code></div>
+              <div class="code">hsl(352 72% 46%) · #CA2137</div>
+              <div class="use">主按钮、Logo 块、链接、章节强调</div>
             </div>
           </div>
           <div class="palette-row">
-            <div class="palette-chip" style="background: hsl(5, 34%, 40%)"></div>
+            <div class="palette-chip" style="background: hsl(var(--wine-hover))"></div>
             <div>
-              <div class="name">酒红 · 悬停 · <code>--wine-hover</code></div>
-              <div class="code">hsl(5, 34%, 40%) · #8F564C</div>
+              <div class="name">朱红 · 悬停 · <code>--wine-hover</code></div>
+              <div class="code">hsl(352 74% 39%) · #AD1A2D</div>
               <div class="use">按钮 / 链接悬停</div>
             </div>
           </div>
@@ -902,8 +902,8 @@
               style="background: hsl(var(--wine-mid)); color: hsl(var(--wine-mid-foreground))"
             ></div>
             <div>
-              <div class="name">中酒红 · <code>--wine-mid</code></div>
-              <div class="code">hsl(353, 32%, 43%) · #8F4A52</div>
+              <div class="name">中朱红 · <code>--wine-mid</code></div>
+              <div class="code">hsl(352 64% 40%) · #A72536</div>
               <div class="use">次要强调块、双栏统计 B 格（Factor B）</div>
             </div>
           </div>
@@ -913,17 +913,25 @@
               style="background: hsl(var(--wine-deep)); color: hsl(var(--wine-deep-foreground))"
             ></div>
             <div>
-              <div class="name">深酒红 · <code>--wine-deep</code></div>
-              <div class="code">hsl(353, 42%, 32%) · #722F37</div>
+              <div class="name">深朱红 · <code>--wine-deep</code></div>
+              <div class="code">hsl(352 68% 34%) · #921C2B</div>
               <div class="use">综合成熟度、徽章实心、表头强调、深色 KPI 底</div>
             </div>
           </div>
           <div class="palette-row">
-            <div class="palette-chip" style="background: hsl(5, 24%, 92%)"></div>
+            <div class="palette-chip" style="background: hsl(var(--wine-muted))"></div>
             <div>
-              <div class="name">酒红浅底 · <code>--wine-muted</code></div>
-              <div class="code">hsl(5, 24%, 92%)</div>
+              <div class="name">朱红浅底 · <code>--wine-muted</code></div>
+              <div class="code">hsl(352 42% 95%) · #F8EDEE</div>
               <div class="use">标签底、选中浅底</div>
+            </div>
+          </div>
+          <div class="palette-row">
+            <div class="palette-chip" style="background: hsl(var(--landing-accent))"></div>
+            <div>
+              <div class="name">落地强调 · <code>--landing-accent</code></div>
+              <div class="code">hsl(352 78% 58%) · #E74057</div>
+              <div class="use">Hero 标题渐变高光、暗底 CTA 点缀</div>
             </div>
           </div>
           <div class="palette-row">

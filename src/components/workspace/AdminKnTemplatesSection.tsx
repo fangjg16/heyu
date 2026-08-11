@@ -255,7 +255,7 @@ export function AdminKnTemplatesSection() {
     <div className="overflow-hidden rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.82)]">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(78,66,57,0.1)] px-5 py-4">
         <div className="flex items-center gap-2">
-          <FileText className="h-4 w-4 text-[#A3262C]" strokeWidth={2} />
+          <FileText className="h-4 w-4 text-[#CA2137]" strokeWidth={2} />
           <div>
             <h2 className="text-[15px] font-semibold text-[#1F2423]">
               知识网络章节 MD 与提示词
@@ -282,7 +282,7 @@ export function AdminKnTemplatesSection() {
       </div>
 
       {error ? (
-        <p className="mx-5 mt-4 rounded-xl border border-[rgba(163,38,44,0.25)] bg-[rgba(163,38,44,0.06)] px-3.5 py-2 text-[12.5px] text-[#A3262C]">
+        <p className="mx-5 mt-4 rounded-xl border border-[rgba(202,33,55,0.25)] bg-[rgba(202,33,55,0.06)] px-3.5 py-2 text-[12.5px] text-[#CA2137]">
           {error}
         </p>
       ) : null}
@@ -321,7 +321,7 @@ export function AdminKnTemplatesSection() {
               disabled={busy}
               spellCheck={false}
               rows={10}
-              className="w-full resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/90 px-3 py-2.5 font-mono text-[12px] leading-relaxed text-[#1F2423] outline-none focus:border-[rgba(163,38,44,0.35)] disabled:opacity-60"
+              className="w-full resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/90 px-3 py-2.5 font-mono text-[12px] leading-relaxed text-[#1F2423] outline-none focus:border-[rgba(202,33,55,0.35)] disabled:opacity-60"
             />
             <div className="flex flex-wrap gap-1.5">
               <button
@@ -338,7 +338,7 @@ export function AdminKnTemplatesSection() {
                 type="button"
                 onClick={() => void onSaveSystem()}
                 disabled={!systemDirty || busy}
-                className="h-8 rounded-md bg-[#A3262C] px-3 text-[12px] font-medium text-white hover:bg-[#8B1F24] disabled:opacity-45"
+                className="h-8 rounded-md bg-[#CA2137] px-3 text-[12px] font-medium text-white hover:bg-[#AD1A2D] disabled:opacity-45"
               >
                 {systemBusy ? "保存中…" : "保存全局 System"}
               </button>
@@ -374,7 +374,7 @@ export function AdminKnTemplatesSection() {
                           className={cn(
                             "flex w-full flex-col rounded-lg px-2.5 py-2 text-left transition-colors disabled:opacity-60",
                             selectedId === t.id
-                              ? "bg-[#F7EDEE] font-semibold text-[#A3262C]"
+                              ? "bg-[#F8EDEE] font-semibold text-[#CA2137]"
                               : "text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]",
                           )}
                         >
@@ -432,7 +432,7 @@ export function AdminKnTemplatesSection() {
                       type="button"
                       onClick={() => void onSave()}
                       disabled={!chapterDirty || busy}
-                      className="h-8 rounded-md bg-[#A3262C] px-3 text-[12px] font-medium text-white hover:bg-[#8B1F24] disabled:opacity-45"
+                      className="h-8 rounded-md bg-[#CA2137] px-3 text-[12px] font-medium text-white hover:bg-[#AD1A2D] disabled:opacity-45"
                     >
                       {saveBusy ? "保存中…" : "保存本章"}
                     </button>
@@ -446,13 +446,13 @@ export function AdminKnTemplatesSection() {
                     rows={2}
                     disabled={busy}
                     placeholder="改写指令仅作用于 MD 模板，例如：在财务表增加一列「口径说明」"
-                    className="min-h-[48px] min-w-[220px] flex-1 resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/80 px-3 py-2 text-[13px] leading-relaxed text-[#1F2423] outline-none placeholder:text-[#969E9A] focus:border-[rgba(163,38,44,0.35)] disabled:opacity-60"
+                    className="min-h-[48px] min-w-[220px] flex-1 resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/80 px-3 py-2 text-[13px] leading-relaxed text-[#1F2423] outline-none placeholder:text-[#969E9A] focus:border-[rgba(202,33,55,0.35)] disabled:opacity-60"
                   />
                   <button
                     type="button"
                     onClick={() => void onRevise()}
                     disabled={busy || !instruction.trim()}
-                    className="h-10 shrink-0 rounded-[9px] bg-[#A3262C] px-4 text-[13px] font-medium text-white hover:bg-[#8B1F24] disabled:cursor-not-allowed disabled:opacity-45"
+                    className="h-10 shrink-0 rounded-[9px] bg-[#CA2137] px-4 text-[13px] font-medium text-white hover:bg-[#AD1A2D] disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     {reviseBusy ? "改写中…" : "改写 MD"}
                   </button>
@@ -470,7 +470,7 @@ export function AdminKnTemplatesSection() {
                       spellCheck={false}
                       rows={5}
                       placeholder="留空则生成时回退代码内默认版式说明"
-                      className="w-full resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/90 px-3 py-2.5 font-mono text-[12px] leading-relaxed text-[#1F2423] outline-none focus:border-[rgba(163,38,44,0.35)] disabled:opacity-60"
+                      className="w-full resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/90 px-3 py-2.5 font-mono text-[12px] leading-relaxed text-[#1F2423] outline-none focus:border-[rgba(202,33,55,0.35)] disabled:opacity-60"
                     />
                   </div>
                   <div>
@@ -507,7 +507,7 @@ export function AdminKnTemplatesSection() {
                         onChange={(e) => setDraftMarkdown(e.target.value)}
                         disabled={busy}
                         spellCheck={false}
-                        className="min-h-[min(48vh,520px)] w-full resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/90 px-3 py-3 font-mono text-[12.5px] leading-relaxed text-[#1F2423] outline-none focus:border-[rgba(163,38,44,0.35)] disabled:opacity-60"
+                        className="min-h-[min(48vh,520px)] w-full resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/90 px-3 py-3 font-mono text-[12.5px] leading-relaxed text-[#1F2423] outline-none focus:border-[rgba(202,33,55,0.35)] disabled:opacity-60"
                       />
                     ) : (
                       <div className="min-h-[min(48vh,520px)] rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/90 p-3">
