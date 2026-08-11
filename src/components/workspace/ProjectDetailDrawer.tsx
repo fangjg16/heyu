@@ -27,7 +27,7 @@ import {
 } from "@/workspace/workspace-users";
 
 function opennessLabel(openness: WorkspaceProject["openness"]): string {
-  return openness === "invite" ? "内部邀请" : "半开放";
+  return openness === "invite" ? "内部邀请" : "全开放";
 }
 
 type ProjectDetailDrawerProps = {

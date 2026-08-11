@@ -58,7 +58,7 @@ const PROJECT_OPENNESS_OPTIONS: {
 }[] = [
   {
     value: "partial",
-    title: "半开放",
+    title: "全开放",
     description:
       "内部账号可在项目广场发现该项目；未加入成员仅为访客级，可申请加入。",
   },
