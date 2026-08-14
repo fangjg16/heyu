@@ -698,6 +698,8 @@ function ProjectWorkspaceLayout() {
           onUpdateAllChapters={() => void onUpdateAllChapters()}
           allChaptersBusy={allChaptersBusy}
           canUpdateAllChapters={canUpdateOverview}
+          onResumeDraft={goDraftReview}
+          showResumeDraft={Boolean(resumeRunId)}
           allChaptersProgress={null}
         />
 
