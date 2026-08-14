@@ -93,9 +93,6 @@ type ProjectWorkspaceHeaderProps = {
   onUpdateAllChapters?: () => void;
   allChaptersBusy?: boolean;
   canUpdateAllChapters?: boolean;
-  /** 有进行中的更新草案时可继续审核 */
-  onResumeDraft?: () => void;
-  showResumeDraft?: boolean;
   allChaptersProgress?: {
     done: number;
     total: number;
@@ -127,8 +124,6 @@ export function ProjectWorkspaceHeader({
   onUpdateAllChapters,
   allChaptersBusy = false,
   canUpdateAllChapters = false,
-  onResumeDraft,
-  showResumeDraft = false,
   allChaptersProgress = null,
 }: ProjectWorkspaceHeaderProps) {
   const navigate = useNavigate();
@@ -296,16 +291,6 @@ export function ProjectWorkspaceHeader({
             <MessageSquare className="h-3.5 w-3.5" strokeWidth={2} />
             进入对话
           </button>
-          {showResumeDraft && onResumeDraft ? (
-            <button
-              type="button"
-              onClick={onResumeDraft}
-              className="inline-flex h-10 items-center gap-1.5 rounded-[11px] border border-[rgba(47,107,79,0.35)] bg-[rgba(47,107,79,0.1)] px-4 text-[13.5px] font-medium text-[#2F6B4F] transition-colors hover:bg-[rgba(47,107,79,0.16)]"
-              title="打开未完成的章节更新草案审核页"
-            >
-              继续审核草案
-            </button>
-          ) : null}
           <button
             type="button"
             onClick={() => setConfirmKind("all-chapters")}
