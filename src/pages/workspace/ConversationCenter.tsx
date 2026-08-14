@@ -2116,6 +2116,7 @@ export default function ConversationCenter() {
   useEffect(() => {
     setSelectedFiles([]);
     setShowUploadPanel(false);
+    setQuoteDraft(null);
   }, [effectiveConversationId]);
 
   const deleteLiveMessage = useCallback(
