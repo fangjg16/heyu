@@ -110,7 +110,6 @@ import {
 import { useMyProjectRoles } from "@/hooks/use-my-project-roles";
 import type { WorkspaceRole } from "@/workspace/types";
 import {
-  canEnterChat,
   getProjectRole,
   getUserById,
   roleLabelForProject,
