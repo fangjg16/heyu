@@ -6,6 +6,7 @@ export type WorkspaceRole =
   | "core"
   | "mid"
   | "low"
+  | "issuer"
   | "guest";
 
 /** 加入项目时可赋予的档位（不含 Guest / Advanced） */
@@ -13,6 +14,7 @@ export const PROJECT_ASSIGNABLE_ROLES: WorkspaceRole[] = [
   "admin",
   "core",
   "low",
+  "issuer",
 ];
 
 export type WorkspaceUser = {

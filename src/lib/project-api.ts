@@ -218,7 +218,7 @@ export async function createProjectViaApi(
     category?: string;
     openness?: "partial" | "invite";
     userId?: string;
-    participants?: { userId: string; role: "admin" | "core" | "low" }[];
+    participants?: { userId: string; role: "admin" | "core" | "low" | "issuer" }[];
   },
   chatEndpoint = AI_CHAT_ENDPOINT,
 ): Promise<import("@/workspace/projects").WorkspaceProject> {
@@ -619,7 +619,16 @@ export async function uploadProjectPackageFile(
   projectId: string,
   userId: string,
   file: File,
-  options?: { relativePath?: string },
+  options?: {
+    relativePath?: string;
+    collabItemId?: string;
+    fileCategory?: string;
+    periodLabel?: string;
+    isFinal?: boolean;
+    uploadNote?: string;
+    replacesDocumentId?: string;
+    versionGroup?: string;
+  },
   _chatEndpoint = AI_CHAT_ENDPOINT,
 ): Promise<void> {
   const form = new FormData();
@@ -628,6 +637,15 @@ export async function uploadProjectPackageFile(
   form.append("scope", "package");
   const rel = (options?.relativePath ?? "").trim();
   if (rel) form.append("relativePath", rel);
+  if (options?.collabItemId) form.append("collabItemId", options.collabItemId);
+  if (options?.fileCategory) form.append("fileCategory", options.fileCategory);
+  if (options?.periodLabel) form.append("periodLabel", options.periodLabel);
+  if (options?.isFinal != null) form.append("isFinal", options.isFinal ? "1" : "0");
+  if (options?.uploadNote) form.append("uploadNote", options.uploadNote);
+  if (options?.replacesDocumentId) {
+    form.append("replacesDocumentId", options.replacesDocumentId);
+  }
+  if (options?.versionGroup) form.append("versionGroup", options.versionGroup);
   const res = await jfoFetch(`/api/projects/${projectId}/files`, {
     method: "POST",
     body: form,
@@ -1355,4 +1373,250 @@ export async function fetchKnowledgeChapterVersion(
     currentVersion: data.currentVersion ?? version,
     chapters: data.chapters ?? [],
   };
+}
+
+export type CollabReplyMode = "text" | "file" | "both";
+export type CollabPriority = "P1" | "P2" | "P3";
+export type CollabItemStatus =
+  | "pending_reply"
+  | "saved"
+  | "submitted"
+  | "needs_more"
+  | "confirmed";
+
+export type CollabFileReq = { id: string; label: string; required: boolean };
+
+export type CollabItem = {
+  id: string;
+  projectId: string;
+  projectName?: string;
+  title: string;
+  body: string;
+  replyMode: CollabReplyMode;
+  priority: CollabPriority;
+  dueAt: string | null;
+  investorNote: string | null;
+  fileReqs: CollabFileReq[];
+  status: CollabItemStatus;
+  publishedAt: string;
+  replyText: string | null;
+  replySavedAt: string | null;
+  replySubmittedAt: string | null;
+  replyBy: string | null;
+  reviewNote: string | null;
+  confirmedAt: string | null;
+  sourceQuestionText?: string;
+  updatedAt: string;
+};
+
+export type CollabOverview = {
+  counts: {
+    pendingReply: number;
+    pendingFiles: number;
+    submitted: number;
+    needsMore: number;
+  };
+  nextSuggestions: string[];
+  latestReplyAt: string | null;
+  nearestDueAt: string | null;
+  itemCount: number;
+};
+
+export type CollabFileRecord = {
+  id: string;
+  filename: string;
+  relativePath?: string;
+  mime: string | null;
+  sizeBytes?: number;
+  createdAt: string;
+  uploadedBy: string | null;
+  sourceKind: string | null;
+  sharedWithIssuer?: boolean;
+  collabItemId: string | null;
+  fileCategory: string | null;
+  periodLabel: string | null;
+  isFinal: boolean | null;
+  uploadNote: string | null;
+  replacesDocumentId: string | null;
+  versionGroup: string | null;
+};
+
+export function collabStatusLabel(status: CollabItemStatus): string {
+  switch (status) {
+    case "pending_reply":
+      return "待回复";
+    case "saved":
+      return "已保存";
+    case "submitted":
+      return "已提交";
+    case "needs_more":
+      return "需补充";
+    case "confirmed":
+      return "已确认";
+    default:
+      return status;
+  }
+}
+
+export async function fetchCollabOverview(
+  projectId: string,
+): Promise<CollabOverview> {
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/collab/overview`,
+  );
+  const data = (await res.json().catch(() => ({}))) as CollabOverview & {
+    error?: string;
+  };
+  if (!res.ok) throw new Error(data.error || "协作概览加载失败");
+  return data;
+}
+
+export async function fetchCollabItems(projectId: string): Promise<CollabItem[]> {
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/collab/items`,
+  );
+  const data = (await res.json().catch(() => ({}))) as {
+    items?: CollabItem[];
+    error?: string;
+  };
+  if (!res.ok) throw new Error(data.error || "协作事项加载失败");
+  return data.items ?? [];
+}
+
+export async function fetchCollabItem(
+  projectId: string,
+  itemId: string,
+): Promise<{ item: CollabItem; files: CollabFileRecord[] }> {
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/collab/items/${encodeURIComponent(itemId)}`,
+  );
+  const data = (await res.json().catch(() => ({}))) as {
+    item?: CollabItem;
+    files?: CollabFileRecord[];
+    error?: string;
+  };
+  if (!res.ok) throw new Error(data.error || "事项加载失败");
+  if (!data.item) throw new Error("事项不存在");
+  return { item: data.item, files: data.files ?? [] };
+}
+
+export async function publishCollabItem(
+  projectId: string,
+  body: {
+    title: string;
+    body: string;
+    sourceQuestionText?: string;
+    replyMode: CollabReplyMode;
+    priority: CollabPriority;
+    dueAt?: string | null;
+    investorNote?: string | null;
+    fileReqs?: CollabFileReq[];
+  },
+): Promise<CollabItem> {
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/collab/items`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+  const data = (await res.json().catch(() => ({}))) as {
+    item?: CollabItem;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(data.error || "发布失败");
+  if (!data.item) throw new Error("发布成功但未返回事项");
+  return data.item;
+}
+
+export async function patchCollabItemReply(
+  projectId: string,
+  itemId: string,
+  body: { action: "save" | "submit"; replyText?: string },
+): Promise<CollabItem> {
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/collab/items/${encodeURIComponent(itemId)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+  const data = (await res.json().catch(() => ({}))) as {
+    item?: CollabItem;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(data.error || "提交失败");
+  if (!data.item) throw new Error("未返回事项");
+  return data.item;
+}
+
+export async function reviewCollabItem(
+  projectId: string,
+  itemId: string,
+  body: { action: "confirm" | "reject"; reviewNote?: string },
+): Promise<CollabItem> {
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/collab/items/${encodeURIComponent(itemId)}/review`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+  const data = (await res.json().catch(() => ({}))) as {
+    item?: CollabItem;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(data.error || "审核失败");
+  if (!data.item) throw new Error("未返回事项");
+  return data.item;
+}
+
+export async function fetchCollabFiles(
+  projectId: string,
+): Promise<CollabFileRecord[]> {
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/collab/files`,
+  );
+  const data = (await res.json().catch(() => ({}))) as {
+    files?: CollabFileRecord[];
+    error?: string;
+  };
+  if (!res.ok) throw new Error(data.error || "协作文件加载失败");
+  return data.files ?? [];
+}
+
+export async function shareFileWithIssuer(
+  projectId: string,
+  documentId: string,
+  shared: boolean,
+  sourceKind?: "investor_share" | "public_source",
+): Promise<void> {
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/files/${encodeURIComponent(documentId)}/share-issuer`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sharedWithIssuer: shared,
+        sourceKind: shared ? sourceKind ?? "investor_share" : null,
+      }),
+    },
+  );
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) throw new Error(data.error || "授权失败");
+}
+
+export async function fetchMyCollabInbox(): Promise<
+  (CollabItem & { projectName?: string })[]
+> {
+  const res = await jfoFetch(`/api/me/collab-inbox`);
+  const data = (await res.json().catch(() => ({}))) as {
+    items?: (CollabItem & { projectName?: string })[];
+    error?: string;
+  };
+  if (!res.ok) throw new Error(data.error || "协作待办加载失败");
+  return data.items ?? [];
 }

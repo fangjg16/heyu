@@ -10,6 +10,7 @@ import { listProjects } from "./projects-db";
 import {
   listQuestionsChapterHtmlForProjects,
 } from "./project-knowledge-chapters-db";
+import { isIssuerRole, resolveProjectRole } from "./workspace-roles";
 
 type Env = { DB: AppDatabase };
 
@@ -48,14 +49,19 @@ export async function handleListMyOpenQuestions(
 
   const projects = await listProjects(env);
   const visible = await filterProjectsForDirectory(env, userId, projects);
-  if (visible.length === 0) {
+  const investorProjects = [];
+  for (const p of visible) {
+    const role = await resolveProjectRole(env, userId, p.id, p.createdBy);
+    if (!isIssuerRole(role) && role !== "guest") investorProjects.push(p);
+  }
+  if (investorProjects.length === 0) {
     return json({ items: [] as OpenQuestionItemJson[], total: 0 });
   }
 
-  const nameById = new Map(visible.map((p) => [p.id, p.name] as const));
+  const nameById = new Map(investorProjects.map((p) => [p.id, p.name] as const));
   const rows = await listQuestionsChapterHtmlForProjects(
     env.DB,
-    visible.map((p) => p.id),
+    investorProjects.map((p) => p.id),
   );
 
   const collected: OpenQuestionItemJson[] = [];

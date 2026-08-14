@@ -1783,6 +1783,10 @@ export default function ConversationCenter() {
     }
     if (getProjectRole(userId, projectId, p.createdBy) === "guest") {
       navigate("/app/projects", { replace: true });
+      return;
+    }
+    if (getProjectRole(userId, projectId, p.createdBy) === "issuer") {
+      navigate(`/app/collab/${projectId}`, { replace: true });
     }
   }, [
     userId,

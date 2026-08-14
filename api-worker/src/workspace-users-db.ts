@@ -39,7 +39,14 @@ export const DEFAULT_AVATAR_CLASS =
 
 type Env = { DB: AppDatabase };
 
-const VALID_ROLES: WorkspaceRole[] = ["admin", "core", "mid", "low", "guest"];
+const VALID_ROLES: WorkspaceRole[] = [
+  "admin",
+  "core",
+  "mid",
+  "low",
+  "issuer",
+  "guest",
+];
 
 export function parseWorkspaceRole(raw: string | null | undefined): WorkspaceRole {
   const role = (raw ?? "").trim() as WorkspaceRole;

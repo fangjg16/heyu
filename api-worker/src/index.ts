@@ -125,7 +125,13 @@ import {
 } from "./auth-routes";
 import { extractBearerToken, resolveAuthSession } from "./auth-sessions";
 import { decodePathProjectId } from "./projects-resolve";
-import { canListProjectFiles } from "./workspace-roles";
+import {
+  canEnterProjectChat,
+  canListProjectFiles,
+  isInvestorRole,
+  isIssuerRole,
+  resolveProjectRole,
+} from "./workspace-roles";
 import {
   assertValidHermesBaseUrl,
   hermesChatCompletionsUrl,
@@ -450,7 +456,29 @@ async function handleUpload(
   }
   const uploadedBy = authUserId;
 
-  const scope = String(form.get("scope") || "package");
+  const project = await getDbProjectById(env, projectId);
+  if (!project) {
+    return json({ error: "项目不存在" }, 404);
+  }
+  const role = await resolveProjectRole(
+    env,
+    uploadedBy,
+    projectId,
+    project.createdBy,
+  );
+  if (role === "guest") {
+    return json({ error: "当前权限无法上传资料" }, 403);
+  }
+  if (isIssuerRole(role) && String(form.get("scope") || "package") === "session") {
+    return json({ error: "项目方不能上传对话附件" }, 403);
+  }
+  if (!isInvestorRole(role) && !isIssuerRole(role)) {
+    return json({ error: "当前权限无法上传资料" }, 403);
+  }
+
+  const scope = isIssuerRole(role)
+    ? "package"
+    : String(form.get("scope") || "package");
   const conversationId = form.get("conversationId")
     ? String(form.get("conversationId"))
     : null;
@@ -557,6 +585,54 @@ async function handleUpload(
       await insertLegacy();
     } else {
       throw e;
+    }
+  }
+
+  if (isIssuerRole(role) || form.get("collabItemId") || form.get("sourceKind")) {
+    const collabItemId = String(form.get("collabItemId") || "").trim() || null;
+    const fileCategory = String(form.get("fileCategory") || "").trim() || null;
+    const periodLabel = String(form.get("periodLabel") || "").trim() || null;
+    const isFinalRaw = String(form.get("isFinal") || "").trim();
+    const isFinal =
+      isFinalRaw === "1" || isFinalRaw === "true"
+        ? 1
+        : isFinalRaw === "0" || isFinalRaw === "false"
+          ? 0
+          : null;
+    const uploadNote = String(form.get("uploadNote") || "").trim() || null;
+    const replacesDocumentId =
+      String(form.get("replacesDocumentId") || "").trim() || null;
+    const versionGroup =
+      String(form.get("versionGroup") || "").trim() ||
+      replacesDocumentId ||
+      docId;
+    const sourceKind = isIssuerRole(role)
+      ? "issuer_upload"
+      : String(form.get("sourceKind") || "").trim() || null;
+    try {
+      await env.DB.prepare(
+        `UPDATE documents SET
+           source_kind = ?, shared_with_issuer = ?, collab_item_id = ?,
+           file_category = ?, period_label = ?, is_final = ?, upload_note = ?,
+           replaces_document_id = ?, version_group = ?
+         WHERE id = ? AND project_id = ?`,
+      )
+        .bind(
+          sourceKind,
+          isIssuerRole(role) ? 1 : 0,
+          collabItemId,
+          fileCategory,
+          periodLabel,
+          isFinal,
+          uploadNote,
+          replacesDocumentId,
+          versionGroup,
+          docId,
+          projectId,
+        )
+        .run();
+    } catch {
+      /* 未迁移 0026 时忽略元数据 */
     }
   }
 
@@ -1438,6 +1514,41 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
   }
   if (!userId) {
     return json({ error: "userId 必填（请登录后对话）" }, 400);
+  }
+
+  try {
+    const dbProject = await getDbProjectById(env, projectId);
+    if (dbProject) {
+      const chatOk = await canEnterProjectChat(
+        env,
+        userId,
+        projectId,
+        dbProject.createdBy,
+      );
+      if (!chatOk) {
+        const role = await resolveProjectRole(
+          env,
+          userId,
+          projectId,
+          dbProject.createdBy,
+        );
+        if (isIssuerRole(role)) {
+          return json(
+            {
+              error: "项目方协作模式不提供投资对话，请在待确认事项中回复。",
+              code: "COLLAB_NO_CHAT",
+            },
+            403,
+          );
+        }
+        return json(
+          { error: "当前权限无法进入此项目对话", code: "CHAT_FORBIDDEN" },
+          403,
+        );
+      }
+    }
+  } catch {
+    /* 项目表未就绪时不阻断内部对话 */
   }
 
   const slots = getCitationSlots(projectId);

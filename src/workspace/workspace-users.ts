@@ -97,6 +97,8 @@ export function roleLabelForProject(role: WorkspaceRole): string {
       return "Advanced 进阶级";
     case "low":
       return "Basic 基础级";
+    case "issuer":
+      return "项目方";
     case "guest":
       return "Guest";
     default:
@@ -108,10 +110,26 @@ export function roleLabelForProject(role: WorkspaceRole): string {
 export function projectRoleSelectOptions(
   current?: WorkspaceRole | null,
 ): WorkspaceRole[] {
-  if (current === "mid") return ["admin", "core", "mid", "low"];
-  return ["admin", "core", "low"];
+  if (current === "mid") return ["admin", "core", "mid", "low", "issuer"];
+  return ["admin", "core", "low", "issuer"];
+}
+
+export function isInvestorRole(role: WorkspaceRole): boolean {
+  return role === "admin" || role === "core" || role === "mid" || role === "low";
+}
+
+export function isIssuerRole(role: WorkspaceRole): boolean {
+  return role === "issuer";
 }
 
 export function canEnterChat(role: WorkspaceRole): boolean {
-  return role !== "guest";
+  return isInvestorRole(role);
+}
+
+export function projectEntryPath(
+  projectId: string,
+  role: WorkspaceRole,
+): string {
+  if (role === "issuer") return `/app/collab/${projectId}`;
+  return `/app/projects/${projectId}/overview`;
 }

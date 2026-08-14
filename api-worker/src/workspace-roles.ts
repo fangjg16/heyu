@@ -2,14 +2,21 @@ import type { AppDatabase } from "./app-database";
 import { getProjectMemberRoleOverride } from "./project-member-roles-db";
 import { isPlatformAdminUser } from "./workspace-users-db";
 
-export type WorkspaceRole = "admin" | "core" | "mid" | "low" | "guest";
+export type WorkspaceRole =
+  | "admin"
+  | "core"
+  | "mid"
+  | "low"
+  | "issuer"
+  | "guest";
 
 const ROLE_RANK: Record<WorkspaceRole, number> = {
   guest: 0,
-  low: 1,
-  mid: 2,
-  core: 3,
-  admin: 4,
+  issuer: 1,
+  low: 2,
+  mid: 3,
+  core: 4,
+  admin: 5,
 };
 
 function higherRole(a: WorkspaceRole, b: WorkspaceRole): WorkspaceRole {
@@ -17,6 +24,14 @@ function higherRole(a: WorkspaceRole, b: WorkspaceRole): WorkspaceRole {
 }
 
 type RoleEnv = { DB: AppDatabase };
+
+export function isInvestorRole(role: WorkspaceRole): boolean {
+  return role === "admin" || role === "core" || role === "mid" || role === "low";
+}
+
+export function isIssuerRole(role: WorkspaceRole): boolean {
+  return role === "issuer";
+}
 
 /**
  * 解析用户在项目上的有效角色。
@@ -49,15 +64,20 @@ export async function resolveProjectRole(
 }
 
 export async function canViewProjectKnowledgeNetwork(
-  _env: RoleEnv,
+  env: RoleEnv,
   userId: string,
-  _projectId: string,
-  _createdBy?: string | null,
+  projectId: string,
+  createdBy?: string | null,
 ): Promise<boolean> {
-  return Boolean(userId.trim());
+  const uid = userId.trim();
+  if (!uid) return false;
+  const role = await resolveProjectRole(env, uid, projectId, createdBy);
+  // 项目方不得读取投资判断 / 知识网络；广场访客仍可看公开概览
+  if (isIssuerRole(role)) return false;
+  return true;
 }
 
-/** 列出项目资料包：Guest 不可见 */
+/** 投资团队列出项目资料包；项目方走协作文件 API */
 export async function canListProjectFiles(
   env: RoleEnv,
   userId: string,
@@ -65,7 +85,7 @@ export async function canListProjectFiles(
   createdBy?: string | null,
 ): Promise<boolean> {
   const role = await resolveProjectRole(env, userId, projectId, createdBy);
-  return role !== "guest";
+  return isInvestorRole(role);
 }
 
 /** 上传/覆盖项目知识网络 HTML：admin / core（创建人自动为 core） */
@@ -92,4 +112,34 @@ export async function canDownloadProjectFile(
   if (role === "admin" || role === "core") return true;
   const creator = (createdBy ?? "").trim();
   return Boolean(creator && creator === uid);
+}
+
+export async function canEnterProjectChat(
+  env: RoleEnv,
+  userId: string,
+  projectId: string,
+  createdBy?: string | null,
+): Promise<boolean> {
+  const role = await resolveProjectRole(env, userId, projectId, createdBy);
+  return isInvestorRole(role);
+}
+
+export async function canManageProjectCollab(
+  env: RoleEnv,
+  userId: string,
+  projectId: string,
+  createdBy?: string | null,
+): Promise<boolean> {
+  const role = await resolveProjectRole(env, userId, projectId, createdBy);
+  return role === "admin" || role === "core";
+}
+
+export async function canAccessProjectCollab(
+  env: RoleEnv,
+  userId: string,
+  projectId: string,
+  createdBy?: string | null,
+): Promise<boolean> {
+  const role = await resolveProjectRole(env, userId, projectId, createdBy);
+  return isIssuerRole(role) || isInvestorRole(role);
 }

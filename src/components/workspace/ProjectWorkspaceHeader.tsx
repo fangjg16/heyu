@@ -84,7 +84,7 @@ function chipsFromFallback(
 type ProjectWorkspaceHeaderProps = {
   project: WorkspaceProject;
   userId: string;
-  tab: "overview" | "knowledge" | "materials";
+  tab: "overview" | "knowledge" | "materials" | "collab";
   onUpload: () => void;
   onChat: () => void;
   onUpdateOverview?: () => void;
@@ -160,7 +160,7 @@ export function ProjectWorkspaceHeader({
   }, [members, project, userId]);
 
   const tabs: {
-    id: "overview" | "knowledge" | "materials";
+    id: "overview" | "knowledge" | "materials" | "collab";
     label: string;
     to: string;
   }[] = [
@@ -178,6 +178,11 @@ export function ProjectWorkspaceHeader({
       id: "materials",
       label: "源文件",
       to: `/app/projects/${project.id}/materials`,
+    },
+    {
+      id: "collab",
+      label: "项目方协作",
+      to: `/app/projects/${project.id}/collab`,
     },
   ];
 

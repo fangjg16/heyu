@@ -3,8 +3,11 @@ import { Link } from "react-router-dom";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import {
   ENABLE_LIVE_CHAT,
+  fetchMyCollabInbox,
   fetchMyOpenQuestions,
   fetchProjectsFromApi,
+  collabStatusLabel,
+  type CollabItem,
   type MyOpenQuestionItem,
 } from "@/lib/project-api";
 import { extractOpenQuestionTitle } from "@/lib/kn-citations";
@@ -15,7 +18,11 @@ import {
   sortProjectsForOverview,
 } from "@/workspace/project-registry";
 import { loadSessionUserId } from "@/workspace/session";
-import { getUserById } from "@/workspace/workspace-users";
+import {
+  getProjectRole,
+  getUserById,
+  projectEntryPath,
+} from "@/workspace/workspace-users";
 import type { ProjectPhase, WorkspaceProject } from "@/workspace/projects";
 
 /** 原型硬编码色，总览页与 HTML 原型逐项对齐 */
@@ -126,6 +133,9 @@ export default function HomeDashboard() {
   >([]);
   const [todosLoading, setTodosLoading] = useState(false);
   const [todosError, setTodosError] = useState<string | null>(null);
+  const [collabInbox, setCollabInbox] = useState<
+    (CollabItem & { projectName?: string })[]
+  >([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -207,6 +217,24 @@ export default function HomeDashboard() {
     };
   }, [userId]);
 
+  useEffect(() => {
+    if (!ENABLE_LIVE_CHAT || !userId) {
+      setCollabInbox([]);
+      return;
+    }
+    let cancelled = false;
+    void fetchMyCollabInbox()
+      .then((items) => {
+        if (!cancelled) setCollabInbox(items);
+      })
+      .catch(() => {
+        if (!cancelled) setCollabInbox([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
   const now = useMemo(() => new Date(), []);
   const shortName = shortDisplayName(user?.displayName);
   const greeting = shortName
@@ -214,8 +242,26 @@ export default function HomeDashboard() {
     : greetingForHour(now.getHours());
 
   const shortList = projects.slice(0, 3);
-  const focusTodo = todos[0] ?? null;
+  const collabFocus = collabInbox[0]
+    ? {
+        id: `collab-${collabInbox[0].id}`,
+        text: collabInbox[0].title,
+        title: collabInbox[0].title,
+        detail: collabInbox[0].body ?? "",
+        meta: collabInbox[0].projectName ?? "项目方协作",
+        due: collabInbox[0].dueAt
+          ? `截止 ${collabInbox[0].dueAt.slice(0, 10)}`
+          : "待回复",
+        color: C.wine,
+        to: `/app/collab/${collabInbox[0].projectId}/items/${collabInbox[0].id}`,
+        listMeta: collabInbox[0].projectName ?? "",
+        listDue: collabInbox[0].dueAt ? collabInbox[0].dueAt.slice(0, 10) : "",
+      }
+    : null;
+  const focusTodo = todos[0] ?? collabFocus;
   const displayTodos = todos.slice(0, 3);
+  const showInvestorTodos =
+    todosLoading || todos.length > 0 || collabInbox.length === 0;
 
   return (
     <WorkspaceShell>
@@ -341,7 +387,7 @@ export default function HomeDashboard() {
                   flexShrink: 0,
                 }}
               >
-                查看缺口 →
+                查看{focusTodo.to.includes("/collab/") ? "事项" : "缺口"} →
               </span>
             </div>
           </Link>
@@ -404,6 +450,8 @@ export default function HomeDashboard() {
           </div>
         )}
 
+        {showInvestorTodos ? (
+        <>
         {/* 我的待办 */}
         <div
           style={{
@@ -549,6 +597,72 @@ export default function HomeDashboard() {
             ))
           )}
         </div>
+        </>
+        ) : null}
+
+        {collabInbox.length > 0 ? (
+          <>
+            <div
+              style={{
+                marginTop: 44,
+                display: "flex",
+                alignItems: "baseline",
+                justifyContent: "space-between",
+                gap: 16,
+              }}
+            >
+              <div
+                className="font-display"
+                style={{ fontSize: 21, fontWeight: 600, color: C.ink }}
+              >
+                项目方待办
+              </div>
+              <span style={{ fontSize: 14, color: C.muted }}>
+                {collabInbox.length} 项
+              </span>
+            </div>
+            <div style={{ marginTop: 14 }}>
+              {collabInbox.slice(0, 5).map((it) => (
+                <Link
+                  key={it.id}
+                  to={`/app/collab/${it.projectId}/items/${it.id}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 18,
+                    padding: "20px 6px",
+                    borderBottom: `1px solid ${C.line}`,
+                    textDecoration: "none",
+                    color: "inherit",
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 16.5,
+                        fontWeight: 600,
+                        color: C.ink,
+                      }}
+                    >
+                      {it.title}
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 4,
+                        fontSize: 13.5,
+                        color: C.muted,
+                      }}
+                    >
+                      {it.projectName ?? ""} · {collabStatusLabel(it.status)}
+                      {it.dueAt ? ` · 截止 ${it.dueAt.slice(0, 10)}` : ""}
+                    </div>
+                  </div>
+                  <span style={{ color: C.wine }}>→</span>
+                </Link>
+              ))}
+            </div>
+          </>
+        ) : null}
 
         {/* 进行中的项目 */}
         <div
@@ -591,7 +705,10 @@ export default function HomeDashboard() {
             return (
               <Link
                 key={p.id}
-                to={`/app/projects/${p.id}/overview`}
+                to={projectEntryPath(
+                  p.id,
+                  getProjectRole(userId ?? "", p.id, p.createdBy),
+                )}
                 style={{
                   display: "flex",
                   alignItems: "center",

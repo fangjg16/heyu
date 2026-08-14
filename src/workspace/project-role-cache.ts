@@ -25,6 +25,10 @@ export function clearMyProjectRoles(): void {
   emit();
 }
 
+export function readAllCachedProjectRoles(): Record<string, WorkspaceRole> {
+  return { ...myRolesByProject };
+}
+
 export function readCachedProjectRole(projectId: string): WorkspaceRole | null {
   return myRolesByProject[projectId] ?? null;
 }

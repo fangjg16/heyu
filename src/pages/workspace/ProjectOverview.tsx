@@ -44,13 +44,15 @@ import {
   getProjectRole,
   getUserById,
   isAccountGuestUser,
+  isIssuerRole,
   listCachedWorkspaceUsers,
+  projectEntryPath,
   roleLabelForProject,
 } from "@/workspace/workspace-users";
 import { fetchWorkspaceUsersDirectory } from "@/lib/api-auth";
 import type { WorkspaceRole } from "@/workspace/types";
 
-const CREATE_PERMISSION_OPTIONS = ["admin", "core", "low"] as const;
+const CREATE_PERMISSION_OPTIONS = ["admin", "core", "low", "issuer"] as const;
 type CreatePermission = (typeof CREATE_PERMISSION_OPTIONS)[number];
 type CreateParticipant = { userId: string; name: string; permission: CreatePermission };
 type ProjectOpenness = "partial" | "invite";
@@ -143,7 +145,10 @@ function ProjectCard({
   const isMember = role !== "guest";
   const canManage = canUserManageProjectMetadata(userId, project);
   const roleLabel = isMember ? roleFootnote(role) : "Guest";
-  const previewText = role === "guest" ? project.guestSummary : project.summary;
+  const previewText =
+    role === "guest" || isIssuerRole(role)
+      ? project.guestSummary || "请进入协作工作台查看待确认事项与可上传资料。"
+      : project.summary;
   const owner = ownerDisplayName(project.createdBy);
   // 红线 / 待补资料暂无结构化 API：诚实占位
   const redlinesDisplay = "—";
@@ -161,7 +166,9 @@ function ProjectCard({
     return t.slice(0, 2);
   })();
 
-  const actionLabel = isMember
+  const actionLabel = isIssuerRole(role)
+    ? "进入协作"
+    : isMember
     ? "进入项目"
     : joining
       ? "申请中…"
@@ -243,34 +250,40 @@ function ProjectCard({
       <p className="mt-4 line-clamp-3 flex-1 text-[13.5px] leading-[1.75] text-[hsl(var(--warm-charcoal-muted))]">
         {previewText}
       </p>
-      <div className="mt-4">
-        <div className="mb-1.5 flex justify-between text-[11.5px] text-[#59625F]">
-          <span>研究成熟度</span>
-          <span>{maturityLabel}</span>
-        </div>
-        <div
-          title={`研究成熟度 ${maturityLabel}`}
-          className="h-[7px] overflow-hidden rounded-[3px] bg-[rgba(78,66,57,0.14)]"
-        >
+      {!isIssuerRole(role) ? (
+        <div className="mt-4">
+          <div className="mb-1.5 flex justify-between text-[11.5px] text-[#59625F]">
+            <span>研究成熟度</span>
+            <span>{maturityLabel}</span>
+          </div>
           <div
-            className="h-full rounded-[3px] bg-[#5E9B75] transition-[width] duration-300"
-            style={{ width: maturityWidth }}
-          />
+            title={`研究成熟度 ${maturityLabel}`}
+            className="h-[7px] overflow-hidden rounded-[3px] bg-[rgba(78,66,57,0.14)]"
+          >
+            <div
+              className="h-full rounded-[3px] bg-[#5E9B75] transition-[width] duration-300"
+              style={{ width: maturityWidth }}
+            />
+          </div>
         </div>
-      </div>
+      ) : null}
       <div className="mt-4 flex gap-[22px] border-t border-[rgba(78,66,57,0.1)] pt-3.5">
-        <div>
-          <div className="text-[11px] text-[#59625F]">红线风险</div>
-          <div className="mt-0.5 text-[15px] font-semibold text-[#59625F]">
-            {redlinesDisplay}
-          </div>
-        </div>
-        <div>
-          <div className="text-[11px] text-[#59625F]">待补资料</div>
-          <div className="mt-0.5 text-[15px] font-semibold text-[hsl(var(--warm-charcoal))]">
-            {gapsDisplay}
-          </div>
-        </div>
+        {!isIssuerRole(role) ? (
+          <>
+            <div>
+              <div className="text-[11px] text-[#59625F]">红线风险</div>
+              <div className="mt-0.5 text-[15px] font-semibold text-[#59625F]">
+                {redlinesDisplay}
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] text-[#59625F]">待补资料</div>
+              <div className="mt-0.5 text-[15px] font-semibold text-[hsl(var(--warm-charcoal))]">
+                {gapsDisplay}
+              </div>
+            </div>
+          </>
+        ) : null}
         <div className="min-w-0">
           <div className="text-[11px] text-[#59625F]">负责人</div>
           <div className="mt-1 truncate text-[13px] font-medium text-[hsl(var(--warm-charcoal))]">
@@ -288,7 +301,7 @@ function ProjectCard({
               ? "border border-transparent bg-transparent text-[hsl(var(--wine))] hover:bg-[hsl(var(--wine)/0.06)]"
               : requested || joining
                 ? "cursor-default border border-[rgba(78,66,57,0.1)] bg-[rgba(78,66,57,0.06)] text-[#969E9A]"
-                : "border border-[rgba(160,99,88,0.28)] bg-transparent text-[hsl(var(--wine))] hover:bg-[hsl(var(--wine-muted))]"
+                : "border border-[rgba(160,99,88,0.28)] bg-transparent text-[hsl(var(--wine))] hover:bg-[hsl(var(--wine-muted))]",
           )}
         >
           {actionLabel}
@@ -669,7 +682,14 @@ export default function ProjectOverview() {
                 userId={userId!}
                 requested={pendingJoinIds.includes(p.id)}
                 joining={joiningProjectId === p.id}
-                onEnter={() => navigate(`/app/projects/${p.id}/overview`)}
+                onEnter={() =>
+                  navigate(
+                    projectEntryPath(
+                      p.id,
+                      getProjectRole(userId!, p.id, p.createdBy),
+                    ),
+                  )
+                }
                 onEdit={() => setEditProject(p)}
                 onDelete={() => {
                   setDeleteError(null);

@@ -66,6 +66,17 @@ import {
   handleReviewJoinRequest,
 } from "./project-join-routes";
 import { handleListMyOpenQuestions } from "./open-questions-routes";
+import {
+  handleGetCollabItem,
+  handleGetCollabOverview,
+  handleIssuerPatchCollabItem,
+  handleListCollabFiles,
+  handleListCollabItems,
+  handleListMyCollabInbox,
+  handlePublishCollabItem,
+  handleReviewCollabItem,
+  handleShareDocumentWithIssuer,
+} from "./collab-routes";
 import { decodePathProjectId } from "./projects-resolve";
 import { reconcileActiveAgentJobsForUser } from "./agent-jobs";
 import {
@@ -488,6 +499,73 @@ export async function routeAuthedApi(
 
   if (path === "/api/me/open-questions" && request.method === "GET") {
     return handleListMyOpenQuestions(env, authUserId);
+  }
+
+  if (path === "/api/me/collab-inbox" && request.method === "GET") {
+    return handleListMyCollabInbox(env, authUserId);
+  }
+
+  if (/^\/api\/projects\/[^/]+\/collab\/overview$/u.test(path) && request.method === "GET") {
+    const projectId = decodePathProjectId(path.split("/")[3] ?? "");
+    return handleGetCollabOverview(env, projectId, authUserId);
+  }
+
+  if (/^\/api\/projects\/[^/]+\/collab\/files$/u.test(path) && request.method === "GET") {
+    const projectId = decodePathProjectId(path.split("/")[3] ?? "");
+    return handleListCollabFiles(env, projectId, authUserId);
+  }
+
+  if (
+    /^\/api\/projects\/[^/]+\/collab\/items\/[^/]+\/review$/u.test(path) &&
+    request.method === "POST"
+  ) {
+    const projectId = decodePathProjectId(path.split("/")[3] ?? "");
+    const itemId = path.split("/")[6] ?? "";
+    return handleReviewCollabItem(request, env, projectId, itemId, authUserId);
+  }
+
+  if (/^\/api\/projects\/[^/]+\/collab\/items\/[^/]+$/u.test(path)) {
+    const projectId = decodePathProjectId(path.split("/")[3] ?? "");
+    const itemId = path.split("/")[6] ?? "";
+    if (request.method === "GET") {
+      return handleGetCollabItem(env, projectId, itemId, authUserId);
+    }
+    if (request.method === "PATCH") {
+      return handleIssuerPatchCollabItem(
+        request,
+        env,
+        projectId,
+        itemId,
+        authUserId,
+      );
+    }
+    return json({ error: "Method Not Allowed" }, 405);
+  }
+
+  if (/^\/api\/projects\/[^/]+\/collab\/items$/u.test(path)) {
+    const projectId = decodePathProjectId(path.split("/")[3] ?? "");
+    if (request.method === "GET") {
+      return handleListCollabItems(env, projectId, authUserId);
+    }
+    if (request.method === "POST") {
+      return handlePublishCollabItem(request, env, projectId, authUserId);
+    }
+    return json({ error: "Method Not Allowed" }, 405);
+  }
+
+  if (
+    /^\/api\/projects\/[^/]+\/files\/[^/]+\/share-issuer$/u.test(path) &&
+    request.method === "POST"
+  ) {
+    const projectId = decodePathProjectId(path.split("/")[3] ?? "");
+    const docId = path.split("/")[5] ?? "";
+    return handleShareDocumentWithIssuer(
+      request,
+      env,
+      projectId,
+      docId,
+      authUserId,
+    );
   }
 
   if (path === "/api/me/chapter-draft-runs" && request.method === "GET") {

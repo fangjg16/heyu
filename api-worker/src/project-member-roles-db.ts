@@ -17,7 +17,7 @@ export type ProjectMemberRoleRow = {
   deleted_at?: string | null;
 };
 
-const ASSIGNABLE_ROLES: WorkspaceRole[] = ["admin", "core", "low"];
+const ASSIGNABLE_ROLES: WorkspaceRole[] = ["admin", "core", "low", "issuer"];
 
 export function isAssignableProjectRole(role: string): role is WorkspaceRole {
   return ASSIGNABLE_ROLES.includes(role as WorkspaceRole);
@@ -35,6 +35,7 @@ function parseRole(raw: string): WorkspaceRole | null {
     role === "core" ||
     role === "mid" ||
     role === "low" ||
+    role === "issuer" ||
     role === "guest"
   ) {
     return role;

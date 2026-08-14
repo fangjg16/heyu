@@ -83,8 +83,20 @@ function extractTableCells(blockHtml: string): string[] {
   return out;
 }
 
+function stripCollabWriteback(html: string): string {
+  return html
+    .replace(
+      /<div\b[^>]*class="[^"]*kn-collab-confirmed[^"]*"[^>]*>[\s\S]*?<\/div>/giu,
+      " ",
+    )
+    .replace(
+      /<section\b[^>]*class="[^"]*kn-collab-writeback[^"]*"[^>]*>[\s\S]*?<\/section>/giu,
+      " ",
+    );
+}
+
 export function parseOpenQuestionsFromHtml(html: string): ParsedOpenQuestion[] {
-  const raw = (html ?? "").trim();
+  const raw = stripCollabWriteback(html ?? "").trim();
   if (!raw) return [];
 
   const items: ParsedOpenQuestion[] = [];

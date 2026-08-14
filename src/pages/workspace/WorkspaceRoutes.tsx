@@ -19,6 +19,7 @@ import {
 import { ProjectKnowledgeNetworkSection } from "@/components/workspace/ProjectKnowledgeNetworkSection";
 import { ProjectMaterialsSection } from "@/components/workspace/ProjectMaterialsSection";
 import { ProjectOverviewPanel } from "@/components/workspace/ProjectOverviewPanel";
+import { InvestorCollabSection } from "@/components/workspace/InvestorCollabSection";
 import { ProjectWorkspaceHeader } from "@/components/workspace/ProjectWorkspaceHeader";
 import {
   canDownloadProjectMaterials,
@@ -56,6 +57,13 @@ import AdminPortal, {
 import ConversationCenter from "@/pages/workspace/ConversationCenter";
 import HomeDashboard from "@/pages/workspace/HomeDashboard";
 import KnowledgeChapterDraftReviewPage from "@/pages/workspace/KnowledgeChapterDraftReviewPage";
+import {
+  CollabFilesPage,
+  CollabItemDetailPage,
+  CollabItemsPage,
+  CollabOverviewPage,
+  CollabWorkspaceLayout,
+} from "@/pages/workspace/CollabWorkspace";
 import Login from "@/pages/workspace/Login";
 import Notifications from "@/pages/workspace/Notifications";
 import ProjectOverview from "@/pages/workspace/ProjectOverview";
@@ -363,13 +371,18 @@ function ProjectWorkspaceLayout() {
   }
 
   const role = getProjectRole(userId, project.id, project.createdBy);
+  if (role === "issuer") {
+    return <Navigate to={`/app/collab/${project.id}`} replace />;
+  }
   const chatOk = canEnterChat(role);
   const canUpdateOverview = canPublishProjectKnowledgeNetwork(userId, project);
   const tab = pathname.includes("/knowledge")
     ? "knowledge"
     : pathname.includes("/materials")
       ? "materials"
-      : "overview";
+      : pathname.includes("/collab")
+        ? "collab"
+        : "overview";
 
   const goChat = () => {
     if (!chatOk) {
@@ -851,6 +864,12 @@ function ProjectMaterialsTab() {
   );
 }
 
+function ProjectCollabTab() {
+  const { projectId = "" } = useParams();
+  const userId = loadSessionUserId() ?? "";
+  return <InvestorCollabSection projectId={projectId} userId={userId} />;
+}
+
 export default function WorkspaceRoutes() {
   return (
     <div className="workspace-app min-h-screen bg-[hsl(var(--linen))] text-foreground antialiased">
@@ -902,6 +921,20 @@ export default function WorkspaceRoutes() {
             <Route path="overview" element={<ProjectOverviewTab />} />
             <Route path="knowledge" element={<ProjectKnowledgeTab />} />
             <Route path="materials" element={<ProjectMaterialsTab />} />
+            <Route path="collab" element={<ProjectCollabTab />} />
+          </Route>
+          <Route
+            path="collab/:projectId"
+            element={
+              <WorkspaceErrorBoundary>
+                <CollabWorkspaceLayout />
+              </WorkspaceErrorBoundary>
+            }
+          >
+            <Route index element={<CollabOverviewPage />} />
+            <Route path="items" element={<CollabItemsPage />} />
+            <Route path="items/:itemId" element={<CollabItemDetailPage />} />
+            <Route path="files" element={<CollabFilesPage />} />
           </Route>
           <Route
             path="admin"

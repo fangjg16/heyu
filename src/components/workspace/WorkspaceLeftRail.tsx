@@ -9,12 +9,15 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logoutRemote } from "@/lib/api-auth";
+import { useMyProjectRoles } from "@/hooks/use-my-project-roles";
 import { clearSession, loadSessionUserId } from "@/workspace/session";
 import {
   getUserById,
   isAccountGuestUser,
+  isIssuerRole,
   isPlatformAdminUser,
 } from "@/workspace/workspace-users";
+import { readAllCachedProjectRoles } from "@/workspace/project-role-cache";
 
 const PIN_KEY = "hy-workspace-rail-pinned";
 
@@ -48,9 +51,13 @@ export function WorkspaceLeftRail() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const userId = loadSessionUserId();
+  useMyProjectRoles(userId);
   const user = getUserById(userId);
   const isGuest = isAccountGuestUser(userId);
   const isAdmin = isPlatformAdminUser(userId);
+  const roles = Object.values(readAllCachedProjectRoles());
+  const issuerOnly =
+    roles.length > 0 && roles.every((r) => isIssuerRole(r));
   const userInitial = initialsFromDisplayName(user?.displayName);
 
   const [pinned, setPinned] = useState(() => {
@@ -97,15 +104,21 @@ export function WorkspaceLeftRail() {
       label: "项目库",
       to: "/app/projects",
       icon: Briefcase,
-      active: pathname.startsWith("/app/projects"),
+      active:
+        pathname.startsWith("/app/projects") ||
+        pathname.startsWith("/app/collab"),
     },
-    {
-      key: "chat",
-      label: "对话",
-      icon: MessageSquare,
-      active: pathname.startsWith("/app/chat"),
-      onClick: goChat,
-    },
+    ...(issuerOnly
+      ? []
+      : [
+          {
+            key: "chat",
+            label: "对话",
+            icon: MessageSquare,
+            active: pathname.startsWith("/app/chat"),
+            onClick: goChat,
+          } satisfies NavItem,
+        ]),
   ];
 
   const bottomNav: NavItem[] = isAdmin
