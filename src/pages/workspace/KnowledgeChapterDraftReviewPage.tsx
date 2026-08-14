@@ -61,6 +61,7 @@ type ReviewRow = {
   draftHtml: string | null;
   liveHtml: string | null;
   error: string | null;
+  reviseNote: string | null;
 };
 
 type ConfirmMode =
@@ -222,6 +223,7 @@ export default function KnowledgeChapterDraftReviewPage() {
             draftHtml: item?.html ?? null,
             liveHtml,
             error: item?.error ?? null,
+            reviseNote: item?.reviseNote ?? null,
           };
         });
         setRows(nextRows);
@@ -737,36 +739,57 @@ export default function KnowledgeChapterDraftReviewPage() {
               </div>
 
               {showReviseBar ? (
-                <div className="flex flex-wrap items-end gap-2 border-b border-[rgba(78,66,57,0.08)] px-4 py-3">
-                  <textarea
-                    value={instruction}
-                    onChange={(e) => setInstruction(e.target.value)}
-                    rows={2}
-                    disabled={
-                      reviseBusy ||
-                      editBusy ||
-                      editing ||
-                      busy !== null ||
-                      selected?.kind === "revising"
-                    }
-                    placeholder="输入对草案的改写指令，例如：把研究结论写得更简洁"
-                    className="min-h-[48px] min-w-[220px] flex-1 resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/80 px-3 py-2 text-[13px] leading-relaxed text-[#1F2423] outline-none placeholder:text-[#969E9A] focus:border-[rgba(160,99,88,0.35)] disabled:opacity-60"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void onRevise()}
-                    disabled={
-                      !canEditDraft ||
-                      editing ||
-                      !instruction.trim() ||
-                      selected?.kind === "revising"
-                    }
-                    className="h-10 shrink-0 rounded-[9px] bg-[#A06358] px-4 text-[13px] font-medium text-white hover:bg-[#8F564C] disabled:cursor-not-allowed disabled:opacity-45"
-                  >
-                    {reviseBusy || selected?.kind === "revising"
-                      ? "改写中…"
-                      : "改写草案"}
-                  </button>
+                <div className="space-y-2 border-b border-[rgba(78,66,57,0.08)] px-4 py-3">
+                  <div className="flex flex-wrap items-end gap-2">
+                    <textarea
+                      value={instruction}
+                      onChange={(e) => setInstruction(e.target.value)}
+                      rows={2}
+                      disabled={
+                        reviseBusy ||
+                        editBusy ||
+                        editing ||
+                        busy !== null ||
+                        selected?.kind === "revising"
+                      }
+                      placeholder="输入对草案的改写指令，例如：把研究结论写得更简洁"
+                      className="min-h-[48px] min-w-[220px] flex-1 resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/80 px-3 py-2 text-[13px] leading-relaxed text-[#1F2423] outline-none placeholder:text-[#969E9A] focus:border-[rgba(160,99,88,0.35)] disabled:opacity-60"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void onRevise()}
+                      disabled={
+                        !canEditDraft ||
+                        editing ||
+                        !instruction.trim() ||
+                        selected?.kind === "revising"
+                      }
+                      className="h-10 shrink-0 rounded-[9px] bg-[#A06358] px-4 text-[13px] font-medium text-white hover:bg-[#8F564C] disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      {reviseBusy || selected?.kind === "revising"
+                        ? "改写中…"
+                        : "改写草案"}
+                    </button>
+                  </div>
+                  {selected?.kind === "revising" ? (
+                    <div className="rounded-xl border border-[rgba(176,125,31,0.22)] bg-[rgba(176,125,31,0.06)] px-3.5 py-2.5">
+                      <p className="text-[12px] font-semibold text-[#8A6218]">
+                        正在按你的意见改写…
+                      </p>
+                      <p className="mt-1 text-[12px] leading-relaxed text-[#59625F]">
+                        完成后会在此显示「本次改写说明」。
+                      </p>
+                    </div>
+                  ) : selected?.reviseNote?.trim() ? (
+                    <div className="rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/90 px-3.5 py-2.5 shadow-[0_1px_0_rgba(78,66,57,0.04)]">
+                      <p className="text-[12px] font-semibold text-[#A06358]">
+                        本次改写说明
+                      </p>
+                      <p className="mt-1.5 whitespace-pre-wrap text-[12.5px] leading-relaxed text-[#1F2423]">
+                        {selected.reviseNote}
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 

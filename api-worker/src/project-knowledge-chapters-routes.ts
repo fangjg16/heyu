@@ -311,13 +311,59 @@ function enforceChapterHtmlFormat(sectionId: string, html: string): string {
   return polishChapterTableHtml(t);
 }
 
-const REVISE_SYSTEM = `你是投研知识网络章节改写助手。根据用户指令，在现有 HTML 片段上做最小必要修改，返回**完整更新后的 HTML 片段**（不要完整页面、不要 markdown 围栏）。
+const REVISE_SYSTEM = `你是投研知识网络章节改写助手。根据用户指令，在现有 HTML 片段上做最小必要修改。
+
+输出唯一 JSON 对象（不要 markdown 围栏，不要其它说明），字段：
+{"note":"改写说明","html":"完整更新后的 HTML 片段"}
 
 要求：
 1. 只改用户点名的部分；未提及处尽量保持原样。
 2. 保持原版式（表格章仍是表格，三块结构仍是三块），禁止扩写成模板外结构。
 3. 不要编造无依据的新事实；缺依据处用「待补」。
-4. 只输出 HTML 片段本身。`;
+4. note：用中文写 3～6 句短说明，说明你听懂了什么、改了哪些、刻意没改什么；不要复述整章正文。
+5. html：完整更新后的 HTML 片段本身（不要完整页面）。`;
+
+function stripJsonFence(raw: string): string {
+  let t = raw.trim();
+  const fenced = /^```(?:json)?\s*([\s\S]*?)```$/iu.exec(t);
+  if (fenced?.[1]) t = fenced[1].trim();
+  return t;
+}
+
+/** 解析改写模型输出：优先 JSON {note,html}；兼容旧版纯 HTML */
+export function parseReviseChapterAnswer(answer: string): {
+  html: string;
+  note: string;
+} {
+  const raw = stripJsonFence(answer);
+  try {
+    const obj = JSON.parse(raw) as {
+      note?: unknown;
+      reviseNote?: unknown;
+      html?: unknown;
+      content?: unknown;
+    };
+    if (obj && typeof obj === "object") {
+      const html = String(obj.html ?? obj.content ?? "").trim();
+      const note = String(obj.note ?? obj.reviseNote ?? "")
+        .trim()
+        .slice(0, 2000);
+      if (html) return { html, note };
+    }
+  } catch {
+    /* 非 JSON，走纯 HTML */
+  }
+  const split = /(?:^|\n)\s*-{3,}\s*HTML\s*-{3,}\s*\n([\s\S]*)$/iu.exec(raw);
+  if (split?.[1]) {
+    const before = raw.slice(0, split.index).trim();
+    const note = before
+      .replace(/^(?:改写说明|说明)[:：]\s*/u, "")
+      .trim()
+      .slice(0, 2000);
+    return { html: split[1].trim(), note };
+  }
+  return { html: raw, note: "" };
+}
 
 async function assertCanRead(
   env: Env,
@@ -553,6 +599,7 @@ export async function handleGenerateProjectKnowledgeChapter(
         status: "failed",
         html: null,
         error,
+        reviseNote: null,
         llmBackend: null,
       });
       await refreshDraftRunProgress(env.DB, draftRunId);
@@ -667,6 +714,7 @@ export async function handleGenerateProjectKnowledgeChapter(
         status: "ok",
         html,
         error: null,
+        reviseNote: null,
         llmBackend,
       });
 
@@ -919,7 +967,7 @@ export async function reviseChapterHtmlContent(
     html: string;
     instruction: string;
   },
-): Promise<{ html: string; llmBackend: string }> {
+): Promise<{ html: string; note: string; llmBackend: string }> {
   const userPrompt = [
     `章节：${input.title}`,
     input.kicker ? `副标：${input.kicker}` : "",
@@ -937,13 +985,17 @@ export async function reviseChapterHtmlContent(
     { role: "system", content: REVISE_SYSTEM },
     { role: "user", content: userPrompt },
   ]);
-  let html = normalizeChapterHtmlFragment(result.answer);
+  const parsed = parseReviseChapterAnswer(result.answer);
+  let html = normalizeChapterHtmlFragment(parsed.html);
   html = linkifyCitationMarkers(html);
   html = polishChapterTableHtml(html);
   if (!html) {
     throw new Error("模型未返回有效 HTML 片段");
   }
-  return { html, llmBackend: result.llmBackend };
+  const note =
+    parsed.note.trim() ||
+    `已按指令改写「${input.title}」：已处理你指出的问题；未点名部分尽量保持原样。`;
+  return { html, note, llmBackend: result.llmBackend };
 }
 
 /** POST /api/projects/:id/knowledge-chapters/:sectionId/revise */
@@ -1016,6 +1068,7 @@ export async function handleReviseProjectKnowledgeChapter(
 
   let html: string;
   let llmBackend: string;
+  let reviseNote: string;
   try {
     const revised = await reviseChapterHtmlContent(env, {
       title,
@@ -1025,6 +1078,7 @@ export async function handleReviseProjectKnowledgeChapter(
     });
     html = revised.html;
     llmBackend = revised.llmBackend;
+    reviseNote = revised.note;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const status = msg.includes("模型未返回") ? 502 : 502;
@@ -1046,6 +1100,7 @@ export async function handleReviseProjectKnowledgeChapter(
     sectionId,
     title,
     html: saved.html,
+    reviseNote,
     source: saved.source,
     llmBackend: saved.llmBackend,
     updatedAt: saved.updatedAt,

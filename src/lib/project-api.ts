@@ -960,6 +960,8 @@ export type ChapterDraftItem = {
   status: "pending" | "ok" | "failed" | "revising";
   html?: string | null;
   error?: string | null;
+  /** 最近一次改写说明（AI 短回复） */
+  reviseNote?: string | null;
   llmBackend?: string | null;
   hasHtml?: boolean;
   updatedAt: string;

@@ -336,6 +336,7 @@ export async function handleGetChapterDraftRun(
       status: i.status,
       html: i.html,
       error: i.error,
+      reviseNote: i.reviseNote,
       llmBackend: i.llmBackend,
       updatedAt: i.updatedAt,
     })),
@@ -600,6 +601,7 @@ export async function handleReviseChapterDraftSection(
         status: "ok",
         html: revised.html,
         error: null,
+        reviseNote: revised.note,
         llmBackend: revised.llmBackend,
       });
     } catch (e) {
