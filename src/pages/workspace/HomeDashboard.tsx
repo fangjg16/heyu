@@ -7,6 +7,7 @@ import {
   fetchProjectsFromApi,
   type MyOpenQuestionItem,
 } from "@/lib/project-api";
+import { extractOpenQuestionTitle } from "@/lib/kn-citations";
 import { filterProjectsForUser } from "@/workspace/guest-access";
 import {
   getMergedProjects,
@@ -113,6 +114,8 @@ export default function HomeDashboard() {
     {
       id: string;
       text: string;
+      title: string;
+      detail: string;
       meta: string;
       due: string;
       color: string;
@@ -169,21 +172,26 @@ export default function HomeDashboard() {
         const data = await fetchMyOpenQuestions();
         if (cancelled) return;
         setTodos(
-          data.items.map((item) => ({
-            id: item.id,
-            text: item.text,
-            meta: item.projectName,
-            due: item.priorityLabel,
-            color: priorityColor(item.priority),
-            to: `/app/projects/${encodeURIComponent(item.projectId)}/knowledge?section=questions`,
-            listMeta: `${item.projectName} · ${item.priority} 待确认问题`,
-            listDue:
-              item.priority === "P1"
-                ? "阻塞"
-                : item.priority === "P2"
-                  ? "重要"
-                  : "跟进",
-          })),
+          data.items.map((item) => {
+            const { title, detail } = extractOpenQuestionTitle(item.text);
+            return {
+              id: item.id,
+              text: item.text,
+              title: title || item.text,
+              detail,
+              meta: item.projectName,
+              due: item.priorityLabel,
+              color: priorityColor(item.priority),
+              to: `/app/projects/${encodeURIComponent(item.projectId)}/knowledge?section=questions`,
+              listMeta: `${item.projectName} · ${item.priority} 待确认问题`,
+              listDue:
+                item.priority === "P1"
+                  ? "阻塞"
+                  : item.priority === "P2"
+                    ? "重要"
+                    : "跟进",
+            };
+          }),
         );
       } catch (e) {
         if (cancelled) return;
@@ -288,7 +296,7 @@ export default function HomeDashboard() {
                 lineHeight: 1.4,
               }}
             >
-              {focusTodo.meta} · {focusTodo.text}
+              {focusTodo.title}
             </div>
             <div
               style={{
@@ -298,8 +306,8 @@ export default function HomeDashboard() {
                 lineHeight: 1.65,
               }}
             >
-              来自待确认问题清单的 {focusTodo.due}
-              项；建议优先处理。
+              {focusTodo.meta} · {focusTodo.due}
+              ；详见下方待办列表。
             </div>
             <div
               style={{
@@ -483,7 +491,32 @@ export default function HomeDashboard() {
                   }}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 16.5, color: C.ink }}>{t.text}</div>
+                  <div
+                    style={{
+                      fontSize: 16.5,
+                      fontWeight: 600,
+                      color: C.ink,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {t.title}
+                  </div>
+                  {t.detail ? (
+                    <div
+                      style={{
+                        marginTop: 4,
+                        fontSize: 13.5,
+                        color: C.muted,
+                        lineHeight: 1.55,
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {t.detail}
+                    </div>
+                  ) : null}
                   <div
                     style={{
                       marginTop: 4,

@@ -22,6 +22,7 @@ import {
   Paperclip,
   Plane,
   Plus,
+  Quote,
   Sparkles,
   Square,
   Trash2,
@@ -1044,13 +1045,15 @@ async function copyPlainTextToClipboard(text: string): Promise<boolean> {
 function MessageBubbleToolbar({
   copyText,
   onDeleteMessage,
+  onQuoteMessage,
 }: {
   copyText?: string;
   onDeleteMessage?: () => void;
+  onQuoteMessage?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const canCopy = Boolean(copyText?.trim());
-  if (!canCopy && !onDeleteMessage) return null;
+  if (!canCopy && !onDeleteMessage && !onQuoteMessage) return null;
 
   const handleCopy = () => {
     void copyPlainTextToClipboard(copyText ?? "").then((ok) => {
@@ -1065,6 +1068,17 @@ function MessageBubbleToolbar({
 
   return (
     <div className="mt-2 flex shrink-0 flex-col gap-0.5">
+      {onQuoteMessage ? (
+        <button
+          type="button"
+          onClick={onQuoteMessage}
+          className={cn(actionBtnClass, "hover:bg-muted/80 hover:text-foreground")}
+          title="引用并回复"
+          aria-label="引用并回复"
+        >
+          <Quote className="h-3.5 w-3.5" strokeWidth={2} />
+        </button>
+      ) : null}
       {canCopy ? (
         <button
           type="button"
@@ -1107,18 +1121,24 @@ function UserBubble({
   time,
   copyText,
   onDeleteMessage,
+  onQuoteMessage,
 }: {
   children: ReactNode;
   time?: string;
   copyText?: string;
   onDeleteMessage?: () => void;
+  onQuoteMessage?: () => void;
 }) {
   const displayTime = formatBubbleTimeLabel(time);
   return (
     <div className="flex justify-end">
       <div className="group inline-flex flex-col items-end">
         <div className="flex items-start gap-1.5">
-          <MessageBubbleToolbar copyText={copyText} onDeleteMessage={onDeleteMessage} />
+          <MessageBubbleToolbar
+            copyText={copyText}
+            onDeleteMessage={onDeleteMessage}
+            onQuoteMessage={onQuoteMessage}
+          />
           <div
             className={cn(
               "inline-block max-w-[32ch] sm:max-w-[42ch] rounded-3xl rounded-br-lg px-5 py-3 text-sm font-medium leading-relaxed text-wine-deep-foreground break-words whitespace-pre-line",
@@ -1171,11 +1191,13 @@ function AiShell({
   time,
   copyText,
   onDeleteMessage,
+  onQuoteMessage,
 }: {
   children: ReactNode;
   time?: string;
   copyText?: string;
   onDeleteMessage?: () => void;
+  onQuoteMessage?: () => void;
 }) {
   const displayTime = formatBubbleTimeLabel(time);
   return (
@@ -1191,7 +1213,11 @@ function AiShell({
           >
             {children}
           </div>
-          <MessageBubbleToolbar copyText={copyText} onDeleteMessage={onDeleteMessage} />
+          <MessageBubbleToolbar
+            copyText={copyText}
+            onDeleteMessage={onDeleteMessage}
+            onQuoteMessage={onQuoteMessage}
+          />
         </div>
         {displayTime ? (
           <span className="mt-1 text-[10px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
@@ -1588,6 +1614,12 @@ export default function ConversationCenter() {
   const conversationFilesMenuRef = useRef<HTMLDivElement>(null);
   const [chatSyncReady, setChatSyncReady] = useState(false);
   const [draftMessage, setDraftMessage] = useState("");
+  /** 引用某条消息后针对性回复 */
+  const [quoteDraft, setQuoteDraft] = useState<{
+    messageId: string;
+    excerpt: string;
+    from: "user" | "assistant";
+  } | null>(null);
   /** 仅标记「当前会话」正在等同步 /api/chat 响应；深度任务用 pendingJobId，不占此项 */
   const [sendingConversationId, setSendingConversationId] = useState<string | null>(
     null,
@@ -2121,6 +2153,16 @@ export default function ConversationCenter() {
       conversations,
       flushChatPersist,
     ],
+  );
+
+  const quoteLiveMessage = useCallback(
+    (messageId: string, raw: string, from: "user" | "assistant") => {
+      const excerpt = raw.replace(/\s+/gu, " ").trim().slice(0, 280);
+      if (!excerpt) return;
+      setQuoteDraft({ messageId, excerpt, from });
+      requestAnimationFrame(() => chatInputRef.current?.focus());
+    },
+    [],
   );
 
   const liveMessages = useMemo(() => {
@@ -2707,11 +2749,17 @@ export default function ConversationCenter() {
 
     setLiveError(null);
     const filesToUpload = [...selectedFiles];
+    const quotePrefix = quoteDraft
+      ? `【引用${quoteDraft.from === "assistant" ? "助手" : "我"}的消息】\n> ${quoteDraft.excerpt}\n\n`
+      : "";
     const displayText =
-      trimmed ||
-      (fileNames.length > 0 ? `已发送 ${fileNames.length} 个文件` : "");
+      quotePrefix +
+      (trimmed ||
+        (fileNames.length > 0 ? `已发送 ${fileNames.length} 个文件` : ""));
     const apiMessage =
-      trimmed || (fileNames.length > 0 ? buildFileUploadApiMessage(fileNames) : "");
+      quotePrefix +
+      (trimmed ||
+        (fileNames.length > 0 ? buildFileUploadApiMessage(fileNames) : ""));
 
     const userMsgId = `user-${Date.now()}`;
 
@@ -2736,6 +2784,7 @@ export default function ConversationCenter() {
       files: fileNames.length > 0 ? fileNames.map((name) => ({ name })) : undefined,
       time: getCurrentDateTimeLabel(),
     });
+    setQuoteDraft(null);
     if (isFirstUserTurn) {
       updateConversationPreview(
         deriveConversationTopicHeuristic(apiMessage || displayText),
@@ -3578,6 +3627,12 @@ export default function ConversationCenter() {
                           time={m.time}
                           copyText={userCopyText}
                           onDeleteMessage={deleteThisMessage}
+                          onQuoteMessage={
+                            userCopyText.trim()
+                              ? () =>
+                                  quoteLiveMessage(m.id, userCopyText, "user")
+                              : undefined
+                          }
                         >
                           <ChatMarkdown text={m.content} variant="user" />
                         </UserBubble>
@@ -3597,6 +3652,16 @@ export default function ConversationCenter() {
                       time={m.time}
                       copyText={assistantCopyText}
                       onDeleteMessage={deleteThisMessage}
+                      onQuoteMessage={
+                        assistantCopyText.trim() && !streaming
+                          ? () =>
+                              quoteLiveMessage(
+                                m.id,
+                                assistantCopyText,
+                                "assistant",
+                              )
+                          : undefined
+                      }
                     >
                       {m.isStreaming ? (
                         <ChatThinkingBadge className="mb-3">思考中…</ChatThinkingBadge>
@@ -3903,6 +3968,34 @@ export default function ConversationCenter() {
           {liveError ? (
             <div className="mb-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs leading-relaxed text-rose-700">
               {liveError}
+            </div>
+          ) : null}
+
+          {quoteDraft ? (
+            <div className="mb-2 flex items-start gap-2 rounded-xl border border-[hsl(var(--wine-deep)/0.2)] bg-[hsl(var(--wine-deep)/0.05)] px-3 py-2.5">
+              <Quote
+                className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[hsl(var(--wine-deep))]"
+                strokeWidth={2}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] font-semibold text-[hsl(var(--wine-deep))]">
+                  引用
+                  {quoteDraft.from === "assistant" ? "助手" : "我"}
+                  的消息 · 针对性回复
+                </div>
+                <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                  {quoteDraft.excerpt}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuoteDraft(null)}
+                className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="取消引用"
+                title="取消引用"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
             </div>
           ) : null}
 

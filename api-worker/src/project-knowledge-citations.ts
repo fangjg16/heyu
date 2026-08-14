@@ -9,7 +9,7 @@ export function knSourceAnchorId(citeId: string): string {
   return `kn-source-${citeId}`;
 }
 
-/** 将纯文本 [A-1] 转为可点击引用链接（已是 <a> 的跳过） */
+/** 将纯文本 [A-1] 转为可点击上标引用（已是 <a> 的跳过） */
 export function linkifyCitationMarkers(html: string): string {
   if (!html) return html;
   const parts = html.split(/(<a\b[^>]*>[\s\S]*?<\/a>)/iu);
@@ -18,7 +18,7 @@ export function linkifyCitationMarkers(html: string): string {
       if (/^<a\b/iu.test(part)) return part;
       return part.replace(CITE_ID_RE, (_m, id: string) => {
         const aid = knSourceAnchorId(id);
-        return `<a class="kn-cite" href="#${aid}" data-kn-cite="${id}" style="color:#A3262C;font-weight:600;text-decoration:none">[${id}]</a>`;
+        return `<sup class="kn-cite-sup"><a class="kn-cite" href="#${aid}" data-kn-cite="${id}" title="查看来源 ${id}">[${id}]</a></sup>`;
       });
     })
     .join("");

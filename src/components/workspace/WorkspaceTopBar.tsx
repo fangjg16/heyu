@@ -240,7 +240,7 @@ export function WorkspaceTopBar({
         aria-label="通知"
       >
         <Bell className="h-[22px] w-[22px]" strokeWidth={1.8} />
-        <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-[1.5px] border-[hsl(var(--paper))] bg-[hsl(var(--wine))]" />
+        {/* 推送服务接入前无未读数据，不显示红点 */}
       </Link>
 
       <div className="relative">

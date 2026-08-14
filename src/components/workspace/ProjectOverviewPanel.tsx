@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ProjectRelationGraph,
   parseProjectGraphHtml,
   type ProjectGraphData,
 } from "@/components/workspace/ProjectRelationGraph";
+import { linkifyCitationMarkersHtml } from "@/lib/kn-citations";
 import { fetchProjectKnowledgeChapter } from "@/lib/project-api";
 import type { WorkspaceProject } from "@/workspace/projects";
 
@@ -19,6 +21,7 @@ export function ProjectOverviewPanel({
   userId,
   refreshKey = 0,
 }: ProjectOverviewPanelProps) {
+  const navigate = useNavigate();
   const [html, setHtml] = useState<string | null>(null);
   const [graph, setGraph] = useState<ProjectGraphData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -54,6 +57,28 @@ export function ProjectOverviewPanel({
     void load();
   }, [load, refreshKey]);
 
+  const displayHtml = useMemo(
+    () => (html?.trim() ? linkifyCitationMarkersHtml(html) : null),
+    [html],
+  );
+
+  const onOverviewHtmlClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+    const link = target.closest("a.kn-cite") as HTMLAnchorElement | null;
+    if (!link) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const citeId =
+      link.getAttribute("data-kn-cite")?.trim() ||
+      /#kn-source-([A-Za-z]+-\d+)/u.exec(link.getAttribute("href") ?? "")?.[1] ||
+      null;
+    if (!citeId) return;
+    navigate(
+      `/app/projects/${encodeURIComponent(project.id)}/knowledge?view=sources&cite=${encodeURIComponent(citeId)}`,
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-[280px] items-center justify-center">
@@ -82,10 +107,11 @@ export function ProjectOverviewPanel({
 
   return (
     <div className="space-y-2">
-      {html?.trim() ? (
+      {displayHtml ? (
         <div
           className="kn-project-overview-html text-[13.5px] leading-[1.75] text-[#1F2423] [&_b]:font-semibold [&_li]:my-1 [&_table]:my-3 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[rgba(78,66,57,0.12)] [&_td]:px-3 [&_td]:py-2 [&_th]:whitespace-nowrap [&_th]:border [&_th]:border-[rgba(78,66,57,0.12)] [&_th]:bg-[rgba(78,66,57,0.05)] [&_th]:px-3 [&_th]:py-2 [&_ul]:my-2 [&_ul]:list-disc"
-          dangerouslySetInnerHTML={{ __html: html }}
+          onClick={onOverviewHtmlClick}
+          dangerouslySetInnerHTML={{ __html: displayHtml }}
         />
       ) : null}
       {graph ? (

@@ -365,3 +365,32 @@
     }
   }
 }
+
+/* 知识网络引用：右上角小标，可点击 */
+.kn-cite-sup {
+  font-size: 0.72em;
+  line-height: 0;
+  vertical-align: super;
+}
+
+a.kn-cite {
+  color: #a06358 !important;
+  font-weight: 600 !important;
+  font-size: 0.72em;
+  line-height: 0;
+  vertical-align: super;
+  text-decoration: none !important;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.kn-cite-sup a.kn-cite {
+  font-size: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+}
+
+a.kn-cite:hover {
+  text-decoration: underline !important;
+  color: #8f564c !important;
+}

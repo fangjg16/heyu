@@ -189,6 +189,19 @@ export function ProjectKnowledgeNetworkSection({
   }, [searchParams]);
 
   useEffect(() => {
+    const viewParam = searchParams.get("view");
+    const cite = searchParams.get("cite")?.trim();
+    if (cite) pendingCiteIdRef.current = cite;
+    if (viewParam === "sources" || cite) {
+      setView("sources");
+    } else if (viewParam === "glossary") {
+      setView("glossary");
+    } else if (viewParam === "versions") {
+      setView("versions");
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     if (view !== "versions" || !projectId || !userId.trim() || isGuest) return;
     let cancelled = false;
     const run = async () => {

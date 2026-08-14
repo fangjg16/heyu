@@ -16,6 +16,7 @@ describe("project-knowledge-citations", () => {
     const html = linkifyCitationMarkers("<td>项目方整理 [A-1]</td>");
     expect(html).toContain('href="#kn-source-A-1"');
     expect(html).toContain('data-kn-cite="A-1"');
+    expect(html).toContain("kn-cite-sup");
     expect(html).toContain(">[A-1]</a>");
   });
 

@@ -202,17 +202,6 @@ function GraphNodeDrawer({
               </div>
             </div>
           ) : null}
-
-          <button
-            type="button"
-            onClick={goKnowledge}
-            className="flex items-center justify-between rounded-lg text-left text-[12.5px] text-[#1F2423] transition-colors hover:text-[#A06358]"
-          >
-            <span>
-              <span className="text-[#A06358]">●</span> 跳转到关联研究内容
-            </span>
-            <span className="text-[11px] text-[#A06358]">查看 →</span>
-          </button>
         </div>
 
         <div className="flex gap-2.5 border-t border-[rgba(78,66,57,0.1)] px-6 py-4">
