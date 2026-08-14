@@ -90,7 +90,7 @@ export function workspaceRoleToUiTier(role: WorkspaceRole): UiTier {
 export function roleLabelForProject(role: WorkspaceRole): string {
   switch (role) {
     case "admin":
-      return "Admin";
+      return "Admin 项目管理员";
     case "core":
       return "Core 核心级";
     case "mid":
@@ -102,6 +102,14 @@ export function roleLabelForProject(role: WorkspaceRole): string {
     default:
       return role;
   }
+}
+
+/** 权限下拉：默认 Admin/Core/Basic；若成员仍是 mid 则临时保留以便改档 */
+export function projectRoleSelectOptions(
+  current?: WorkspaceRole | null,
+): WorkspaceRole[] {
+  if (current === "mid") return ["admin", "core", "mid", "low"];
+  return ["admin", "core", "low"];
 }
 
 export function canEnterChat(role: WorkspaceRole): boolean {

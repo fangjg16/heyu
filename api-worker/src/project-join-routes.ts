@@ -213,10 +213,11 @@ export async function handleReviewJoinRequest(
   }
 
   if (next === "approved") {
-    let role: "low" | "mid" | "core" = "low";
+    let role: "admin" | "core" | "low" = "low";
     try {
       const def = await getDefaultRoleForUser(env, updated.applicantUserId);
-      if (def === "core" || def === "mid" || def === "low") role = def;
+      if (def === "admin" || def === "core" || def === "low") role = def;
+      // mid（Advanced）本阶段不新分配，审批落入 Basic
     } catch {
       /* 保持 low */
     }

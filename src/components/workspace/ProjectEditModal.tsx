@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { updateProjectViaApi } from "@/lib/project-api";
+import { IndustryCategoryFields } from "@/components/workspace/IndustryCategoryFields";
+import {
+  formatIndustryCategory,
+  parseIndustryCategory,
+  UNCATEGORIZED_LABEL,
+} from "@/workspace/industry-taxonomy";
 import type { ProjectOpenness, ProjectPhase, WorkspaceProject } from "@/workspace/projects";
 
 const PHASE_OPTIONS: ProjectPhase[] = [
@@ -53,7 +60,9 @@ export function ProjectEditModal({
 }: ProjectEditModalProps) {
   const [name, setName] = useState(project.name);
   const [detail, setDetail] = useState(project.summary);
-  const [category, setCategory] = useState(project.category);
+  const [industryTheme, setIndustryTheme] = useState("");
+  const [industrySector, setIndustrySector] = useState("");
+  const [legacyCategory, setLegacyCategory] = useState<string | null>(null);
   const [phase, setPhase] = useState<ProjectPhase>(project.phase);
   const [openness, setOpenness] = useState<ProjectOpenness>(
     normalizeOpenness(project.openness),
@@ -66,7 +75,14 @@ export function ProjectEditModal({
     if (!open) return;
     setName(project.name);
     setDetail(project.summary);
-    setCategory(project.category);
+    const parsed = parseIndustryCategory(project.category);
+    setIndustryTheme(parsed.theme);
+    setIndustrySector(parsed.sector);
+    setLegacyCategory(
+      parsed.legacy && project.category.trim() && project.category !== UNCATEGORIZED_LABEL
+        ? project.category.trim()
+        : null,
+    );
     setPhase(project.phase);
     setOpenness(normalizeOpenness(project.openness));
     setGuestSummary(project.guestSummary);
@@ -81,12 +97,16 @@ export function ProjectEditModal({
       setError("请填写项目名称");
       return;
     }
+    if (industryTheme && !industrySector) {
+      setError("请选择可投子赛道 / 业务环节");
+      return;
+    }
     setSaving(true);
     setError(null);
     void updateProjectViaApi(projectId, {
       name: trimmedName,
       detail: detail.trim(),
-      category: category.trim() || "未分类",
+      category: formatIndustryCategory(industryTheme, industrySector),
       phase,
       openness,
       guestSummary: guestSummary.trim(),
@@ -102,9 +122,9 @@ export function ProjectEditModal({
       .finally(() => setSaving(false));
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[125] flex items-center justify-center bg-black/35 p-4 backdrop-blur-[1px]"
+      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/35 p-4 backdrop-blur-[1px]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="project-edit-title"
@@ -150,14 +170,22 @@ export function ProjectEditModal({
               className="mt-1.5 w-full resize-y rounded-lg border border-border/70 px-3 py-2 text-sm"
             />
           </label>
-          <label className="block text-sm">
-            <span className="font-medium text-foreground">行业分类</span>
-            <input
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-border/70 px-3 py-2 text-sm"
+          <div className="block text-sm">
+            <span className="mb-1.5 block font-medium text-foreground">行业分类</span>
+            <IndustryCategoryFields
+              theme={industryTheme}
+              sector={industrySector}
+              onThemeChange={(t) => {
+                setIndustryTheme(t);
+                setLegacyCategory(null);
+              }}
+              onSectorChange={(s) => {
+                setIndustrySector(s);
+                setLegacyCategory(null);
+              }}
+              legacyLabel={legacyCategory}
             />
-          </label>
+          </div>
           <label className="block text-sm">
             <span className="font-medium text-foreground">项目状态</span>
             <select
@@ -214,6 +242,7 @@ export function ProjectEditModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

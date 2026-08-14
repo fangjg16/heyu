@@ -12,11 +12,10 @@ import type { WorkspaceProject } from "@/workspace/projects";
 import { patchMyProjectRole } from "@/workspace/project-role-cache";
 import {
   listCachedWorkspaceUsers,
+  projectRoleSelectOptions,
   roleLabelForProject,
 } from "@/workspace/workspace-users";
 import type { WorkspaceRole } from "@/workspace/types";
-
-const ASSIGNABLE: WorkspaceRole[] = ["guest", "low", "mid", "core"];
 
 type ProjectPermissionsSectionProps = {
   project: WorkspaceProject;
@@ -116,7 +115,7 @@ export function ProjectPermissionsSection({
     setSavedHint(null);
     try {
       const next = await updateProjectPermissions(project.id, userId, [
-        { userId: option.userId, role: "mid" },
+        { userId: option.userId, role: "core" },
       ]);
       applyMembers(next);
       setAddKeyword("");
@@ -261,7 +260,7 @@ export function ProjectPermissionsSection({
                       <Plus className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--wine-deep))]" aria-hidden />
                       <span className="truncate">{option.name}</span>
                       <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
-                        加入为 Mid
+                        加入为 Core
                       </span>
                     </button>
                   </li>
@@ -319,13 +318,15 @@ export function ProjectPermissionsSection({
                       aria-label={`${m.displayName} 的项目角色`}
                     >
                       {m.isPlatformAdmin ? (
-                        <option value="admin">Admin</option>
+                        <option value="admin">{roleLabelForProject("admin")}</option>
                       ) : m.isCreator ? (
-                        <option value="core">Core 核心级</option>
+                        <option value="core">{roleLabelForProject("core")}</option>
                       ) : (
-                        ASSIGNABLE.map((r) => (
+                        projectRoleSelectOptions(value).map((r) => (
                           <option key={r} value={r}>
-                            {roleLabelForProject(r)}
+                            {r === "mid"
+                              ? `${roleLabelForProject(r)}（请改档）`
+                              : roleLabelForProject(r)}
                           </option>
                         ))
                       )}

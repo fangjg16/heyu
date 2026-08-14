@@ -156,7 +156,7 @@ export async function handleCreateProject(
     const participants = (body.participants ?? [])
       .map((p) => ({
         userId: (p.userId ?? "").trim(),
-        role: (p.role ?? "mid").trim() as WorkspaceRole,
+        role: (p.role ?? "core").trim() as WorkspaceRole,
       }))
       .filter((p) => p.userId.length > 0);
 

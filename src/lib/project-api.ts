@@ -218,7 +218,7 @@ export async function createProjectViaApi(
     category?: string;
     openness?: "partial" | "invite";
     userId?: string;
-    participants?: { userId: string; role: "core" | "mid" | "low" }[];
+    participants?: { userId: string; role: "admin" | "core" | "low" }[];
   },
   chatEndpoint = AI_CHAT_ENDPOINT,
 ): Promise<import("@/workspace/projects").WorkspaceProject> {

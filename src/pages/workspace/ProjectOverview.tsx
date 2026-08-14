@@ -5,7 +5,11 @@ import { ArrowRight, FileText, Pencil, Plus, Trash2, Upload, X } from "lucide-re
 import { projectMatchesQuery } from "@/workspace/project-search";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import { ProjectEditModal } from "@/components/workspace/ProjectEditModal";
+import { IndustryCategoryFields } from "@/components/workspace/IndustryCategoryFields";
 import { cn } from "@/lib/utils";
+import {
+  formatIndustryCategory,
+} from "@/workspace/industry-taxonomy";
 import {
   normalizeProjectPhase,
   type ProjectPhase,
@@ -46,7 +50,7 @@ import {
 import { fetchWorkspaceUsersDirectory } from "@/lib/api-auth";
 import type { WorkspaceRole } from "@/workspace/types";
 
-const CREATE_PERMISSION_OPTIONS = ["core", "mid", "low"] as const;
+const CREATE_PERMISSION_OPTIONS = ["admin", "core", "low"] as const;
 type CreatePermission = (typeof CREATE_PERMISSION_OPTIONS)[number];
 type CreateParticipant = { userId: string; name: string; permission: CreatePermission };
 type ProjectOpenness = "partial" | "invite";
@@ -312,6 +316,8 @@ export default function ProjectOverview() {
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDetail, setNewProjectDetail] = useState("");
   const [newProjectOpenness, setNewProjectOpenness] = useState<ProjectOpenness>("partial");
+  const [newIndustryTheme, setNewIndustryTheme] = useState("");
+  const [newIndustrySector, setNewIndustrySector] = useState("");
   const [participantKeyword, setParticipantKeyword] = useState("");
   const [participants, setParticipants] = useState<CreateParticipant[]>([]);
   const [newProjectFiles, setNewProjectFiles] = useState<File[]>([]);
@@ -423,6 +429,8 @@ export default function ProjectOverview() {
     setNewProjectName("");
     setNewProjectDetail("");
     setNewProjectOpenness("partial");
+    setNewIndustryTheme("");
+    setNewIndustrySector("");
     setParticipantKeyword("");
     setParticipants([]);
     setNewProjectFiles([]);
@@ -436,6 +444,10 @@ export default function ProjectOverview() {
       setCreateHint("请先填写项目名称。");
       return;
     }
+    if (newIndustryTheme && !newIndustrySector) {
+      setCreateHint("请选择可投子赛道 / 业务环节。");
+      return;
+    }
     if (!ENABLE_LIVE_CHAT) {
       setCreateHint("未配置线上 API（VITE_AI_CHAT_ENDPOINT），无法创建项目。");
       return;
@@ -446,6 +458,7 @@ export default function ProjectOverview() {
         const project = await createProjectViaApi({
           name,
           detail: newProjectDetail.trim() || undefined,
+          category: formatIndustryCategory(newIndustryTheme, newIndustrySector),
           openness: newProjectOpenness,
           userId,
           participants: participants.map((p) => ({
@@ -510,7 +523,7 @@ export default function ProjectOverview() {
   const addParticipant = (option: { userId: string; name: string }) => {
     setParticipants((prev) => {
       if (prev.some((p) => p.userId === option.userId)) return prev;
-      return [...prev, { userId: option.userId, name: option.name, permission: "mid" }];
+      return [...prev, { userId: option.userId, name: option.name, permission: "core" }];
     });
     setParticipantKeyword("");
   };
@@ -789,6 +802,18 @@ export default function ProjectOverview() {
                   className="w-full resize-none rounded-lg border border-[hsl(var(--sand)/0.9)] bg-white px-2.5 py-2 text-sm leading-relaxed outline-none transition focus:border-[hsl(var(--wine-deep)/0.45)] focus:ring-1 focus:ring-[hsl(var(--wine-deep)/0.12)]"
                 />
               </label>
+
+              <div>
+                <span className="mb-1 block text-xs font-medium text-[hsl(var(--warm-charcoal))]">
+                  行业分类
+                </span>
+                <IndustryCategoryFields
+                  theme={newIndustryTheme}
+                  sector={newIndustrySector}
+                  onThemeChange={setNewIndustryTheme}
+                  onSectorChange={setNewIndustrySector}
+                />
+              </div>
 
               <div>
                 <span className="mb-1 block text-xs font-medium text-[hsl(var(--warm-charcoal))]">
