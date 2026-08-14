@@ -18,6 +18,7 @@ import {
   FileUp,
   FileText,
   Loader2,
+  MoreHorizontal,
   Paperclip,
   Plane,
   Plus,
@@ -36,9 +37,13 @@ import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import { cn } from "@/lib/utils";
 import {
   AI_CHAT_ENDPOINT,
+  deleteProjectFile,
   ENABLE_LIVE_CHAT,
   fetchProjectByIdFromApi,
+  fetchProjectFiles,
+  filterConversationSessionFiles,
   SESSION_UPLOAD_FOLDER,
+  type ProjectFileRecord,
 } from "@/lib/project-api";
 import { apiFetch } from "@/lib/api-auth";
 import { loadSessionToken } from "@/workspace/session";
@@ -1574,6 +1579,14 @@ export default function ConversationCenter() {
   const [showUploadPanel, setShowUploadPanel] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [conversations, setConversations] = useState<SessionConversation[]>([]);
+  const [showHistoryMenu, setShowHistoryMenu] = useState(false);
+  const [conversationFileRecords, setConversationFileRecords] = useState<
+    ProjectFileRecord[]
+  >([]);
+  const [fileTreeRefreshKey, setFileTreeRefreshKey] = useState(0);
+  const [conversationFilesLoading, setConversationFilesLoading] = useState(false);
+  const [deletingSessionFileId, setDeletingSessionFileId] = useState<string | null>(null);
+  const conversationFilesMenuRef = useRef<HTMLDivElement>(null);
   const [chatSyncReady, setChatSyncReady] = useState(false);
   const [draftMessage, setDraftMessage] = useState("");
   /** 仅标记「当前会话」正在等同步 /api/chat 响应；深度任务用 pendingJobId，不占此项 */
@@ -2161,6 +2174,135 @@ export default function ConversationCenter() {
     };
   }, [isLiveAiMode, projectId, AI_CHAT_ENDPOINT]);
 
+  const sessionMessageFilenames = useMemo(() => {
+    const msgs = liveMessagesByConversation[effectiveConversationId] ?? [];
+    const names = new Set<string>();
+    for (const m of msgs) {
+      for (const f of m.files ?? []) {
+        if (f.name?.trim()) names.add(f.name.trim());
+      }
+    }
+    return names;
+  }, [liveMessagesByConversation, effectiveConversationId]);
+
+  useEffect(() => {
+    if (!isLiveAiMode || !AI_CHAT_ENDPOINT || !projectId || !effectiveConversationId || !userId) {
+      setConversationFileRecords([]);
+      setConversationFilesLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setConversationFilesLoading(true);
+    const run = async () => {
+      try {
+        const all = await fetchProjectFiles(projectId, userId);
+        if (cancelled) return;
+        const session = filterConversationSessionFiles(
+          all,
+          effectiveConversationId,
+          sessionMessageFilenames,
+        );
+        // 同名也全部列出（本对话附件各自独立，不做按名去重）
+        setConversationFileRecords(
+          [...session].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+        );
+      } catch {
+        if (!cancelled) setConversationFileRecords([]);
+      } finally {
+        if (!cancelled) setConversationFilesLoading(false);
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isLiveAiMode,
+    projectId,
+    userId,
+    effectiveConversationId,
+    fileTreeRefreshKey,
+    AI_CHAT_ENDPOINT,
+    sessionMessageFilenames,
+  ]);
+
+  const conversationFileTreeItems = useMemo(() => {
+    if (isLiveAiMode) {
+      return conversationFileRecords.map((f) => ({
+        key: f.id,
+        documentId: f.id,
+        fileConversationId: f.conversationId ?? effectiveConversationId,
+        name: f.filename,
+        meta: `${f.chunkCount} 段 · ${new Date(f.createdAt).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}`,
+        canDelete: true,
+      }));
+    }
+    return (activeConversation?.files ?? []).map((name) => ({
+      key: name,
+      documentId: undefined as string | undefined,
+      fileConversationId: undefined as string | undefined,
+      name,
+      meta: undefined as string | undefined,
+      canDelete: false,
+    }));
+  }, [
+    isLiveAiMode,
+    conversationFileRecords,
+    activeConversation,
+    effectiveConversationId,
+  ]);
+
+  const handleDeleteSessionFile = useCallback(
+    async (
+      documentId: string,
+      filename: string,
+      fileConversationId?: string | null,
+    ) => {
+      if (!projectId || !userId || !effectiveConversationId || !isLiveAiMode) return;
+      const ok = window.confirm(
+        `确定从本对话中删除「${filename}」？\n删除后检索将不再包含该附件，且无法恢复。`,
+      );
+      if (!ok) return;
+      setDeletingSessionFileId(documentId);
+      setLiveError(null);
+      try {
+        await deleteProjectFile(
+          projectId,
+          documentId,
+          userId,
+          AI_CHAT_ENDPOINT,
+          fileConversationId?.trim() || effectiveConversationId,
+        );
+        setConversationFileRecords((prev) => prev.filter((f) => f.id !== documentId));
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === effectiveConversationId
+              ? { ...c, files: c.files.filter((n) => n !== filename) }
+              : c,
+          ),
+        );
+        setFileTreeRefreshKey((k) => k + 1);
+      } catch (e) {
+        setLiveError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setDeletingSessionFileId(null);
+      }
+    },
+    [projectId, userId, effectiveConversationId, isLiveAiMode],
+  );
+
+  useEffect(() => {
+    if (!showHistoryMenu) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const el = conversationFilesMenuRef.current;
+      if (el && !el.contains(e.target as Node)) {
+        setShowHistoryMenu(false);
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [showHistoryMenu]);
+
   useEffect(() => {
     if (!isLiveAiMode || !AI_CHAT_ENDPOINT) return;
     const healthUrl = buildApiHealthProbeUrl(AI_CHAT_ENDPOINT);
@@ -2656,6 +2798,7 @@ export default function ConversationCenter() {
           uploadNotes = `\n\n【上传提示】\n${warnings.join("\n")}`;
           setLiveError(warnings[0]);
         }
+        setFileTreeRefreshKey((k) => k + 1);
       }
 
       const history = liveMessages.map((m) => ({ role: m.role, content: m.content }));
@@ -3260,7 +3403,10 @@ export default function ConversationCenter() {
               Master Agent 在线
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div
+            ref={conversationFilesMenuRef}
+            className="relative flex flex-wrap items-center gap-2"
+          >
             {projectId ? (
               <Link
                 to={`/app/projects/${projectId}/materials`}
@@ -3268,6 +3414,89 @@ export default function ConversationCenter() {
               >
                 打开源文件页
               </Link>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setShowHistoryMenu((v) => !v)}
+              className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-white/85 px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-[hsl(var(--wine-deep)/0.25)] hover:text-foreground"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+              本对话文件
+              {isLiveAiMode && conversationFileTreeItems.length > 0 ? (
+                <span className="ml-0.5 rounded-full bg-[hsl(var(--wine-deep)/0.12)] px-1.5 py-0.5 text-[10px] font-bold text-[hsl(var(--wine-deep))]">
+                  {conversationFileTreeItems.length}
+                </span>
+              ) : null}
+            </button>
+            {showHistoryMenu ? (
+              <div className="absolute right-0 top-10 z-20 w-[18rem] rounded-2xl border border-border/70 bg-white/95 p-2 shadow-[0_12px_32px_-16px_rgba(15,23,42,0.35)] backdrop-blur-md">
+                <p className="px-2 py-1 text-[11px] font-semibold text-muted-foreground">
+                  本对话文件（{conversationFileTreeItems.length}）
+                </p>
+                <p className="px-2 pb-1 text-[10px] leading-snug text-muted-foreground">
+                  仅含当前对话内上传、已入库的附件（非项目资料包）。
+                  {isLiveAiMode ? " 点右侧垃圾桶可删除。" : ""}
+                </p>
+                <div className="max-h-52 overflow-y-auto rounded-xl border border-border/60 bg-background/50 p-2">
+                  {conversationFilesLoading && isLiveAiMode ? (
+                    <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                      加载附件列表…
+                    </p>
+                  ) : conversationFileTreeItems.length === 0 ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      暂无文件。请用输入栏回形针上传。
+                    </p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {conversationFileTreeItems.map((item) => {
+                        const isDeleting = deletingSessionFileId === item.documentId;
+                        return (
+                          <li
+                            key={item.key}
+                            className="rounded-lg border border-border/50 bg-white/80 px-2 py-1.5"
+                          >
+                            <div className="flex items-start gap-1.5 text-[11px] text-foreground">
+                              <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[hsl(var(--wine-deep)/0.8)]" />
+                              <span className="min-w-0 flex-1 leading-snug">{item.name}</span>
+                              {item.canDelete && item.documentId ? (
+                                <button
+                                  type="button"
+                                  disabled={Boolean(deletingSessionFileId)}
+                                  onClick={() =>
+                                    void handleDeleteSessionFile(
+                                      item.documentId!,
+                                      item.name,
+                                      item.fileConversationId,
+                                    )
+                                  }
+                                  className={cn(
+                                    "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600",
+                                    isDeleting && "pointer-events-none opacity-50",
+                                  )}
+                                  aria-label={`删除 ${item.name}`}
+                                  title="从本对话删除"
+                                >
+                                  {isDeleting ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                                  ) : (
+                                    <Trash2 className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                                  )}
+                                </button>
+                              ) : null}
+                            </div>
+                            {item.meta ? (
+                              <p className="mt-0.5 pl-5 text-[10px] text-muted-foreground">
+                                {item.meta}
+                              </p>
+                            ) : null}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              </div>
             ) : null}
           </div>
         </header>
