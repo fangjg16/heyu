@@ -6,6 +6,7 @@ import {
   type DraftGeneratingProgress,
 } from "@/components/workspace/KnowledgeDraftGeneratingDialog";
 import {
+  ActiveDraftExistsError,
   createChapterDraftRun,
   fetchKnowledgeChapterVersion,
   fetchProjectKnowledgeChapter,
@@ -579,14 +580,23 @@ export function ProjectKnowledgeNetworkSection({
         }
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "创建更新草案失败";
-      setDraftDialogError(msg);
-      setError(msg);
-      setDraftProgress((prev) =>
-        prev
-          ? { ...prev, phase: "done", elapsedMs: Date.now() - startedAt }
-          : prev,
-      );
+      if (e instanceof ActiveDraftExistsError) {
+        setDraftRunId(e.activeRunId);
+        setDraftDialogOpen(false);
+        setError(
+          `${e.message} 请点击顶栏提示中的「继续审核草案」，或前往系统管理 → 审核。`,
+        );
+        setDraftProgress(null);
+      } else {
+        const msg = e instanceof Error ? e.message : "创建更新草案失败";
+        setDraftDialogError(msg);
+        setError(msg);
+        setDraftProgress((prev) =>
+          prev
+            ? { ...prev, phase: "done", elapsedMs: Date.now() - startedAt }
+            : prev,
+        );
+      }
     } finally {
       window.clearInterval(tick);
       setBusyBySection((m) => {

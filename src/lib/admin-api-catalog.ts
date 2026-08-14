@@ -83,6 +83,15 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     risk: "safe",
     autoProbe: true,
   },
+  {
+    id: "admin-revise-logs",
+    group: "管理",
+    method: "GET",
+    pathTemplate: "/api/admin/chapter-revise-logs",
+    summary: "改写指令日志（平台管理员）",
+    risk: "safe",
+    autoProbe: false,
+  },
 
   // Projects
   {

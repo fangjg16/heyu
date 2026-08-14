@@ -975,6 +975,17 @@ export type CreateChapterDraftRunResponse = {
   sectionIds: string[];
 };
 
+export class ActiveDraftExistsError extends Error {
+  activeRunId: string;
+  activeScope?: string;
+  constructor(message: string, activeRunId: string, activeScope?: string) {
+    super(message);
+    this.name = "ActiveDraftExistsError";
+    this.activeRunId = activeRunId;
+    this.activeScope = activeScope;
+  }
+}
+
 export async function createChapterDraftRun(
   projectId: string,
   userId: string,
@@ -995,9 +1006,83 @@ export async function createChapterDraftRun(
   const data = (await res.json().catch(() => ({}))) as CreateChapterDraftRunResponse & {
     error?: string;
     activeRunId?: string;
+    activeScope?: string;
+    code?: string;
   };
+  if (res.status === 409 && data.code === "ACTIVE_DRAFT_EXISTS" && data.activeRunId) {
+    throw new ActiveDraftExistsError(
+      data.error || "已有进行中的更新草案",
+      data.activeRunId,
+      data.activeScope,
+    );
+  }
   if (!res.ok) throw new Error(data.error || `创建更新草案失败（${res.status}）`);
   return data;
+}
+
+export type ActiveChapterDraftInfo = {
+  runId: string;
+  scope: string;
+  status: string;
+  baseVersion: number;
+  progressDone: number;
+  progressTotal: number;
+  failedCount: number;
+  createdAt: string;
+  updatedAt: string;
+  sectionIds: string[];
+};
+
+export async function fetchActiveChapterDraftRun(
+  projectId: string,
+  userId: string,
+): Promise<ActiveChapterDraftInfo | null> {
+  const q = new URLSearchParams({ userId });
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/chapter-draft-runs/active?${q}`,
+  );
+  const data = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    active?: ActiveChapterDraftInfo | null;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(data.error || `查询进行中草案失败（${res.status}）`);
+  return data.active ?? null;
+}
+
+export type ChapterReviseLogItem = {
+  id: string;
+  projectId: string;
+  projectName: string;
+  runId: string | null;
+  sectionId: string;
+  userId: string;
+  userDisplayName: string;
+  instruction: string;
+  reviseNote: string | null;
+  status: "pending" | "ok" | "failed" | string;
+  error: string | null;
+  llmBackend: string | null;
+  createdAt: string;
+  completedAt: string | null;
+};
+
+export async function listAdminChapterReviseLogs(
+  userId: string,
+  options?: { projectId?: string; filterUserId?: string; limit?: number },
+): Promise<ChapterReviseLogItem[]> {
+  const q = new URLSearchParams({ userId });
+  if (options?.projectId) q.set("projectId", options.projectId);
+  if (options?.filterUserId) q.set("userId", options.filterUserId);
+  if (options?.limit) q.set("limit", String(options.limit));
+  const res = await jfoFetch(`/api/admin/chapter-revise-logs?${q}`);
+  const data = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    items?: ChapterReviseLogItem[];
+    error?: string;
+  };
+  if (!res.ok) throw new Error(data.error || `改写指令日志加载失败（${res.status}）`);
+  return Array.isArray(data.items) ? data.items : [];
 }
 
 export type GetChapterDraftRunResponse = {

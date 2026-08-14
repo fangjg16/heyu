@@ -5,6 +5,7 @@ import { AdminApiProbeSection } from "@/components/workspace/AdminApiProbeSectio
 import { AdminDraftsSection } from "@/components/workspace/AdminDraftsSection";
 import { AdminKnTemplatesSection } from "@/components/workspace/AdminKnTemplatesSection";
 import { AdminLlmSettingsSection } from "@/components/workspace/AdminLlmSettingsSection";
+import { AdminReviseLogsSection } from "@/components/workspace/AdminReviseLogsSection";
 import { AdminSkillsSection } from "@/components/workspace/AdminSkillsSection";
 import { AdminUsersSection } from "@/components/workspace/AdminUsersSection";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
@@ -19,6 +20,7 @@ const ADMIN_TABS: { id: string; label: string; to: string }[] = [
   { id: "api-probe", label: "API 测试", to: "/app/admin/api-probe" },
   { id: "audit", label: "操作日志", to: "/app/admin/audit" },
   { id: "drafts", label: "审核", to: "/app/admin/drafts" },
+  { id: "revise-logs", label: "改写指令", to: "/app/admin/revise-logs" },
 ];
 
 function activeAdminTab(pathname: string): string {
@@ -28,6 +30,7 @@ function activeAdminTab(pathname: string): string {
   if (pathname.includes("/admin/api-probe")) return "api-probe";
   if (pathname.includes("/admin/audit")) return "audit";
   if (pathname.includes("/admin/drafts")) return "drafts";
+  if (pathname.includes("/admin/revise-logs")) return "revise-logs";
   return "users";
 }
 
@@ -48,7 +51,7 @@ export default function AdminPortal() {
           系统管理
         </h1>
         <p className="mt-2 text-[hsl(var(--warm-charcoal-muted))]">
-          管理账号、Hermes Skills、知识网络模板、大模型密钥、API 探测、操作日志与更新审核。
+          管理账号、Hermes Skills、知识网络模板、大模型密钥、API 探测、操作日志、更新审核与改写指令。
         </p>
 
         {allowed ? (
@@ -60,7 +63,7 @@ export default function AdminPortal() {
               </p>
               <p className="mt-2 text-[hsl(var(--warm-charcoal-muted))]">
                 在下方各 Tab 维护工作台用户、Skills、知识网络 MD
-                模板、大模型密钥、操作日志与更新草案。
+                模板、大模型密钥、操作日志、更新草案与改写指令复盘。
               </p>
             </div>
 
@@ -148,4 +151,10 @@ export function AdminDraftsTab() {
   const { userId, allowed } = useAdminGate();
   if (!allowed) return <Navigate to="/app/admin" replace />;
   return <AdminDraftsSection userId={userId} />;
+}
+
+export function AdminReviseLogsTab() {
+  const { userId, allowed } = useAdminGate();
+  if (!allowed) return <Navigate to="/app/admin" replace />;
+  return <AdminReviseLogsSection userId={userId} />;
 }

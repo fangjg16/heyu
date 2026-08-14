@@ -12,6 +12,10 @@ import {
   upsertProjectKnowledgeChapterHtml,
 } from "./project-knowledge-chapters-db";
 import {
+  completeReviseInstructionLog,
+  insertReviseInstructionLog,
+} from "./chapter-revise-logs-db";
+import {
   getDraftItem,
   getDraftRun,
   refreshDraftRunProgress,
@@ -1066,6 +1070,14 @@ export async function handleReviseProjectKnowledgeChapter(
   const template = await getKnChapterTemplate(env.DB, sectionId);
   const title = template?.title ?? sectionId;
 
+  const logId = await insertReviseInstructionLog(env.DB, {
+    projectId,
+    runId: null,
+    sectionId,
+    userId,
+    instruction,
+  });
+
   let html: string;
   let llmBackend: string;
   let reviseNote: string;
@@ -1081,6 +1093,10 @@ export async function handleReviseProjectKnowledgeChapter(
     reviseNote = revised.note;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    await completeReviseInstructionLog(env.DB, logId, {
+      status: "failed",
+      error: msg,
+    });
     const status = msg.includes("模型未返回") ? 502 : 502;
     return json({ error: `改写失败：${msg}` }, status);
   }
@@ -1092,6 +1108,12 @@ export async function handleReviseProjectKnowledgeChapter(
     source: "revise",
     llmBackend,
     updatedBy: userId,
+  });
+
+  await completeReviseInstructionLog(env.DB, logId, {
+    status: "ok",
+    reviseNote,
+    llmBackend,
   });
 
   return json({
