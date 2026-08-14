@@ -1,16 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { Plus, Trash2 } from "lucide-react";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import { cn } from "@/lib/utils";
 import {
+  deleteChapterDraftSection,
   discardChapterDraftRun,
   fetchChapterDraftRun,
   fetchProjectKnowledgeChapter,
+  generateChapterDraftSection,
   publishChapterDraftRun,
   reviseChapterDraftSection,
   saveChapterDraftSection,
   type ChapterDraftItem,
 } from "@/lib/project-api";
+import {
+  bumpChapterVersion,
+  formatChapterVersionLabel,
+  type ChapterVersionBump,
+} from "@/lib/chapter-version";
 import {
   diffLines,
   normalizeHtmlForCompare,
@@ -142,6 +150,8 @@ export default function KnowledgeChapterDraftReviewPage() {
   const [mode, setMode] = useState<"side" | "diff">("side");
   const [busy, setBusy] = useState<"publish" | "discard" | null>(null);
   const [confirm, setConfirm] = useState<ConfirmMode>(null);
+  const [publishBump, setPublishBump] = useState<ChapterVersionBump>("minor");
+  const [chapterBusy, setChapterBusy] = useState<string | null>(null);
   const [hasGraphDraft, setHasGraphDraft] = useState(false);
   const [editing, setEditing] = useState(false);
   const [instruction, setInstruction] = useState("");
@@ -277,7 +287,13 @@ export default function KnowledgeChapterDraftReviewPage() {
   const changedRows = rows.filter((r) => isPublishableKind(r.kind));
   const changedCount = changedRows.length;
   const failedCount = rows.filter((r) => r.kind === "failed").length;
-  const nextVersion = currentVersion + 1;
+  const nextVersion = bumpChapterVersion(currentVersion, publishBump);
+  const currentVersionLabel = formatChapterVersionLabel(currentVersion);
+  const baseVersionLabel = formatChapterVersionLabel(baseVersion);
+  const nextVersionLabel = formatChapterVersionLabel(nextVersion);
+  const addableChapters = REVIEWABLE_CHAPTERS.filter(
+    (c) => !rows.some((r) => r.id === c.id),
+  );
   const runOpen =
     runStatus === "ready" || runStatus === "failed" || runStatus === "generating";
   const actionLocked =
@@ -457,6 +473,7 @@ export default function KnowledgeChapterDraftReviewPage() {
     try {
       const res = await publishChapterDraftRun(projectId, runId, userId, {
         sectionIds,
+        bump: publishBump,
       });
       setConfirm(null);
       if (res.runClosed) {
@@ -473,7 +490,7 @@ export default function KnowledgeChapterDraftReviewPage() {
         return;
       }
       setNotice(
-        `已发布 ${res.appliedSections.filter((id) => id !== "sources" && id !== "glossary").length} 章为 v${res.newVersion}。其余变更可继续审核发布。`,
+        `已发布 ${res.appliedSections.filter((id) => id !== "sources" && id !== "glossary").length} 章为 ${formatChapterVersionLabel(res.newVersion)}。其余变更可继续审核发布。`,
       );
       await loadReview({ keepSelection: true });
     } catch (e) {
@@ -502,15 +519,57 @@ export default function KnowledgeChapterDraftReviewPage() {
     if (!confirm) return { title: "", body: "" };
     if (confirm.type === "one") {
       return {
-        title: `确认发布「${confirm.label}」为 v${nextVersion}？`,
-        body: `仅将本章草案写入正式知识网络，并把当前正式内容归档为 v${currentVersion}。其他章节不受影响，可继续审核。`,
+        title: `确认发布「${confirm.label}」为 ${nextVersionLabel}？`,
+        body:
+          currentVersion <= 0
+            ? `首次发布将写入正式知识网络为 ${nextVersionLabel}。其他章节不受影响，可继续审核。`
+            : `仅将本章草案写入正式知识网络（${nextVersionLabel}），并把当前正式内容归档为 ${currentVersionLabel}。其他章节不受影响，可继续审核。`,
       };
     }
     return {
-      title: `确认发布全部 ${changedCount} 处变更为 v${nextVersion}？`,
-      body: `将把所有「新增/变更」章节写入正式知识网络，并把当前正式内容归档为 v${currentVersion}。失败与未变章节不会覆盖。`,
+      title: `确认发布全部 ${changedCount} 处变更为 ${nextVersionLabel}？`,
+      body:
+        currentVersion <= 0
+          ? `首次发布将写入正式知识网络为 ${nextVersionLabel}。失败与未变章节不会覆盖。`
+          : `将把所有「新增/变更」章节写入正式知识网络（${nextVersionLabel}），并把当前正式内容归档为 ${currentVersionLabel}。失败与未变章节不会覆盖。`,
     };
   })();
+
+  const onRemoveChapter = async (sectionId: string, label: string) => {
+    if (!canPublish || actionLocked) return;
+    if (!window.confirm(`从本次草案移除「${label}」？不会删除正式版已有内容。`)) {
+      return;
+    }
+    setChapterBusy(sectionId);
+    setError(null);
+    try {
+      await deleteChapterDraftSection(projectId, runId, sectionId, userId);
+      setNotice(`已移除「${label}」`);
+      await loadReview({ keepSelection: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "移除章节失败");
+    } finally {
+      setChapterBusy(null);
+    }
+  };
+
+  const onAddChapter = async (sectionId: string) => {
+    if (!canPublish || actionLocked || !sectionId) return;
+    const label =
+      REVIEWABLE_CHAPTERS.find((c) => c.id === sectionId)?.label ?? sectionId;
+    setChapterBusy(sectionId);
+    setError(null);
+    setNotice(null);
+    try {
+      await generateChapterDraftSection(projectId, runId, sectionId, userId);
+      setNotice(`已加入「${label}」并开始生成草案`);
+      await loadReview({ keepSelection: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "添加章节失败");
+    } finally {
+      setChapterBusy(null);
+    }
+  };
 
   return (
     <WorkspaceShell contentClassName="!overflow-y-auto">
@@ -526,8 +585,9 @@ export default function KnowledgeChapterDraftReviewPage() {
                 : "审核章节更新草案"}
             </h1>
             <p className="mt-1.5 text-[13px] text-[#59625F]">
-              对照当前正式版 v{currentVersion}（基于生成时 v{baseVersion}
-              ）与待审核草案；确认差异后再发布，正式内容不会在生成时被覆盖。
+              对照当前正式版 {currentVersionLabel}（草案基于{" "}
+              {baseVersionLabel}
+              ）与待审核草案；确认差异后再发布。草稿本身不占用正式版号。
             </p>
           </div>
           <Link
@@ -556,17 +616,44 @@ export default function KnowledgeChapterDraftReviewPage() {
         ) : (
           <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_240px]">
             <aside className="overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.9)]">
-              <div className="border-b border-[rgba(78,66,57,0.1)] px-3.5 py-3 text-[12px] font-semibold text-[#59625F]">
-                章节列表
+              <div className="flex items-center justify-between gap-2 border-b border-[rgba(78,66,57,0.1)] px-3.5 py-3">
+                <div className="text-[12px] font-semibold text-[#59625F]">
+                  章节列表
+                </div>
+                {canPublish && addableChapters.length > 0 ? (
+                  <label className="relative inline-flex items-center">
+                    <select
+                      className="h-7 max-w-[7.5rem] appearance-none rounded-md border border-[rgba(160,99,88,0.3)] bg-white pl-2 pr-6 text-[11px] font-medium text-[#A06358]"
+                      defaultValue=""
+                      disabled={Boolean(chapterBusy) || actionLocked}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        e.currentTarget.value = "";
+                        if (id) void onAddChapter(id);
+                      }}
+                      aria-label="增加章节"
+                    >
+                      <option value="" disabled>
+                        + 增加
+                      </option>
+                      {addableChapters.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                    <Plus className="pointer-events-none absolute right-1.5 h-3 w-3 text-[#A06358]" />
+                  </label>
+                ) : null}
               </div>
               <ul className="max-h-[min(70vh,760px)] overflow-auto p-1.5">
                 {rows.map((r) => (
-                  <li key={r.id}>
+                  <li key={r.id} className="group flex items-center gap-0.5">
                     <button
                       type="button"
                       onClick={() => selectSection(r.id)}
                       className={cn(
-                        "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-[12.5px] transition-colors",
+                        "flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-[12.5px] transition-colors",
                         selectedId === r.id
                           ? "bg-[#EFE7E6] font-semibold text-[#A06358]"
                           : "text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]",
@@ -582,6 +669,17 @@ export default function KnowledgeChapterDraftReviewPage() {
                         {kindLabel(r.kind)}
                       </span>
                     </button>
+                    {canPublish && runOpen ? (
+                      <button
+                        type="button"
+                        title={`移除「${r.label}」`}
+                        disabled={Boolean(chapterBusy) || actionLocked || rows.length <= 1}
+                        onClick={() => void onRemoveChapter(r.id, r.label)}
+                        className="mr-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[#969E9A] opacity-70 hover:bg-[rgba(160,99,88,0.1)] hover:text-[#A06358] disabled:opacity-30 group-hover:opacity-100"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -719,7 +817,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                   <div className="grid gap-3 md:grid-cols-2">
                     <div className="rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/70">
                       <div className="border-b border-[rgba(78,66,57,0.08)] px-3 py-2 text-[12px] font-semibold text-[#59625F]">
-                        当前 v{currentVersion}
+                        当前 {currentVersionLabel}
                       </div>
                       <div className="p-3">
                         {selected.liveHtml?.trim() ? (
@@ -853,13 +951,49 @@ export default function KnowledgeChapterDraftReviewPage() {
                 </div>
                 <div className="flex justify-between gap-2">
                   <dt className="text-[#59625F]">基于版本</dt>
-                  <dd className="font-semibold">v{baseVersion}</dd>
+                  <dd className="font-semibold">{baseVersionLabel}</dd>
                 </div>
                 <div className="flex justify-between gap-2">
                   <dt className="text-[#59625F]">下次发布</dt>
-                  <dd className="font-semibold">v{nextVersion}</dd>
+                  <dd className="font-semibold">{nextVersionLabel}</dd>
                 </div>
               </dl>
+
+              <div className="mt-4 space-y-1.5">
+                <div className="text-[12px] font-semibold text-[#59625F]">
+                  版本递增
+                </div>
+                <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-[rgba(78,66,57,0.1)] px-2.5 py-2 text-[12px]">
+                  <input
+                    type="radio"
+                    name="publish-bump"
+                    className="mt-0.5"
+                    checked={publishBump === "minor"}
+                    onChange={() => setPublishBump("minor")}
+                  />
+                  <span>
+                    <span className="font-medium text-[#1F2423]">次版本</span>
+                    <span className="mt-0.5 block text-[11px] text-[#59625F]">
+                      小改 → {formatChapterVersionLabel(bumpChapterVersion(currentVersion, "minor"))}
+                    </span>
+                  </span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-[rgba(78,66,57,0.1)] px-2.5 py-2 text-[12px]">
+                  <input
+                    type="radio"
+                    name="publish-bump"
+                    className="mt-0.5"
+                    checked={publishBump === "major"}
+                    onChange={() => setPublishBump("major")}
+                  />
+                  <span>
+                    <span className="font-medium text-[#1F2423]">主版本</span>
+                    <span className="mt-0.5 block text-[11px] text-[#59625F]">
+                      大改 → {formatChapterVersionLabel(bumpChapterVersion(currentVersion, "major"))}
+                    </span>
+                  </span>
+                </label>
+              </div>
 
               {hasGraphDraft && selected?.id === "project-overview" ? (
                 <p className="mt-3 rounded-lg border border-[rgba(94,155,117,0.25)] bg-[rgba(94,155,117,0.08)] px-2.5 py-2 text-[12px] leading-relaxed text-[#2F6B4F]">

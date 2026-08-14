@@ -41,6 +41,7 @@ import {
 } from "./project-knowledge-chapters-routes";
 import {
   handleCreateChapterDraftRun,
+  handleDeleteChapterDraftSection,
   handleDiscardChapterDraftRun,
   handleGenerateChapterDraftSection,
   handleGetChapterDraftRun,
@@ -299,6 +300,25 @@ export async function routeAuthedApi(
     const sectionId = parts[7] ?? "";
     return handlePutChapterDraftSection(
       request,
+      env,
+      projectId,
+      runId,
+      sectionId,
+      authUserId,
+    );
+  }
+
+  if (
+    /^\/api\/projects\/[^/]+\/chapter-draft-runs\/[^/]+\/sections\/[^/]+$/u.test(
+      path,
+    ) &&
+    request.method === "DELETE"
+  ) {
+    const parts = path.split("/");
+    const projectId = decodePathProjectId(parts[3] ?? "");
+    const runId = parts[5] ?? "";
+    const sectionId = parts[7] ?? "";
+    return handleDeleteChapterDraftSection(
       env,
       projectId,
       runId,

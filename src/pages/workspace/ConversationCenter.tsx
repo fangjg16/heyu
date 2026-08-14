@@ -17,6 +17,7 @@ import {
   FileSpreadsheet,
   FileUp,
   FileText,
+  FolderOpen,
   Loader2,
   MoreHorizontal,
   Paperclip,
@@ -34,6 +35,7 @@ import {
   prepareKnowledgeNetworkMessageDisplay,
 } from "@/components/workspace/KnowledgeNetworkPreview";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
+import { ProjectMaterialsSection } from "@/components/workspace/ProjectMaterialsSection";
 import { cn } from "@/lib/utils";
 import {
   AI_CHAT_ENDPOINT,
@@ -111,6 +113,7 @@ import {
 import { useMyProjectRoles } from "@/hooks/use-my-project-roles";
 import type { WorkspaceRole } from "@/workspace/types";
 import {
+  canEnterChat,
   getProjectRole,
   getUserById,
   roleLabelForProject,
@@ -1580,6 +1583,7 @@ export default function ConversationCenter() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [conversations, setConversations] = useState<SessionConversation[]>([]);
   const [showHistoryMenu, setShowHistoryMenu] = useState(false);
+  const [showMaterialsPanel, setShowMaterialsPanel] = useState(false);
   const [conversationFileRecords, setConversationFileRecords] = useState<
     ProjectFileRecord[]
   >([]);
@@ -3406,6 +3410,28 @@ export default function ConversationCenter() {
           >
             <button
               type="button"
+              onClick={() => {
+                setShowHistoryMenu(false);
+                setShowMaterialsPanel((v) => !v);
+              }}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                showMaterialsPanel
+                  ? "border-[hsl(var(--wine-deep)/0.35)] bg-[hsl(var(--wine-deep)/0.08)] text-[hsl(var(--wine-deep))]"
+                  : "border border-border/70 bg-white/85 text-muted-foreground hover:border-[hsl(var(--wine-deep)/0.25)] hover:text-foreground",
+              )}
+            >
+              <FolderOpen className="h-4 w-4" />
+              源文件
+            </button>
+            <Link
+              to={`/app/projects/${projectId}/materials`}
+              className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-white/85 px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-[hsl(var(--wine-deep)/0.25)] hover:text-foreground"
+            >
+              打开源文件页
+            </Link>
+            <button
+              type="button"
               onClick={() => setShowHistoryMenu((v) => !v)}
               className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-white/85 px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-[hsl(var(--wine-deep)/0.25)] hover:text-foreground"
             >
@@ -3489,6 +3515,44 @@ export default function ConversationCenter() {
             ) : null}
           </div>
         </header>
+
+        {showMaterialsPanel && userId && projectId ? (
+          <div className="flex max-h-[min(52vh,520px)] min-h-[280px] shrink-0 flex-col border-b border-border/60 bg-[rgba(255,252,248,0.92)]">
+            <div className="flex items-center justify-between gap-2 border-b border-border/50 px-4 py-2 md:px-6">
+              <div className="text-xs font-semibold text-foreground">
+                项目源文件
+              </div>
+              <div className="flex items-center gap-2">
+                <Link
+                  to={`/app/projects/${projectId}/materials`}
+                  className="text-[11px] font-medium text-[hsl(var(--wine-deep))] hover:underline"
+                >
+                  全屏打开
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setShowMaterialsPanel(false)}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+                  aria-label="关闭源文件面板"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto px-2 py-2 md:px-4">
+              <ProjectMaterialsSection
+                projectId={projectId}
+                userId={userId}
+                canManage={canEnterChat(projectRole)}
+                canDownload={
+                  projectRole === "admin" ||
+                  projectRole === "core" ||
+                  projectRole === "mid"
+                }
+              />
+            </div>
+          </div>
+        ) : null}
 
         <div
           ref={chatScrollRef}
