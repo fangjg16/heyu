@@ -892,9 +892,10 @@ export default function KnowledgeChapterDraftReviewPage() {
                     ref={sideSplitRef}
                     className="flex flex-col gap-3 md:flex-row md:items-stretch md:gap-0"
                     style={
-                      {
-                        ["--side-left-pct"]: `${sideLeftPct}%`,
-                      } as React.CSSProperties
+                      { ["--side-left-pct"]: `${sideLeftPct}%` } as Record<
+                        string,
+                        string
+                      >
                     }
                   >
                     <div className="min-w-0 w-full rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/70 md:w-[var(--side-left-pct)] md:shrink-0 md:grow-0 md:rounded-r-none">
