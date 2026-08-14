@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Plus, Trash2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  PanelLeftClose,
+  PanelRightClose,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import { cn } from "@/lib/utils";
 import {
@@ -172,7 +179,40 @@ export default function KnowledgeChapterDraftReviewPage() {
     }
     return 50;
   });
+  /** 左右侧栏默认收起，把宽度留给中间对比区 */
+  const [navOpen, setNavOpen] = useState(() => {
+    try {
+      const raw = localStorage.getItem("heyu.draftReview.navOpen");
+      if (raw === "1") return true;
+      if (raw === "0") return false;
+    } catch {
+      /* ignore */
+    }
+    return false;
+  });
+  const [asideOpen, setAsideOpen] = useState(() => {
+    try {
+      const raw = localStorage.getItem("heyu.draftReview.asideOpen");
+      if (raw === "1") return true;
+      if (raw === "0") return false;
+    } catch {
+      /* ignore */
+    }
+    return false;
+  });
+  const [isLg, setIsLg] = useState(true);
   const sideDraggingRef = useRef(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setIsLg(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  const showNavPanel = !isLg || navOpen;
+  const showAsidePanel = !isLg || asideOpen;
 
   useEffect(() => {
     try {
@@ -184,6 +224,22 @@ export default function KnowledgeChapterDraftReviewPage() {
       /* ignore */
     }
   }, [sideLeftPct]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("heyu.draftReview.navOpen", navOpen ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [navOpen]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("heyu.draftReview.asideOpen", asideOpen ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [asideOpen]);
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
@@ -632,9 +688,9 @@ export default function KnowledgeChapterDraftReviewPage() {
 
   return (
     <WorkspaceShell contentClassName="!overflow-y-auto">
-      <div className="mx-auto max-w-[1600px] px-6 py-6 md:px-10">
+      <div className="mx-auto w-full max-w-[1920px] px-3 py-5 md:px-5 lg:px-6">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <div className="text-[11px] font-medium tracking-wide text-[#A06358]">
               知识网络 · 更新审核
             </div>
@@ -643,18 +699,31 @@ export default function KnowledgeChapterDraftReviewPage() {
                 ? `审核「${rows[0]!.label}」更新草案`
                 : "审核章节更新草案"}
             </h1>
-            <p className="mt-1.5 text-[13px] text-[#59625F]">
+            <p className="mt-1.5 max-w-3xl text-[13px] text-[#59625F]">
               对照当前正式版 {currentVersionLabel}（草案基于{" "}
               {baseVersionLabel}
               ）与待审核草案；确认差异后再发布。草稿本身不占用正式版号。
             </p>
           </div>
-          <Link
-            to={`/app/projects/${projectId}/knowledge`}
-            className="text-[13px] font-medium text-[#A06358] hover:underline"
-          >
-            返回知识网络
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setNavOpen(false);
+                setAsideOpen(false);
+              }}
+              className="hidden h-8 items-center rounded-lg border border-[rgba(78,66,57,0.14)] px-2.5 text-[12px] font-medium text-[#59625F] hover:bg-[rgba(78,66,57,0.04)] lg:inline-flex"
+              title="收起左右侧栏，扩大中间对比区"
+            >
+              专注对比
+            </button>
+            <Link
+              to={`/app/projects/${projectId}/knowledge`}
+              className="text-[13px] font-medium text-[#A06358] hover:underline"
+            >
+              返回知识网络
+            </Link>
+          </div>
         </div>
 
         {error ? (
@@ -673,125 +742,194 @@ export default function KnowledgeChapterDraftReviewPage() {
             加载审核数据…
           </div>
         ) : (
-          <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_240px]">
+          <div
+            className="grid gap-2 lg:grid-cols-[var(--review-nav)_minmax(0,1fr)_var(--review-aside)]"
+            style={
+              {
+                ["--review-nav"]: showNavPanel ? "168px" : "44px",
+                ["--review-aside"]: showAsidePanel ? "220px" : "44px",
+              } as Record<string, string>
+            }
+          >
             <aside className="overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.9)]">
-              <div className="flex items-center justify-between gap-2 border-b border-[rgba(78,66,57,0.1)] px-3.5 py-3">
-                <div className="text-[12px] font-semibold text-[#59625F]">
-                  章节列表
+              {showNavPanel ? (
+                <>
+                  <div className="flex items-center justify-between gap-2 border-b border-[rgba(78,66,57,0.1)] px-3 py-2.5">
+                    <div className="text-[12px] font-semibold text-[#59625F]">
+                      章节列表
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {canPublish && addableChapters.length > 0 ? (
+                        <label className="relative inline-flex items-center">
+                          <select
+                            className="h-7 max-w-[6.5rem] appearance-none rounded-md border border-[rgba(160,99,88,0.3)] bg-white pl-2 pr-6 text-[11px] font-medium text-[#A06358]"
+                            defaultValue=""
+                            disabled={Boolean(chapterBusy) || actionLocked}
+                            onChange={(e) => {
+                              const id = e.target.value;
+                              e.currentTarget.value = "";
+                              if (id) void onAddChapter(id);
+                            }}
+                            aria-label="增加章节"
+                          >
+                            <option value="" disabled>
+                              + 增加
+                            </option>
+                            {addableChapters.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.label}
+                              </option>
+                            ))}
+                          </select>
+                          <Plus className="pointer-events-none absolute right-1.5 h-3 w-3 text-[#A06358]" />
+                        </label>
+                      ) : null}
+                      {isLg ? (
+                        <button
+                          type="button"
+                          onClick={() => setNavOpen(false)}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[#969E9A] hover:bg-[rgba(78,66,57,0.06)] hover:text-[#59625F]"
+                          title="收起章节列表"
+                          aria-label="收起章节列表"
+                        >
+                          <PanelLeftClose className="h-3.5 w-3.5" />
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                  <ul className="max-h-[min(70vh,760px)] overflow-auto p-1.5">
+                    {rows.map((r) => (
+                      <li key={r.id} className="group flex items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => selectSection(r.id)}
+                          className={cn(
+                            "flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-[12.5px] transition-colors",
+                            selectedId === r.id
+                              ? "bg-[#EFE7E6] font-semibold text-[#A06358]"
+                              : "text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]",
+                          )}
+                        >
+                          <span className="truncate">{r.label}</span>
+                          <span
+                            className={cn(
+                              "shrink-0 rounded px-1.5 py-0.5 text-[10.5px] font-medium",
+                              kindClass(r.kind),
+                            )}
+                          >
+                            {kindLabel(r.kind)}
+                          </span>
+                        </button>
+                        {canPublish && runOpen ? (
+                          <button
+                            type="button"
+                            title={`移除「${r.label}」`}
+                            disabled={
+                              Boolean(chapterBusy) ||
+                              actionLocked ||
+                              rows.length <= 1
+                            }
+                            onClick={() => void onRemoveChapter(r.id, r.label)}
+                            className="mr-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[#969E9A] opacity-70 hover:bg-[rgba(160,99,88,0.1)] hover:text-[#A06358] disabled:opacity-30 group-hover:opacity-100"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <div className="flex h-full min-h-[12rem] flex-col items-center gap-2 py-3">
+                  <button
+                    type="button"
+                    onClick={() => setNavOpen(true)}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[#A06358] hover:bg-[#EFE7E6]"
+                    title="展开章节列表"
+                    aria-label="展开章节列表"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                  <span
+                    className="select-none text-[11px] font-medium tracking-wide text-[#969E9A]"
+                    style={{ writingMode: "vertical-rl" }}
+                  >
+                    章节
+                  </span>
                 </div>
-                {canPublish && addableChapters.length > 0 ? (
-                  <label className="relative inline-flex items-center">
-                    <select
-                      className="h-7 max-w-[7.5rem] appearance-none rounded-md border border-[rgba(160,99,88,0.3)] bg-white pl-2 pr-6 text-[11px] font-medium text-[#A06358]"
-                      defaultValue=""
-                      disabled={Boolean(chapterBusy) || actionLocked}
-                      onChange={(e) => {
-                        const id = e.target.value;
-                        e.currentTarget.value = "";
-                        if (id) void onAddChapter(id);
-                      }}
-                      aria-label="增加章节"
-                    >
-                      <option value="" disabled>
-                        + 增加
-                      </option>
-                      {addableChapters.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </select>
-                    <Plus className="pointer-events-none absolute right-1.5 h-3 w-3 text-[#A06358]" />
-                  </label>
-                ) : null}
-              </div>
-              <ul className="max-h-[min(70vh,760px)] overflow-auto p-1.5">
-                {rows.map((r) => (
-                  <li key={r.id} className="group flex items-center gap-0.5">
-                    <button
-                      type="button"
-                      onClick={() => selectSection(r.id)}
-                      className={cn(
-                        "flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-[12.5px] transition-colors",
-                        selectedId === r.id
-                          ? "bg-[#EFE7E6] font-semibold text-[#A06358]"
-                          : "text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]",
-                      )}
-                    >
-                      <span className="truncate">{r.label}</span>
-                      <span
-                        className={cn(
-                          "shrink-0 rounded px-1.5 py-0.5 text-[10.5px] font-medium",
-                          kindClass(r.kind),
-                        )}
-                      >
-                        {kindLabel(r.kind)}
-                      </span>
-                    </button>
-                    {canPublish && runOpen ? (
-                      <button
-                        type="button"
-                        title={`移除「${r.label}」`}
-                        disabled={Boolean(chapterBusy) || actionLocked || rows.length <= 1}
-                        onClick={() => void onRemoveChapter(r.id, r.label)}
-                        className="mr-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[#969E9A] opacity-70 hover:bg-[rgba(160,99,88,0.1)] hover:text-[#A06358] disabled:opacity-30 group-hover:opacity-100"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
+              )}
             </aside>
 
-            <main className="overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.85)]">
+            <main className="min-w-0 overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.85)]">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[rgba(78,66,57,0.1)] px-4 py-3">
-                <div className="text-[14px] font-semibold text-[#1F2423]">
-                  {selected?.label ?? "章节"}
-                  {loading ? (
-                    <span className="ml-2 text-[12px] font-normal text-[#969E9A]">
-                      刷新中…
-                    </span>
-                  ) : null}
-                  {reviseBusy ? (
-                    <span className="ml-2 text-[12px] font-normal text-[#8A6218]">
-                      改写中…
-                    </span>
-                  ) : null}
-                </div>
-                <div className="inline-flex rounded-lg bg-[rgba(78,66,57,0.07)] p-0.5">
-                  {(
-                    [
-                      ["side", "并排"],
-                      ["diff", "差异"],
-                    ] as const
-                  ).map(([id, label]) => (
+                <div className="flex min-w-0 items-center gap-2">
+                  {!navOpen ? (
                     <button
-                      key={id}
                       type="button"
-                      onClick={() => {
-                        if (id === "diff" && editing) {
-                          if (
-                            !window.confirm(
-                              "切换到差异视图将退出编辑且不保存。继续？",
-                            )
-                          ) {
-                            return;
-                          }
-                          setEditing(false);
-                        }
-                        setMode(id);
-                      }}
-                      className={cn(
-                        "h-7 rounded-md px-3 text-[12px] font-medium",
-                        mode === id
-                          ? "bg-[#1F2423] text-white"
-                          : "text-[#59625F]",
-                      )}
+                      onClick={() => setNavOpen(true)}
+                      className="inline-flex h-7 items-center gap-1 rounded-md border border-[rgba(78,66,57,0.12)] px-2 text-[11.5px] font-medium text-[#59625F] hover:bg-[rgba(78,66,57,0.04)] lg:hidden"
                     >
-                      {label}
+                      章节
                     </button>
-                  ))}
+                  ) : null}
+                  <div className="text-[14px] font-semibold text-[#1F2423]">
+                    {selected?.label ?? "章节"}
+                    {loading ? (
+                      <span className="ml-2 text-[12px] font-normal text-[#969E9A]">
+                        刷新中…
+                      </span>
+                    ) : null}
+                    {reviseBusy ? (
+                      <span className="ml-2 text-[12px] font-normal text-[#8A6218]">
+                        改写中…
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {!asideOpen && isLg ? (
+                    <button
+                      type="button"
+                      onClick={() => setAsideOpen(true)}
+                      className="inline-flex h-7 items-center rounded-md border border-[rgba(160,99,88,0.28)] bg-[#EFE7E6] px-2.5 text-[11.5px] font-medium text-[#A06358] hover:bg-[#E8DDDB]"
+                    >
+                      摘要 / 发布
+                    </button>
+                  ) : null}
+                  <div className="inline-flex rounded-lg bg-[rgba(78,66,57,0.07)] p-0.5">
+                    {(
+                      [
+                        ["side", "并排"],
+                        ["diff", "差异"],
+                      ] as const
+                    ).map(([id, label]) => (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => {
+                          if (id === "diff" && editing) {
+                            if (
+                              !window.confirm(
+                                "切换到差异视图将退出编辑且不保存。继续？",
+                              )
+                            ) {
+                              return;
+                            }
+                            setEditing(false);
+                          }
+                          setMode(id);
+                        }}
+                        className={cn(
+                          "h-7 rounded-md px-3 text-[12px] font-medium",
+                          mode === id
+                            ? "bg-[#1F2423] text-white"
+                            : "text-[#59625F]",
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -1045,117 +1183,166 @@ export default function KnowledgeChapterDraftReviewPage() {
               </div>
             </main>
 
-            <aside className="overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.9)] p-4">
-              <div className="text-[12px] font-semibold text-[#59625F]">摘要</div>
-              <dl className="mt-3 space-y-2 text-[13px] text-[#1F2423]">
-                <div className="flex justify-between gap-2">
-                  <dt className="text-[#59625F]">待发布变更</dt>
-                  <dd className="font-semibold">{changedCount}</dd>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <dt className="text-[#59625F]">失败章节</dt>
-                  <dd className="font-semibold text-[#A06358]">{failedCount}</dd>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <dt className="text-[#59625F]">基于版本</dt>
-                  <dd className="font-semibold">{baseVersionLabel}</dd>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <dt className="text-[#59625F]">下次发布</dt>
-                  <dd className="font-semibold">{nextVersionLabel}</dd>
-                </div>
-              </dl>
+            <aside className="overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.9)]">
+              {showAsidePanel ? (
+                <div className="p-3.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[12px] font-semibold text-[#59625F]">
+                      摘要
+                    </div>
+                    {isLg ? (
+                      <button
+                        type="button"
+                        onClick={() => setAsideOpen(false)}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[#969E9A] hover:bg-[rgba(78,66,57,0.06)] hover:text-[#59625F]"
+                        title="收起摘要"
+                        aria-label="收起摘要"
+                      >
+                        <PanelRightClose className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                  </div>
+                  <dl className="mt-3 space-y-2 text-[13px] text-[#1F2423]">
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-[#59625F]">待发布变更</dt>
+                      <dd className="font-semibold">{changedCount}</dd>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-[#59625F]">失败章节</dt>
+                      <dd className="font-semibold text-[#A06358]">
+                        {failedCount}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-[#59625F]">基于版本</dt>
+                      <dd className="font-semibold">{baseVersionLabel}</dd>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-[#59625F]">下次发布</dt>
+                      <dd className="font-semibold">{nextVersionLabel}</dd>
+                    </div>
+                  </dl>
 
-              <div className="mt-4 space-y-1.5">
-                <div className="text-[12px] font-semibold text-[#59625F]">
-                  版本递增
+                  <div className="mt-4 space-y-1.5">
+                    <div className="text-[12px] font-semibold text-[#59625F]">
+                      版本递增
+                    </div>
+                    <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-[rgba(78,66,57,0.1)] px-2.5 py-2 text-[12px]">
+                      <input
+                        type="radio"
+                        name="publish-bump"
+                        className="mt-0.5"
+                        checked={publishBump === "minor"}
+                        onChange={() => setPublishBump("minor")}
+                      />
+                      <span>
+                        <span className="font-medium text-[#1F2423]">
+                          次版本
+                        </span>
+                        <span className="mt-0.5 block text-[11px] text-[#59625F]">
+                          小改 →{" "}
+                          {formatChapterVersionLabel(
+                            bumpChapterVersion(currentVersion, "minor"),
+                          )}
+                        </span>
+                      </span>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-[rgba(78,66,57,0.1)] px-2.5 py-2 text-[12px]">
+                      <input
+                        type="radio"
+                        name="publish-bump"
+                        className="mt-0.5"
+                        checked={publishBump === "major"}
+                        onChange={() => setPublishBump("major")}
+                      />
+                      <span>
+                        <span className="font-medium text-[#1F2423]">
+                          主版本
+                        </span>
+                        <span className="mt-0.5 block text-[11px] text-[#59625F]">
+                          大改 →{" "}
+                          {formatChapterVersionLabel(
+                            bumpChapterVersion(currentVersion, "major"),
+                          )}
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+
+                  {hasGraphDraft && selected?.id === "project-overview" ? (
+                    <p className="mt-3 rounded-lg border border-[rgba(94,155,117,0.25)] bg-[rgba(94,155,117,0.08)] px-2.5 py-2 text-[12px] leading-relaxed text-[#2F6B4F]">
+                      草案含关系图更新；发布本章时将一并写入正式版。
+                    </p>
+                  ) : null}
+
+                  {!canPublish ? (
+                    <p className="mt-4 text-[12px] leading-relaxed text-[#969E9A]">
+                      当前角色无权发布或放弃草案。
+                    </p>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    disabled={!canPublishSelected || editing}
+                    onClick={() => {
+                      if (!selected) return;
+                      setConfirm({
+                        type: "one",
+                        sectionId: selected.id,
+                        label: selected.label,
+                      });
+                    }}
+                    className="mt-5 flex h-10 w-full items-center justify-center rounded-[11px] bg-[#A06358] text-[13.5px] font-medium text-white hover:bg-[#8F564C] disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    {busy === "publish" && confirm?.type === "one"
+                      ? "发布中…"
+                      : selected && isPublishableKind(selected.kind)
+                        ? `发布本章 · ${selected.label}`
+                        : "发布本章"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!canPublishChanged || editing}
+                    onClick={() => setConfirm({ type: "changed" })}
+                    className="mt-2.5 flex h-10 w-full items-center justify-center rounded-[11px] border border-[hsl(var(--wine)/0.35)] bg-[hsl(var(--wine-muted))] text-[13.5px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    {busy === "publish" && confirm?.type === "changed"
+                      ? "发布中…"
+                      : `发布全部变更（${changedCount}）`}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      !canPublish ||
+                      actionLocked ||
+                      editing ||
+                      runStatus === "published"
+                    }
+                    onClick={() => void onDiscard()}
+                    className="mt-2.5 flex h-10 w-full items-center justify-center rounded-[11px] border border-[rgba(78,66,57,0.18)] text-[13.5px] font-medium text-[#1F2423] hover:bg-[rgba(78,66,57,0.04)] disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    {busy === "discard" ? "处理中…" : "放弃草案"}
+                  </button>
                 </div>
-                <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-[rgba(78,66,57,0.1)] px-2.5 py-2 text-[12px]">
-                  <input
-                    type="radio"
-                    name="publish-bump"
-                    className="mt-0.5"
-                    checked={publishBump === "minor"}
-                    onChange={() => setPublishBump("minor")}
-                  />
-                  <span>
-                    <span className="font-medium text-[#1F2423]">次版本</span>
-                    <span className="mt-0.5 block text-[11px] text-[#59625F]">
-                      小改 → {formatChapterVersionLabel(bumpChapterVersion(currentVersion, "minor"))}
-                    </span>
+              ) : (
+                <div className="flex h-full min-h-[12rem] flex-col items-center gap-2 py-3">
+                  <button
+                    type="button"
+                    onClick={() => setAsideOpen(true)}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[#A06358] hover:bg-[#EFE7E6]"
+                    title="展开摘要与发布"
+                    aria-label="展开摘要与发布"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span
+                    className="select-none text-[11px] font-medium tracking-wide text-[#969E9A]"
+                    style={{ writingMode: "vertical-rl" }}
+                  >
+                    发布
                   </span>
-                </label>
-                <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-[rgba(78,66,57,0.1)] px-2.5 py-2 text-[12px]">
-                  <input
-                    type="radio"
-                    name="publish-bump"
-                    className="mt-0.5"
-                    checked={publishBump === "major"}
-                    onChange={() => setPublishBump("major")}
-                  />
-                  <span>
-                    <span className="font-medium text-[#1F2423]">主版本</span>
-                    <span className="mt-0.5 block text-[11px] text-[#59625F]">
-                      大改 → {formatChapterVersionLabel(bumpChapterVersion(currentVersion, "major"))}
-                    </span>
-                  </span>
-                </label>
-              </div>
-
-              {hasGraphDraft && selected?.id === "project-overview" ? (
-                <p className="mt-3 rounded-lg border border-[rgba(94,155,117,0.25)] bg-[rgba(94,155,117,0.08)] px-2.5 py-2 text-[12px] leading-relaxed text-[#2F6B4F]">
-                  草案含关系图更新；发布本章时将一并写入正式版。
-                </p>
-              ) : null}
-
-              {!canPublish ? (
-                <p className="mt-4 text-[12px] leading-relaxed text-[#969E9A]">
-                  当前角色无权发布或放弃草案。
-                </p>
-              ) : null}
-
-              <button
-                type="button"
-                disabled={!canPublishSelected || editing}
-                onClick={() => {
-                  if (!selected) return;
-                  setConfirm({
-                    type: "one",
-                    sectionId: selected.id,
-                    label: selected.label,
-                  });
-                }}
-                className="mt-5 flex h-10 w-full items-center justify-center rounded-[11px] bg-[#A06358] text-[13.5px] font-medium text-white hover:bg-[#8F564C] disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                {busy === "publish" && confirm?.type === "one"
-                  ? "发布中…"
-                  : selected && isPublishableKind(selected.kind)
-                    ? `发布本章 · ${selected.label}`
-                    : "发布本章"}
-              </button>
-              <button
-                type="button"
-                disabled={!canPublishChanged || editing}
-                onClick={() => setConfirm({ type: "changed" })}
-                className="mt-2.5 flex h-10 w-full items-center justify-center rounded-[11px] border border-[hsl(var(--wine)/0.35)] bg-[hsl(var(--wine-muted))] text-[13.5px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                {busy === "publish" && confirm?.type === "changed"
-                  ? "发布中…"
-                  : `发布全部变更（${changedCount}）`}
-              </button>
-              <button
-                type="button"
-                disabled={
-                  !canPublish ||
-                  actionLocked ||
-                  editing ||
-                  runStatus === "published"
-                }
-                onClick={() => void onDiscard()}
-                className="mt-2.5 flex h-10 w-full items-center justify-center rounded-[11px] border border-[rgba(78,66,57,0.18)] text-[13.5px] font-medium text-[#1F2423] hover:bg-[rgba(78,66,57,0.04)] disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                {busy === "discard" ? "处理中…" : "放弃草案"}
-              </button>
+                </div>
+              )}
             </aside>
           </div>
         )}
