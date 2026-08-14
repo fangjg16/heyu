@@ -19,11 +19,12 @@ import {
   updateProjectPermissions,
 } from "@/lib/project-api";
 import type { WorkspaceProject } from "@/workspace/projects";
-import { roleLabelForProject } from "@/workspace/workspace-users";
+import { roleLabelForProject, projectRoleSelectOptions } from "@/workspace/workspace-users";
 import type { WorkspaceRole } from "@/workspace/types";
+import { PROJECT_ASSIGNABLE_ROLES } from "@/workspace/types";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 
-const ASSIGNABLE: WorkspaceRole[] = ["guest", "low", "mid", "core"];
+const ASSIGNABLE: WorkspaceRole[] = [...PROJECT_ASSIGNABLE_ROLES];
 
 const inputClass =
   "mt-1 w-full rounded-lg border border-[hsl(var(--sand))] bg-white px-3 py-2 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[hsl(var(--wine-deep)/0.35)]";
@@ -128,9 +129,11 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
         const role =
           m?.role && ASSIGNABLE.includes(m.role as WorkspaceRole)
             ? (m.role as WorkspaceRole)
-            : m?.role === "admin"
-              ? ("core" as const)
-              : ("mid" as const);
+            : m?.role === "mid"
+              ? ("low" as const)
+              : m?.role === "admin"
+                ? ("admin" as const)
+                : ("core" as const);
         return {
           projectId: p.id,
           name: p.name,
@@ -195,7 +198,7 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
       if (draft.isCreator) continue;
       try {
         if (draft.selected) {
-          const role = ASSIGNABLE.includes(draft.role) ? draft.role : "mid";
+          const role = ASSIGNABLE.includes(draft.role) ? draft.role : "core";
           const prev = initialRole.get(draft.projectId);
           if (!initialIds.has(draft.projectId) || prev !== role) {
             await updateProjectPermissions(draft.projectId, selfUserId, [
@@ -624,9 +627,11 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
                                     }
                                     className="w-24 shrink-0 rounded border border-border/70 bg-white px-1.5 py-1 text-[10px]"
                                   >
-                                    {ASSIGNABLE.map((r) => (
+                                    {projectRoleSelectOptions(p.role).map((r) => (
                                       <option key={r} value={r}>
-                                        {roleLabelForProject(r)}
+                                        {r === "mid"
+                                          ? `${roleLabelForProject(r)}（请改档）`
+                                          : roleLabelForProject(r)}
                                       </option>
                                     ))}
                                   </select>

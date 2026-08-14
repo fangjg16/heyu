@@ -7,6 +7,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   ChevronDown,
@@ -1802,15 +1803,19 @@ function FilePreviewModal({
   if (!file) return null;
   const format = previewFormat(file);
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[120] flex items-stretch justify-center bg-black/45 p-3 sm:p-6"
+      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/45 p-3 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-label="源文件预览"
+      onClick={onClose}
     >
-      <div className="flex max-h-full w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.12)] bg-[hsl(var(--paper))] shadow-2xl">
-        <div className="flex items-center gap-3 border-b border-[rgba(78,66,57,0.1)] px-4 py-3">
+      <div
+        className="flex max-h-[min(92vh,880px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.12)] bg-[hsl(var(--paper))] shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex shrink-0 items-center gap-3 border-b border-[rgba(78,66,57,0.1)] px-4 py-3">
           <div className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] bg-[#EFE7E6] text-[11px] font-bold text-[hsl(var(--wine))]">
             {format}
           </div>
@@ -1832,7 +1837,7 @@ function FilePreviewModal({
           <button
             type="button"
             aria-label="关闭预览"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[hsl(var(--warm-charcoal-muted))] hover:bg-[rgba(78,66,57,0.08)]"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[rgba(78,66,57,0.14)] bg-white text-[hsl(var(--warm-charcoal))] shadow-sm hover:bg-[rgba(78,66,57,0.06)]"
             onClick={onClose}
           >
             <X className="h-4 w-4" />
@@ -1903,6 +1908,7 @@ function FilePreviewModal({
           ) : null}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

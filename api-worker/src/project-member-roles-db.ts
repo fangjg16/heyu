@@ -17,7 +17,7 @@ export type ProjectMemberRoleRow = {
   deleted_at?: string | null;
 };
 
-const ASSIGNABLE_ROLES: WorkspaceRole[] = ["guest", "low", "mid", "core"];
+const ASSIGNABLE_ROLES: WorkspaceRole[] = ["admin", "core", "low"];
 
 export function isAssignableProjectRole(role: string): role is WorkspaceRole {
   return ASSIGNABLE_ROLES.includes(role as WorkspaceRole);
@@ -231,7 +231,7 @@ export async function seedProjectMemberRoles(
   for (const p of participants) {
     const uid = p.userId.trim();
     if (!uid || !(await isKnownWorkspaceUser(env, uid)) || seen.has(uid)) continue;
-    const role = isAssignableProjectRole(p.role) ? p.role : "mid";
+    const role = isAssignableProjectRole(p.role) ? p.role : "core";
     await upsertProjectMemberRole(env, projectId, uid, role, updatedBy);
     seen.add(uid);
   }
