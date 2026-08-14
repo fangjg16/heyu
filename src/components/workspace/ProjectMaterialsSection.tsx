@@ -78,7 +78,7 @@ type FileTag = {
 type ParseCacheEntry = {
   summary: string;
   chunkCount: number;
-  status: "parsed" | "failed";
+  status: "parsed" | "failed" | "parsing";
   documentType?: string;
   keyPoints?: string[];
   refs?: string[];
@@ -156,6 +156,7 @@ function parseUiStatus(
 ): ParseUiStatus {
   if (parsingId === fileId) return "parsing";
   const cached = parsedById[fileId];
+  if (cached?.status === "parsing") return "parsing";
   if (cached?.status === "parsed") return "parsed";
   if (cached?.status === "failed") return "failed";
   if (dbParsed) return "parsed";
@@ -499,16 +500,27 @@ export function ProjectMaterialsSection({
       setError(null);
       setUploadHint(null);
       const errors: string[] = [];
+      const parseQueue: string[] = [];
       let ok = 0;
       try {
         for (let i = 0; i < items.length; i++) {
           const item = items[i]!;
           setUploadHint(`上传中 ${i + 1}/${items.length}：${item.file.name}`);
           try {
-            await uploadProjectPackageFile(projectId, userId, item.file, {
-              relativePath: item.relativePath,
-            });
+            const uploaded = await uploadProjectPackageFile(
+              projectId,
+              userId,
+              item.file,
+              { relativePath: item.relativePath },
+            );
             ok += 1;
+            if (
+              uploaded.documentId &&
+              (uploaded.parseQueued || uploaded.parsed) &&
+              item.file.name !== ".keep"
+            ) {
+              parseQueue.push(uploaded.documentId);
+            }
           } catch (e) {
             errors.push(
               `${item.file.name}: ${e instanceof Error ? e.message : String(e)}`,
@@ -537,7 +549,76 @@ export function ProjectMaterialsSection({
             }`,
           );
         } else {
-          setUploadHint(`已上传 ${ok} 个文件`);
+          setUploadHint(
+            parseQueue.length > 0
+              ? `已上传 ${ok} 个文件，正在自动解析 ${parseQueue.length} 个…`
+              : `已上传 ${ok} 个文件`,
+          );
+        }
+        // 上传后自动拉 LLM 摘要（与后端 waitUntil 幂等；已缓存则秒回）
+        if (parseQueue.length > 0) {
+          setParsedById((prev) => {
+            const next = { ...prev };
+            for (const id of parseQueue) {
+              if (next[id]?.status === "parsed") continue;
+              next[id] = {
+                summary: "上传后自动解析中…",
+                chunkCount: 0,
+                status: "parsing",
+                keyPoints: [],
+                refs: [],
+                usedFor: [],
+              };
+            }
+            return next;
+          });
+          void (async () => {
+            for (const docId of parseQueue) {
+              try {
+                const result = await fetchProjectFileParseSummary(
+                  projectId,
+                  docId,
+                  userId,
+                );
+                setParsedById((prev) => ({
+                  ...prev,
+                  [docId]: {
+                    summary: result.summary,
+                    chunkCount: result.chunkCount,
+                    status: result.parsed ? "parsed" : "failed",
+                    documentType: result.documentType,
+                    keyPoints: result.keyPoints ?? [],
+                    refs: result.refs ?? [],
+                    usedFor: result.usedFor ?? [],
+                  },
+                }));
+                if (result.parsed) {
+                  setLiveFiles((prev) =>
+                    (prev ?? []).map((f) =>
+                      f.id === docId ? { ...f, parsed: true } : f,
+                    ),
+                  );
+                }
+              } catch (e) {
+                setParsedById((prev) => ({
+                  ...prev,
+                  [docId]: {
+                    summary: e instanceof Error ? e.message : String(e),
+                    chunkCount: 0,
+                    status: "failed",
+                    keyPoints: [],
+                    refs: [],
+                    usedFor: [],
+                  },
+                }));
+              }
+            }
+            setUploadHint((hint) =>
+              hint?.includes("自动解析")
+                ? `已上传 ${ok} 个文件，自动解析完成`
+                : hint,
+            );
+          })();
         }
       } finally {
         setUploading(false);
@@ -776,6 +857,7 @@ export function ProjectMaterialsSection({
         return;
       }
       if (parsedById[file.id]?.status === "parsed") return;
+      if (parsedById[file.id]?.status === "parsing") return;
       if (parsingId === file.id) return;
       setParsingId(file.id);
       setError(null);

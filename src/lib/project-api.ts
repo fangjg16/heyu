@@ -615,13 +615,21 @@ export function dedupeFilesByFilename(
   );
 }
 
+export type UploadProjectFileResult = {
+  documentId: string;
+  filename: string;
+  parsed: boolean;
+  parseQueued?: boolean;
+  chunks?: number;
+};
+
 export async function uploadProjectPackageFile(
   projectId: string,
   userId: string,
   file: File,
   options?: { relativePath?: string },
   _chatEndpoint = AI_CHAT_ENDPOINT,
-): Promise<void> {
+): Promise<UploadProjectFileResult> {
   const form = new FormData();
   form.append("file", file);
   form.append("userId", userId);
@@ -636,6 +644,17 @@ export async function uploadProjectPackageFile(
     const err = await res.text().catch(() => "");
     throw new Error(err || `上传失败（${res.status}）`);
   }
+  const data = (await res.json().catch(() => ({}))) as Partial<UploadProjectFileResult> & {
+    documentId?: string;
+  };
+  const documentId = String(data.documentId ?? "").trim();
+  return {
+    documentId,
+    filename: String(data.filename ?? file.name),
+    parsed: Boolean(data.parsed),
+    parseQueued: Boolean(data.parseQueued),
+    chunks: Number(data.chunks) || 0,
+  };
 }
 
 /** 创建空文件夹占位（.keep + directory mime） */

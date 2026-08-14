@@ -386,85 +386,115 @@ function parseResponseBody(
   };
 }
 
-/** GET /api/projects/:projectId/files/:docId/parse-summary?userId= */
-export async function handleParseProjectFileSummary(
-  request: Request,
+type DocumentParseRow = DocumentRow & {
+  mime: string | null;
+  deleted_at?: string | null;
+};
+
+async function loadDocumentRowForParse(
   env: Env,
-  ctx: ExecutionContext,
-  pathProjectId: string,
+  projectId: string,
   docId: string,
-): Promise<Response> {
-  const url = new URL(request.url);
-  const userId = normalizeUserId(url.searchParams.get("userId"));
-  if (!userId) return json({ error: "缺少 userId 查询参数" }, 400);
-
-  const projectId = decodePathProjectId(pathProjectId);
-  const id = docId.trim();
-  if (!id) return json({ error: "缺少 documentId" }, 400);
-
-  const project = await getProjectById(env, projectId);
-  if (!project) return json({ error: "项目不存在" }, 404);
-
-  let row: (DocumentRow & {
-    mime: string | null;
-    deleted_at?: string | null;
-  }) | null = null;
+): Promise<DocumentParseRow | null> {
   try {
-    row = await env.DB.prepare(
+    return await env.DB.prepare(
       `SELECT id, project_id, filename, scope, conversation_id, uploaded_by, r2_key, mime, deleted_at
        FROM documents WHERE id = ? AND project_id = ?`,
     )
-      .bind(id, projectId)
-      .first<DocumentRow & { mime: string | null; deleted_at?: string | null }>();
+      .bind(docId, projectId)
+      .first<DocumentParseRow>();
   } catch {
-    row = await env.DB.prepare(
+    return await env.DB.prepare(
       `SELECT id, project_id, filename, scope, conversation_id, uploaded_by, r2_key, mime
        FROM documents WHERE id = ? AND project_id = ?`,
     )
-      .bind(id, projectId)
-      .first<DocumentRow & { mime: string | null }>();
+      .bind(docId, projectId)
+      .first<DocumentParseRow>();
+  }
+}
+
+/**
+ * 核心：有正文则调用 LLM 摘要并落库。已有缓存则直接返回。
+ * 供 HTTP parse-summary 与上传后 waitUntil 共用。
+ */
+export async function performDocumentParseSummary(
+  env: Env,
+  ctx: ExecutionContext,
+  opts: {
+    projectId: string;
+    documentId: string;
+    userId: string;
+    /** 上传路径已做过权限校验时可跳过（仅后台） */
+    skipAccessCheck?: boolean;
+  },
+): Promise<
+  | { ok: true; body: Record<string, unknown> }
+  | { ok: false; status: number; body: Record<string, unknown> }
+> {
+  const projectId = opts.projectId;
+  const id = opts.documentId.trim();
+  const userId = opts.userId;
+  if (!id) {
+    return { ok: false, status: 400, body: { error: "缺少 documentId" } };
   }
 
+  const project = await getProjectById(env, projectId);
+  if (!project) {
+    return { ok: false, status: 404, body: { error: "项目不存在" } };
+  }
+
+  const row = await loadDocumentRowForParse(env, projectId, id);
   if (!row || (row.deleted_at != null && String(row.deleted_at).trim() !== "")) {
-    return json({ error: "文件不存在或已删除" }, 404);
+    return {
+      ok: false,
+      status: 404,
+      body: { error: "文件不存在或已删除" },
+    };
   }
 
-  if (
-    row.filename === ".keep" ||
-    (row.mime ?? "").trim() === DIRECTORY_MIME
-  ) {
-    return json({
-      documentId: id,
-      filename: row.filename,
-      mime: row.mime,
-      parsed: false,
-      summary: "文件夹占位，无需解析。",
-      chunkCount: 0,
-      documentType: "",
-      keyPoints: [],
-      refs: [],
-      usedFor: [],
-    });
+  if (row.filename === ".keep" || (row.mime ?? "").trim() === DIRECTORY_MIME) {
+    return {
+      ok: true,
+      body: {
+        documentId: id,
+        filename: row.filename,
+        mime: row.mime,
+        parsed: false,
+        summary: "文件夹占位，无需解析。",
+        chunkCount: 0,
+        documentType: "",
+        keyPoints: [],
+        refs: [],
+        usedFor: [],
+      },
+    };
   }
 
-  const accessErr = documentAccessError(row, userId);
-  if (accessErr) return json({ error: accessErr }, 403);
-
-  if (row.scope === "package") {
-    const allowed = await canDownloadProjectFile(
-      env,
-      userId,
-      projectId,
-      project.createdBy,
-    );
-    if (!allowed) {
-      return json({ error: "仅 Admin、Core 或项目创建人可解析资料包文件" }, 403);
+  if (!opts.skipAccessCheck) {
+    const accessErr = documentAccessError(row, userId);
+    if (accessErr) {
+      return { ok: false, status: 403, body: { error: accessErr } };
+    }
+    if (row.scope === "package") {
+      const allowed = await canDownloadProjectFile(
+        env,
+        userId,
+        projectId,
+        project.createdBy,
+      );
+      if (!allowed) {
+        return {
+          ok: false,
+          status: 403,
+          body: { error: "仅 Admin、Core 或项目创建人可解析资料包文件" },
+        };
+      }
     }
   }
 
   const cached = await loadParseResult(env, id);
   if (cached && truncateSummary(cached.summary)) {
-    return json(parseResponseBody(row, rowToPayload(cached)));
+    return { ok: true, body: parseResponseBody(row, rowToPayload(cached)) };
   }
 
   let sourceText = "";
@@ -487,7 +517,29 @@ export async function handleParseProjectFileSummary(
     chunkCount = extracted.chunkCount;
     extractWarning = extracted.warning;
     if (!extracted.ok) {
-      return json({
+      return {
+        ok: true,
+        body: {
+          documentId: id,
+          filename: row.filename,
+          mime: row.mime,
+          parsed: false,
+          summary: sourceText.trim() || "暂未解析正文，无法调用大模型。",
+          chunkCount,
+          documentType: "",
+          keyPoints: [],
+          refs: [],
+          usedFor: [],
+          warning: extractWarning ?? null,
+        },
+      };
+    }
+  }
+
+  if (!sourceText.trim() || looksLikePlaceholderText(sourceText)) {
+    return {
+      ok: true,
+      body: {
         documentId: id,
         filename: row.filename,
         mime: row.mime,
@@ -499,24 +551,8 @@ export async function handleParseProjectFileSummary(
         refs: [],
         usedFor: [],
         warning: extractWarning ?? null,
-      });
-    }
-  }
-
-  if (!sourceText.trim() || looksLikePlaceholderText(sourceText)) {
-    return json({
-      documentId: id,
-      filename: row.filename,
-      mime: row.mime,
-      parsed: false,
-      summary: sourceText.trim() || "暂未解析正文，无法调用大模型。",
-      chunkCount,
-      documentType: "",
-      keyPoints: [],
-      refs: [],
-      usedFor: [],
-      warning: extractWarning ?? null,
-    });
+      },
+    };
   }
 
   try {
@@ -552,31 +588,89 @@ export async function handleParseProjectFileSummary(
         /no such table:\s*document_parse_results/i.test(msg) ||
         /Unknown table ['`]?document_parse_results['`]?/i.test(msg)
       ) {
-        return json({
-          ...parseResponseBody(row, payload, { warning: extractWarning ?? null }),
-          persistError:
-            "解析成功但未落库：请执行 migration 0014（document_parse_results）",
-        });
+        return {
+          ok: true,
+          body: {
+            ...parseResponseBody(row, payload, {
+              warning: extractWarning ?? null,
+            }),
+            persistError:
+              "解析成功但未落库：请执行 migration 0014（document_parse_results）",
+          },
+        };
       }
       throw e;
     }
-    return json(
-      parseResponseBody(row, payload, { warning: extractWarning ?? null }),
-    );
+    return {
+      ok: true,
+      body: parseResponseBody(row, payload, {
+        warning: extractWarning ?? null,
+      }),
+    };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return json({
-      documentId: id,
-      filename: row.filename,
-      mime: row.mime,
-      parsed: false,
-      summary: `大模型解析失败：${msg}`,
-      chunkCount,
-      documentType: "",
-      keyPoints: [],
-      refs: [],
-      usedFor: [],
-      warning: extractWarning ?? null,
-    });
+    return {
+      ok: true,
+      body: {
+        documentId: id,
+        filename: row.filename,
+        mime: row.mime,
+        parsed: false,
+        summary: `大模型解析失败：${msg}`,
+        chunkCount,
+        documentType: "",
+        keyPoints: [],
+        refs: [],
+        usedFor: [],
+        warning: extractWarning ?? null,
+      },
+    };
   }
+}
+
+/**
+ * 上传成功后后台触发：文本已抽取/切片则写 LLM 摘要要点进 document_parse_results。
+ * 失败静默（不影响上传响应）；已有缓存则跳过。
+ */
+export async function runDocumentParseSummaryBackground(
+  env: Env,
+  ctx: ExecutionContext,
+  opts: { projectId: string; documentId: string; userId: string },
+): Promise<void> {
+  try {
+    await performDocumentParseSummary(env, ctx, {
+      ...opts,
+      skipAccessCheck: true,
+    });
+  } catch (e) {
+    console.error(
+      "[parse-summary-bg]",
+      opts.documentId,
+      e instanceof Error ? e.message : String(e),
+    );
+  }
+}
+
+/** GET /api/projects/:projectId/files/:docId/parse-summary?userId= */
+export async function handleParseProjectFileSummary(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  pathProjectId: string,
+  docId: string,
+): Promise<Response> {
+  const url = new URL(request.url);
+  const userId = normalizeUserId(url.searchParams.get("userId"));
+  if (!userId) return json({ error: "缺少 userId 查询参数" }, 400);
+
+  const projectId = decodePathProjectId(pathProjectId);
+  const result = await performDocumentParseSummary(env, ctx, {
+    projectId,
+    documentId: docId,
+    userId,
+  });
+  if (!result.ok) {
+    return json(result.body, result.status);
+  }
+  return json(result.body);
 }

@@ -61,6 +61,7 @@ import {
 } from "./conversation-topic";
 import { invalidateChunkCache } from "./chunk-cache";
 import { embedDocumentChunks } from "./embeddings";
+import { runDocumentParseSummaryBackground } from "./documents-parse-summary";
 import { chunkPlainText, isGenericProjectQuestion } from "./search";
 import { getProjectById as getDbProjectById } from "./projects-db";
 import {
@@ -638,6 +639,14 @@ async function handleUpload(
 
   if (parsed && parts.length > 0) {
     ctx.waitUntil(embedDocumentChunks(env, docId));
+    // 文本抽取/切片完成后，后台自动跑 LLM 摘要要点（标「已解析」），无需再点解析
+    ctx.waitUntil(
+      runDocumentParseSummaryBackground(env, ctx, {
+        projectId,
+        documentId: docId,
+        userId: uploadedBy,
+      }),
+    );
   }
 
   return json({
@@ -649,6 +658,7 @@ async function handleUpload(
     chunks: parts.length,
     parsed,
     pdfWarning: pdfWarning ?? null,
+    parseQueued: Boolean(parsed && parts.length > 0),
   });
 }
 
