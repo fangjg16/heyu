@@ -48,6 +48,8 @@ export type DraftItem = {
   status: DraftItemStatus;
   html: string | null;
   error: string | null;
+  /** 最近一次改写说明（AI 短回复）；改写中可为空 */
+  reviseNote: string | null;
   llmBackend: string | null;
   updatedAt: string;
 };
@@ -314,36 +316,79 @@ export async function createFullDraftRun(
   });
 }
 
-export async function listDraftItems(
-  db: AppDatabase,
-  runId: string,
-): Promise<DraftItem[]> {
-  const q = await db
-    .prepare(
-      `SELECT run_id, section_id, status, html, error, llm_backend, updated_at
-       FROM project_knowledge_chapter_draft_items
-       WHERE run_id = ?
-       ORDER BY section_id ASC`,
-    )
-    .bind(runId)
-    .all<{
-      run_id: string;
-      section_id: string;
-      status: string;
-      html: string | null;
-      error: string | null;
-      llm_backend: string | null;
-      updated_at: string;
-    }>();
-  return (q.results ?? []).map((r) => ({
+function rowToDraftItem(r: {
+  run_id: string;
+  section_id: string;
+  status: string;
+  html: string | null;
+  error: string | null;
+  revise_note?: string | null;
+  llm_backend: string | null;
+  updated_at: string;
+}): DraftItem {
+  return {
     runId: r.run_id,
     sectionId: r.section_id,
     status: r.status as DraftItemStatus,
     html: r.html,
     error: r.error,
+    reviseNote: r.revise_note ?? null,
     llmBackend: r.llm_backend,
     updatedAt: r.updated_at,
-  }));
+  };
+}
+
+export async function listDraftItems(
+  db: AppDatabase,
+  runId: string,
+): Promise<DraftItem[]> {
+  try {
+    const q = await db
+      .prepare(
+        `SELECT run_id, section_id, status, html, error, revise_note, llm_backend, updated_at
+         FROM project_knowledge_chapter_draft_items
+         WHERE run_id = ?
+         ORDER BY section_id ASC`,
+      )
+      .bind(runId)
+      .all<{
+        run_id: string;
+        section_id: string;
+        status: string;
+        html: string | null;
+        error: string | null;
+        revise_note: string | null;
+        llm_backend: string | null;
+        updated_at: string;
+      }>();
+    return (q.results ?? []).map(rowToDraftItem);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (
+      !/Unknown column ['`]?revise_note['`]?/i.test(msg) &&
+      !/no such column:\s*revise_note/i.test(msg)
+    ) {
+      throw e;
+    }
+    const q = await db
+      .prepare(
+        `SELECT run_id, section_id, status, html, error, llm_backend, updated_at
+         FROM project_knowledge_chapter_draft_items
+         WHERE run_id = ?
+         ORDER BY section_id ASC`,
+      )
+      .bind(runId)
+      .all<{
+        run_id: string;
+        section_id: string;
+        status: string;
+        html: string | null;
+        error: string | null;
+        llm_backend: string | null;
+        updated_at: string;
+      }>();
+    return (q.results ?? []).map(rowToDraftItem);
+  }
 }
 
 export async function getDraftItem(
@@ -351,32 +396,51 @@ export async function getDraftItem(
   runId: string,
   sectionId: string,
 ): Promise<DraftItem | null> {
-  const r = await db
-    .prepare(
-      `SELECT run_id, section_id, status, html, error, llm_backend, updated_at
-       FROM project_knowledge_chapter_draft_items
-       WHERE run_id = ? AND section_id = ?`,
-    )
-    .bind(runId, sectionId)
-    .first<{
-      run_id: string;
-      section_id: string;
-      status: string;
-      html: string | null;
-      error: string | null;
-      llm_backend: string | null;
-      updated_at: string;
-    }>();
-  if (!r) return null;
-  return {
-    runId: r.run_id,
-    sectionId: r.section_id,
-    status: r.status as DraftItemStatus,
-    html: r.html,
-    error: r.error,
-    llmBackend: r.llm_backend,
-    updatedAt: r.updated_at,
-  };
+  try {
+    const r = await db
+      .prepare(
+        `SELECT run_id, section_id, status, html, error, revise_note, llm_backend, updated_at
+         FROM project_knowledge_chapter_draft_items
+         WHERE run_id = ? AND section_id = ?`,
+      )
+      .bind(runId, sectionId)
+      .first<{
+        run_id: string;
+        section_id: string;
+        status: string;
+        html: string | null;
+        error: string | null;
+        revise_note: string | null;
+        llm_backend: string | null;
+        updated_at: string;
+      }>();
+    return r ? rowToDraftItem(r) : null;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (
+      !/Unknown column ['`]?revise_note['`]?/i.test(msg) &&
+      !/no such column:\s*revise_note/i.test(msg)
+    ) {
+      throw e;
+    }
+    const r = await db
+      .prepare(
+        `SELECT run_id, section_id, status, html, error, llm_backend, updated_at
+         FROM project_knowledge_chapter_draft_items
+         WHERE run_id = ? AND section_id = ?`,
+      )
+      .bind(runId, sectionId)
+      .first<{
+        run_id: string;
+        section_id: string;
+        status: string;
+        html: string | null;
+        error: string | null;
+        llm_backend: string | null;
+        updated_at: string;
+      }>();
+    return r ? rowToDraftItem(r) : null;
+  }
 }
 
 export async function upsertDraftItem(
@@ -387,32 +451,77 @@ export async function upsertDraftItem(
     status: DraftItemStatus;
     html?: string | null;
     error?: string | null;
+    /** 传入则写入；省略则保留原值 */
+    reviseNote?: string | null;
     llmBackend?: string | null;
   },
 ): Promise<void> {
   const now = nowIso();
-  await db
-    .prepare(
-      `INSERT INTO project_knowledge_chapter_draft_items
-         (run_id, section_id, status, html, error, llm_backend, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         status = VALUES(status),
-         html = VALUES(html),
-         error = VALUES(error),
-         llm_backend = VALUES(llm_backend),
-         updated_at = VALUES(updated_at)`,
-    )
-    .bind(
-      input.runId,
-      input.sectionId,
-      input.status,
-      input.html ?? null,
-      input.error ?? null,
-      input.llmBackend ?? null,
-      now,
-    )
-    .run();
+  const existing =
+    input.reviseNote === undefined
+      ? await getDraftItem(db, input.runId, input.sectionId)
+      : null;
+  const reviseNote =
+    input.reviseNote !== undefined
+      ? input.reviseNote
+      : (existing?.reviseNote ?? null);
+
+  try {
+    await db
+      .prepare(
+        `INSERT INTO project_knowledge_chapter_draft_items
+           (run_id, section_id, status, html, error, revise_note, llm_backend, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           status = VALUES(status),
+           html = VALUES(html),
+           error = VALUES(error),
+           revise_note = VALUES(revise_note),
+           llm_backend = VALUES(llm_backend),
+           updated_at = VALUES(updated_at)`,
+      )
+      .bind(
+        input.runId,
+        input.sectionId,
+        input.status,
+        input.html ?? null,
+        input.error ?? null,
+        reviseNote,
+        input.llmBackend ?? null,
+        now,
+      )
+      .run();
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (
+      !/Unknown column ['`]?revise_note['`]?/i.test(msg) &&
+      !/no such column:\s*revise_note/i.test(msg)
+    ) {
+      throw e;
+    }
+    await db
+      .prepare(
+        `INSERT INTO project_knowledge_chapter_draft_items
+           (run_id, section_id, status, html, error, llm_backend, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           status = VALUES(status),
+           html = VALUES(html),
+           error = VALUES(error),
+           llm_backend = VALUES(llm_backend),
+           updated_at = VALUES(updated_at)`,
+      )
+      .bind(
+        input.runId,
+        input.sectionId,
+        input.status,
+        input.html ?? null,
+        input.error ?? null,
+        input.llmBackend ?? null,
+        now,
+      )
+      .run();
+  }
 }
 
 export async function deleteDraftItem(

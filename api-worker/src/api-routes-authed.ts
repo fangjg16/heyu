@@ -44,6 +44,7 @@ import {
   handleDeleteChapterDraftSection,
   handleDiscardChapterDraftRun,
   handleGenerateChapterDraftSection,
+  handleGetActiveChapterDraftRun,
   handleGetChapterDraftRun,
   handleGetKnowledgeChapterVersion,
   handleListKnowledgeChapterVersions,
@@ -52,6 +53,7 @@ import {
   handlePutChapterDraftSection,
   handleReviseChapterDraftSection,
 } from "./project-knowledge-chapter-draft-routes";
+import { handleListAdminChapterReviseLogs } from "./chapter-revise-logs-admin-routes";
 import {
   handleGetProjectPermissions,
   handleGetUserProjectRoles,
@@ -357,6 +359,14 @@ export async function routeAuthedApi(
     return handleDiscardChapterDraftRun(env, projectId, runId, authUserId);
   }
 
+  if (/^\/api\/projects\/[^/]+\/chapter-draft-runs\/active$/u.test(path)) {
+    const projectId = decodePathProjectId(path.split("/")[3] ?? "");
+    if (request.method === "GET") {
+      return handleGetActiveChapterDraftRun(env, projectId, authUserId);
+    }
+    return json({ error: "Method Not Allowed" }, 405);
+  }
+
   if (/^\/api\/projects\/[^/]+\/chapter-draft-runs\/[^/]+$/u.test(path)) {
     const parts = path.split("/");
     const projectId = decodePathProjectId(parts[3] ?? "");
@@ -482,6 +492,10 @@ export async function routeAuthedApi(
 
   if (path === "/api/me/chapter-draft-runs" && request.method === "GET") {
     return handleListMyChapterDraftRuns(env, authUserId);
+  }
+
+  if (path === "/api/admin/chapter-revise-logs" && request.method === "GET") {
+    return handleListAdminChapterReviseLogs(request, env, authUserId);
   }
 
   if (

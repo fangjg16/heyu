@@ -26,8 +26,10 @@ import {
   canPublishProjectKnowledgeNetwork,
 } from "@/workspace/project-manage";
 import {
+  ActiveDraftExistsError,
   createChapterDraftRun,
   ENABLE_LIVE_CHAT,
+  fetchActiveChapterDraftRun,
   fetchProjectsFromApi,
   generateChapterDraftSection,
 } from "@/lib/project-api";
@@ -47,6 +49,7 @@ import AdminPortal, {
   AdminDraftsTab,
   AdminKnTemplatesTab,
   AdminLlmSettingsTab,
+  AdminReviseLogsTab,
   AdminSkillsTab,
   AdminUsersTab,
 } from "@/pages/workspace/AdminPortal";
@@ -220,6 +223,9 @@ function ProjectWorkspaceLayout() {
   );
   const [failedChapterIds, setFailedChapterIds] = useState<string[]>([]);
   const [updatingChapterIds, setUpdatingChapterIds] = useState<string[]>([]);
+  const [persistedActiveRunId, setPersistedActiveRunId] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     const published = (
@@ -232,6 +238,32 @@ function ProjectWorkspaceLayout() {
     // 清掉 state，避免重复触发刷新
     navigate(pathname, { replace: true, state: {} });
   }, [locationState, navigate, pathname]);
+
+  useEffect(() => {
+    if (!projectId || !userId || !ENABLE_LIVE_CHAT) {
+      setPersistedActiveRunId(null);
+      return;
+    }
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const active = await fetchActiveChapterDraftRun(projectId, userId);
+        if (cancelled) return;
+        if (active?.runId) {
+          setPersistedActiveRunId(active.runId);
+          setDraftRunId((cur) => cur ?? active.runId);
+        } else {
+          setPersistedActiveRunId(null);
+        }
+      } catch {
+        if (!cancelled) setPersistedActiveRunId(null);
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, userId, knowledgeRefreshKey, overviewRefreshKey]);
 
   useEffect(() => {
     if (!projectId) {
@@ -454,14 +486,25 @@ function ProjectWorkspaceLayout() {
         }
       }
     } catch (e) {
-      const message = normalizeGenerateError(e);
-      setDraftDialogError(message);
-      setOverviewError(`创建概览更新草案失败：${message}`);
-      setAllChaptersProgress((prev) =>
-        prev
-          ? { ...prev, phase: "done", elapsedMs: Date.now() - startedAt }
-          : prev,
-      );
+      if (e instanceof ActiveDraftExistsError) {
+        setDraftRunId(e.activeRunId);
+        setPersistedActiveRunId(e.activeRunId);
+        setDraftDialogOpen(false);
+        setOverviewError(null);
+        setAllChaptersNotice(
+          `${e.message} 可直接继续审核未完成的草案。`,
+        );
+        setAllChaptersProgress(null);
+      } else {
+        const message = normalizeGenerateError(e);
+        setDraftDialogError(message);
+        setOverviewError(`创建概览更新草案失败：${message}`);
+        setAllChaptersProgress((prev) =>
+          prev
+            ? { ...prev, phase: "done", elapsedMs: Date.now() - startedAt }
+            : prev,
+        );
+      }
     } finally {
       window.clearInterval(tick);
       setOverviewBusy(false);
@@ -605,14 +648,25 @@ function ProjectWorkspaceLayout() {
         );
       }
     } catch (e) {
-      const message = normalizeGenerateError(e);
-      setDraftDialogError(message);
-      setOverviewError(`创建更新草案失败：${message}`);
-      setAllChaptersProgress((prev) =>
-        prev
-          ? { ...prev, phase: "done", elapsedMs: Date.now() - startedAt }
-          : prev,
-      );
+      if (e instanceof ActiveDraftExistsError) {
+        setDraftRunId(e.activeRunId);
+        setPersistedActiveRunId(e.activeRunId);
+        setDraftDialogOpen(false);
+        setOverviewError(null);
+        setAllChaptersNotice(
+          `${e.message} 可直接继续审核未完成的草案。`,
+        );
+        setAllChaptersProgress(null);
+      } else {
+        const message = normalizeGenerateError(e);
+        setDraftDialogError(message);
+        setOverviewError(`创建更新草案失败：${message}`);
+        setAllChaptersProgress((prev) =>
+          prev
+            ? { ...prev, phase: "done", elapsedMs: Date.now() - startedAt }
+            : prev,
+        );
+      }
     } finally {
       window.clearInterval(tick);
       setAllChaptersBusy(false);
@@ -620,10 +674,13 @@ function ProjectWorkspaceLayout() {
     }
   };
 
+  const resumeRunId = draftRunId || persistedActiveRunId;
+
   const goDraftReview = () => {
-    if (!draftRunId || !project) return;
+    const id = resumeRunId;
+    if (!id || !project) return;
     setDraftDialogOpen(false);
-    navigate(`/app/projects/${project.id}/knowledge/review/${draftRunId}`);
+    navigate(`/app/projects/${project.id}/knowledge/review/${id}`);
   };
 
   return (
@@ -653,22 +710,25 @@ function ProjectWorkspaceLayout() {
         ) : null}
 
         {allChaptersNotice ||
-        (draftRunId &&
+        (resumeRunId &&
           allChaptersProgress?.phase === "done" &&
-          !draftDialogOpen) ? (
+          !draftDialogOpen) ||
+        (persistedActiveRunId && !draftDialogOpen) ? (
           <div className="mx-auto max-w-[1600px] px-8 pt-3 md:px-10">
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[rgba(94,155,117,0.28)] bg-[rgba(94,155,117,0.08)] px-3.5 py-2 text-[12.5px] text-[#2F6B4F]">
               <p>
                 {allChaptersNotice ??
-                  "更新草案已就绪，可进入审核对照差异并发布。"}
+                  (persistedActiveRunId
+                    ? "本项目有未完成的章节更新草案，可继续审核或发布剩余章节。"
+                    : "更新草案已就绪，可进入审核对照差异并发布。")}
               </p>
-              {draftRunId && allChaptersProgress?.phase === "done" ? (
+              {resumeRunId ? (
                 <button
                   type="button"
                   onClick={goDraftReview}
                   className="shrink-0 font-semibold text-[#A06358] underline-offset-2 hover:underline"
                 >
-                  进入审核
+                  继续审核草案
                 </button>
               ) : null}
             </div>
@@ -859,6 +919,7 @@ export default function WorkspaceRoutes() {
             <Route path="api-probe" element={<AdminApiProbeTab />} />
             <Route path="audit" element={<AdminAuditTab />} />
             <Route path="drafts" element={<AdminDraftsTab />} />
+            <Route path="revise-logs" element={<AdminReviseLogsTab />} />
           </Route>
           <Route path="settings" element={<Navigate to="/app/admin/users" replace />} />
           <Route path="chat" element={<WorkspaceChatRedirect />} />

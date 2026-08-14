@@ -17,7 +17,6 @@ import {
   FileSpreadsheet,
   FileUp,
   FileText,
-  FolderOpen,
   Loader2,
   MoreHorizontal,
   Paperclip,
@@ -35,11 +34,9 @@ import {
   prepareKnowledgeNetworkMessageDisplay,
 } from "@/components/workspace/KnowledgeNetworkPreview";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
-import { ProjectMaterialsSection } from "@/components/workspace/ProjectMaterialsSection";
 import { cn } from "@/lib/utils";
 import {
   AI_CHAT_ENDPOINT,
-  dedupeFilesByFilename,
   deleteProjectFile,
   ENABLE_LIVE_CHAT,
   fetchProjectByIdFromApi,
@@ -1583,7 +1580,6 @@ export default function ConversationCenter() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [conversations, setConversations] = useState<SessionConversation[]>([]);
   const [showHistoryMenu, setShowHistoryMenu] = useState(false);
-  const [showMaterialsPanel, setShowMaterialsPanel] = useState(false);
   const [conversationFileRecords, setConversationFileRecords] = useState<
     ProjectFileRecord[]
   >([]);
@@ -2206,7 +2202,10 @@ export default function ConversationCenter() {
           effectiveConversationId,
           sessionMessageFilenames,
         );
-        setConversationFileRecords(dedupeFilesByFilename(session));
+        // 同名也全部列出（本对话附件各自独立，不做按名去重）
+        setConversationFileRecords(
+          [...session].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+        );
       } catch {
         if (!cancelled) setConversationFileRecords([]);
       } finally {
@@ -3408,28 +3407,14 @@ export default function ConversationCenter() {
             ref={conversationFilesMenuRef}
             className="relative flex flex-wrap items-center gap-2"
           >
-            <button
-              type="button"
-              onClick={() => {
-                setShowHistoryMenu(false);
-                setShowMaterialsPanel((v) => !v);
-              }}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
-                showMaterialsPanel
-                  ? "border-[hsl(var(--wine-deep)/0.35)] bg-[hsl(var(--wine-deep)/0.08)] text-[hsl(var(--wine-deep))]"
-                  : "border border-border/70 bg-white/85 text-muted-foreground hover:border-[hsl(var(--wine-deep)/0.25)] hover:text-foreground",
-              )}
-            >
-              <FolderOpen className="h-4 w-4" />
-              源文件
-            </button>
-            <Link
-              to={`/app/projects/${projectId}/materials`}
-              className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-white/85 px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-[hsl(var(--wine-deep)/0.25)] hover:text-foreground"
-            >
-              打开源文件页
-            </Link>
+            {projectId ? (
+              <Link
+                to={`/app/projects/${projectId}/materials`}
+                className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-white/85 px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-[hsl(var(--wine-deep)/0.25)] hover:text-foreground"
+              >
+                打开源文件页
+              </Link>
+            ) : null}
             <button
               type="button"
               onClick={() => setShowHistoryMenu((v) => !v)}
@@ -3449,7 +3434,7 @@ export default function ConversationCenter() {
                   本对话文件（{conversationFileTreeItems.length}）
                 </p>
                 <p className="px-2 pb-1 text-[10px] leading-snug text-muted-foreground">
-                  仅含当前对话内上传、已入库的附件（非项目总览里的资料包）。
+                  仅含当前对话内上传、已入库的附件（非项目资料包）。
                   {isLiveAiMode ? " 点右侧垃圾桶可删除。" : ""}
                 </p>
                 <div className="max-h-52 overflow-y-auto rounded-xl border border-border/60 bg-background/50 p-2">
@@ -3515,44 +3500,6 @@ export default function ConversationCenter() {
             ) : null}
           </div>
         </header>
-
-        {showMaterialsPanel && userId && projectId ? (
-          <div className="flex max-h-[min(52vh,520px)] min-h-[280px] shrink-0 flex-col border-b border-border/60 bg-[rgba(255,252,248,0.92)]">
-            <div className="flex items-center justify-between gap-2 border-b border-border/50 px-4 py-2 md:px-6">
-              <div className="text-xs font-semibold text-foreground">
-                项目源文件
-              </div>
-              <div className="flex items-center gap-2">
-                <Link
-                  to={`/app/projects/${projectId}/materials`}
-                  className="text-[11px] font-medium text-[hsl(var(--wine-deep))] hover:underline"
-                >
-                  全屏打开
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => setShowMaterialsPanel(false)}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
-                  aria-label="关闭源文件面板"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto px-2 py-2 md:px-4">
-              <ProjectMaterialsSection
-                projectId={projectId}
-                userId={userId}
-                canManage={canEnterChat(projectRole)}
-                canDownload={
-                  projectRole === "admin" ||
-                  projectRole === "core" ||
-                  projectRole === "mid"
-                }
-              />
-            </div>
-          </div>
-        ) : null}
 
         <div
           ref={chatScrollRef}

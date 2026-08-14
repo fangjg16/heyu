@@ -1,4 +1,8 @@
 import type { AppDatabase } from "./app-database";
+import {
+  completeReviseInstructionLog,
+  insertReviseInstructionLog,
+} from "./chapter-revise-logs-db";
 import { getKnChapterTemplate } from "./kn-chapter-templates-db";
 import type { LlmClientEnv } from "./llm-client";
 import {
@@ -278,6 +282,53 @@ export async function handleCreateChapterDraftRun(
   });
 }
 
+/** GET /api/projects/:id/chapter-draft-runs/active — 进行中的草案（若有） */
+export async function handleGetActiveChapterDraftRun(
+  env: Env,
+  projectId: string,
+  userIdRaw: string | null,
+): Promise<Response> {
+  const userId = normalizeUserId(userIdRaw);
+  if (!userId) return json({ error: "缺少 userId" }, 400);
+
+  const project = await getProjectById(env, projectId);
+  if (!project) return json({ error: "项目不存在" }, 404);
+
+  const denied = await assertCanRead(
+    env,
+    userId,
+    projectId,
+    project.createdBy,
+  );
+  if (denied) return denied;
+
+  const active = await findActiveDraftRun(env.DB, projectId);
+  if (!active) {
+    return json({ ok: true, active: null });
+  }
+
+  const items = await listDraftItems(env.DB, active.id);
+  const primaryIds = items
+    .map((i) => i.sectionId)
+    .filter((id) => !META_DRAFT_SECTION_IDS.has(id));
+
+  return json({
+    ok: true,
+    active: {
+      runId: active.id,
+      scope: active.scope,
+      status: active.status,
+      baseVersion: active.baseVersion,
+      progressDone: active.progressDone,
+      progressTotal: active.progressTotal,
+      failedCount: active.failedCount,
+      createdAt: active.createdAt,
+      updatedAt: active.updatedAt,
+      sectionIds: primaryIds,
+    },
+  });
+}
+
 /** GET /api/projects/:id/chapter-draft-runs/:runId */
 export async function handleGetChapterDraftRun(
   env: Env,
@@ -336,6 +387,7 @@ export async function handleGetChapterDraftRun(
       status: i.status,
       html: i.html,
       error: i.error,
+      reviseNote: i.reviseNote,
       llmBackend: i.llmBackend,
       updatedAt: i.updatedAt,
     })),
@@ -586,6 +638,14 @@ export async function handleReviseChapterDraftSection(
     llmBackend: previousBackend,
   });
 
+  const logId = await insertReviseInstructionLog(env.DB, {
+    projectId,
+    runId,
+    sectionId,
+    userId,
+    instruction,
+  });
+
   const runRevise = async () => {
     try {
       const revised = await reviseChapterHtmlContent(env, {
@@ -600,6 +660,12 @@ export async function handleReviseChapterDraftSection(
         status: "ok",
         html: revised.html,
         error: null,
+        reviseNote: revised.note,
+        llmBackend: revised.llmBackend,
+      });
+      await completeReviseInstructionLog(env.DB, logId, {
+        status: "ok",
+        reviseNote: revised.note,
         llmBackend: revised.llmBackend,
       });
     } catch (e) {
@@ -610,6 +676,11 @@ export async function handleReviseChapterDraftSection(
         status: "ok",
         html: previousHtml,
         error: `改写失败：${msg}`,
+        llmBackend: previousBackend,
+      });
+      await completeReviseInstructionLog(env.DB, logId, {
+        status: "failed",
+        error: msg,
         llmBackend: previousBackend,
       });
     }
