@@ -160,6 +160,63 @@ export default function KnowledgeChapterDraftReviewPage() {
   const [reviseSubmitting, setReviseSubmitting] = useState(false);
   const draftPaneRef = useRef<HTMLDivElement>(null);
   const prevRevisingRef = useRef<Set<string>>(new Set());
+  const sideSplitRef = useRef<HTMLDivElement>(null);
+  /** 并排对比：左侧（当前正式版）宽度占比 25–75 */
+  const [sideLeftPct, setSideLeftPct] = useState(() => {
+    try {
+      const raw = localStorage.getItem("heyu.draftCompare.sideLeftPct");
+      const n = raw ? Number(raw) : NaN;
+      if (Number.isFinite(n) && n >= 25 && n <= 75) return n;
+    } catch {
+      /* ignore */
+    }
+    return 50;
+  });
+  const sideDraggingRef = useRef(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "heyu.draftCompare.sideLeftPct",
+        String(Math.round(sideLeftPct)),
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [sideLeftPct]);
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      if (!sideDraggingRef.current) return;
+      const el = sideSplitRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 40) return;
+      const pct = ((e.clientX - rect.left) / rect.width) * 100;
+      setSideLeftPct(Math.max(25, Math.min(75, pct)));
+    };
+    const onUp = () => {
+      if (!sideDraggingRef.current) return;
+      sideDraggingRef.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, []);
+
+  const startSideResize = (e: { preventDefault: () => void }) => {
+    e.preventDefault();
+    sideDraggingRef.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
 
   const loadReview = useCallback(
     async (opts?: { keepSelection?: boolean; silent?: boolean }) => {
@@ -831,8 +888,16 @@ export default function KnowledgeChapterDraftReviewPage() {
                     </p>
                   )
                 ) : mode === "side" ? (
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/70">
+                  <div
+                    ref={sideSplitRef}
+                    className="flex flex-col gap-3 md:flex-row md:items-stretch md:gap-0"
+                    style={
+                      {
+                        ["--side-left-pct"]: `${sideLeftPct}%`,
+                      } as React.CSSProperties
+                    }
+                  >
+                    <div className="min-w-0 w-full rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/70 md:w-[var(--side-left-pct)] md:shrink-0 md:grow-0 md:rounded-r-none">
                       <div className="border-b border-[rgba(78,66,57,0.08)] px-3 py-2 text-[12px] font-semibold text-[#59625F]">
                         当前 {currentVersionLabel}
                       </div>
@@ -851,7 +916,31 @@ export default function KnowledgeChapterDraftReviewPage() {
                         )}
                       </div>
                     </div>
-                    <div className="rounded-xl border border-[rgba(160,99,88,0.18)] bg-white/70">
+                    <div
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label="拖动调整左右栏宽度"
+                      aria-valuemin={25}
+                      aria-valuemax={75}
+                      aria-valuenow={Math.round(sideLeftPct)}
+                      tabIndex={0}
+                      onPointerDown={startSideResize}
+                      onKeyDown={(e) => {
+                        if (e.key === "ArrowLeft") {
+                          e.preventDefault();
+                          setSideLeftPct((p) => Math.max(25, p - 2));
+                        } else if (e.key === "ArrowRight") {
+                          e.preventDefault();
+                          setSideLeftPct((p) => Math.min(75, p + 2));
+                        }
+                      }}
+                      className="group relative hidden w-3 shrink-0 cursor-col-resize touch-none md:block"
+                      title="左右拖动调整宽度"
+                    >
+                      <div className="absolute inset-y-3 left-1/2 w-px -translate-x-1/2 bg-[rgba(78,66,57,0.18)] transition-colors group-hover:bg-[rgba(160,99,88,0.55)] group-focus-visible:bg-[rgba(160,99,88,0.55)]" />
+                      <div className="absolute left-1/2 top-1/2 h-8 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[rgba(78,66,57,0.22)] transition-colors group-hover:bg-[rgba(160,99,88,0.65)] group-focus-visible:bg-[rgba(160,99,88,0.65)]" />
+                    </div>
+                    <div className="min-w-0 flex-1 rounded-xl border border-[rgba(160,99,88,0.18)] bg-white/70 md:rounded-l-none">
                       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[rgba(160,99,88,0.12)] px-3 py-2">
                         <div className="text-[12px] font-semibold text-[#A06358]">
                           待审核草案
