@@ -776,8 +776,13 @@ export default function KnowledgeChapterDraftReviewPage() {
                       <p className="text-[12px] font-semibold text-[#8A6218]">
                         正在按你的意见改写…
                       </p>
-                      <p className="mt-1 text-[12px] leading-relaxed text-[#59625F]">
-                        完成后会在此显示「本次改写说明」。
+                      {selected.error?.trim() ? (
+                        <p className="mt-1.5 whitespace-pre-wrap text-[12.5px] leading-relaxed text-[#59625F]">
+                          指令：{selected.error}
+                        </p>
+                      ) : null}
+                      <p className="mt-1.5 text-[12px] leading-relaxed text-[#969E9A]">
+                        完成后会在此显示「本次改写说明」；刷新页面仍会保留此状态，完成后自动更新。
                       </p>
                     </div>
                   ) : selected?.reviseNote?.trim() ? (
@@ -808,34 +813,23 @@ export default function KnowledgeChapterDraftReviewPage() {
                 ) : selected.kind === "pending" ? (
                   <p className="text-[13px] text-[#969E9A]">本章仍在生成中…</p>
                 ) : selected.kind === "revising" ? (
-                  <div className="space-y-3">
-                    <div className="rounded-xl border border-[rgba(176,125,31,0.28)] bg-[rgba(176,125,31,0.08)] px-4 py-3">
-                      <p className="text-[13px] font-medium text-[#8A6218]">
-                        正在按指令改写草案…
-                      </p>
-                      {selected.error?.trim() ? (
-                        <p className="mt-1.5 whitespace-pre-wrap text-[12.5px] text-[#59625F]">
-                          指令：{selected.error}
-                        </p>
-                      ) : null}
-                      <p className="mt-1.5 text-[12px] text-[#969E9A]">
-                        刷新页面后仍会显示此状态，完成后自动更新。
-                      </p>
-                    </div>
-                    {selected.draftHtml?.trim() ? (
-                      <div className="rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/70 p-3">
-                        <div className="mb-2 text-[12px] font-semibold text-[#59625F]">
-                          改写前草案（只读）
-                        </div>
-                        <div
-                          className={HTML_PANE}
-                          dangerouslySetInnerHTML={{
-                            __html: selected.draftHtml,
-                          }}
-                        />
+                  selected.draftHtml?.trim() ? (
+                    <div className="rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/70 p-3">
+                      <div className="mb-2 text-[12px] font-semibold text-[#59625F]">
+                        改写前草案（只读）
                       </div>
-                    ) : null}
-                  </div>
+                      <div
+                        className={HTML_PANE}
+                        dangerouslySetInnerHTML={{
+                          __html: selected.draftHtml,
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-[13px] text-[#969E9A]">
+                      改写进行中，请稍候…
+                    </p>
+                  )
                 ) : mode === "side" ? (
                   <div className="grid gap-3 md:grid-cols-2">
                     <div className="rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/70">
