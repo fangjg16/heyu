@@ -1,5 +1,10 @@
 import type { AppDatabase } from "./app-database";
 import {
+  bumpChapterVersion,
+  normalizeStoredChapterVersion,
+  type ChapterVersionBump,
+} from "./chapter-version";
+import {
   getProjectKnowledgeChapterHtml,
   listProjectKnowledgeChapterHtml,
   type ProjectKnowledgeChapterHtmlPublic,
@@ -83,7 +88,7 @@ export async function ensureChapterBundle(
   if (existing) {
     return {
       projectId: existing.project_id,
-      version: Number(existing.version) || 1,
+      version: normalizeStoredChapterVersion(existing.version),
       updatedAt: existing.updated_at,
       updatedBy: existing.updated_by,
     };
@@ -93,14 +98,14 @@ export async function ensureChapterBundle(
     .prepare(
       `INSERT INTO project_knowledge_chapter_bundle
          (project_id, version, updated_at, updated_by)
-       VALUES (?, 1, ?, ?)
+       VALUES (?, 0, ?, ?)
        ON DUPLICATE KEY UPDATE project_id = project_id`,
     )
     .bind(projectId, now, userId ?? null)
     .run();
   return {
     projectId,
-    version: 1,
+    version: 0,
     updatedAt: now,
     updatedBy: userId ?? null,
   };
@@ -125,7 +130,7 @@ function rowToDraftRun(r: {
     projectId: r.project_id,
     scope: r.scope,
     status: r.status as DraftRunStatus,
-    baseVersion: Number(r.base_version) || 1,
+    baseVersion: normalizeStoredChapterVersion(r.base_version),
     progressDone: Number(r.progress_done) || 0,
     progressTotal: Number(r.progress_total) || 13,
     failedCount: Number(r.failed_count) || 0,
@@ -410,6 +415,45 @@ export async function upsertDraftItem(
     .run();
 }
 
+export async function deleteDraftItem(
+  db: AppDatabase,
+  runId: string,
+  sectionId: string,
+): Promise<boolean> {
+  const existing = await getDraftItem(db, runId, sectionId);
+  if (!existing) return false;
+
+  await db
+    .prepare(
+      `DELETE FROM project_knowledge_chapter_draft_items
+       WHERE run_id = ? AND section_id = ?`,
+    )
+    .bind(runId, sectionId)
+    .run();
+
+  const items = await listDraftItems(db, runId);
+  const research = items.filter(
+    (i) =>
+      i.sectionId !== "sources" &&
+      i.sectionId !== "glossary" &&
+      i.sectionId !== "project-graph",
+  );
+  const done = research.filter(
+    (i) => i.status === "ok" || i.status === "failed",
+  ).length;
+  const failed = research.filter((i) => i.status === "failed").length;
+  const now = nowIso();
+  await db
+    .prepare(
+      `UPDATE project_knowledge_chapter_draft_runs
+       SET progress_done = ?, progress_total = ?, failed_count = ?, updated_at = ?
+       WHERE id = ?`,
+    )
+    .bind(done, research.length, failed, now, runId)
+    .run();
+  return true;
+}
+
 export async function refreshDraftRunProgress(
   db: AppDatabase,
   runId: string,
@@ -511,6 +555,8 @@ export async function publishDraftRunToLive(
     publishedBy: string;
     /** 仅发布这些章节；省略则发布全部 status=ok 的条目 */
     sectionIds?: string[] | null;
+    /** major=主版本；minor=次版本（默认）；首次发布恒为 1.0 */
+    bump?: ChapterVersionBump;
   },
 ): Promise<{
   newVersion: number;
@@ -522,21 +568,23 @@ export async function publishDraftRunToLive(
     input.run.projectId,
     input.publishedBy,
   );
-  const currentVersion = bundle.version;
-  // 若当前版尚未归档，先归档
-  const archivedCount = await db
-    .prepare(
-      `SELECT COUNT(*) AS cnt FROM project_knowledge_chapter_versions
-       WHERE project_id = ? AND version = ?`,
-    )
-    .bind(input.run.projectId, currentVersion)
-    .first<{ cnt: number | string }>();
-  if (!(Number(archivedCount?.cnt ?? 0) > 0)) {
-    await archiveLiveChaptersAsVersion(db, {
-      projectId: input.run.projectId,
-      version: currentVersion,
-      archivedBy: input.publishedBy,
-    });
+  const currentVersion = normalizeStoredChapterVersion(bundle.version);
+  // 若当前已有正式版且尚未归档，先归档
+  if (currentVersion > 0) {
+    const archivedCount = await db
+      .prepare(
+        `SELECT COUNT(*) AS cnt FROM project_knowledge_chapter_versions
+         WHERE project_id = ? AND version = ?`,
+      )
+      .bind(input.run.projectId, currentVersion)
+      .first<{ cnt: number | string }>();
+    if (!(Number(archivedCount?.cnt ?? 0) > 0)) {
+      await archiveLiveChaptersAsVersion(db, {
+        projectId: input.run.projectId,
+        version: currentVersion,
+        archivedBy: input.publishedBy,
+      });
+    }
   }
 
   const items = await listDraftItems(db, input.run.id);
@@ -578,7 +626,7 @@ export async function publishDraftRunToLive(
     throw new Error("没有可发布的章节");
   }
 
-  const newVersion = currentVersion + 1;
+  const newVersion = bumpChapterVersion(currentVersion, input.bump ?? "minor");
   const now = nowIso();
   await db
     .prepare(
@@ -655,7 +703,7 @@ export async function listChapterVersionMetas(
     }>();
   return (q.results ?? []).map((r) => ({
     projectId: r.project_id,
-    version: Number(r.version),
+    version: normalizeStoredChapterVersion(r.version),
     archivedAt: r.archived_at,
     archivedBy: r.archived_by,
     sectionCount: Number(r.section_count) || 0,

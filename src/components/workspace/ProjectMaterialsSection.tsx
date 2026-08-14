@@ -1812,7 +1812,7 @@ function FilePreviewModal({
       onClick={onClose}
     >
       <div
-        className="flex max-h-[min(92vh,880px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.12)] bg-[hsl(var(--paper))] shadow-2xl"
+        className="flex max-h-[min(92vh,880px)] w-full max-w-[min(96vw,80rem)] flex-col overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.12)] bg-[hsl(var(--paper))] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center gap-3 border-b border-[rgba(78,66,57,0.1)] px-4 py-3">

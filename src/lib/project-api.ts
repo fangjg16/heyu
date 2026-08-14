@@ -1073,6 +1073,21 @@ export async function saveChapterDraftSection(
   return { html: data.html ?? html };
 }
 
+export async function deleteChapterDraftSection(
+  projectId: string,
+  runId: string,
+  sectionId: string,
+  userId: string,
+): Promise<void> {
+  const q = new URLSearchParams({ userId });
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/chapter-draft-runs/${encodeURIComponent(runId)}/sections/${encodeURIComponent(sectionId)}?${q}`,
+    { method: "DELETE" },
+  );
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) throw new Error(data.error || `移除章节失败（${res.status}）`);
+}
+
 export async function reviseChapterDraftSection(
   projectId: string,
   runId: string,
@@ -1112,7 +1127,7 @@ export async function publishChapterDraftRun(
   projectId: string,
   runId: string,
   userId: string,
-  options?: { sectionIds?: string[] },
+  options?: { sectionIds?: string[]; bump?: "major" | "minor" },
 ): Promise<{
   ok: true;
   newVersion: number;
@@ -1128,6 +1143,7 @@ export async function publishChapterDraftRun(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         sectionIds: options?.sectionIds,
+        bump: options?.bump ?? "minor",
       }),
     },
   );

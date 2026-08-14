@@ -20,6 +20,7 @@ import {
   maturityScoreClass,
   maturitySidebarNote,
 } from "@/lib/chapter-maturity";
+import { formatChapterVersionLabel } from "@/lib/chapter-version";
 import {
   parseOpenQuestionsFromHtml,
   pickRelatedOpenQuestions,
@@ -1031,7 +1032,7 @@ export function ProjectKnowledgeNetworkSection({
                 版本浏览（只读）
               </div>
               <div className="mt-1 font-[family-name:var(--font-serif,serif)] text-[22px] font-semibold text-[#1F2423]">
-                v{browsingVersion}
+                {formatChapterVersionLabel(browsingVersion)}
                 {browsingVersion === currentBundleVersion ? (
                   <span className="ml-2 align-middle text-[12px] font-medium text-[#2F6B4F]">
                     当前版本
@@ -1120,7 +1121,7 @@ export function ProjectKnowledgeNetworkSection({
                 {versionMetas.map((v, idx) => {
                   const older = versionMetas[idx + 1];
                   const changeHint = older
-                    ? `相对上一版 v${older.version} · 本版归档 ${v.sectionCount} 章`
+                    ? `相对上一版 ${formatChapterVersionLabel(older.version)} · 本版归档 ${v.sectionCount} 章`
                     : `归档 ${v.sectionCount} 章`;
                   return (
                     <li key={v.version}>
@@ -1132,7 +1133,7 @@ export function ProjectKnowledgeNetworkSection({
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="text-[15px] font-semibold text-[#1F2423]">
-                              v{v.version}
+                              {formatChapterVersionLabel(v.version)}
                             </span>
                             {v.isCurrent ||
                             v.version === currentBundleVersion ? (

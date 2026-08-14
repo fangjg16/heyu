@@ -19,6 +19,7 @@ import {
   publishDraftRunToLive,
   setDraftRunStatus,
   upsertDraftItem,
+  deleteDraftItem,
 } from "./project-knowledge-chapter-revisions-db";
 import { filterProjectsForDirectory } from "./projects-auth";
 import { getProjectById, listProjects } from "./projects-db";
@@ -393,6 +394,51 @@ async function assertDraftRunEditable(
   return { ok: true, run };
 }
 
+/** DELETE .../chapter-draft-runs/:runId/sections/:sectionId — 从本次草案移除章节 */
+export async function handleDeleteChapterDraftSection(
+  env: Env,
+  projectId: string,
+  runId: string,
+  sectionIdRaw: string,
+  userIdRaw: string | null,
+): Promise<Response> {
+  const userId = normalizeUserId(userIdRaw);
+  if (!userId) return json({ error: "缺少 userId" }, 400);
+
+  const sectionId = decodeURIComponent(sectionIdRaw || "").trim();
+  if (!sectionId || META_DRAFT_SECTION_IDS.has(sectionId)) {
+    return json(
+      { error: "仅支持移除研究章节或项目概览", code: "INVALID_SECTION" },
+      400,
+    );
+  }
+  if (!SECTION_DRAFT_SET.has(sectionId)) {
+    return json({ error: "无效的章节 id", code: "INVALID_SECTION" }, 400);
+  }
+
+  const gate = await assertDraftRunEditable(env, projectId, runId, userId);
+  if (!gate.ok) return gate.response;
+
+  const removed = await deleteDraftItem(env.DB, runId, sectionId);
+  if (!removed) {
+    return json({ error: "该章节不在本次草案中", code: "NOT_IN_RUN" }, 404);
+  }
+
+  const run = await getDraftRun(env.DB, runId);
+  const items = await listDraftItems(env.DB, runId);
+  return json({
+    ok: true,
+    runId,
+    sectionId,
+    run,
+    items: items.map((i) => ({
+      sectionId: i.sectionId,
+      status: i.status,
+      updatedAt: i.updatedAt,
+    })),
+  });
+}
+
 /** PUT .../chapter-draft-runs/:runId/sections/:sectionId — 手改保存草案 HTML */
 export async function handlePutChapterDraftSection(
   request: Request,
@@ -634,9 +680,11 @@ export async function handlePublishChapterDraftRun(
   }
 
   let sectionIds: string[] | null = null;
+  let bump: "major" | "minor" = "minor";
   try {
     const body = (await request.json().catch(() => null)) as {
       sectionIds?: unknown;
+      bump?: unknown;
     } | null;
     if (Array.isArray(body?.sectionIds)) {
       sectionIds = body.sectionIds
@@ -644,6 +692,9 @@ export async function handlePublishChapterDraftRun(
         .map((x) => x.trim())
         .filter(Boolean);
       if (sectionIds.length === 0) sectionIds = null;
+    }
+    if (body?.bump === "major" || body?.bump === "minor") {
+      bump = body.bump;
     }
   } catch {
     sectionIds = null;
@@ -698,6 +749,7 @@ export async function handlePublishChapterDraftRun(
       run,
       publishedBy: userId,
       sectionIds,
+      bump,
     });
     const bundle = await ensureChapterBundle(env.DB, projectId, userId);
     return json({
