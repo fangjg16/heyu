@@ -7,6 +7,7 @@ import {
   MessageSquare,
   Settings,
 } from "lucide-react";
+import { UserAvatar } from "@/components/workspace/UserAvatar";
 import { cn } from "@/lib/utils";
 import { logoutRemote } from "@/lib/api-auth";
 import { useMyProjectRoles } from "@/hooks/use-my-project-roles";
@@ -20,23 +21,6 @@ import {
 } from "@/workspace/workspace-users";
 
 const PIN_KEY = "hy-workspace-rail-pinned";
-
-function initialsFromDisplayName(name: string | null | undefined): string {
-  const raw = (name ?? "").trim();
-  if (!raw) return "?";
-  const withSpaces = raw.replace(/([a-z])([A-Z])/g, "$1 $2");
-  const tokens = withSpaces
-    .split(/[\s-]+/)
-    .map((t) => t.trim())
-    .filter(Boolean);
-  if (tokens.length === 0) return "?";
-  if (tokens.length === 1) {
-    const token = tokens[0];
-    const picked = `${token[0] ?? ""}${token[1] ?? ""}`.trim();
-    return picked ? picked.toUpperCase() : "?";
-  }
-  return `${tokens[0][0] ?? ""}${tokens[1][0] ?? ""}`.toUpperCase();
-}
 
 type NavItem = {
   key: string;
@@ -56,7 +40,6 @@ export function WorkspaceLeftRail() {
   const isGuest = isAccountGuestUser(userId);
   const isAdmin = isPlatformAdminUser(userId);
   const issuerOnly = isIssuerOnlyUser(userId);
-  const userInitial = initialsFromDisplayName(user?.displayName);
 
   const [pinned, setPinned] = useState(() => {
     try {
@@ -210,8 +193,12 @@ export function WorkspaceLeftRail() {
 
         <div className="border-t border-[rgba(78,66,57,0.08)] px-[14px] py-2.5">
           <div className="hy-nav-item flex h-[52px] items-center gap-3 px-2">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--wine-deep))] text-[13px] font-bold text-white">
-              {userInitial}
+            <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full">
+              <UserAvatar
+                user={user}
+                className="h-9 w-9 text-[13px] font-bold"
+                fallbackClassName="bg-[hsl(var(--wine-deep))] text-white"
+              />
             </div>
             {pinned ? (
               <div className="min-w-0 flex-1">

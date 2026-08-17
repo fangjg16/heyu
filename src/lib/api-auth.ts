@@ -144,6 +144,7 @@ export async function fetchWorkspaceUsersDirectory(): Promise<WorkspaceUser[]> {
       orgTitle: string;
       avatarChar: string;
       avatarClass: string;
+      avatarUrl?: string;
       isPlatformAdmin?: boolean;
       defaultRole?: string;
     }>;
@@ -154,6 +155,7 @@ export async function fetchWorkspaceUsersDirectory(): Promise<WorkspaceUser[]> {
     orgTitle: u.orgTitle,
     avatarChar: u.avatarChar,
     avatarClass: u.avatarClass,
+    avatarUrl: u.avatarUrl ?? "",
     isPlatformAdmin: Boolean(u.isPlatformAdmin),
     defaultRole: u.defaultRole,
   }));

@@ -14,29 +14,13 @@ import { getMergedProjects } from "@/workspace/project-registry";
 import { clearSession, loadSessionUserId } from "@/workspace/session";
 import { getUserById } from "@/workspace/workspace-users";
 import { useJoinReviews } from "@/hooks/use-join-reviews";
+import { UserAvatar } from "@/components/workspace/UserAvatar";
 
 export type BreadcrumbItem = {
   label: string;
   to?: string;
   current?: boolean;
 };
-
-function initialsFromDisplayName(name: string | null | undefined): string {
-  const raw = (name ?? "").trim();
-  if (!raw) return "?";
-  const withSpaces = raw.replace(/([a-z])([A-Z])/g, "$1 $2");
-  const tokens = withSpaces
-    .split(/[\s-]+/)
-    .map((t) => t.trim())
-    .filter(Boolean);
-  if (tokens.length === 0) return "?";
-  if (tokens.length === 1) {
-    const token = tokens[0];
-    const picked = `${token[0] ?? ""}${token[1] ?? ""}`.trim();
-    return picked ? picked.toUpperCase() : "?";
-  }
-  return `${tokens[0][0] ?? ""}${tokens[1][0] ?? ""}`.toUpperCase();
-}
 
 function useBreadcrumbs(): BreadcrumbItem[] {
   const { pathname } = useLocation();
@@ -97,7 +81,6 @@ export function WorkspaceTopBar({
   const [searchParams, setSearchParams] = useSearchParams();
   const userId = loadSessionUserId();
   const user = getUserById(userId);
-  const userInitial = initialsFromDisplayName(user?.displayName);
   const notifActive = pathname.startsWith("/app/notifications");
   const onLibrary = isProjectLibraryPath(pathname);
   const { pendingCount } = useJoinReviews();
@@ -258,9 +241,13 @@ export function WorkspaceTopBar({
           aria-expanded={menuOpen}
           aria-label="用户菜单"
           title={user?.displayName ?? "用户"}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-[hsl(var(--wine-deep))] text-[13px] font-bold text-white transition-opacity hover:opacity-90"
+          className="h-10 w-10 overflow-hidden rounded-full p-0 transition-opacity hover:opacity-90"
         >
-          {userInitial}
+          <UserAvatar
+            user={user}
+            className="h-10 w-10 text-[13px] font-bold"
+            fallbackClassName="bg-[hsl(var(--wine-deep))] text-white"
+          />
         </button>
       </div>
 

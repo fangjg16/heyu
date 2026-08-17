@@ -73,6 +73,7 @@ export async function handleAdminCreateWorkspaceUser(
     orgTitle?: string;
     avatarChar?: string;
     avatarClass?: string;
+    avatarUrl?: string;
     defaultRole?: string;
     isPlatformAdmin?: boolean;
   };
@@ -101,6 +102,7 @@ export async function handleAdminCreateWorkspaceUser(
       orgTitle: body.orgTitle,
       avatarChar: body.avatarChar,
       avatarClass: body.avatarClass,
+      avatarUrl: body.avatarUrl,
       defaultRole: parseWorkspaceRole(body.defaultRole),
       isPlatformAdmin: Boolean(body.isPlatformAdmin),
     });
@@ -130,6 +132,7 @@ export async function handleAdminPatchWorkspaceUser(
     orgTitle?: string;
     avatarChar?: string;
     avatarClass?: string;
+    avatarUrl?: string;
     defaultRole?: string;
     isPlatformAdmin?: boolean;
     status?: string;
@@ -164,6 +167,7 @@ export async function handleAdminPatchWorkspaceUser(
       orgTitle: body.orgTitle,
       avatarChar: body.avatarChar,
       avatarClass: body.avatarClass,
+      avatarUrl: body.avatarUrl,
       defaultRole:
         body.defaultRole !== undefined
           ? parseWorkspaceRole(body.defaultRole)

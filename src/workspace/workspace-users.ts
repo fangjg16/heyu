@@ -27,6 +27,7 @@ export function getUserById(id: string | null): WorkspaceUser | undefined {
       orgTitle: session.orgTitle ?? "",
       avatarChar: session.avatarChar ?? "?",
       avatarClass: session.avatarClass ?? "bg-slate-300 text-slate-800 shadow-sm",
+      avatarUrl: session.avatarUrl ?? "",
       isPlatformAdmin: session.isPlatformAdmin,
       defaultRole: session.defaultRole,
     };

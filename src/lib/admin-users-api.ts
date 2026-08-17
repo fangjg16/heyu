@@ -8,6 +8,7 @@ export type AdminWorkspaceUser = {
   orgTitle: string;
   avatarChar: string;
   avatarClass: string;
+  avatarUrl?: string;
   defaultRole: WorkspaceRole;
   isPlatformAdmin: boolean;
   status: string;
@@ -34,6 +35,7 @@ export async function createAdminWorkspaceUser(input: {
   displayName: string;
   orgTitle?: string;
   avatarChar?: string;
+  avatarUrl?: string;
   defaultRole?: WorkspaceRole;
   isPlatformAdmin?: boolean;
 }): Promise<AdminWorkspaceUser> {
@@ -54,6 +56,7 @@ export async function patchAdminWorkspaceUser(
     displayName?: string;
     orgTitle?: string;
     avatarChar?: string;
+    avatarUrl?: string;
     defaultRole?: WorkspaceRole;
     isPlatformAdmin?: boolean;
     status?: "active" | "disabled";

@@ -8,6 +8,7 @@ export type WorkspaceUserRow = {
   org_title: string;
   avatar_char: string;
   avatar_class: string;
+  avatar_url: string | null;
   default_role: string;
   is_platform_admin: number;
   status: string;
@@ -24,10 +25,31 @@ export type WorkspaceUserPublic = {
   orgTitle: string;
   avatarChar: string;
   avatarClass: string;
+  avatarUrl: string;
   defaultRole: WorkspaceRole;
   isPlatformAdmin: boolean;
   status: string;
 };
+
+const AVATAR_URL_MAX = 180_000;
+const AVATAR_DATA_RE =
+  /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=\s]+$/i;
+
+export function normalizeAvatarUrl(
+  raw: string | undefined | null,
+  existing = "",
+): string {
+  if (raw === undefined) return existing;
+  const value = (raw ?? "").trim();
+  if (!value) return "";
+  if (value.length > AVATAR_URL_MAX) {
+    throw new Error("头像过大，请换一张较小的图片");
+  }
+  if (!AVATAR_DATA_RE.test(value)) {
+    throw new Error("头像须为 JPEG / PNG / WebP 图片");
+  }
+  return value.replace(/\s+/gu, "");
+}
 
 /** 管理端列表（含 username） */
 export type WorkspaceUserAdminPublic = WorkspaceUserPublic & {
@@ -70,6 +92,7 @@ export function rowToPublic(row: WorkspaceUserRow): WorkspaceUserPublic {
     orgTitle: row.org_title,
     avatarChar: row.avatar_char,
     avatarClass: row.avatar_class,
+    avatarUrl: (row.avatar_url ?? "").trim(),
     defaultRole: parseWorkspaceRole(row.default_role),
     isPlatformAdmin: Number(row.is_platform_admin) === 1,
     status: row.status,
@@ -77,7 +100,7 @@ export function rowToPublic(row: WorkspaceUserRow): WorkspaceUserPublic {
 }
 
 const USER_SELECT = `SELECT id, username, display_name, org_title, avatar_char, avatar_class,
-              default_role, is_platform_admin, status,
+              avatar_url, default_role, is_platform_admin, status,
               password_hash, password_salt, password_iters,
               created_at, updated_at
        FROM workspace_users`;
@@ -236,6 +259,7 @@ export type CreateWorkspaceUserInput = {
   orgTitle?: string;
   avatarChar?: string;
   avatarClass?: string;
+  avatarUrl?: string;
   defaultRole?: WorkspaceRole;
   isPlatformAdmin?: boolean;
 };
@@ -255,14 +279,15 @@ export async function createWorkspaceUser(
     (input.avatarChar ?? "").trim().slice(0, 1) ||
     displayName.slice(0, 1).toUpperCase() ||
     "?";
+  const avatarUrl = normalizeAvatarUrl(input.avatarUrl, "");
   const t = nowIso();
   await env.DB.prepare(
     `INSERT INTO workspace_users (
       id, username, display_name, org_title, avatar_char, avatar_class,
-      default_role, is_platform_admin, status,
+      avatar_url, default_role, is_platform_admin, status,
       password_hash, password_salt, password_iters,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
   )
     .bind(
       id,
@@ -271,6 +296,7 @@ export async function createWorkspaceUser(
       (input.orgTitle ?? "").trim(),
       avatarChar,
       (input.avatarClass ?? "").trim() || DEFAULT_AVATAR_CLASS,
+      avatarUrl,
       parseWorkspaceRole("guest"),
       input.isPlatformAdmin ? 1 : 0,
       input.passwordHash,
@@ -292,6 +318,7 @@ export type UpdateWorkspaceUserInput = {
   orgTitle?: string;
   avatarChar?: string;
   avatarClass?: string;
+  avatarUrl?: string;
   defaultRole?: WorkspaceRole;
   isPlatformAdmin?: boolean;
   status?: "active" | "disabled";
@@ -329,6 +356,10 @@ export async function updateWorkspaceUser(
     input.avatarClass !== undefined
       ? input.avatarClass.trim() || existing.avatar_class
       : existing.avatar_class;
+  const avatarUrl = normalizeAvatarUrl(
+    input.avatarUrl,
+    (existing.avatar_url ?? "").trim(),
+  );
   const defaultRole = "guest" as WorkspaceRole;
   const isAdmin =
     input.isPlatformAdmin !== undefined
@@ -343,7 +374,7 @@ export async function updateWorkspaceUser(
   await env.DB.prepare(
     `UPDATE workspace_users SET
       username = ?, display_name = ?, org_title = ?,
-      avatar_char = ?, avatar_class = ?,
+      avatar_char = ?, avatar_class = ?, avatar_url = ?,
       default_role = ?, is_platform_admin = ?, status = ?,
       updated_at = ?
      WHERE id = ?`,
@@ -354,6 +385,7 @@ export async function updateWorkspaceUser(
       orgTitle,
       avatarChar,
       avatarClass,
+      avatarUrl,
       defaultRole,
       isAdmin,
       status,

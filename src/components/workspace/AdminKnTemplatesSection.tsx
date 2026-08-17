@@ -357,14 +357,14 @@ export function AdminKnTemplatesSection() {
         </div>
       ) : (
         <div className="grid gap-0 lg:grid-cols-[220px_minmax(0,1fr)]">
-          <aside className="border-b border-[rgba(78,66,57,0.1)] lg:border-b-0 lg:border-r">
+          <aside className="border-b border-[rgba(78,66,57,0.1)] text-left lg:border-b-0 lg:border-r">
             <div className="max-h-[min(70vh,760px)] overflow-auto p-2">
               {groups.map((g) => (
                 <div key={g.groupId || g.groupLabel} className="mb-2">
-                  <div className="px-2.5 py-1.5 text-[11px] font-semibold tracking-wide text-[#969E9A]">
+                  <div className="px-2.5 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[0.16em] text-[#969E9A]">
                     {g.groupLabel}
                   </div>
-                  <ul className="space-y-0.5">
+                  <ul className="space-y-0.5 pl-1">
                     {g.items.map((t) => (
                       <li key={t.id}>
                         <button
@@ -372,16 +372,16 @@ export function AdminKnTemplatesSection() {
                           onClick={() => selectTemplate(t.id)}
                           disabled={busy}
                           className={cn(
-                            "flex w-full flex-col rounded-lg px-2.5 py-2 text-left transition-colors disabled:opacity-60",
+                            "flex w-full flex-col items-start rounded-lg px-2.5 py-2 text-left transition-colors disabled:opacity-60",
                             selectedId === t.id
                               ? "bg-[#EFE7E6] font-semibold text-[#A06358]"
                               : "text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]",
                           )}
                         >
-                          <span className="truncate text-[12.5px]">
+                          <span className="w-full truncate text-[12.5px]">
                             {t.title}
                           </span>
-                          <span className="truncate text-[11px] font-normal text-[#969E9A]">
+                          <span className="w-full truncate text-[11px] font-normal text-[#969E9A]">
                             {t.id}
                           </span>
                         </button>

@@ -10,6 +10,7 @@ export type SessionUserProfile = {
   orgTitle?: string;
   avatarChar?: string;
   avatarClass?: string;
+  avatarUrl?: string;
   isPlatformAdmin?: boolean;
   defaultRole?: string;
 };

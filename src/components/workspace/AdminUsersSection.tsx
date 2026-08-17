@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { KeyRound, Loader2, Pencil, Plus, RotateCcw, Trash2, Users } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ImagePlus, KeyRound, Loader2, Pencil, Plus, RotateCcw, Trash2, Users } from "lucide-react";
 import {
   createAdminWorkspaceUser,
   deleteAdminUserProjectMembership,
@@ -13,16 +12,18 @@ import {
   type AdminUserProjectMembership,
   type AdminWorkspaceUser,
 } from "@/lib/admin-users-api";
-import { fetchWorkspaceUsersDirectory } from "@/lib/api-auth";
+import { fetchWorkspaceUsersDirectory, fetchAuthMe } from "@/lib/api-auth";
+import { resizeImageToJpegDataUrl } from "@/lib/resize-avatar";
 import {
   fetchProjectsFromApi,
   updateProjectPermissions,
 } from "@/lib/project-api";
 import type { WorkspaceProject } from "@/workspace/projects";
-import { roleLabelForProject, projectRoleSelectOptions } from "@/workspace/workspace-users";
 import type { WorkspaceRole } from "@/workspace/types";
 import { PROJECT_ASSIGNABLE_ROLES } from "@/workspace/types";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
+import { ProjectRoleSelects } from "@/components/workspace/MemberRoleFields";
+import { UserAvatar } from "@/components/workspace/UserAvatar";
 
 const ASSIGNABLE: WorkspaceRole[] = [...PROJECT_ASSIGNABLE_ROLES];
 
@@ -38,7 +39,7 @@ type FormState = {
   username: string;
   displayName: string;
   orgTitle: string;
-  avatarChar: string;
+  avatarUrl: string;
   isPlatformAdmin: boolean;
   status: "active" | "disabled";
   password: string;
@@ -53,11 +54,13 @@ type ProjectDraft = {
   isCreator: boolean;
 };
 
+const PRESET_ORGS = ["合域"];
+
 const emptyForm = (): FormState => ({
   username: "",
   displayName: "",
   orgTitle: "",
-  avatarChar: "",
+  avatarUrl: "",
   isPlatformAdmin: false,
   status: "active",
   password: "",
@@ -88,6 +91,15 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
     AdminUserProjectMembership[]
   >([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+
+  const orgSuggestions = useMemo(() => {
+    const fromUsers = users.map((u) => u.orgTitle.trim()).filter(Boolean);
+    return Array.from(new Set([...PRESET_ORGS, ...fromUsers])).sort((a, b) =>
+      a.localeCompare(b, "zh"),
+    );
+  }, [users]);
 
   useBodyScrollLock(editorOpen || Boolean(pwdUser));
 
@@ -160,7 +172,7 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
       username: u.username,
       displayName: u.displayName,
       orgTitle: u.orgTitle,
-      avatarChar: u.avatarChar,
+      avatarUrl: u.avatarUrl ?? "",
       isPlatformAdmin: u.isPlatformAdmin,
       status: u.status === "disabled" ? "disabled" : "active",
       password: "",
@@ -237,7 +249,7 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
           username: form.username,
           displayName: form.displayName,
           orgTitle: form.orgTitle,
-          avatarChar: form.avatarChar || undefined,
+          avatarUrl: form.avatarUrl,
           isPlatformAdmin: form.isPlatformAdmin,
           status: form.status,
         });
@@ -253,7 +265,7 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
           password: form.password,
           displayName: form.displayName,
           orgTitle: form.orgTitle,
-          avatarChar: form.avatarChar || undefined,
+          avatarUrl: form.avatarUrl,
           isPlatformAdmin: form.isPlatformAdmin,
         });
         setHint("用户已创建");
@@ -261,6 +273,9 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
       setEditorOpen(false);
       await load();
       await refreshDirectory();
+      if (editing && editing.id === selfUserId) {
+        await fetchAuthMe().catch(() => null);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -342,6 +357,21 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
     );
   };
 
+  const onPickAvatar = async (file: File | undefined) => {
+    if (!file) return;
+    setAvatarBusy(true);
+    setError(null);
+    try {
+      const avatarUrl = await resizeImageToJpegDataUrl(file);
+      setForm((f) => ({ ...f, avatarUrl }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAvatarBusy(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
+
   return (
     <section
       className="mt-6 rounded-2xl border border-[hsl(var(--wine-deep)/0.18)] bg-white p-4 shadow-[0_1px_0_rgba(15,23,42,0.04)] md:p-5"
@@ -396,14 +426,13 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
                 className="flex flex-col gap-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0 flex items-center gap-2.5">
-                  <div
-                    className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-                      u.avatarClass || "bg-slate-300 text-slate-800",
-                    )}
-                  >
-                    {u.avatarChar || "?"}
-                  </div>
+                  <UserAvatar
+                    user={u}
+                    className="h-8 w-8 shrink-0 text-[11px]"
+                    fallbackClassName={
+                      u.avatarClass || "bg-slate-300 text-slate-800"
+                    }
+                  />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-foreground">
                       {u.displayName}
@@ -501,7 +530,7 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
                 if (e.target === e.currentTarget && !saving) setEditorOpen(false);
               }}
             >
-              <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border/80 bg-white p-5 shadow-2xl">
+              <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-xl border border-border/80 bg-white p-5 shadow-2xl">
                 <h3
                   id="admin-user-editor-title"
                   className="font-display text-lg font-semibold text-foreground"
@@ -531,26 +560,74 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
                     />
                   </label>
                   <label className="block text-[11px] font-medium text-muted-foreground">
-                    组织头衔
+                    隶属组织
                     <input
                       className={inputClass}
+                      list="admin-org-suggestions"
+                      placeholder="如：合域"
                       value={form.orgTitle}
                       onChange={(e) =>
                         setForm((f) => ({ ...f, orgTitle: e.target.value }))
                       }
                     />
+                    <datalist id="admin-org-suggestions">
+                      {orgSuggestions.map((org) => (
+                        <option key={org} value={org} />
+                      ))}
+                    </datalist>
                   </label>
-                  <label className="block text-[11px] font-medium text-muted-foreground">
-                    头像字母
-                    <input
-                      className={inputClass}
-                      maxLength={1}
-                      value={form.avatarChar}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, avatarChar: e.target.value }))
-                      }
-                    />
-                  </label>
+                  <div className="block text-[11px] font-medium text-muted-foreground">
+                    头像
+                    <div className="mt-1 flex items-center gap-3">
+                      <UserAvatar
+                        user={{
+                          displayName: form.displayName || form.username,
+                          avatarUrl: form.avatarUrl,
+                        }}
+                        className="h-12 w-12 text-sm"
+                        fallbackClassName="bg-[hsl(var(--wine-deep))] text-white"
+                      />
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <input
+                          ref={avatarInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) =>
+                            void onPickAvatar(e.target.files?.[0])
+                          }
+                        />
+                        <button
+                          type="button"
+                          disabled={saving || avatarBusy}
+                          onClick={() => avatarInputRef.current?.click()}
+                          className="inline-flex items-center gap-1 rounded-full border border-border/80 bg-white px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-muted/40 disabled:opacity-50"
+                        >
+                          {avatarBusy ? (
+                            <Loader2
+                              className="h-3 w-3 animate-spin"
+                              aria-hidden
+                            />
+                          ) : (
+                            <ImagePlus className="h-3 w-3" aria-hidden />
+                          )}
+                          上传头像
+                        </button>
+                        {form.avatarUrl ? (
+                          <button
+                            type="button"
+                            disabled={saving || avatarBusy}
+                            onClick={() =>
+                              setForm((f) => ({ ...f, avatarUrl: "" }))
+                            }
+                            className="inline-flex items-center gap-1 rounded-full border border-border/80 bg-white px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted/40 disabled:opacity-50"
+                          >
+                            移除
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
                   {!editing ? (
                     <label className="block text-[11px] font-medium text-muted-foreground">
                       初始密码（至少 8 位）
@@ -603,9 +680,6 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
                       <p className="text-[11px] font-medium text-muted-foreground">
                         项目权限
                       </p>
-                      <p className="mt-0.5 text-[10px] text-muted-foreground">
-                        勾选=加入成员并可改角色；取消勾选=移出成员。创建人不可取消。移出后总览不再显示该项目。
-                      </p>
                       {projectsLoading ? (
                         <p className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
                           <Loader2
@@ -623,7 +697,7 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
                         ) : (
                           projectDrafts.map((p) => (
                             <li key={p.projectId}>
-                              <div className="flex items-center gap-2 rounded-md px-1.5 py-1 hover:bg-white/80">
+                              <div className="flex flex-wrap items-center gap-2 rounded-md px-1.5 py-1 hover:bg-white/80">
                                 <input
                                   type="checkbox"
                                   className="mt-0.5"
@@ -640,25 +714,13 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
                                   ) : null}
                                 </span>
                                 {p.selected ? (
-                                  <select
-                                    value={p.role}
+                                  <ProjectRoleSelects
+                                    role={p.role}
                                     disabled={p.isCreator}
-                                    onChange={(e) =>
-                                      setProjectRole(
-                                        p.projectId,
-                                        e.target.value as WorkspaceRole,
-                                      )
+                                    onChange={(role) =>
+                                      setProjectRole(p.projectId, role)
                                     }
-                                    className="w-24 shrink-0 rounded border border-border/70 bg-white px-1.5 py-1 text-[10px]"
-                                  >
-                                    {projectRoleSelectOptions(p.role).map((r) => (
-                                      <option key={r} value={r}>
-                                        {r === "mid"
-                                          ? `${roleLabelForProject(r)}（请改档）`
-                                          : roleLabelForProject(r)}
-                                      </option>
-                                    ))}
-                                  </select>
+                                  />
                                 ) : null}
                               </div>
                             </li>

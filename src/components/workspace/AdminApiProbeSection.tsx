@@ -216,13 +216,13 @@ export function AdminApiProbeSection() {
       ) : null}
 
       <div className="grid gap-0 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="max-h-[min(72vh,820px)] overflow-auto border-b border-[rgba(78,66,57,0.1)] p-2 lg:border-b-0 lg:border-r">
+        <aside className="max-h-[min(72vh,820px)] overflow-auto border-b border-[rgba(78,66,57,0.1)] p-2 text-left lg:border-b-0 lg:border-r">
           {groups.map(([group, items]) => (
             <div key={group} className="mb-2">
-              <div className="px-2.5 py-1.5 text-[11px] font-semibold tracking-wide text-[#969E9A]">
+              <div className="px-2.5 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[0.16em] text-[#969E9A]">
                 {group}
               </div>
-              <ul className="space-y-0.5">
+              <ul className="space-y-0.5 pl-1">
                 {items.map((e) => {
                   const r = resultById.get(e.id);
                   return (
@@ -241,19 +241,19 @@ export function AdminApiProbeSection() {
                           setManualBody(e.sampleBody ?? "");
                         }}
                         className={cn(
-                          "flex w-full flex-col rounded-lg px-2.5 py-2 text-left transition-colors",
+                          "flex w-full flex-col items-start rounded-lg px-2.5 py-2 text-left transition-colors",
                           selectedId === e.id
                             ? "bg-[#EFE7E6] text-[#A06358]"
                             : "text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]",
                         )}
                       >
-                        <span className="flex items-center gap-1.5 text-[12px] font-medium">
+                        <span className="flex w-full items-center justify-start gap-1.5 text-[12px] font-medium">
                           <span className="font-mono text-[10.5px] text-[#969E9A]">
                             {e.method}
                           </span>
                           <span className="truncate">{e.summary}</span>
                         </span>
-                        <span className="mt-1 flex flex-wrap items-center gap-1">
+                        <span className="mt-1 flex w-full flex-wrap items-center justify-start gap-1">
                           <span
                             className={cn(
                               "rounded px-1.5 py-0.5 text-[10px] font-medium",

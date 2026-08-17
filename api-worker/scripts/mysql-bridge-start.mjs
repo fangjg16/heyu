@@ -19,6 +19,13 @@ function run(script, args = []) {
   });
 }
 
+const migrate = await run("run-mysql-migrations.mjs");
+if (migrate.code !== 0) {
+  console.warn(
+    `[mysql-bridge] mysql:migrate 未成功（code=${migrate.code}），继续启动 bridge`,
+  );
+}
+
 const seed = await run("seed-hermes-skills-from-fs.mjs", ["--if-empty"]);
 if (seed.code !== 0) {
   console.warn(
