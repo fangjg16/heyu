@@ -28,9 +28,6 @@ type ProjectGroup = {
   projectId: string;
   projectName: string;
   items: ChapterReviseLogItem[];
-  latestAt: string;
-  failed: number;
-  pending: number;
 };
 
 function statusLabel(status: string): { text: string; className: string } {
@@ -90,23 +87,19 @@ function groupByProject(items: ChapterReviseLogItem[]): ProjectGroup[] {
         projectId: item.projectId,
         projectName: item.projectName?.trim() || item.projectId,
         items: [],
-        latestAt: item.createdAt,
-        failed: 0,
-        pending: 0,
       };
       map.set(key, group);
     }
     group.items.push(item);
-    if (item.createdAt > group.latestAt) group.latestAt = item.createdAt;
-    if (item.status === "failed") group.failed += 1;
-    if (item.status === "pending") group.pending += 1;
   }
   for (const group of map.values()) {
     group.items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   }
-  return Array.from(map.values()).sort((a, b) =>
-    a.latestAt < b.latestAt ? 1 : -1,
-  );
+  return Array.from(map.values()).sort((a, b) => {
+    const aLatest = a.items[0]?.createdAt ?? "";
+    const bLatest = b.items[0]?.createdAt ?? "";
+    return aLatest < bLatest ? 1 : -1;
+  });
 }
 
 function LogCard({ item }: { item: ChapterReviseLogItem }) {
@@ -231,14 +224,9 @@ export function AdminReviseLogsSection({ userId }: AdminReviseLogsSectionProps) 
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(78,66,57,0.1)] px-5 py-4">
         <div className="flex items-center gap-2">
           <History className="h-4 w-4 text-[#A06358]" strokeWidth={2} />
-          <div>
-            <h2 className="text-[15px] font-semibold text-[#1F2423]">
-              改写指令日志
-            </h2>
-            <p className="mt-0.5 text-[12.5px] text-[#59625F]">
-              按项目归类。点左侧项目查看该项目的改写意见与 AI 说明（只读）
-            </p>
-          </div>
+          <h2 className="text-[15px] font-semibold text-[#1F2423]">
+            改写指令日志
+          </h2>
         </div>
         <button
           type="button"
@@ -285,27 +273,13 @@ export function AdminReviseLogsSection({ userId }: AdminReviseLogsSectionProps) 
                       type="button"
                       onClick={() => setSelectedId(g.projectId)}
                       className={cn(
-                        "flex w-full flex-col items-start rounded-lg px-2.5 py-2 text-left transition-colors",
+                        "flex w-full items-start rounded-lg px-2.5 py-2 text-left text-[12.5px] font-medium transition-colors",
                         active
                           ? "bg-[#EFE7E6] text-[#A06358]"
                           : "text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]",
                       )}
                     >
-                      <span className="w-full truncate text-[12.5px] font-medium">
-                        {g.projectName}
-                      </span>
-                      <span
-                        className={cn(
-                          "mt-1 flex w-full flex-wrap items-center gap-1.5 text-[11px]",
-                          active ? "text-[#A06358]/80" : "text-[#969E9A]",
-                        )}
-                      >
-                        <span>{g.items.length} 条</span>
-                        {g.pending > 0 ? <span>进行中 {g.pending}</span> : null}
-                        {g.failed > 0 ? (
-                          <span className="text-[#A06358]">失败 {g.failed}</span>
-                        ) : null}
-                      </span>
+                      <span className="w-full truncate">{g.projectName}</span>
                     </button>
                   </li>
                 );
@@ -315,25 +289,11 @@ export function AdminReviseLogsSection({ userId }: AdminReviseLogsSectionProps) 
 
           <div className="min-w-0 px-5 py-4">
             {selected ? (
-              <>
-                <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-                  <Link
-                    to={`/app/projects/${selected.projectId}/knowledge`}
-                    className="text-[14px] font-semibold text-[#A06358] hover:underline"
-                  >
-                    {selected.projectName}
-                  </Link>
-                  <p className="text-[11.5px] text-[#969E9A]">
-                    {selected.items.length} 条 · 最近{" "}
-                    {formatTime(selected.latestAt)}
-                  </p>
-                </div>
-                <ul className="space-y-2">
-                  {selected.items.map((item) => (
-                    <LogCard key={item.id} item={item} />
-                  ))}
-                </ul>
-              </>
+              <ul className="space-y-2">
+                {selected.items.map((item) => (
+                  <LogCard key={item.id} item={item} />
+                ))}
+              </ul>
             ) : null}
           </div>
         </div>
