@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Link,
   Navigate,
@@ -7,6 +7,7 @@ import {
   useNavigate,
   useParams,
 } from "react-router-dom";
+import { Upload } from "lucide-react";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import {
   collabStatusLabel,
@@ -64,6 +65,60 @@ function sourceKindLabel(kind: string | null): string {
   if (kind === "investor_share") return "投资方共享";
   if (kind === "public_source") return "公开资料";
   return "—";
+}
+
+function CollabFinalVersionToggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <label className="flex h-9 items-center gap-2 text-[12.5px] text-[#1F2423]">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4 shrink-0 rounded border-[rgba(78,66,57,0.28)] bg-white accent-[#A06358]"
+      />
+      最终版本
+    </label>
+  );
+}
+
+function CollabFilePicker({
+  disabled,
+  onPick,
+}: {
+  disabled?: boolean;
+  onPick: (file: File) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  return (
+    <div className="sm:col-span-2">
+      <input
+        ref={inputRef}
+        type="file"
+        className="hidden"
+        disabled={disabled}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.currentTarget.value = "";
+          if (f) onPick(f);
+        }}
+      />
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => inputRef.current?.click()}
+        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgba(160,99,88,0.28)] bg-white px-3 text-[12.5px] font-medium text-[#A06358] transition-colors hover:bg-[rgba(160,99,88,0.06)] disabled:cursor-not-allowed disabled:opacity-45"
+      >
+        <Upload className="h-3.5 w-3.5" strokeWidth={1.8} />
+        选择文件
+      </button>
+    </div>
+  );
 }
 
 function CollabHeader({
@@ -387,6 +442,7 @@ export function CollabItemDetailPage() {
         versionGroup: replacesId || undefined,
       });
       await load();
+      setIsFinal(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "上传失败");
     } finally {
@@ -517,14 +573,10 @@ export function CollabItemDetailPage() {
                       onChange={(e) => setPeriod(e.target.value)}
                       className="h-9 rounded-lg border border-[rgba(78,66,57,0.12)] px-2 text-[12.5px]"
                     />
-                    <label className="flex items-center gap-2 text-[12.5px]">
-                      <input
-                        type="checkbox"
-                        checked={isFinal}
-                        onChange={(e) => setIsFinal(e.target.checked)}
-                      />
-                      最终版本
-                    </label>
+                    <CollabFinalVersionToggle
+                      checked={isFinal}
+                      onChange={setIsFinal}
+                    />
                     <select
                       value={replacesId}
                       onChange={(e) => setReplacesId(e.target.value)}
@@ -543,15 +595,9 @@ export function CollabItemDetailPage() {
                       onChange={(e) => setNote(e.target.value)}
                       className="h-9 rounded-lg border border-[rgba(78,66,57,0.12)] px-2 text-[12.5px] sm:col-span-2"
                     />
-                    <input
-                      type="file"
+                    <CollabFilePicker
                       disabled={Boolean(busy)}
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        e.currentTarget.value = "";
-                        if (f) void onUpload(f);
-                      }}
-                      className="text-[12.5px] sm:col-span-2"
+                      onPick={(f) => void onUpload(f)}
                     />
                   </div>
                 ) : null}
@@ -618,6 +664,7 @@ export function CollabFilesPage() {
         versionGroup: replacesId || undefined,
       });
       await load();
+      setIsFinal(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "上传失败");
     } finally {
@@ -703,14 +750,10 @@ export function CollabFilesPage() {
               onChange={(e) => setPeriod(e.target.value)}
               className="h-9 rounded-lg border border-[rgba(78,66,57,0.12)] px-2 text-[12.5px]"
             />
-            <label className="flex items-center gap-2 text-[12.5px]">
-              <input
-                type="checkbox"
-                checked={isFinal}
-                onChange={(e) => setIsFinal(e.target.checked)}
-              />
-              最终版本
-            </label>
+            <CollabFinalVersionToggle
+              checked={isFinal}
+              onChange={setIsFinal}
+            />
             <select
               value={replacesId}
               onChange={(e) => setReplacesId(e.target.value)}
@@ -729,15 +772,9 @@ export function CollabFilesPage() {
               onChange={(e) => setNote(e.target.value)}
               className="h-9 rounded-lg border border-[rgba(78,66,57,0.12)] px-2 text-[12.5px] sm:col-span-2"
             />
-            <input
-              type="file"
+            <CollabFilePicker
               disabled={busy}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                e.currentTarget.value = "";
-                if (f) void onUpload(f);
-              }}
-              className="text-[12.5px] sm:col-span-2"
+              onPick={(f) => void onUpload(f)}
             />
           </div>
         </section>
