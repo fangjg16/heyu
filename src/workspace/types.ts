@@ -1,5 +1,5 @@
 /** 项目成员身份（同一人可在不同项目不同级别）
- * 项目内权限仅 admin / core / low 三档；issuer 是项目方身份。
+ * 项目内权限仅 admin / core / low 三档；issuer 是项目协作方身份。
  * guest 表示未加入该项目，不是第四档权限。
  * mid=Advanced 进阶级：枚举预留，本阶段不在 UI 展示/不可新分配。
  */

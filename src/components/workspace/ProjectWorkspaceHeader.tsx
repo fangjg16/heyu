@@ -183,7 +183,7 @@ export function ProjectWorkspaceHeader({
     },
     {
       id: "collab",
-      label: "项目方协作",
+      label: "项目协作方协作",
       to: `/app/projects/${project.id}/collab`,
     },
   ];

@@ -235,7 +235,7 @@ export function detectSuspiciousIndustryTimeline(uncommented: string): string | 
   const section = sectionMatch[0];
 
   const isStub =
-    /暂无.{0,16}项目级|暂无已核实|待项目方|待项目资料|无项目级时间轴/i.test(section) &&
+    /暂无.{0,16}项目级|暂无已核实|待项目方|待项目协作方|待项目资料|无项目级时间轴/i.test(section) &&
     !/<div class="tl-item"/i.test(section);
   if (isStub) return undefined;
 

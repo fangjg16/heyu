@@ -644,7 +644,7 @@ export function renderSlotPayloadByCanonicalSlot(
         revenuePrimary ||
         flywheel ||
         ecosystem ||
-        renderGapLabel("该板块暂无足够可核实资料。请补充项目方文件、交易资料或独立来源。");
+        renderGapLabel("该板块暂无足够可核实资料。请补充项目协作方文件、交易资料或独立来源。");
       return (
         primary +
         renderTableOrGap(

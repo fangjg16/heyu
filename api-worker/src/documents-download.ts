@@ -96,7 +96,7 @@ export async function handleDownloadProjectFile(
         sourceKind === "issuer_upload" ||
         sourceKind === "public_source";
       if (!allowed) {
-        return json({ error: "该文件未授权给项目方" }, 403);
+        return json({ error: "该文件未授权给项目协作方" }, 403);
       }
     } else {
       const allowed = await canDownloadProjectFile(

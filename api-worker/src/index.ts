@@ -470,7 +470,7 @@ async function handleUpload(
     return json({ error: "当前权限无法上传资料" }, 403);
   }
   if (isIssuerRole(role) && String(form.get("scope") || "package") === "session") {
-    return json({ error: "项目方不能上传对话附件" }, 403);
+    return json({ error: "项目协作方不能上传对话附件" }, 403);
   }
   if (!isInvestorRole(role) && !isIssuerRole(role)) {
     return json({ error: "当前权限无法上传资料" }, 403);
@@ -1535,7 +1535,7 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
         if (isIssuerRole(role)) {
           return json(
             {
-              error: "项目方协作模式不提供投资对话，请在待确认事项中回复。",
+              error: "项目协作方协作模式不提供投资对话，请在待确认事项中回复。",
               code: "COLLAB_NO_CHAT",
             },
             403,

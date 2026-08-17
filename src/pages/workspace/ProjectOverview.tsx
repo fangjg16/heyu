@@ -799,7 +799,7 @@ export default function ProjectOverview() {
                 ? "尝试更换关键词，或清除搜索后浏览全部项目。"
                 : portfolioTab === "mine"
                   ? issuerOnly
-                    ? "投资团队把你加为项目方之后，协作项目会出现在这里。"
+                    ? "投资团队把你加为项目协作方之后，协作项目会出现在这里。"
                     : "切换到项目广场浏览全开放协作机会，或新建项目。"
                   : isAccountGuestUser(userId)
                     ? "暂无可见项目。请联系管理员将您加入成员。"

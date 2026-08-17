@@ -149,7 +149,7 @@ export async function handleGetCollabOverview(
   const project = await getProjectById(env, projectId);
   if (!project) return json({ error: "项目不存在" }, 404);
   if (!(await canAccessProjectCollab(env, userId, projectId, project.createdBy))) {
-    return json({ error: "无权查看项目方协作" }, 403);
+    return json({ error: "无权查看项目协作方协作" }, 403);
   }
   const role = await resolveProjectRole(env, userId, projectId, project.createdBy);
   const includeInternal = isInvestorRole(role);
@@ -226,7 +226,7 @@ export async function handlePublishCollabItem(
   const project = await getProjectById(env, projectId);
   if (!project) return json({ error: "项目不存在" }, 404);
   if (!(await canManageProjectCollab(env, userId, projectId, project.createdBy))) {
-    return json({ error: "仅 Admin / Core 可发布给项目方" }, 403);
+    return json({ error: "仅 Admin / Core 可发布给项目协作方" }, 403);
   }
   let body: Record<string, unknown> = {};
   try {
@@ -261,7 +261,7 @@ export async function handlePublishCollabItem(
   return json({ item: rowToPublic(row, { includeInternal: true }) }, 201);
 }
 
-/** PATCH 项目方保存/提交 */
+/** PATCH 项目协作方保存/提交 */
 export async function handleIssuerPatchCollabItem(
   request: Request,
   env: Env,
@@ -274,7 +274,7 @@ export async function handleIssuerPatchCollabItem(
   if (!project) return json({ error: "项目不存在" }, 404);
   const role = await resolveProjectRole(env, userId, projectId, project.createdBy);
   if (!isIssuerRole(role)) {
-    return json({ error: "仅项目方可保存或提交答复" }, 403);
+    return json({ error: "仅项目协作方可保存或提交答复" }, 403);
   }
   const row = await getCollabItem(env, projectId, itemId);
   if (!row) return json({ error: "事项不存在" }, 404);
@@ -495,7 +495,7 @@ export async function handleShareDocumentWithIssuer(
   const project = await getProjectById(env, projectId);
   if (!project) return json({ error: "项目不存在" }, 404);
   if (!(await canManageProjectCollab(env, userId, projectId, project.createdBy))) {
-    return json({ error: "仅 Admin / Core 可授权文件给项目方" }, 403);
+    return json({ error: "仅 Admin / Core 可授权文件给项目协作方" }, 403);
   }
   let body: Record<string, unknown> = {};
   try {
@@ -530,7 +530,7 @@ export async function handleShareDocumentWithIssuer(
   return json({ ok: true, documentId: docId, sharedWithIssuer: share, sourceKind });
 }
 
-/** GET /api/me/collab-inbox 项目方主页 */
+/** GET /api/me/collab-inbox 项目协作方主页 */
 export async function handleListMyCollabInbox(
   env: Env,
   userId: string,

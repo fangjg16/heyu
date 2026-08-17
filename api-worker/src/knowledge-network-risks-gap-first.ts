@@ -31,9 +31,9 @@ export function isGapFirstRiskRow(row: Record<string, unknown>): boolean {
   const hasEvidenceIds =
     Array.isArray(row.evidenceSourceIds) && row.evidenceSourceIds.length > 0;
   const gapMarked =
-    /待确认|待验证|缺口|资料不足|未提供|需项目方|待补充|gap|unknown/i.test(risk) ||
+    /待确认|待验证|缺口|资料不足|未提供|需项目方|需项目协作方|待补充|gap|unknown/i.test(risk) ||
     /待确认|缺口|无法判断|缺.*资料|未提供|无法/i.test(cause) ||
-    /待确认|缺口|未提供|待项目方/i.test(evidence);
+    /待确认|缺口|未提供|待项目方|待项目协作方/i.test(evidence);
 
   return (
     isMeaningfulCell(risk) &&
@@ -105,6 +105,6 @@ export function evaluateRisksMitigationHardIssues(
 
 export function buildRisksGapFirstRepairHint(): string {
   return (
-    "risks-mitigation：riskRows 不能为空。资料不足时用 gap-first 行：risk（待验证风险）、cause/trigger（缺什么资料）、impact、mitigation/nextAction、evidence/待项目方补充、owner/status=待确认。禁止编造许可证/合同/客户/IRR/已发生事件。"
+    "risks-mitigation：riskRows 不能为空。资料不足时用 gap-first 行：risk（待验证风险）、cause/trigger（缺什么资料）、impact、mitigation/nextAction、evidence/待项目协作方补充、owner/status=待确认。禁止编造许可证/合同/客户/IRR/已发生事件。"
   );
 }

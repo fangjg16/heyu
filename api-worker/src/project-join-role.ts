@@ -1,4 +1,4 @@
-/** 审批通过时可写入的成员身份：项目方，或投资方三档权限。 */
+/** 审批通过时可写入的成员身份：项目协作方，或投资方三档权限。 */
 export type JoinApproveRole = "admin" | "core" | "low" | "issuer";
 
 export function isJoinApproveRole(role: string): role is JoinApproveRole {

@@ -1490,11 +1490,11 @@ export function collabStatusLabel(
 ): string {
   switch (status) {
     case "pending_reply":
-      return view === "issuer" ? "待你回复" : "待项目方回复";
+      return view === "issuer" ? "待你回复" : "待项目协作方回复";
     case "saved":
       return "已保存";
     case "submitted":
-      return view === "issuer" ? "已提交待审核" : "项目方已提交";
+      return view === "issuer" ? "已提交待审核" : "项目协作方已提交";
     case "needs_more":
       return "需补充";
     case "confirmed":
@@ -1576,7 +1576,7 @@ export async function publishCollabItem(
   return data.item;
 }
 
-/** 按内部问题原文一键发给项目方（发布后冻结） */
+/** 按内部问题原文一键发给项目协作方（发布后冻结） */
 export async function publishOpenQuestionToIssuer(
   projectId: string,
   question: {

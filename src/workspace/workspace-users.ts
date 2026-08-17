@@ -78,7 +78,7 @@ export function getProjectRole(
   return "guest";
 }
 
-/** 已加入项目（三档权限或项目方）。guest 表示未加入，不是第四档权限。 */
+/** 已加入项目（三档权限或项目协作方）。guest 表示未加入，不是第四档权限。 */
 export function isJoinedProjectRole(role: WorkspaceRole): boolean {
   return role !== "guest";
 }
@@ -103,7 +103,7 @@ export function roleLabelForProject(role: WorkspaceRole): string {
     case "low":
       return "Basic 基础级";
     case "issuer":
-      return "项目方";
+      return "项目协作方";
     case "guest":
       return "未加入";
     default:
@@ -127,12 +127,12 @@ export function isIssuerRole(role: WorkspaceRole): boolean {
   return role === "issuer";
 }
 
-/** 发给项目方 / 改措辞发布：仅项目管理员与 Core */
+/** 发给项目协作方 / 改措辞发布：仅项目管理员与 Core */
 export function canPublishToIssuer(role: WorkspaceRole): boolean {
   return role === "admin" || role === "core";
 }
 
-/** 当前账号在已加入项目里全部是项目方：不进广场、不新建项目 */
+/** 当前账号在已加入项目里全部是项目协作方：不进广场、不新建项目 */
 export function isIssuerOnlyUser(userId: string | null | undefined): boolean {
   const uid = (userId ?? "").trim();
   if (!uid || isPlatformAdminUser(uid)) return false;

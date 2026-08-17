@@ -84,7 +84,7 @@ export async function handleCreateJoinRequest(
   if (!(await userSeesPlazaDiscovery(env, userId))) {
     return json(
       {
-        error: "项目方不能通过广场申请加入其他项目，请等待投资团队邀请",
+        error: "项目协作方不能通过广场申请加入其他项目，请等待投资团队邀请",
         code: "ISSUER_NO_PLAZA",
       },
       403,
@@ -311,7 +311,7 @@ export async function handleReviewJoinRequest(
       return json(
         {
           error:
-            "通过时须指定项目方，或投资方的项目管理员 / Core / Basic",
+            "通过时须指定项目协作方，或投资方的项目管理员 / Core / Basic",
           code: "INVALID_ROLE",
         },
         400,

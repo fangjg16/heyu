@@ -75,7 +75,7 @@ export function MemberRoleFields({
             track === "issuer" && "heyu-segment-item-on",
           )}
         >
-          项目方
+          项目协作方
         </button>
       </div>
       {track === "investor" ? (

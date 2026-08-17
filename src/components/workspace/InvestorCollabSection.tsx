@@ -102,7 +102,14 @@ export function InvestorCollabSection({
     }
     setFiles(
       fl.filter(
-        (f) => f.scope === "package" && !String(f.relativePath ?? "").includes("项目方上传"),
+        (f) => {
+          const path = String(f.relativePath ?? "");
+          return (
+            f.scope === "package" &&
+            !path.includes("项目方上传") &&
+            !path.includes("项目协作方上传")
+          );
+        },
       ),
     );
     setSharedIds(
@@ -142,7 +149,7 @@ export function InvestorCollabSection({
 
   const onSendQuestion = async (q: { text: string; priority: CollabPriority }) => {
     if (!canManage) {
-      setError("仅 Admin / Core 可发给项目方");
+      setError("仅 Admin / Core 可发给项目协作方");
       return;
     }
     setBusy(q.text);
@@ -163,7 +170,7 @@ export function InvestorCollabSection({
 
   const onSendAllUnpublished = async () => {
     if (!canManage) {
-      setError("仅 Admin / Core 可发给项目方");
+      setError("仅 Admin / Core 可发给项目协作方");
       return;
     }
     if (unpublishedQuestions.length === 0) return;
@@ -187,7 +194,7 @@ export function InvestorCollabSection({
 
   const onPublish = async () => {
     if (!canManage) {
-      setError("仅 Admin / Core 可发给项目方");
+      setError("仅 Admin / Core 可发给项目协作方");
       return;
     }
     setBusy("publish");
@@ -252,10 +259,10 @@ export function InvestorCollabSection({
 
   return (
     <div className="mx-auto max-w-[1180px] px-6 py-8 md:px-10">
-      <h2 className="text-[20px] font-semibold text-[#1F2423]">项目方协作</h2>
+      <h2 className="text-[20px] font-semibold text-[#1F2423]">项目协作方协作</h2>
       <p className="mt-1 text-[13px] text-[#59625F]">
         {canManage
-          ? "内部问题默认按原文一键发给项目方（发布后冻结）。有投资判断的条目再改措辞。文件仍需逐份勾选共享。"
+          ? "内部问题默认按原文一键发给项目协作方（发布后冻结）。有投资判断的条目再改措辞。文件仍需逐份勾选共享。"
           : "已发布事项与文件授权状态可在此查看。"}
       </p>
       {error ? (
@@ -266,7 +273,7 @@ export function InvestorCollabSection({
         <section className="mt-6 rounded-2xl border border-[rgba(78,66,57,0.1)] bg-white/80 p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-[13px] font-semibold text-[#1F2423]">
-              未发给项目方（{unpublishedQuestions.length}）
+              未发给项目协作方（{unpublishedQuestions.length}）
             </div>
             <button
               type="button"
@@ -274,7 +281,7 @@ export function InvestorCollabSection({
               onClick={() => void onSendAllUnpublished()}
               className="h-9 rounded-lg bg-[#A06358] px-3 text-[12.5px] font-medium text-white disabled:opacity-45"
             >
-              {busy === "publish-all" ? "发送中…" : "全部按原文发给项目方"}
+              {busy === "publish-all" ? "发送中…" : "全部按原文发给项目协作方"}
             </button>
           </div>
           <ul className="mt-3 space-y-2">
@@ -300,7 +307,7 @@ export function InvestorCollabSection({
                   onClick={() => void onSendQuestion(q)}
                   className="shrink-0 text-[12.5px] font-medium text-[#A06358] disabled:opacity-45"
                 >
-                  {busy === q.text ? "发送中…" : "发给项目方"}
+                  {busy === q.text ? "发送中…" : "发给项目协作方"}
                 </button>
               </li>
               );
@@ -315,7 +322,7 @@ export function InvestorCollabSection({
           改措辞后单独发布
         </div>
         <p className="mt-1 text-[12px] text-[#59625F]">
-          仅在内部原文不宜直接给项目方时使用。一般条目用上方一键发送即可。
+          仅在内部原文不宜直接给项目协作方时使用。一般条目用上方一键发送即可。
         </p>
         <label className="mt-3 block text-[12px] text-[#59625F]">
           对应内部问题
@@ -405,7 +412,7 @@ export function InvestorCollabSection({
           onClick={() => void onPublish()}
           className="mt-3 h-10 rounded-xl bg-[#A06358] px-4 text-[13.5px] font-medium text-white disabled:opacity-45"
         >
-          {busy === "publish" ? "发布中…" : "发布给项目方"}
+          {busy === "publish" ? "发布中…" : "发布给项目协作方"}
         </button>
       </section>
       ) : null}
@@ -442,7 +449,7 @@ export function InvestorCollabSection({
                 </div>
                 {it.replyText ? (
                   <p className="mt-2 text-[13px] leading-relaxed text-[#1F2423]">
-                    项目方答复：{it.replyText}
+                    项目协作方答复：{it.replyText}
                   </p>
                 ) : null}
                 {canManage && it.status === "submitted" ? (
@@ -482,10 +489,10 @@ export function InvestorCollabSection({
 
       <section className="mt-8">
         <div className="text-[13px] font-semibold text-[#1F2423]">
-          逐份授权源文件给项目方
+          逐份授权源文件给项目协作方
         </div>
         <p className="mt-1 text-[12px] text-[#59625F]">
-          默认不共享。勾选后项目方才能在其「源文件」中看到（投资方共享）。
+          默认不共享。勾选后项目协作方才能在其「源文件」中看到（投资方共享）。
         </p>
         <ul className="mt-2 max-h-[360px] overflow-auto divide-y divide-[rgba(78,66,57,0.08)] rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/80">
           {files.length === 0 ? (

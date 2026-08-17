@@ -258,7 +258,7 @@ export function WorkspaceLeftRail() {
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
               {issuerOnly
-                ? "项目方工作台不包含投资团队对话。请在协作事项中答复。"
+                ? "项目协作方工作台不包含投资团队对话。请在协作事项中答复。"
                 : "当前还没有可进入对话的投资项目。被加入项目投资团队后即可使用对话中心。"}
             </p>
             <button

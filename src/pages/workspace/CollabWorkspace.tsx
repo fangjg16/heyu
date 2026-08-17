@@ -61,7 +61,7 @@ async function downloadCollabFile(
 }
 
 function sourceKindLabel(kind: string | null): string {
-  if (kind === "issuer_upload") return "项目方上传";
+  if (kind === "issuer_upload") return "项目协作方上传";
   if (kind === "investor_share") return "投资方共享";
   if (kind === "public_source") return "公开资料";
   return "—";
@@ -142,7 +142,7 @@ function CollabHeader({
       <div className="mx-auto flex max-w-[1180px] flex-wrap items-end justify-between gap-3 px-6 py-5 md:px-8">
         <div>
           <div className="text-[11px] font-medium tracking-wide text-[#A06358]">
-            项目方协作
+            项目协作方协作
           </div>
           <h1 className="mt-1 font-[family-name:var(--font-serif,serif)] text-[22px] font-semibold text-[#1F2423]">
             {project.name}
@@ -735,7 +735,7 @@ export function CollabFilesPage() {
         <section className="mb-6 rounded-2xl border border-[rgba(78,66,57,0.1)] bg-white/80 p-5">
           <h2 className="text-[14px] font-semibold text-[#1F2423]">上传补充资料</h2>
           <p className="mt-1 text-[12.5px] text-[#59625F]">
-            未挂到具体事项的资料也会出现在「项目方上传」。投资团队可在内部资料包中看到。
+            未挂到具体事项的资料也会出现在「项目协作方上传」。投资团队可在内部资料包中看到。
           </p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <input

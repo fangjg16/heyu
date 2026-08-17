@@ -47,7 +47,7 @@ export function stripCitationMarkers(text: string): string {
     .trim();
 }
 
-/** 发给项目方 / 项目方展示：去掉尾注，标题与正文拆开 */
+/** 发给项目协作方 / 项目协作方展示：去掉尾注，标题与正文拆开 */
 export function formatOpenQuestionForIssuer(raw: string): {
   title: string;
   body: string;
