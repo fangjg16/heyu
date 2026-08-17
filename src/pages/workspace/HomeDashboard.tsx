@@ -455,8 +455,8 @@ export default function HomeDashboard() {
           >
             <div
               style={{
-                fontSize: 13,
-                color: "rgba(255,255,255,0.78)",
+                fontSize: 12,
+                color: "rgba(255,255,255,0.62)",
                 letterSpacing: "1.5px",
               }}
             >
@@ -469,11 +469,11 @@ export default function HomeDashboard() {
             <div
               className="font-display"
               style={{
-                marginTop: 12,
+                marginTop: 10,
                 fontSize: 29,
                 fontWeight: 600,
                 color: "#fff",
-                lineHeight: 1.4,
+                lineHeight: 1.35,
               }}
             >
               {focusTodo.title}
@@ -481,10 +481,11 @@ export default function HomeDashboard() {
             {focusTodo.detail ? (
               <div
                 style={{
-                  marginTop: 10,
-                  fontSize: 15.5,
-                  color: "rgba(255,255,255,0.86)",
-                  lineHeight: 1.65,
+                  marginTop: 8,
+                  fontSize: 14,
+                  color: "rgba(255,255,255,0.68)",
+                  lineHeight: 1.55,
+                  maxWidth: 720,
                 }}
               >
                 {focusTodo.detail}
@@ -492,16 +493,13 @@ export default function HomeDashboard() {
             ) : null}
             <div
               style={{
-                marginTop: 10,
-                fontSize: 15.5,
-                color: "rgba(255,255,255,0.86)",
-                lineHeight: 1.65,
+                marginTop: 14,
+                fontSize: 12,
+                color: "rgba(255,255,255,0.48)",
+                letterSpacing: "0.2px",
               }}
             >
               {focusTodo.meta} · {focusTodo.due}
-              {focusTodo.published || focusTodo.to.startsWith("/app/collab/")
-                ? "；详见下方待办列表。"
-                : "。按当前原文发给项目方，发布后措辞冻结。"}
             </div>
             <div
               style={{
@@ -898,6 +896,7 @@ export default function HomeDashboard() {
               ) : (
                 collabInbox.slice(0, 5).map((it) => {
                   const preview = previewCollabQuestion(it);
+                  const isFocus = collabInbox[0]?.id === it.id;
                   return (
                 <Link
                   key={it.id}
@@ -906,7 +905,7 @@ export default function HomeDashboard() {
                     display: "flex",
                     alignItems: "center",
                     gap: 18,
-                    padding: "20px 6px",
+                    padding: "16px 6px",
                     borderBottom: `1px solid ${C.line}`,
                     textDecoration: "none",
                     color: "inherit",
@@ -915,24 +914,24 @@ export default function HomeDashboard() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
-                        fontSize: 16.5,
+                        fontSize: 15.5,
                         fontWeight: 600,
                         color: C.ink,
+                        lineHeight: 1.4,
                       }}
                     >
                       {preview.title}
                     </div>
-                    {preview.detail ? (
+                    {!isFocus && preview.detail ? (
                     <div
                       style={{
-                        marginTop: 4,
-                        fontSize: 13.5,
+                        marginTop: 3,
+                        fontSize: 12.5,
                         color: C.muted,
-                        lineHeight: 1.55,
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
+                        lineHeight: 1.45,
+                        whiteSpace: "nowrap",
                         overflow: "hidden",
+                        textOverflow: "ellipsis",
                       }}
                     >
                       {preview.detail}
@@ -940,16 +939,16 @@ export default function HomeDashboard() {
                     ) : null}
                     <div
                       style={{
-                        marginTop: 4,
-                        fontSize: 13.5,
-                        color: C.muted,
+                        marginTop: 3,
+                        fontSize: 12,
+                        color: "#969E9A",
                       }}
                     >
                       {it.projectName ?? ""} · {collabStatusLabel(it.status)}
                       {it.dueAt ? ` · 截止 ${it.dueAt.slice(0, 10)}` : ""}
                     </div>
                   </div>
-                  <span style={{ color: C.wine }}>→</span>
+                  <span style={{ color: C.wine, fontSize: 14 }}>→</span>
                 </Link>
               );
                 })
