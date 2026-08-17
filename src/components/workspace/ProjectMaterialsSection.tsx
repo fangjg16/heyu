@@ -17,7 +17,6 @@ import {
   FolderPlus,
   Loader2,
   Search,
-  Trash2,
   Upload,
   X,
 } from "lucide-react";
@@ -65,10 +64,6 @@ import {
 } from "@/lib/unzip-project-files";
 
 const DND_DOC_MIME = "application/x-taizi-document";
-const FOLDER_SUMMARY =
-  "该目录用于按来源和用途组织项目源文件。可继续创建子目录；知识结论不会在这里重复维护。";
-const NOTICE =
-  "这里只管理项目或项目对话中上传的源文件。事实、观点和风险由知识网络表达；源文件只负责提供可追溯依据。权限随目录继承，受限文件保持锁定。";
 
 type ProjectMaterialsSectionProps = {
   projectId: string;
@@ -279,18 +274,6 @@ function filterTree(
     }
   }
   return { ...node, children };
-}
-
-function countTreeNodes(node: FileTreeFolderNode): number {
-  let n = 0;
-  const walk = (nodes: FileTreeNode[]) => {
-    for (const c of nodes) {
-      n += 1;
-      if (c.kind === "folder") walk(c.children);
-    }
-  };
-  walk(node.children);
-  return n;
 }
 
 function findFolder(
@@ -504,8 +487,6 @@ export function ProjectMaterialsSection({
       ),
     [fullTree, query, kindFilter, parseFilter, parsedById, parsingId],
   );
-
-  const treeCount = useMemo(() => countTreeNodes(tree), [tree]);
 
   const selectedFolder = useMemo(() => {
     if (selection.kind !== "folder") return null;
@@ -1027,19 +1008,15 @@ export function ProjectMaterialsSection({
         isFile: true as const,
         file,
         status: statusTag?.label ?? "未解析",
-        statusBg: statusTag?.bg ?? "rgba(78,66,57,0.08)",
-        statusFg: statusTag?.fg ?? "#59625F",
         perm:
           fileSourceBucket(file) === "session"
-            ? "对话上传者可见"
+            ? "对话上传"
             : fileSourceBucket(file) === "issuer"
-              ? "项目协作方上传"
+              ? "协作方上传"
               : file.sharedWithIssuer
-                ? "已共享给项目协作方"
-                : canDownload
-                  ? "项目成员"
-                  : "仅可查看",
-        refs: refLabels.length > 0 ? refLabels.join(" · ") : "—",
+                ? "已共享"
+                : "",
+        refs: refLabels,
         summary,
         documentType: cache?.documentType || file.fileCategory || "",
         keyPoints: cache?.keyPoints ?? [],
@@ -1054,18 +1031,16 @@ export function ProjectMaterialsSection({
           ...(file.fileCategory
             ? [{ label: "主题", value: file.fileCategory }]
             : []),
-          { label: "文件", value: file.filename },
         ],
         canPreview: canDownload || file.scope === "session",
-        canManageFolder: false,
+        canCreateSubfolder: false,
+        canDeleteFolder: false,
         canUploadHere: false,
-        childCount: 0,
       };
     }
 
     const path = selection.kind === "folder" ? selection.path : "";
     const folder = selectedFolder ?? fullTree;
-    const childCount = folder.children.length;
     const trail = folderPathTrail(fullTree, path);
     const bucket = sourceBucketFromVirtualPath(path);
     const canManageProjectFolder =
@@ -1078,25 +1053,18 @@ export function ProjectMaterialsSection({
       trail,
       isFile: false as const,
       file: null as ProjectFileRecord | null,
-      status: "分组",
-      statusBg: "rgba(78,66,57,0.08)",
-      statusFg: "#59625F",
-      perm:
-        bucket === "session"
-          ? "会话隔离"
-          : bucket === "issuer"
-            ? "项目协作方"
-            : "继承上级",
-      refs: `${childCount} 子项`,
-      summary: FOLDER_SUMMARY,
+      status: "",
+      perm: "",
+      refs: [] as string[],
+      summary: "",
       documentType: "",
       keyPoints: [] as string[],
       usedFor: [] as string[],
-      srcLines: [{ label: "说明", value: "—" }],
+      srcLines: [] as { label: string; value: string }[],
       canPreview: false,
-      canManageFolder: canManageProjectFolder && !isSourceRootPath(path),
+      canCreateSubfolder: canManageProjectFolder,
+      canDeleteFolder: canManageProjectFolder && !isSourceRootPath(path),
       canUploadHere: canManageProjectFolder,
-      childCount,
     };
   }, [
     selection,
@@ -1215,17 +1183,15 @@ export function ProjectMaterialsSection({
                 dragOverPath === "" && "ring-1 ring-[hsl(var(--wine)/0.35)]",
               )}
             >
-              <div className="mb-1 flex items-center justify-between gap-2.5 px-2.5 pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="text-[13px] font-semibold">源文件分类</div>
-                  <div className="flex rounded-lg border border-[rgba(78,66,57,0.14)] p-0.5 text-[11px]">
+              <div className="px-1 pb-3">
+                <div className="grid grid-cols-2 rounded-[10px] bg-[rgba(78,66,57,0.06)] p-0.5 text-[12px]">
                     <button
                       type="button"
                       onClick={() => setFacet("source")}
                       className={cn(
-                        "h-6 rounded-md px-2",
+                        "h-7 rounded-md",
                         facet === "source"
-                          ? "bg-[#EFE7E6] font-medium text-[#A06358]"
+                          ? "bg-white font-medium text-[#A06358] shadow-[0_1px_2px_rgba(78,66,57,0.08)]"
                           : "text-[#59625F]",
                       )}
                     >
@@ -1235,37 +1201,21 @@ export function ProjectMaterialsSection({
                       type="button"
                       onClick={() => setFacet("topic")}
                       className={cn(
-                        "h-6 rounded-md px-2",
+                        "h-7 rounded-md",
                         facet === "topic"
-                          ? "bg-[#EFE7E6] font-medium text-[#A06358]"
+                          ? "bg-white font-medium text-[#A06358] shadow-[0_1px_2px_rgba(78,66,57,0.08)]"
                           : "text-[#59625F]",
                       )}
                     >
                       主题
                     </button>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <span className="whitespace-nowrap text-[11px] text-[hsl(var(--warm-charcoal-muted))]">
-                    {treeCount} 项
-                  </span>
-                  {useLive && canManage && facet === "source" ? (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void onCreateFolder(PROJECT_SOURCE_PATH)}
-                      className="h-[30px] whitespace-nowrap rounded-lg border border-[rgba(78,66,57,0.16)] bg-transparent px-2.5 text-[11.5px] text-[hsl(var(--warm-charcoal))] hover:bg-[rgba(78,66,57,0.05)] disabled:opacity-50"
-                    >
-                      ＋ 新建一级文件夹
-                    </button>
-                  ) : null}
                 </div>
               </div>
 
               {!loading && tree.children.length === 0 ? (
                 <p className="px-2.5 py-6 text-[12px] leading-relaxed text-[hsl(var(--warm-charcoal-muted))]">
                   {useLive
-                    ? "暂无项目资料。点击「上传资料」或拖入文件/文件夹；单个 ZIP 会自动解压。"
+                    ? "暂无资料"
                     : "暂无资料列表。开启 Live 对话并上传后可见。"}
                 </p>
               ) : null}
@@ -1279,21 +1229,11 @@ export function ProjectMaterialsSection({
                     expanded={expanded}
                     selection={selection}
                     canManage={useLive && canManage}
-                    canDownload={useLive && canDownload}
-                    busy={busy}
-                    deletingId={deletingId}
                     dragOverPath={dragOverPath}
                     setDragOverPath={setDragOverPath}
                     setExpanded={setExpanded}
                     setSelection={setSelection}
                     onSelectFile={selectFile}
-                    parsedById={parsedById}
-                    parsingId={parsingId}
-                    sharingId={sharingId}
-                    onPreview={openPreview}
-                    onShareFile={onShareFile}
-                    onDeleteFile={onDeleteFile}
-                    onDeleteFolder={onDeleteFolder}
                     onDropFiles={(files, path) => {
                       const bucket = sourceBucketFromVirtualPath(path);
                       if (bucket === "session" || bucket === "issuer" || isTopicPath(path)) {
@@ -1310,7 +1250,7 @@ export function ProjectMaterialsSection({
               </div>
             </div>
 
-            <div className="min-h-[520px] rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.78)] px-[30px] py-7 shadow-[0_10px_30px_rgba(102,80,60,0.07)]">
+            <div className="min-h-[360px] rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.78)] px-[30px] py-7 shadow-[0_10px_30px_rgba(102,80,60,0.07)]">
               <div className="flex items-start justify-between gap-5">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5 text-[11.5px] text-[hsl(var(--warm-charcoal-muted))]">
@@ -1354,100 +1294,80 @@ export function ProjectMaterialsSection({
                 ) : null}
               </div>
 
-              <div className="mt-[18px] flex flex-wrap gap-[26px]">
-                <div>
-                  <div className="text-[11px] text-[hsl(var(--warm-charcoal-muted))]">
-                    解析状态
-                  </div>
-                  <div className="mt-1.5">
-                    <span
-                      className="rounded-lg px-2 py-0.5 text-[10.5px]"
-                      style={{ background: detail.statusBg, color: detail.statusFg }}
-                    >
-                      {detail.status}
+              {detail.isFile ? (
+                <p className="mt-2 text-[13px] text-[hsl(var(--warm-charcoal-muted))]">
+                  {[detail.status, detail.perm, ...detail.refs]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              ) : null}
+
+              {detail.isFile ? (
+                <div className="mt-5 text-sm leading-[1.9] text-[hsl(var(--warm-charcoal))]">
+                  {parsingId === detail.file?.id ? (
+                    <span className="inline-flex items-center gap-2 text-[hsl(var(--warm-charcoal-muted))]">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                      {detail.summary}
                     </span>
-                  </div>
+                  ) : (
+                    <>
+                      {detail.documentType ? (
+                        <div className="mb-2 text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
+                          {detail.documentType}
+                        </div>
+                      ) : null}
+                      <div>{detail.summary}</div>
+                      {detail.keyPoints.length > 0 ? (
+                        <ul className="mt-3 list-disc space-y-1 pl-5 text-[13px] leading-relaxed text-[hsl(var(--warm-charcoal))]">
+                          {detail.keyPoints.map((p, i) => (
+                            <li key={`${i}-${p.slice(0, 24)}`}>{p}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </>
+                  )}
                 </div>
-                <div>
-                  <div className="text-[11px] text-[hsl(var(--warm-charcoal-muted))]">
-                    权限范围
-                  </div>
-                  <div className="mt-1.5 text-[13px] font-medium">{detail.perm}</div>
-                </div>
-                <div>
-                  <div className="text-[11px] text-[hsl(var(--warm-charcoal-muted))]">
-                    被引用
-                  </div>
-                  <div className="mt-1.5 text-[13px] font-medium">{detail.refs}</div>
-                </div>
-              </div>
+              ) : null}
 
-              <div className="mt-5 text-sm leading-[1.9] text-[hsl(var(--warm-charcoal))]">
-                {detail.isFile && parsingId === detail.file?.id ? (
-                  <span className="inline-flex items-center gap-2 text-[hsl(var(--warm-charcoal-muted))]">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                    {detail.summary}
-                  </span>
-                ) : (
-                  <>
-                    {detail.documentType ? (
-                      <div className="mb-2 text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
-                        文件类型：{detail.documentType}
-                      </div>
-                    ) : null}
-                    <div>{detail.summary}</div>
-                    {detail.keyPoints.length > 0 ? (
-                      <ul className="mt-3 list-disc space-y-1 pl-5 text-[13px] leading-relaxed text-[hsl(var(--warm-charcoal))]">
-                        {detail.keyPoints.map((p, i) => (
-                          <li key={`${i}-${p.slice(0, 24)}`}>{p}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </>
-                )}
-              </div>
+              {detail.isFile && detail.srcLines.length > 0 ? (
+                <div className="mt-[22px] flex flex-col gap-1.5 text-[13px] leading-snug">
+                  {detail.srcLines.map((row) => (
+                    <div key={row.label} className="flex gap-2">
+                      <span className="w-11 shrink-0 text-[hsl(var(--warm-charcoal-muted))]">
+                        {row.label}
+                      </span>
+                      <span className="min-w-0 break-all text-[hsl(var(--warm-charcoal))]">
+                        {row.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
 
-              <div className="mt-[22px] grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-                <div className="rounded-xl border border-[rgba(78,66,57,0.08)] bg-[rgba(248,243,238,0.6)] px-[18px] py-4">
+              {detail.isFile && detail.usedFor.length > 0 ? (
+                <div className="mt-5">
                   <div className="mb-2 text-[11.5px] text-[hsl(var(--warm-charcoal-muted))]">
-                    上传信息
+                    已用于
                   </div>
-                  <div className="flex flex-col gap-1.5 text-[13px] leading-snug">
-                    {detail.srcLines.map((row) => (
-                      <div key={row.label} className="flex gap-2">
-                        <span className="w-11 shrink-0 text-[hsl(var(--warm-charcoal-muted))]">
-                          {row.label}
-                        </span>
-                        <span className="min-w-0 break-all text-[hsl(var(--warm-charcoal))]">
-                          {row.value}
-                        </span>
+                  <div className="flex flex-col gap-1.5">
+                    {detail.usedFor.map((u, i) => (
+                      <div
+                        key={`${i}-${u.slice(0, 24)}`}
+                        className="text-[12.5px] text-[hsl(var(--wine))]"
+                      >
+                        {u}
                       </div>
                     ))}
                   </div>
                 </div>
-                <div className="rounded-xl border border-[rgba(78,66,57,0.08)] bg-[rgba(248,243,238,0.6)] px-[18px] py-4">
-                  <div className="mb-2 text-[11.5px] text-[hsl(var(--warm-charcoal-muted))]">
-                    已用于
-                  </div>
-                  {detail.usedFor.length > 0 ? (
-                    <div className="flex flex-col gap-1.5">
-                      {detail.usedFor.map((u, i) => (
-                        <div
-                          key={`${i}-${u.slice(0, 24)}`}
-                          className="text-[12.5px] text-[hsl(var(--wine))]"
-                        >
-                          ● {u}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-[12.5px] text-[#969E9A]">暂无关联</div>
-                  )}
-                </div>
-              </div>
+              ) : null}
 
+              {(detail.canCreateSubfolder ||
+              detail.canDeleteFolder ||
+              detail.canUploadHere ||
+              detail.isFile) ? (
               <div className="mt-6 flex flex-wrap gap-2.5">
-                {detail.canManageFolder ? (
+                {detail.canCreateSubfolder ? (
                   <button
                     type="button"
                     disabled={busy}
@@ -1458,24 +1378,31 @@ export function ProjectMaterialsSection({
                     }
                     className="h-[38px] rounded-[10px] border border-[rgba(160,99,88,0.3)] bg-transparent px-4 text-[13px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:opacity-50"
                   >
-                    ＋ 新增子文件夹
+                    新建文件夹
                   </button>
                 ) : null}
                 {detail.isFile &&
                 detail.file &&
                 canManage &&
                 canShareWithIssuer(detail.file) ? (
-                  <label className="inline-flex h-[38px] items-center gap-2 rounded-[10px] border border-[rgba(78,66,57,0.16)] px-3 text-[13px] text-[#1F2423]">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(detail.file.sharedWithIssuer)}
-                      disabled={busy || sharingId === detail.file.id}
-                      onChange={(e) =>
-                        void onShareFile(detail.file!, e.target.checked)
-                      }
-                    />
-                    共享给项目协作方
-                  </label>
+                  <button
+                    type="button"
+                    disabled={busy || sharingId === detail.file.id}
+                    onClick={() =>
+                      void onShareFile(
+                        detail.file!,
+                        !detail.file!.sharedWithIssuer,
+                      )
+                    }
+                    className={cn(
+                      "h-[38px] rounded-[10px] px-4 text-[13px] font-medium disabled:opacity-50",
+                      detail.file.sharedWithIssuer
+                        ? "border border-[rgba(94,155,117,0.35)] bg-[rgba(94,155,117,0.1)] text-[#3F6F63]"
+                        : "border border-[rgba(78,66,57,0.16)] bg-transparent text-[#1F2423] hover:bg-[#EFE7E6]",
+                    )}
+                  >
+                    {detail.file.sharedWithIssuer ? "已共享" : "共享给项目协作方"}
+                  </button>
                 ) : null}
                 {detail.isFile &&
                 detail.file &&
@@ -1487,10 +1414,10 @@ export function ProjectMaterialsSection({
                     onClick={() => void onDeleteFile(detail.file!)}
                     className="h-[38px] rounded-[10px] border border-[rgba(78,66,57,0.16)] bg-transparent px-4 text-[13px] font-medium text-[hsl(var(--warm-charcoal-muted))] hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
                   >
-                    删除文件
+                    删除
                   </button>
                 ) : null}
-                {detail.canManageFolder ? (
+                {detail.canDeleteFolder ? (
                   <button
                     type="button"
                     disabled={busy}
@@ -1517,18 +1444,17 @@ export function ProjectMaterialsSection({
                     }
                   />
                 ) : null}
-                <button
-                  type="button"
-                  onClick={() => navigate(`/app/chat/${projectId}`)}
-                  className="h-[38px] rounded-[10px] bg-[hsl(var(--wine))] px-4 text-[13px] font-medium text-white hover:bg-[hsl(var(--wine-hover))]"
-                >
-                  在对话中追问 →
-                </button>
+                {detail.isFile ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/app/chat/${projectId}`)}
+                    className="h-[38px] rounded-[10px] bg-[hsl(var(--wine))] px-4 text-[13px] font-medium text-white hover:bg-[hsl(var(--wine-hover))]"
+                  >
+                    在对话中追问
+                  </button>
+                ) : null}
               </div>
-
-              <div className="mt-[22px] rounded-xl border border-[rgba(213,154,47,0.25)] bg-[rgba(213,154,47,0.07)] px-4 py-3.5 text-xs leading-[1.75] text-[hsl(var(--warm-charcoal-muted))]">
-                {NOTICE}
-              </div>
+              ) : null}
             </div>
           </div>
 
@@ -1676,21 +1602,11 @@ function TreeRow({
   expanded,
   selection,
   canManage,
-  canDownload,
-  busy,
-  deletingId,
   dragOverPath,
   setDragOverPath,
   setExpanded,
   setSelection,
   onSelectFile,
-  parsedById,
-  parsingId,
-  sharingId,
-  onPreview,
-  onShareFile,
-  onDeleteFile,
-  onDeleteFolder,
   onDropFiles,
   onDropDocument,
 }: {
@@ -1699,42 +1615,20 @@ function TreeRow({
   expanded: Record<string, boolean>;
   selection: Selection;
   canManage: boolean;
-  canDownload: boolean;
-  busy: boolean;
-  deletingId: string | null;
   dragOverPath: string | null;
   setDragOverPath: (p: string | null) => void;
   setExpanded: Dispatch<SetStateAction<Record<string, boolean>>>;
   setSelection: (s: Selection) => void;
   onSelectFile: (file: ProjectFileRecord) => void;
-  parsedById: Record<string, ParseCacheEntry>;
-  parsingId: string | null;
-  sharingId: string | null;
-  onPreview: (id: string) => void;
-  onShareFile: (file: ProjectFileRecord, shared: boolean) => void;
-  onDeleteFile: (file: ProjectFileRecord) => void;
-  onDeleteFolder: (path: string) => void;
   onDropFiles: (files: FileList, path: string) => void;
   onDropDocument: (fileId: string, path: string) => void;
 }) {
   if (node.kind === "file") {
     const selected = selection.kind === "file" && selection.id === node.id;
-    const ui = parseUiStatus(
-      node.id,
-      parsedById,
-      parsingId,
-      Boolean(node.file.parsed),
-    );
-    const tags = tagsForFile(node.file, canDownload, ui);
-    const primaryTag = tags[0];
-    const canPreview =
-      canDownload || node.file.scope === "session";
     const canDrag =
       canManage &&
       fileSourceBucket(node.file) === "project" &&
       node.file.scope === "package";
-    const canDeleteFile = canManage && fileSourceBucket(node.file) !== "issuer";
-    const showShare = canManage && canShareWithIssuer(node.file);
     return (
       <div
         role="button"
@@ -1744,7 +1638,6 @@ function TreeRow({
           if (!canDrag) return;
           const payload = JSON.stringify({ id: node.id });
           e.dataTransfer.setData(DND_DOC_MIME, payload);
-          // 部分浏览器拖拽需 text/plain 才生效
           e.dataTransfer.setData("text/plain", node.id);
           e.dataTransfer.effectAllowed = "move";
         }}
@@ -1765,7 +1658,7 @@ function TreeRow({
           background: selected ? "#EFE7E6" : "transparent",
           color: selected ? "#A06358" : "#4a524e",
         }}
-        title={canDrag ? "拖到文件夹可移动" : undefined}
+        title={node.name}
       >
         <span className="w-3 shrink-0" />
         <FileText className="h-[15px] w-[15px] shrink-0 opacity-70" strokeWidth={1.8} />
@@ -1774,70 +1667,9 @@ function TreeRow({
             "min-w-0 flex-1 truncate text-[13px]",
             selected ? "font-medium" : "font-normal",
           )}
-          title={node.name}
         >
           {node.name}
         </span>
-        {primaryTag ? (
-          <span
-            className="shrink-0 rounded-lg px-1.5 py-px text-[9.5px]"
-            style={{ background: primaryTag.bg, color: primaryTag.fg }}
-          >
-            {primaryTag.label}
-          </span>
-        ) : null}
-        {showShare ? (
-          <label
-            className="flex shrink-0 items-center gap-1 text-[10px] text-[#59625F]"
-            title={
-              node.file.sharedWithIssuer
-                ? "已共享给项目协作方"
-                : "共享给项目协作方"
-            }
-            onClick={(e) => e.stopPropagation()}
-          >
-            <input
-              type="checkbox"
-              checked={Boolean(node.file.sharedWithIssuer)}
-              disabled={busy || sharingId === node.id}
-              onChange={(e) => void onShareFile(node.file, e.target.checked)}
-            />
-            共享
-          </label>
-        ) : null}
-        {canPreview ? (
-          <button
-            type="button"
-            title="预览文件"
-            aria-label="预览文件"
-            className="inline-flex h-[25px] w-[25px] shrink-0 items-center justify-center rounded-[7px] text-[hsl(var(--warm-charcoal-muted))] hover:bg-[rgba(160,99,88,0.08)] hover:text-[hsl(var(--wine))]"
-            onClick={(e) => {
-              e.stopPropagation();
-              onPreview(node.id);
-            }}
-          >
-            <Eye className="h-[15px] w-[15px]" strokeWidth={1.8} />
-          </button>
-        ) : null}
-        {canDeleteFile ? (
-          <button
-            type="button"
-            disabled={busy || deletingId === node.id}
-            title="删除"
-            aria-label={`删除 ${node.name}`}
-            className="inline-flex h-[25px] w-[25px] shrink-0 items-center justify-center rounded-[7px] text-[hsl(var(--warm-charcoal-muted))] hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
-            onClick={(e) => {
-              e.stopPropagation();
-              void onDeleteFile(node.file);
-            }}
-          >
-            {deletingId === node.id ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
-            )}
-          </button>
-        ) : null}
       </div>
     );
   }
@@ -1847,11 +1679,6 @@ function TreeRow({
   const bucket = sourceBucketFromVirtualPath(node.path);
   const noDrop =
     bucket === "session" || bucket === "issuer" || isTopicPath(node.path);
-  const noDelete =
-    isSourceRootPath(node.path) ||
-    isTopicPath(node.path) ||
-    bucket === "session" ||
-    bucket === "issuer";
   const isDrag = dragOverPath === node.path;
 
   return (
@@ -1916,31 +1743,9 @@ function TreeRow({
           {node.children.length > 0 ? (open ? "▾" : "▸") : ""}
         </span>
         <Folder className="h-[15px] w-[15px] shrink-0 text-[hsl(var(--wine))]" strokeWidth={1.8} />
-        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold" title={node.name}>
+        <span className="min-w-0 flex-1 truncate text-[13px] font-medium" title={node.name}>
           {node.name}
         </span>
-        {node.path === SESSION_SOURCE_PATH ? (
-          <span
-            className="shrink-0 rounded-lg px-1.5 py-px text-[9.5px]"
-            style={{ background: "rgba(160,99,88,0.1)", color: "#A06358" }}
-          >
-            对话
-          </span>
-        ) : null}
-        {canManage && !noDelete && node.path ? (
-          <button
-            type="button"
-            disabled={busy || deletingId === `folder:${node.path}`}
-            title="删除文件夹"
-            className="inline-flex h-[25px] w-[25px] shrink-0 items-center justify-center rounded-[7px] text-[hsl(var(--warm-charcoal-muted))] hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
-            onClick={(e) => {
-              e.stopPropagation();
-              void onDeleteFolder(node.path);
-            }}
-          >
-            <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
-          </button>
-        ) : null}
       </div>
       {open
         ? node.children.map((child) => (
@@ -1951,21 +1756,11 @@ function TreeRow({
               expanded={expanded}
               selection={selection}
               canManage={canManage}
-              canDownload={canDownload}
-              busy={busy}
-              deletingId={deletingId}
               dragOverPath={dragOverPath}
               setDragOverPath={setDragOverPath}
               setExpanded={setExpanded}
               setSelection={setSelection}
               onSelectFile={onSelectFile}
-              parsedById={parsedById}
-              parsingId={parsingId}
-              sharingId={sharingId}
-              onPreview={onPreview}
-              onShareFile={onShareFile}
-              onDeleteFile={onDeleteFile}
-              onDeleteFolder={onDeleteFolder}
               onDropFiles={onDropFiles}
               onDropDocument={onDropDocument}
             />
