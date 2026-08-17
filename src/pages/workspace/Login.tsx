@@ -5,13 +5,6 @@ import { loadSessionToken, loadSessionUserId } from "@/workspace/session";
 
 const REMEMBER_USER_KEY = "fo-login-remember-user";
 
-const DEMO_IDENTITIES = [
-  { name: "BingheSu", role: "项目负责人", username: "binghesu" },
-  { name: "JimmyHuang", role: "Core 核心级", username: "jimmyhuang" },
-  { name: "管理员", role: "平台管理", username: "candiceguo" },
-  { name: "访客", role: "Guest 浏览", username: "janicehi" },
-] as const;
-
 export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -139,7 +132,7 @@ export default function Login() {
             </div>
             <h1 className="font-display text-[28px] font-semibold">登录工作台</h1>
             <p className="mt-2 text-[13.5px] text-[hsl(var(--warm-charcoal-muted))]">
-              内部用户登录，或选择演示身份预填账号后输入密码进入。
+              请输入内部账号与密码登录。
             </p>
             {fromSwitch ? (
               <p className="mt-3 rounded-xl border border-[hsl(var(--wine)/0.22)] bg-[hsl(var(--wine-muted))] px-3.5 py-2.5 text-xs text-[hsl(var(--warm-charcoal))]">
@@ -189,36 +182,6 @@ export default function Login() {
                 {submitting ? "登录中..." : "登录"}
               </button>
             </form>
-
-            <div className="mt-[30px]">
-              <div className="flex items-center gap-3 text-xs text-[hsl(var(--warm-charcoal-muted))]">
-                <div className="h-px flex-1 bg-[rgba(78,66,57,0.12)]" />
-                演示身份
-                <div className="h-px flex-1 bg-[rgba(78,66,57,0.12)]" />
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-2.5">
-                {DEMO_IDENTITIES.map((id) => (
-                  <button
-                    key={id.username}
-                    type="button"
-                    disabled={submitting}
-                    onClick={() => {
-                      setUsername(id.username);
-                      setError(null);
-                    }}
-                    className="rounded-xl border border-[rgba(78,66,57,0.12)] bg-[rgba(255,252,248,0.7)] px-3.5 py-3 text-left transition-colors hover:border-[hsl(var(--wine)/0.4)] hover:bg-[hsl(var(--wine-muted))]"
-                  >
-                    <div className="text-[13.5px] font-medium">{id.name}</div>
-                    <div className="mt-0.5 text-[11.5px] text-[hsl(var(--warm-charcoal-muted))]">
-                      {id.role}
-                    </div>
-                  </button>
-                ))}
-              </div>
-              <p className="mt-3 text-center text-[11.5px] text-[hsl(var(--warm-charcoal-muted))]">
-                演示身份仅预填用户名，仍需正确密码完成真实登录。
-              </p>
-            </div>
           </div>
         </div>
       </div>
