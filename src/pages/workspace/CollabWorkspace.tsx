@@ -61,9 +61,8 @@ async function downloadCollabFile(
 }
 
 function sourceKindLabel(kind: string | null): string {
-  if (kind === "issuer_upload") return "项目协作方上传";
+  if (kind === "issuer_upload") return "我方上传";
   if (kind === "investor_share") return "投资方共享";
-  if (kind === "public_source") return "公开资料";
   return "—";
 }
 
@@ -676,7 +675,6 @@ export function CollabFilesPage() {
     const byKind: Record<string, CollabFileRecord[]> = {
       issuer_upload: [],
       investor_share: [],
-      public_source: [],
     };
     for (const f of files) {
       const k = f.sourceKind || "investor_share";
@@ -691,7 +689,7 @@ export function CollabFilesPage() {
       <CollabHeader project={project} tab="files" />
       <div className="mx-auto max-w-[1180px] px-6 py-8 md:px-8">
         {error ? <p className="text-[13px] text-[#A06358]">{error}</p> : null}
-        {(["issuer_upload", "investor_share", "public_source"] as const).map(
+        {(["issuer_upload", "investor_share"] as const).map(
           (k) => (
             <section key={k} className="mb-6">
               <h2 className="text-[14px] font-semibold text-[#1F2423]">
@@ -735,7 +733,7 @@ export function CollabFilesPage() {
         <section className="mb-6 rounded-2xl border border-[rgba(78,66,57,0.1)] bg-white/80 p-5">
           <h2 className="text-[14px] font-semibold text-[#1F2423]">上传补充资料</h2>
           <p className="mt-1 text-[12.5px] text-[#59625F]">
-            未挂到具体事项的资料也会出现在「项目协作方上传」。投资团队可在内部资料包中看到。
+            未挂到具体事项的资料也会出现在「我方上传」。投资团队可在内部资料包中看到。
           </p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <input
