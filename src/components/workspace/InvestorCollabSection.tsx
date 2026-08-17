@@ -15,6 +15,12 @@ import {
   type ProjectFileRecord,
 } from "@/lib/project-api";
 import { parseOpenQuestionsFromHtml } from "@/lib/open-questions-parse";
+import {
+  extractOpenQuestionTitle,
+  formatOpenQuestionForIssuer,
+  previewCollabQuestion,
+  stripCitationMarkers,
+} from "@/lib/kn-citations";
 import { getMergedProjects } from "@/workspace/project-registry";
 import { getProjectRole } from "@/workspace/workspace-users";
 
@@ -118,8 +124,9 @@ export function InvestorCollabSection({
     const t = incomingDraft.sourceText;
     const q = questions.find((x) => x.text === t);
     setSourceText(t);
-    setTitle((prev) => prev.trim() || incomingDraft.title || t.slice(0, 48));
-    setBody((prev) => prev.trim() || t);
+    const formatted = formatOpenQuestionForIssuer(t);
+    setTitle((prev) => prev.trim() || incomingDraft.title || formatted.title);
+    setBody((prev) => prev.trim() || formatted.body);
     setPriority(q?.priority ?? incomingDraft.priority ?? "P2");
   }, [incomingDraft, questions]);
 
@@ -175,8 +182,12 @@ export function InvestorCollabSection({
     setError(null);
     try {
       await publishCollabItem(projectId, {
-        title: title.trim() || sourceText.slice(0, 40),
-        body: body.trim() || sourceText,
+        title:
+          stripCitationMarkers(title.trim() || sourceText).slice(0, 80) ||
+          formatOpenQuestionForIssuer(sourceText).title,
+        body:
+          stripCitationMarkers(body.trim() || sourceText) ||
+          formatOpenQuestionForIssuer(sourceText).body,
         sourceQuestionText: sourceText,
         replyMode,
         priority,
@@ -253,14 +264,21 @@ export function InvestorCollabSection({
             </button>
           </div>
           <ul className="mt-3 space-y-2">
-            {unpublishedQuestions.map((q) => (
+            {unpublishedQuestions.map((q) => {
+              const preview = extractOpenQuestionTitle(q.text);
+              return (
               <li
                 key={q.text}
                 className="flex items-start justify-between gap-3 rounded-xl border border-[rgba(78,66,57,0.08)] px-3 py-2.5"
               >
                 <div className="min-w-0 text-[13px] leading-relaxed text-[#1F2423]">
                   <span className="mr-1.5 text-[11px] text-[#A06358]">{q.priority}</span>
-                  {q.text}
+                  {preview.title}
+                  {preview.detail ? (
+                    <div className="mt-1 text-[12px] text-[#59625F] line-clamp-2">
+                      {preview.detail}
+                    </div>
+                  ) : null}
                 </div>
                 <button
                   type="button"
@@ -271,7 +289,8 @@ export function InvestorCollabSection({
                   {busy === q.text ? "发送中…" : "发给项目方"}
                 </button>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </section>
       ) : null}
@@ -294,8 +313,9 @@ export function InvestorCollabSection({
               const q = questions.find((x) => x.text === t);
               if (q) {
                 setPriority(q.priority);
-                if (!title.trim()) setTitle(t.slice(0, 48));
-                if (!body.trim()) setBody(t);
+                const formatted = formatOpenQuestionForIssuer(t);
+                if (!title.trim()) setTitle(formatted.title);
+                if (!body.trim()) setBody(formatted.body);
               }
             }}
             className="mt-1 h-9 w-full rounded-lg border border-[rgba(78,66,57,0.12)] px-2 text-[13px]"
@@ -308,7 +328,7 @@ export function InvestorCollabSection({
               return (
               <option key={q.text} value={q.text}>
                 {published ? "已发布 · " : ""}
-                {q.priority} · {q.text.slice(0, 80)}
+                {q.priority} · {extractOpenQuestionTitle(q.text).title.slice(0, 80)}
               </option>
               );
             })}
@@ -386,16 +406,24 @@ export function InvestorCollabSection({
           <p className="mt-2 text-[13px] text-[#969E9A]">尚未发布。</p>
         ) : (
           <ul className="mt-2 space-y-3">
-            {items.map((it) => (
+            {items.map((it) => {
+              const preview = previewCollabQuestion(it);
+              return (
               <li
                 key={it.id}
                 className="rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/80 px-4 py-3"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="font-semibold text-[#1F2423]">{it.title}</div>
+                    <div className="font-semibold text-[#1F2423]">{preview.title}</div>
+                    {preview.detail ? (
+                      <div className="mt-1 text-[12.5px] text-[#59625F] line-clamp-2">
+                        {preview.detail}
+                      </div>
+                    ) : null}
                     <div className="mt-1 text-[12px] text-[#969E9A]">
-                      内部原题：{it.sourceQuestionText ?? "—"}
+                      内部原题：
+                      {stripCitationMarkers(it.sourceQuestionText ?? "") || "—"}
                     </div>
                   </div>
                   <span className="text-[11.5px] text-[#A06358]">
@@ -436,7 +464,8 @@ export function InvestorCollabSection({
                   </div>
                 ) : null}
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </section>

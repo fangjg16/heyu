@@ -29,6 +29,7 @@ import {
   resolveProjectRole,
 } from "./workspace-roles";
 import { getWorkspaceUserById } from "./workspace-users-db";
+import { stripCitationMarkers } from "./kn-citation-markers";
 
 type Env = { DB: AppDatabase };
 
@@ -58,7 +59,7 @@ function nextSuggestions(items: CollabItemPublic[]): string[] {
       i.fileReqs.length > 0
         ? `；请补充「${i.fileReqs.map((f) => f.label).join("、")}」`
         : "";
-    return `${i.title}${due}${files}`;
+    return `${stripCitationMarkers(i.title)}${due}${files}`;
   });
 }
 
@@ -233,8 +234,8 @@ export async function handlePublishCollabItem(
   } catch {
     return json({ error: "请求体须为 JSON" }, 400);
   }
-  const title = String(body.title ?? "").trim();
-  const content = String(body.body ?? "").trim();
+  const title = stripCitationMarkers(String(body.title ?? "").trim());
+  const content = stripCitationMarkers(String(body.body ?? "").trim());
   const sourceQuestionText = String(body.sourceQuestionText ?? "").trim();
   if (!title || !content) {
     return json({ error: "请填写对外标题与需确认内容" }, 400);

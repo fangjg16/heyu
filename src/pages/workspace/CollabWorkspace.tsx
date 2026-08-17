@@ -21,6 +21,10 @@ import {
   type CollabItem,
   type CollabOverview,
 } from "@/lib/project-api";
+import {
+  previewCollabQuestion,
+  stripCitationMarkers,
+} from "@/lib/kn-citations";
 import { getMergedProjects } from "@/workspace/project-registry";
 import { loadSessionUserId } from "@/workspace/session";
 import {
@@ -231,7 +235,7 @@ export function CollabOverviewPage() {
               ) : (
                 <ul className="mt-2 list-disc space-y-1.5 pl-5 text-[13.5px] leading-relaxed text-[#1F2423]">
                   {data.nextSuggestions.map((s) => (
-                    <li key={s}>{s}</li>
+                    <li key={s}>{stripCitationMarkers(s)}</li>
                   ))}
                 </ul>
               )}
@@ -287,28 +291,33 @@ export function CollabItemsPage() {
           </div>
         ) : (
           <ul className="space-y-2">
-            {items.map((it) => (
-              <li key={it.id}>
-                <Link
-                  to={`/app/collab/${project.id}/items/${it.id}`}
-                  className="flex items-start justify-between gap-3 rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/80 px-4 py-3 hover:border-[rgba(160,99,88,0.3)]"
-                >
-                  <div className="min-w-0">
-                    <div className="font-semibold text-[#1F2423]">{it.title}</div>
-                    <div className="mt-1 line-clamp-2 text-[12.5px] text-[#59625F]">
-                      {it.body}
+            {items.map((it) => {
+              const preview = previewCollabQuestion(it);
+              return (
+                <li key={it.id}>
+                  <Link
+                    to={`/app/collab/${project.id}/items/${it.id}`}
+                    className="flex items-start justify-between gap-3 rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/80 px-4 py-3 hover:border-[rgba(160,99,88,0.3)]"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-semibold text-[#1F2423]">{preview.title}</div>
+                      {preview.detail ? (
+                        <div className="mt-1 line-clamp-2 text-[12.5px] text-[#59625F]">
+                          {preview.detail}
+                        </div>
+                      ) : null}
+                      <div className="mt-1.5 text-[11.5px] text-[#969E9A]">
+                        {it.priority}
+                        {it.dueAt ? ` · 截止 ${it.dueAt.slice(0, 10)}` : ""}
+                      </div>
                     </div>
-                    <div className="mt-1.5 text-[11.5px] text-[#969E9A]">
-                      {it.priority}
-                      {it.dueAt ? ` · 截止 ${it.dueAt.slice(0, 10)}` : ""}
-                    </div>
-                  </div>
-                  <span className="shrink-0 rounded-md bg-[rgba(160,99,88,0.1)] px-2 py-0.5 text-[11px] font-medium text-[#A06358]">
-                    {collabStatusLabel(it.status)}
-                  </span>
-                </Link>
-              </li>
-            ))}
+                    <span className="shrink-0 rounded-md bg-[rgba(160,99,88,0.1)] px-2 py-0.5 text-[11px] font-medium text-[#A06358]">
+                      {collabStatusLabel(it.status)}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
@@ -385,6 +394,8 @@ export function CollabItemDetailPage() {
     }
   };
 
+  const preview = item ? previewCollabQuestion(item) : null;
+
   return (
     <>
       <CollabHeader project={project} tab="items" />
@@ -399,22 +410,24 @@ export function CollabItemDetailPage() {
         {error ? (
           <p className="mt-3 text-[13px] text-[#A06358]">{error}</p>
         ) : null}
-        {!item ? (
+        {!item || !preview ? (
           <p className="mt-4 text-[13px] text-[#969E9A]">加载事项…</p>
         ) : (
           <div className="mt-4 space-y-4">
             <div className="rounded-2xl border border-[rgba(78,66,57,0.1)] bg-white/80 p-5">
               <div className="flex items-start justify-between gap-2">
                 <h2 className="text-[18px] font-semibold text-[#1F2423]">
-                  {item.title}
+                  {preview.title}
                 </h2>
                 <span className="text-[12px] text-[#A06358]">
                   {collabStatusLabel(item.status)}
                 </span>
               </div>
-              <p className="mt-3 whitespace-pre-wrap text-[13.5px] leading-relaxed text-[#1F2423]">
-                {item.body}
-              </p>
+              {preview.detail && preview.detail !== preview.title ? (
+                <p className="mt-3 whitespace-pre-wrap text-[13.5px] leading-relaxed text-[#1F2423]">
+                  {preview.detail}
+                </p>
+              ) : null}
               {item.investorNote ? (
                 <p className="mt-3 rounded-lg bg-[rgba(78,66,57,0.05)] px-3 py-2 text-[12.5px] text-[#59625F]">
                   投资人说明：{item.investorNote}

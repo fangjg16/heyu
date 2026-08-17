@@ -12,7 +12,7 @@ import {
   type CollabItem,
   type MyOpenQuestionItem,
 } from "@/lib/project-api";
-import { extractOpenQuestionTitle } from "@/lib/kn-citations";
+import { extractOpenQuestionTitle, previewCollabQuestion, stripCitationMarkers } from "@/lib/kn-citations";
 import { filterProjectsForUser } from "@/workspace/guest-access";
 import {
   getMergedProjects,
@@ -269,7 +269,7 @@ export default function HomeDashboard() {
       return {
         id: item.id,
         text: item.text,
-        title: title || item.text,
+        title: title || stripCitationMarkers(item.text),
         detail,
         meta: item.projectName,
         due: published
@@ -289,11 +289,13 @@ export default function HomeDashboard() {
   }, [openQuestions, publishedByProject]);
 
   const collabFocus = collabInbox[0]
-    ? {
+    ? (() => {
+        const preview = previewCollabQuestion(collabInbox[0]);
+        return {
         id: `collab-${collabInbox[0].id}`,
         text: collabInbox[0].title,
-        title: collabInbox[0].title,
-        detail: collabInbox[0].body ?? "",
+        title: preview.title,
+        detail: preview.detail,
         meta: collabInbox[0].projectName ?? "项目方协作",
         due: collabInbox[0].dueAt
           ? `截止 ${collabInbox[0].dueAt.slice(0, 10)}`
@@ -305,7 +307,8 @@ export default function HomeDashboard() {
         published: true,
         projectId: collabInbox[0].projectId,
         priority: collabInbox[0].priority,
-      }
+        };
+      })()
     : null;
   const focusTodo = todos[0] ?? collabFocus;
   const displayTodos = todos.slice(0, 3);
@@ -475,6 +478,18 @@ export default function HomeDashboard() {
             >
               {focusTodo.title}
             </div>
+            {focusTodo.detail ? (
+              <div
+                style={{
+                  marginTop: 10,
+                  fontSize: 15.5,
+                  color: "rgba(255,255,255,0.86)",
+                  lineHeight: 1.65,
+                }}
+              >
+                {focusTodo.detail}
+              </div>
+            ) : null}
             <div
               style={{
                 marginTop: 10,
@@ -881,7 +896,9 @@ export default function HomeDashboard() {
                   投资团队尚未向你发布事项。你仍可在项目「源文件」中上传补充资料。
                 </p>
               ) : (
-                collabInbox.slice(0, 5).map((it) => (
+                collabInbox.slice(0, 5).map((it) => {
+                  const preview = previewCollabQuestion(it);
+                  return (
                 <Link
                   key={it.id}
                   to={`/app/collab/${it.projectId}/items/${it.id}`}
@@ -903,8 +920,24 @@ export default function HomeDashboard() {
                         color: C.ink,
                       }}
                     >
-                      {it.title}
+                      {preview.title}
                     </div>
+                    {preview.detail ? (
+                    <div
+                      style={{
+                        marginTop: 4,
+                        fontSize: 13.5,
+                        color: C.muted,
+                        lineHeight: 1.55,
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {preview.detail}
+                    </div>
+                    ) : null}
                     <div
                       style={{
                         marginTop: 4,
@@ -918,7 +951,8 @@ export default function HomeDashboard() {
                   </div>
                   <span style={{ color: C.wine }}>→</span>
                 </Link>
-              ))
+              );
+                })
               )}
             </div>
           </>

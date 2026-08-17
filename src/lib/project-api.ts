@@ -1,5 +1,6 @@
 import { normalizeProjectPhase } from "@/workspace/projects";
 import { apiFetch } from "@/lib/api-auth";
+import { formatOpenQuestionForIssuer } from "@/lib/kn-citations";
 
 function withAuthHeaders(init?: RequestInit): RequestInit {
   return init ?? {};
@@ -1541,10 +1542,10 @@ export async function publishOpenQuestionToIssuer(
 ): Promise<CollabItem> {
   const text = question.text.trim();
   if (!text) throw new Error("问题内容为空");
-  const title = (question.title ?? text).trim().slice(0, 80) || text.slice(0, 80);
+  const formatted = formatOpenQuestionForIssuer(text);
   return publishCollabItem(projectId, {
-    title,
-    body: text,
+    title: formatted.title || formatted.body.slice(0, 80),
+    body: formatted.body,
     sourceQuestionText: text,
     replyMode: "both",
     priority: question.priority ?? "P2",

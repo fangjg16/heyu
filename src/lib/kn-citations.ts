@@ -1,6 +1,15 @@
-/** 前端：知识网络引用标记 [A-1] */
-
-const CITE_ID_RE = /\[([A-Za-z]+-\d+)\]/gu;
+/**
+ * 知识网络引用标记：
+ * [A-1] [A-100] [S-100] [U-7] [A-10b] [S12]
+ * 句末可连续出现，如 [A-100][S-100]
+ */
+const CITE_ID_CORE =
+  "(?:[A-Za-z][A-Za-z0-9]*-\\d+[A-Za-z]?|[A-Za-z]\\d+[A-Za-z]?)";
+const CITE_ID_RE = new RegExp(`\\[\\s*(${CITE_ID_CORE})\\s*\\]`, "gu");
+const CITE_CLUSTER_RE = new RegExp(
+  `(?:\\s*\\[\\s*${CITE_ID_CORE}\\s*\\])+`,
+  "gu",
+);
 
 export function knSourceAnchorId(citeId: string): string {
   return `kn-source-${citeId}`;
@@ -31,7 +40,52 @@ export function linkifyCitationMarkersHtml(html: string): string {
 }
 
 export function stripCitationMarkers(text: string): string {
-  return text.replace(CITE_ID_RE, "").replace(/\s{2,}/gu, " ").trim();
+  return (text ?? "")
+    .replace(CITE_CLUSTER_RE, " ")
+    .replace(/\s+([，。；：、])/gu, "$1")
+    .replace(/\s{2,}/gu, " ")
+    .trim();
+}
+
+/** 发给项目方 / 项目方展示：去掉尾注，标题与正文拆开 */
+export function formatOpenQuestionForIssuer(raw: string): {
+  title: string;
+  body: string;
+} {
+  const body = stripCitationMarkers(raw).replace(/\s+/gu, " ").trim();
+  const { title } = extractOpenQuestionTitle(raw);
+  return {
+    title: (title || body).slice(0, 80),
+    body: body || title,
+  };
+}
+
+/** 已发出事项的展示清洗（兼容旧数据里还带着 [A-1][A-100][S-100]） */
+export function previewCollabQuestion(input: {
+  title?: string | null;
+  body?: string | null;
+}): { title: string; detail: string } {
+  const cleanedTitle = stripCitationMarkers(input.title ?? "")
+    .replace(/\s+/gu, " ")
+    .trim();
+  const cleanedBody = stripCitationMarkers(input.body ?? "")
+    .replace(/\s+/gu, " ")
+    .trim();
+  const parsed = extractOpenQuestionTitle(cleanedBody || cleanedTitle);
+  const customTitle =
+    Boolean(cleanedTitle) &&
+    Boolean(cleanedBody) &&
+    cleanedTitle !== cleanedBody &&
+    !cleanedBody.startsWith(cleanedTitle) &&
+    !cleanedTitle.startsWith(parsed.title);
+  if (customTitle) {
+    return {
+      title: cleanedTitle,
+      detail: parsed.detail || cleanedBody,
+    };
+  }
+  if (parsed.title) return parsed;
+  return { title: cleanedTitle || cleanedBody, detail: "" };
 }
 
 /**
