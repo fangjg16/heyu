@@ -127,6 +127,11 @@ export function isIssuerRole(role: WorkspaceRole): boolean {
   return role === "issuer";
 }
 
+/** 发给项目方 / 改措辞发布：仅项目管理员与 Core */
+export function canPublishToIssuer(role: WorkspaceRole): boolean {
+  return role === "admin" || role === "core";
+}
+
 /** 当前账号在已加入项目里全部是项目方：不进广场、不新建项目 */
 export function isIssuerOnlyUser(userId: string | null | undefined): boolean {
   const uid = (userId ?? "").trim();

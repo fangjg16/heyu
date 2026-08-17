@@ -22,7 +22,7 @@ import {
   stripCitationMarkers,
 } from "@/lib/kn-citations";
 import { getMergedProjects } from "@/workspace/project-registry";
-import { getProjectRole } from "@/workspace/workspace-users";
+import { canPublishToIssuer, getProjectRole } from "@/workspace/workspace-users";
 
 type InvestorCollabSectionProps = {
   projectId: string;
@@ -43,7 +43,7 @@ export function InvestorCollabSection({
   const [busy, setBusy] = useState<string | null>(null);
   const project = getMergedProjects().find((p) => p.id === projectId);
   const role = getProjectRole(userId, projectId, project?.createdBy);
-  const canManage = role === "admin" || role === "core";
+  const canManage = canPublishToIssuer(role);
 
   const [sourceText, setSourceText] = useState("");
   const [title, setTitle] = useState("");
@@ -141,6 +141,10 @@ export function InvestorCollabSection({
   );
 
   const onSendQuestion = async (q: { text: string; priority: CollabPriority }) => {
+    if (!canManage) {
+      setError("仅 Admin / Core 可发给项目方");
+      return;
+    }
     setBusy(q.text);
     setError(null);
     try {
@@ -158,6 +162,10 @@ export function InvestorCollabSection({
   };
 
   const onSendAllUnpublished = async () => {
+    if (!canManage) {
+      setError("仅 Admin / Core 可发给项目方");
+      return;
+    }
     if (unpublishedQuestions.length === 0) return;
     setBusy("publish-all");
     setError(null);
@@ -178,6 +186,10 @@ export function InvestorCollabSection({
   };
 
   const onPublish = async () => {
+    if (!canManage) {
+      setError("仅 Admin / Core 可发给项目方");
+      return;
+    }
     setBusy("publish");
     setError(null);
     try {
@@ -242,7 +254,9 @@ export function InvestorCollabSection({
     <div className="mx-auto max-w-[1180px] px-6 py-8 md:px-10">
       <h2 className="text-[20px] font-semibold text-[#1F2423]">项目方协作</h2>
       <p className="mt-1 text-[13px] text-[#59625F]">
-        内部问题默认按原文一键发给项目方（发布后冻结）。有投资判断的条目再改措辞。文件仍需逐份勾选共享。
+        {canManage
+          ? "内部问题默认按原文一键发给项目方（发布后冻结）。有投资判断的条目再改措辞。文件仍需逐份勾选共享。"
+          : "已发布事项与文件授权状态可在此查看。"}
       </p>
       {error ? (
         <p className="mt-3 text-[13px] text-[#A06358]">{error}</p>
@@ -394,11 +408,7 @@ export function InvestorCollabSection({
           {busy === "publish" ? "发布中…" : "发布给项目方"}
         </button>
       </section>
-      ) : (
-        <p className="mt-4 text-[12.5px] text-[#969E9A]">
-          发布与审核需 Admin / Core。你可查看已发布事项与授权状态。
-        </p>
-      )}
+      ) : null}
 
       <section className="mt-6">
         <div className="text-[13px] font-semibold text-[#1F2423]">已发布事项</div>

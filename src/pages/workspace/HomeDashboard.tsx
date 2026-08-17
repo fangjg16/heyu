@@ -25,6 +25,7 @@ import { useJoinReviews } from "@/hooks/use-join-reviews";
 import {
   getProjectRole,
   getUserById,
+  canPublishToIssuer,
   isInvestorRole,
   isIssuerRole,
   projectEntryPath,
@@ -325,9 +326,11 @@ export default function HomeDashboard() {
   const canPublishForProject = (projectId: string) => {
     const project = projects.find((p) => p.id === projectId);
     if (!userId || !project) return false;
-    const role = getProjectRole(userId, project.id, project.createdBy);
-    return role === "admin" || role === "core";
+    return canPublishToIssuer(getProjectRole(userId, project.id, project.createdBy));
   };
+  const canSendUnpublished = todos.some(
+    (t) => !t.published && canPublishForProject(t.projectId),
+  );
 
   const refreshPublished = async (projectId: string) => {
     const items = await fetchCollabItems(projectId).catch(() => [] as CollabItem[]);
@@ -564,7 +567,7 @@ export default function HomeDashboard() {
                     ? "查看事项 →"
                     : "查看进度 →"}
                 </Link>
-              ) : (
+              ) : canPublishForProject(focusTodo.projectId) ? (
                 <>
                   <Link
                     to={focusTodo.to}
@@ -588,7 +591,7 @@ export default function HomeDashboard() {
                   </Link>
                   <button
                     type="button"
-                    disabled={Boolean(sendingId) || !canPublishForProject(focusTodo.projectId)}
+                    disabled={Boolean(sendingId)}
                     onClick={() => void sendToIssuer(focusTodo)}
                     style={{
                       height: 42,
@@ -606,6 +609,24 @@ export default function HomeDashboard() {
                     {sendingId === focusTodo.id ? "发送中…" : "发给项目方"}
                   </button>
                 </>
+              ) : (
+                <Link
+                  to={focusTodo.to}
+                  style={{
+                    height: 42,
+                    padding: "0 20px",
+                    borderRadius: 12,
+                    background: "#fff",
+                    color: C.wine,
+                    fontSize: 14.5,
+                    fontWeight: 600,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    textDecoration: "none",
+                  }}
+                >
+                  查看进度 →
+                </Link>
               )}
             </div>
           </div>
@@ -706,9 +727,11 @@ export default function HomeDashboard() {
             lineHeight: 1.6,
           }}
         >
-          默认按原文发给项目方，发布后冻结。含投资判断的条目请先「改措辞」。
+          {canSendUnpublished
+            ? "默认按原文发给项目方，发布后冻结。含投资判断的条目请先「改措辞」。"
+            : "知识网络章节中的待确认问题会汇总在此。"}
         </p>
-        {unpublishedCount > 0 && hasInvestorProject ? (
+        {canSendUnpublished ? (
           <button
             type="button"
             disabled={Boolean(sendingId)}
@@ -763,7 +786,7 @@ export default function HomeDashboard() {
                 color: C.muted,
               }}
             >
-              暂无内部待确认问题。生成知识网络该章节后会汇总在此，再一键发给项目方。
+              暂无内部待确认问题。生成知识网络该章节后会汇总在此。
             </p>
           ) : (
             displayTodos.map((t) => (
@@ -839,7 +862,7 @@ export default function HomeDashboard() {
                   >
                     {t.listDue} →
                   </Link>
-                ) : (
+                ) : canPublishForProject(t.projectId) ? (
                   <div
                     style={{
                       display: "flex",
@@ -870,9 +893,7 @@ export default function HomeDashboard() {
                     </Link>
                     <button
                       type="button"
-                      disabled={
-                        Boolean(sendingId) || !canPublishForProject(t.projectId)
-                      }
+                      disabled={Boolean(sendingId)}
                       onClick={() => void sendToIssuer(t)}
                       style={{
                         height: 34,
@@ -890,6 +911,20 @@ export default function HomeDashboard() {
                       {sendingId === t.id ? "发送中…" : "发给项目方"}
                     </button>
                   </div>
+                ) : (
+                  <Link
+                    to={t.to}
+                    style={{
+                      fontSize: 13.5,
+                      color: C.wine,
+                      textDecoration: "none",
+                      flexShrink: 0,
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    查看 →
+                  </Link>
                 )}
               </div>
             ))
