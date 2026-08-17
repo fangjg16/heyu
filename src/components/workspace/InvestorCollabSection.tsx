@@ -6,6 +6,7 @@ import {
   fetchProjectFiles,
   fetchProjectKnowledgeChapter,
   publishCollabItem,
+  publishOpenQuestionToIssuer,
   reviewCollabItem,
   shareFileWithIssuer,
   type CollabItem,
@@ -128,6 +129,47 @@ export function InvestorCollabSection({
     );
   }, [load]);
 
+  const unpublishedQuestions = questions.filter(
+    (q) => !items.some((it) => it.sourceQuestionText === q.text),
+  );
+
+  const onSendQuestion = async (q: { text: string; priority: CollabPriority }) => {
+    setBusy(q.text);
+    setError(null);
+    try {
+      await publishOpenQuestionToIssuer(projectId, {
+        text: q.text,
+        title: q.text.slice(0, 80),
+        priority: q.priority,
+      });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "发送失败");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const onSendAllUnpublished = async () => {
+    if (unpublishedQuestions.length === 0) return;
+    setBusy("publish-all");
+    setError(null);
+    try {
+      for (const q of unpublishedQuestions) {
+        await publishOpenQuestionToIssuer(projectId, {
+          text: q.text,
+          title: q.text.slice(0, 80),
+          priority: q.priority,
+        });
+      }
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "发送失败");
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const onPublish = async () => {
     setBusy("publish");
     setError(null);
@@ -189,17 +231,59 @@ export function InvestorCollabSection({
     <div className="mx-auto max-w-[1180px] px-6 py-8 md:px-10">
       <h2 className="text-[20px] font-semibold text-[#1F2423]">项目方协作</h2>
       <p className="mt-1 text-[13px] text-[#59625F]">
-        内部「待确认问题」只给投资团队看，设成项目方也不会自动同步。请在下方挑选内部问题、改成对外中性措辞后再发布；发布后项目方才能答复。已确认的答复会回写知识网络「待确认问题」。
+        内部问题默认按原文一键发给项目方（发布后冻结）。有投资判断的条目再改措辞。文件仍需逐份勾选共享。
       </p>
       {error ? (
         <p className="mt-3 text-[13px] text-[#A06358]">{error}</p>
       ) : null}
 
+      {canManage && unpublishedQuestions.length > 0 ? (
+        <section className="mt-6 rounded-2xl border border-[rgba(78,66,57,0.1)] bg-white/80 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-[13px] font-semibold text-[#1F2423]">
+              未发给项目方（{unpublishedQuestions.length}）
+            </div>
+            <button
+              type="button"
+              disabled={Boolean(busy)}
+              onClick={() => void onSendAllUnpublished()}
+              className="h-9 rounded-lg bg-[#A06358] px-3 text-[12.5px] font-medium text-white disabled:opacity-45"
+            >
+              {busy === "publish-all" ? "发送中…" : "全部按原文发给项目方"}
+            </button>
+          </div>
+          <ul className="mt-3 space-y-2">
+            {unpublishedQuestions.map((q) => (
+              <li
+                key={q.text}
+                className="flex items-start justify-between gap-3 rounded-xl border border-[rgba(78,66,57,0.08)] px-3 py-2.5"
+              >
+                <div className="min-w-0 text-[13px] leading-relaxed text-[#1F2423]">
+                  <span className="mr-1.5 text-[11px] text-[#A06358]">{q.priority}</span>
+                  {q.text}
+                </div>
+                <button
+                  type="button"
+                  disabled={Boolean(busy)}
+                  onClick={() => void onSendQuestion(q)}
+                  className="shrink-0 text-[12.5px] font-medium text-[#A06358] disabled:opacity-45"
+                >
+                  {busy === q.text ? "发送中…" : "发给项目方"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       {canManage ? (
       <section className="mt-6 rounded-2xl border border-[rgba(78,66,57,0.1)] bg-white/80 p-5">
         <div className="text-[13px] font-semibold text-[#1F2423]">
-          发布给项目方
+          改措辞后单独发布
         </div>
+        <p className="mt-1 text-[12px] text-[#59625F]">
+          仅在内部原文不宜直接给项目方时使用。一般条目用上方一键发送即可。
+        </p>
         <label className="mt-3 block text-[12px] text-[#59625F]">
           对应内部问题
           <select

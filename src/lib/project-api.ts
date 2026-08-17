@@ -1530,6 +1530,27 @@ export async function publishCollabItem(
   return data.item;
 }
 
+/** 按内部问题原文一键发给项目方（发布后冻结） */
+export async function publishOpenQuestionToIssuer(
+  projectId: string,
+  question: {
+    text: string;
+    title?: string;
+    priority?: CollabPriority;
+  },
+): Promise<CollabItem> {
+  const text = question.text.trim();
+  if (!text) throw new Error("问题内容为空");
+  const title = (question.title ?? text).trim().slice(0, 80) || text.slice(0, 80);
+  return publishCollabItem(projectId, {
+    title,
+    body: text,
+    sourceQuestionText: text,
+    replyMode: "both",
+    priority: question.priority ?? "P2",
+  });
+}
+
 export async function patchCollabItemReply(
   projectId: string,
   itemId: string,

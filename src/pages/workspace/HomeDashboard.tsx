@@ -8,6 +8,7 @@ import {
   fetchMyOpenQuestions,
   fetchProjectsFromApi,
   collabStatusLabel,
+  publishOpenQuestionToIssuer,
   type CollabItem,
   type MyOpenQuestionItem,
 } from "@/lib/project-api";
@@ -134,6 +135,8 @@ export default function HomeDashboard() {
   const [publishedByProject, setPublishedByProject] = useState<
     Record<string, CollabItem[]>
   >({});
+  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -308,6 +311,72 @@ export default function HomeDashboard() {
   const displayTodos = todos.slice(0, 3);
   const showInvestorTodos = hasInvestorProject;
   const showIssuerTodos = hasIssuerProject;
+  const unpublishedCount = todos.filter((t) => !t.published).length;
+
+  const canPublishForProject = (projectId: string) => {
+    const project = projects.find((p) => p.id === projectId);
+    if (!userId || !project) return false;
+    const role = getProjectRole(userId, project.id, project.createdBy);
+    return role === "admin" || role === "core";
+  };
+
+  const refreshPublished = async (projectId: string) => {
+    const items = await fetchCollabItems(projectId).catch(() => [] as CollabItem[]);
+    setPublishedByProject((prev) => ({ ...prev, [projectId]: items }));
+  };
+
+  const sendToIssuer = async (item: {
+    id: string;
+    projectId: string;
+    text: string;
+    title: string;
+    published?: boolean;
+    priority?: MyOpenQuestionItem["priority"];
+  }) => {
+    if (item.published || sendingId) return;
+    if (!canPublishForProject(item.projectId)) {
+      setSendError("仅 Admin / Core 可发给项目方");
+      return;
+    }
+    setSendingId(item.id);
+    setSendError(null);
+    try {
+      await publishOpenQuestionToIssuer(item.projectId, {
+        text: item.text,
+        title: item.title,
+        priority: item.priority,
+      });
+      await refreshPublished(item.projectId);
+    } catch (e) {
+      setSendError(e instanceof Error ? e.message : "发送失败");
+    } finally {
+      setSendingId(null);
+    }
+  };
+
+  const sendAllUnpublished = async () => {
+    const pending = todos.filter(
+      (t) => !t.published && canPublishForProject(t.projectId),
+    );
+    if (pending.length === 0 || sendingId) return;
+    setSendingId("all");
+    setSendError(null);
+    try {
+      for (const item of pending) {
+        await publishOpenQuestionToIssuer(item.projectId, {
+          text: item.text,
+          title: item.title,
+          priority: item.priority,
+        });
+      }
+      const ids = [...new Set(pending.map((t) => t.projectId))];
+      await Promise.all(ids.map((id) => refreshPublished(id)));
+    } catch (e) {
+      setSendError(e instanceof Error ? e.message : "发送失败");
+    } finally {
+      setSendingId(null);
+    }
+  };
 
   const rememberPublishDraft = (item: {
     projectId: string;
@@ -371,9 +440,7 @@ export default function HomeDashboard() {
 
         {/* 焦点卡：最紧急待确认问题（对齐原型 homeFocus） */}
         {focusTodo ? (
-          <Link
-            to={focusTodo.to}
-            onClick={() => rememberPublishDraft(focusTodo)}
+          <div
             className="block transition-shadow"
             style={{
               marginTop: 36,
@@ -381,15 +448,6 @@ export default function HomeDashboard() {
               borderRadius: 24,
               padding: "36px 40px",
               boxShadow: "0 18px 44px rgba(139,31,36,0.26)",
-              textDecoration: "none",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow =
-                "0 22px 54px rgba(139,31,36,0.34)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow =
-                "0 18px 44px rgba(139,31,36,0.26)";
             }}
           >
             <div
@@ -399,7 +457,9 @@ export default function HomeDashboard() {
                 letterSpacing: "1.5px",
               }}
             >
-              {focusTodo.to.includes("/collab/") && hasIssuerProject && !hasInvestorProject
+              {focusTodo.to.startsWith("/app/collab/") &&
+              hasIssuerProject &&
+              !hasInvestorProject
                 ? "今天最重要的协作事项"
                 : "今天最重要的一件事"}
             </div>
@@ -424,48 +484,82 @@ export default function HomeDashboard() {
               }}
             >
               {focusTodo.meta} · {focusTodo.due}
-              ；详见下方待办列表。
+              {focusTodo.published || focusTodo.to.startsWith("/app/collab/")
+                ? "；详见下方待办列表。"
+                : "。按当前原文发给项目方，发布后措辞冻结。"}
             </div>
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "space-between",
+                justifyContent: "flex-end",
                 marginTop: 28,
                 gap: 12,
+                flexWrap: "wrap",
               }}
             >
-              <span
-                style={{
-                  fontSize: 14,
-                  color: "rgba(255,255,255,0.82)",
-                }}
-              >
-                {focusTodo.due}
-              </span>
-              <span
-                style={{
-                  height: 42,
-                  padding: "0 20px",
-                  borderRadius: 12,
-                  background: "#fff",
-                  color: C.wine,
-                  fontSize: 14.5,
-                  fontWeight: 600,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  flexShrink: 0,
-                }}
-              >
-                {focusTodo.to.startsWith("/app/collab/")
-                  ? "查看事项"
-                  : focusTodo.published
-                    ? "查看发布进度"
-                    : "发布给项目方"} →
-              </span>
+              {focusTodo.to.startsWith("/app/collab/") || focusTodo.published ? (
+                <Link
+                  to={focusTodo.to}
+                  style={{
+                    height: 42,
+                    padding: "0 20px",
+                    borderRadius: 12,
+                    background: "#fff",
+                    color: C.wine,
+                    fontSize: 14.5,
+                    fontWeight: 600,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    textDecoration: "none",
+                  }}
+                >
+                  {focusTodo.to.startsWith("/app/collab/")
+                    ? "查看事项 →"
+                    : "查看进度 →"}
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    to={focusTodo.to}
+                    onClick={() => rememberPublishDraft(focusTodo)}
+                    style={{
+                      height: 42,
+                      padding: "0 16px",
+                      borderRadius: 12,
+                      background: "transparent",
+                      color: "rgba(255,255,255,0.9)",
+                      fontSize: 14,
+                      fontWeight: 500,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      textDecoration: "none",
+                    }}
+                  >
+                    改措辞
+                  </Link>
+                  <button
+                    type="button"
+                    disabled={Boolean(sendingId) || !canPublishForProject(focusTodo.projectId)}
+                    onClick={() => void sendToIssuer(focusTodo)}
+                    style={{
+                      height: 42,
+                      padding: "0 20px",
+                      borderRadius: 12,
+                      background: "#fff",
+                      color: C.wine,
+                      fontSize: 14.5,
+                      fontWeight: 600,
+                      border: 0,
+                      cursor: sendingId ? "wait" : "pointer",
+                    }}
+                  >
+                    {sendingId === focusTodo.id ? "发送中…" : "发给项目方"}
+                  </button>
+                </>
+              )}
             </div>
-          </Link>
+          </div>
         ) : (
           <div
             style={{
@@ -505,7 +599,7 @@ export default function HomeDashboard() {
                   : hasIssuerProject && !hasInvestorProject
                     ? "投资团队发布事项后，会显示在这里。内部研究缺口不会自动同步给你。"
                     : projects.length > 0
-                    ? "知识网络「待确认问题」是投资团队内部缺口，项目方默认看不到。请到项目「项目方协作」发布后再等答复。"
+                    ? "知识网络里的缺口默认按原文一键发给项目方即可；有判断性措辞时再点「改措辞」。"
                     : "暂无进行中的项目。前往项目库创建或加入协作。"}
             </p>
             <Link
@@ -551,7 +645,7 @@ export default function HomeDashboard() {
             {todosLoading
               ? "…"
               : displayTodos.length > 0
-                ? `${displayTodos.length} 项 · 仅投资团队可见`
+                ? `${displayTodos.length} 项 · ${unpublishedCount} 条未发`
                 : "—"}
           </span>
         </div>
@@ -563,8 +657,34 @@ export default function HomeDashboard() {
             lineHeight: 1.6,
           }}
         >
-          来自知识网络，默认只有投资团队能看到。点进去改成对外措辞并发布后，项目方才会出现待办。
+          默认按原文发给项目方，发布后冻结。含投资判断的条目请先「改措辞」。
         </p>
+        {unpublishedCount > 0 && hasInvestorProject ? (
+          <button
+            type="button"
+            disabled={Boolean(sendingId)}
+            onClick={() => void sendAllUnpublished()}
+            style={{
+              marginTop: 12,
+              height: 36,
+              padding: "0 14px",
+              borderRadius: 10,
+              border: `1px solid ${C.line}`,
+              background: C.paper,
+              color: C.wine,
+              fontSize: 13.5,
+              fontWeight: 600,
+              cursor: sendingId ? "wait" : "pointer",
+            }}
+          >
+            {sendingId === "all"
+              ? "发送中…"
+              : `全部按原文发给项目方（${unpublishedCount}）`}
+          </button>
+        ) : null}
+        {sendError ? (
+          <p style={{ marginTop: 8, fontSize: 13.5, color: C.wine }}>{sendError}</p>
+        ) : null}
         <div style={{ marginTop: 14 }}>
           {todosLoading ? (
             <p
@@ -594,14 +714,12 @@ export default function HomeDashboard() {
                 color: C.muted,
               }}
             >
-              暂无内部待确认问题。生成知识网络该章节后，会汇总在此；发布给项目方后对方才能答复。
+              暂无内部待确认问题。生成知识网络该章节后会汇总在此，再一键发给项目方。
             </p>
           ) : (
             displayTodos.map((t) => (
-              <Link
+              <div
                 key={t.id}
-                to={t.to}
-                onClick={() => rememberPublishDraft(t)}
                 className="transition-colors"
                 style={{
                   display: "flex",
@@ -609,14 +727,7 @@ export default function HomeDashboard() {
                   gap: 18,
                   padding: "20px 6px",
                   borderBottom: `1px solid ${C.line}`,
-                  textDecoration: "none",
                   color: "inherit",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(160,99,88,0.03)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
                 }}
               >
                 <span
@@ -665,25 +776,62 @@ export default function HomeDashboard() {
                     {t.listMeta}
                   </div>
                 </div>
-                <span
-                  style={{
-                    fontSize: 14,
-                    color: C.muted,
-                    flexShrink: 0,
-                  }}
-                >
-                  {t.listDue}
-                </span>
-                <span
-                  style={{
-                    color: C.wine,
-                    flexShrink: 0,
-                    fontSize: 16,
-                  }}
-                >
-                  →
-                </span>
-              </Link>
+                {t.published ? (
+                  <Link
+                    to={t.to}
+                    style={{
+                      fontSize: 13.5,
+                      color: C.wine,
+                      textDecoration: "none",
+                      flexShrink: 0,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {t.listDue} →
+                  </Link>
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Link
+                      to={t.to}
+                      onClick={() => rememberPublishDraft(t)}
+                      style={{
+                        fontSize: 13,
+                        color: C.muted,
+                        textDecoration: "none",
+                      }}
+                    >
+                      改措辞
+                    </Link>
+                    <button
+                      type="button"
+                      disabled={
+                        Boolean(sendingId) || !canPublishForProject(t.projectId)
+                      }
+                      onClick={() => void sendToIssuer(t)}
+                      style={{
+                        height: 34,
+                        padding: "0 12px",
+                        borderRadius: 9,
+                        border: 0,
+                        background: C.wine,
+                        color: "#fff",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: sendingId ? "wait" : "pointer",
+                      }}
+                    >
+                      {sendingId === t.id ? "发送中…" : "发给项目方"}
+                    </button>
+                  </div>
+                )}
+              </div>
             ))
           )}
         </div>
