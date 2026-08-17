@@ -18,6 +18,7 @@ import {
   updateWorkspaceUser,
   updateWorkspaceUserPassword,
 } from "./workspace-users-db";
+import { formatUserLabel, recordOperationLog } from "./operation-logs-db";
 
 type Env = { DB: AppDatabase };
 
@@ -106,6 +107,15 @@ export async function handleAdminCreateWorkspaceUser(
       defaultRole: parseWorkspaceRole(body.defaultRole),
       isPlatformAdmin: Boolean(body.isPlatformAdmin),
     });
+    await recordOperationLog(env.DB, {
+      actorUserId: authUserId,
+      category: "user",
+      action: "create",
+      targetKind: "user",
+      targetId: row.id,
+      targetLabel: formatUserLabel(row, row.id),
+      summary: `新建用户 ${formatUserLabel(row, row.id)}`,
+    });
     return json({ user: rowToAdminPublic(row) }, 201);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -175,6 +185,25 @@ export async function handleAdminPatchWorkspaceUser(
       isPlatformAdmin: body.isPlatformAdmin,
       status,
     });
+    const label = formatUserLabel(row, id);
+    const bits: string[] = [];
+    if (status === "disabled") bits.push("停用");
+    else if (status === "active") bits.push("启用");
+    if (body.isPlatformAdmin === true) bits.push("设为平台管理员");
+    else if (body.isPlatformAdmin === false) bits.push("取消平台管理员");
+    if (body.displayName !== undefined) bits.push("改展示名");
+    if (body.orgTitle !== undefined) bits.push("改隶属组织");
+    if (body.username !== undefined) bits.push("改登录名");
+    if (body.avatarUrl !== undefined) bits.push("改头像");
+    await recordOperationLog(env.DB, {
+      actorUserId: authUserId,
+      category: "user",
+      action: status === "disabled" ? "disable" : status === "active" ? "enable" : "update",
+      targetKind: "user",
+      targetId: id,
+      targetLabel: label,
+      summary: bits.length > 0 ? `${bits.join("、")} ${label}` : `更新用户 ${label}`,
+    });
     return json({ user: rowToAdminPublic(row) });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -199,7 +228,17 @@ export async function handleAdminDeleteWorkspaceUser(
   }
 
   try {
+    const existing = await getWorkspaceUserById(env, id);
     await deleteWorkspaceUser(env, id);
+    await recordOperationLog(env.DB, {
+      actorUserId: authUserId,
+      category: "user",
+      action: "disable",
+      targetKind: "user",
+      targetId: id,
+      targetLabel: formatUserLabel(existing, id),
+      summary: `停用用户 ${formatUserLabel(existing, id)}`,
+    });
     return json({ ok: true, userId: id, disabled: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -242,6 +281,16 @@ export async function handleAdminSetWorkspaceUserPassword(
       hashed.salt,
       hashed.iterations,
     );
+    const target = await getWorkspaceUserById(env, id);
+    await recordOperationLog(env.DB, {
+      actorUserId: authUserId,
+      category: "user",
+      action: "reset_password",
+      targetKind: "user",
+      targetId: id,
+      targetLabel: formatUserLabel(target, id),
+      summary: `重置 ${formatUserLabel(target, id)} 的密码`,
+    });
     return json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -328,6 +377,16 @@ export async function handleAdminDeleteUserProjectMembership(
 
   try {
     await deleteProjectMemberRole(env, projectId, id);
+    const target = await getWorkspaceUserById(env, id);
+    await recordOperationLog(env.DB, {
+      actorUserId: authUserId,
+      category: "permission",
+      action: "remove_member",
+      targetKind: "project",
+      targetId: projectId,
+      targetLabel: project.name,
+      summary: `将 ${formatUserLabel(target, id)} 移出「${project.name}」`,
+    });
     return json({ ok: true, userId: id, projectId });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

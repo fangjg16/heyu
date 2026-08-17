@@ -54,6 +54,7 @@ import {
   handleReviseChapterDraftSection,
 } from "./project-knowledge-chapter-draft-routes";
 import { handleListAdminChapterReviseLogs } from "./chapter-revise-logs-admin-routes";
+import { handleListAdminOperationLogs } from "./operation-logs-admin-routes";
 import {
   handleGetProjectPermissions,
   handleGetUserProjectRoles,
@@ -580,6 +581,10 @@ export async function routeAuthedApi(
 
   if (path === "/api/admin/chapter-revise-logs" && request.method === "GET") {
     return handleListAdminChapterReviseLogs(request, env, authUserId);
+  }
+
+  if (path === "/api/admin/operation-logs" && request.method === "GET") {
+    return handleListAdminOperationLogs(request, env, authUserId);
   }
 
   if (

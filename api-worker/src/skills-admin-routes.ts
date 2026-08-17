@@ -32,6 +32,7 @@ import {
   pushSkillToVolume,
   skillsBridgeBase,
 } from "./skills-volume-sync";
+import { recordOperationLog } from "./operation-logs-db";
 
 type Env = {
   DB: AppDatabase;
@@ -322,6 +323,15 @@ export async function handleAdminPutSkill(
   }
 
   const push = await pushSkillToVolume(env, name);
+  await recordOperationLog(env.DB, {
+    actorUserId: authUserId,
+    category: "skill",
+    action: "update",
+    targetKind: "skill",
+    targetId: name,
+    targetLabel: name,
+    summary: `更新 Skill ${name}`,
+  });
   const meta = await getSkillMeta(env.DB, name);
   return json({
     ok: true,
@@ -353,6 +363,15 @@ export async function handleAdminRestartHermesGateway(
       result.httpStatus ?? 503,
     );
   }
+  await recordOperationLog(env.DB, {
+    actorUserId: authUserId,
+    category: "skill",
+    action: "restart_gateway",
+    targetKind: "skill",
+    targetId: "hermes-gateway",
+    targetLabel: "Hermes Gateway",
+    summary: "重启 Hermes Gateway",
+  });
   return json({
     ok: true,
     namespace: result.namespace,
@@ -426,6 +445,15 @@ export async function handleAdminCreateSkill(
   }
 
   const push = await pushSkillToVolume(env, name);
+  await recordOperationLog(env.DB, {
+    actorUserId: authUserId,
+    category: "skill",
+    action: "create",
+    targetKind: "skill",
+    targetId: name,
+    targetLabel: name,
+    summary: `新建 Skill ${name}`,
+  });
   return json(
     {
       ok: true,
@@ -457,6 +485,15 @@ export async function handleAdminDeleteSkill(
   if (!removedDb && !vol.ok) {
     return json({ error: `找不到 skill：${name}` }, 404);
   }
+  await recordOperationLog(env.DB, {
+    actorUserId: authUserId,
+    category: "skill",
+    action: "delete",
+    targetKind: "skill",
+    targetId: name,
+    targetLabel: name,
+    summary: `删除 Skill ${name}`,
+  });
   return json({
     ok: true,
     name,

@@ -9,6 +9,7 @@ import {
 import { canManageProjectRecord } from "./projects-auth";
 import { getProjectById } from "./projects-db";
 import { decodePathProjectId } from "./projects-resolve";
+import { recordOperationLog } from "./operation-logs-db";
 
 type Env = { DB: AppDatabase; FILES: AppObjectStorage };
 
@@ -131,6 +132,16 @@ export async function handleDeleteProjectFile(
         row.scope === "session" ? row.conversation_id ?? undefined : undefined,
       );
     }
+
+    await recordOperationLog(env.DB, {
+      actorUserId: userId,
+      category: "file",
+      action: "delete",
+      targetKind: "document",
+      targetId: id,
+      targetLabel: row.filename,
+      summary: `删除「${project.name}」中的文件 ${row.filename}`,
+    });
 
     return json({
       ok: true,

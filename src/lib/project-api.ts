@@ -1149,6 +1149,39 @@ export async function listAdminChapterReviseLogs(
   return Array.isArray(data.items) ? data.items : [];
 }
 
+export type OperationLogItem = {
+  id: string;
+  actorUserId: string;
+  actorDisplayName: string;
+  category: string;
+  categoryLabel: string;
+  action: string;
+  targetKind: string | null;
+  targetId: string | null;
+  targetLabel: string | null;
+  summary: string;
+  createdAt: string;
+};
+
+export async function listAdminOperationLogs(
+  _userId: string,
+  options?: { category?: string; actorUserId?: string; limit?: number },
+): Promise<OperationLogItem[]> {
+  const q = new URLSearchParams();
+  if (options?.category) q.set("category", options.category);
+  if (options?.actorUserId) q.set("actorUserId", options.actorUserId);
+  if (options?.limit) q.set("limit", String(options.limit));
+  const qs = q.toString();
+  const res = await jfoFetch(`/api/admin/operation-logs${qs ? `?${qs}` : ""}`);
+  const data = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    items?: OperationLogItem[];
+    error?: string;
+  };
+  if (!res.ok) throw new Error(data.error || `操作日志加载失败（${res.status}）`);
+  return Array.isArray(data.items) ? data.items : [];
+}
+
 export type GetChapterDraftRunResponse = {
   ok: true;
   projectId: string;

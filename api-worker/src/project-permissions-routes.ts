@@ -10,6 +10,8 @@ import { canManageProjectRecord, isPlatformAdmin } from "./projects-auth";
 import { getProjectById, listProjects, type ProjectJson } from "./projects-db";
 import { decodePathProjectId } from "./projects-resolve";
 import { resolveProjectRole, type WorkspaceRole } from "./workspace-roles";
+import { formatUserLabel, recordOperationLog } from "./operation-logs-db";
+import { getWorkspaceUserById } from "./workspace-users-db";
 
 type Env = { DB: AppDatabase };
 
@@ -211,6 +213,45 @@ export async function handlePutProjectPermissions(
     }
     await upsertProjectMemberRole(env, projectId, targetId, role, userId);
   }
+
+  const bits: string[] = [];
+  for (const item of updates) {
+    const targetId = normalizeUserId(item.userId ?? null);
+    if (!targetId) continue;
+    const target = await getWorkspaceUserById(env, targetId);
+    const label = formatUserLabel(target, targetId);
+    const removeFlag = item.remove;
+    const shouldRemove =
+      removeFlag === true ||
+      removeFlag === 1 ||
+      removeFlag === "true" ||
+      removeFlag === "1";
+    if (shouldRemove) {
+      bits.push(`移出 ${label}`);
+      continue;
+    }
+    const rawRole = (item.role ?? "").trim();
+    const roleText =
+      rawRole === "admin"
+        ? "项目管理员"
+        : rawRole === "core"
+          ? "Core"
+          : rawRole === "issuer"
+            ? "项目协作方"
+            : rawRole === "low" || rawRole === "mid"
+              ? "Basic"
+              : rawRole;
+    bits.push(`${label} → ${roleText}`);
+  }
+  await recordOperationLog(env.DB, {
+    actorUserId: userId,
+    category: "permission",
+    action: "update",
+    targetKind: "project",
+    targetId: projectId,
+    targetLabel: project.name,
+    summary: `更新「${project.name}」成员：${bits.join("；") || "无变更"}`,
+  });
 
   const members = await buildPermissionMembers(env, projectId, project.createdBy);
   return json({

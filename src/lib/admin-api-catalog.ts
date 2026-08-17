@@ -101,6 +101,15 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     risk: "safe",
     autoProbe: false,
   },
+  {
+    id: "admin-operation-logs",
+    group: "管理",
+    method: "GET",
+    pathTemplate: "/api/admin/operation-logs",
+    summary: "操作日志（平台管理员）",
+    risk: "safe",
+    autoProbe: false,
+  },
 
   // Projects
   {

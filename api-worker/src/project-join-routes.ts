@@ -23,6 +23,7 @@ import {
   isKnownWorkspaceUser,
 } from "./workspace-users-db";
 import { parseApprovedJoinRole } from "./project-join-role";
+import { formatUserLabel, recordOperationLog } from "./operation-logs-db";
 
 type Env = { DB: AppDatabase };
 
@@ -333,6 +334,21 @@ export async function handleReviewJoinRequest(
       userId,
     );
   }
+
+  const applicant = await getWorkspaceUserById(env, updated.applicantUserId);
+  const who = formatUserLabel(applicant, updated.applicantUserId);
+  await recordOperationLog(env.DB, {
+    actorUserId: userId,
+    category: "join",
+    action: next,
+    targetKind: "project",
+    targetId: projectId,
+    targetLabel: project.name,
+    summary:
+      next === "approved"
+        ? `通过 ${who} 加入「${project.name}」`
+        : `拒绝 ${who} 加入「${project.name}」`,
+  });
 
   return json({ request: updated, assignedRole: next === "approved" ? assignedRole : null });
 }

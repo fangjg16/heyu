@@ -21,6 +21,7 @@ import {
   upsertPlatformLlmSettings,
 } from "./platform-llm-settings-db";
 import { isPlatformAdmin } from "./projects-auth";
+import { recordOperationLog } from "./operation-logs-db";
 
 type Env = {
   DB: AppDatabase;
@@ -200,6 +201,17 @@ export async function handleAdminPutLlmSettings(
       },
       authUserId,
     );
+    await recordOperationLog(env.DB, {
+      actorUserId: authUserId,
+      category: "llm",
+      action: "update",
+      targetKind: "settings",
+      targetId: "platform_llm",
+      targetLabel: model,
+      summary: apiKeyPlain
+        ? `更新模型配置（${model}，并更换密钥）`
+        : `更新模型配置（${model}）`,
+    });
     const resolved = await resolveLlmRuntimeConfig(env);
     return json({
       ok: true,

@@ -4,6 +4,7 @@ import { AdminApiProbeSection } from "@/components/workspace/AdminApiProbeSectio
 import { AdminDraftsSection } from "@/components/workspace/AdminDraftsSection";
 import { AdminKnTemplatesSection } from "@/components/workspace/AdminKnTemplatesSection";
 import { AdminLlmSettingsSection } from "@/components/workspace/AdminLlmSettingsSection";
+import { AdminOperationLogsSection } from "@/components/workspace/AdminOperationLogsSection";
 import { AdminReviseLogsSection } from "@/components/workspace/AdminReviseLogsSection";
 import { AdminSkillsSection } from "@/components/workspace/AdminSkillsSection";
 import { AdminUsersSection } from "@/components/workspace/AdminUsersSection";
@@ -123,13 +124,9 @@ export function AdminApiProbeTab() {
 }
 
 export function AdminAuditTab() {
-  const { allowed } = useAdminGate();
+  const { userId, allowed } = useAdminGate();
   if (!allowed) return <Navigate to="/app/admin" replace />;
-  return (
-    <div className="rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.82)] px-5 py-8 text-sm text-[hsl(var(--warm-charcoal-muted))]">
-      审计日志 API 尚未接入。敏感操作记录将在此只读展示。
-    </div>
-  );
+  return <AdminOperationLogsSection userId={userId} />;
 }
 
 export function AdminDraftsTab() {
