@@ -1,18 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   collabStatusLabel,
-  fetchCollabFiles,
   fetchCollabItems,
-  fetchProjectFiles,
   fetchProjectKnowledgeChapter,
   publishCollabItem,
   publishOpenQuestionToIssuer,
   reviewCollabItem,
-  shareFileWithIssuer,
   type CollabItem,
   type CollabPriority,
   type CollabReplyMode,
-  type ProjectFileRecord,
 } from "@/lib/project-api";
 import { parseOpenQuestionsFromHtml } from "@/lib/open-questions-parse";
 import {
@@ -34,11 +30,9 @@ export function InvestorCollabSection({
   userId,
 }: InvestorCollabSectionProps) {
   const [items, setItems] = useState<CollabItem[]>([]);
-  const [files, setFiles] = useState<ProjectFileRecord[]>([]);
   const [questions, setQuestions] = useState<{ text: string; priority: CollabPriority }[]>(
     [],
   );
-  const [sharedIds, setSharedIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const project = getMergedProjects().find((p) => p.id === projectId);
@@ -83,13 +77,11 @@ export function InvestorCollabSection({
   }, [projectId]);
 
   const load = useCallback(async () => {
-    const [its, ch, fl, shared] = await Promise.all([
+    const [its, ch] = await Promise.all([
       fetchCollabItems(projectId),
       fetchProjectKnowledgeChapter(projectId, "questions", userId).catch(
         () => null,
       ),
-      fetchProjectFiles(projectId, userId).catch(() => []),
-      fetchCollabFiles(projectId).catch(() => []),
     ]);
     setItems(its);
     if (ch?.html) {
@@ -100,30 +92,6 @@ export function InvestorCollabSection({
         })),
       );
     }
-    setFiles(
-      fl.filter(
-        (f) => {
-          const path = String(f.relativePath ?? "");
-          return (
-            f.scope === "package" &&
-            !path.includes("项目方上传") &&
-            !path.includes("项目协作方上传")
-          );
-        },
-      ),
-    );
-    setSharedIds(
-      new Set(
-        shared
-          .filter(
-            (f) =>
-              f.sharedWithIssuer ||
-              f.sourceKind === "investor_share" ||
-              f.sourceKind === "public_source",
-          )
-          .map((f) => f.id),
-      ),
-    );
   }, [projectId, userId]);
 
   useEffect(() => {
@@ -245,25 +213,13 @@ export function InvestorCollabSection({
     }
   };
 
-  const onShare = async (docId: string, shared: boolean) => {
-    setBusy(docId);
-    try {
-      await shareFileWithIssuer(projectId, docId, shared, "investor_share");
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "授权失败");
-    } finally {
-      setBusy(null);
-    }
-  };
-
   return (
     <div className="mx-auto max-w-[1180px] px-6 py-8 md:px-10">
       <h2 className="text-[20px] font-semibold text-[#1F2423]">项目协作方协作</h2>
       <p className="mt-1 text-[13px] text-[#59625F]">
         {canManage
-          ? "内部问题默认按原文一键发给项目协作方（发布后冻结）。有投资判断的条目再改措辞。文件仍需逐份勾选共享。"
-          : "已发布事项与文件授权状态可在此查看。"}
+          ? "内部问题默认按原文一键发给项目协作方（发布后冻结）。有投资判断的条目再改措辞。"
+          : "已发布事项可在此查看。"}
       </p>
       {error ? (
         <p className="mt-3 text-[13px] text-[#A06358]">{error}</p>
@@ -485,37 +441,6 @@ export function InvestorCollabSection({
             })}
           </ul>
         )}
-      </section>
-
-      <section className="mt-8">
-        <div className="text-[13px] font-semibold text-[#1F2423]">
-          逐份授权源文件给项目协作方
-        </div>
-        <p className="mt-1 text-[12px] text-[#59625F]">
-          默认不共享。勾选后项目协作方才能在其「源文件」中看到（投资方共享）。
-        </p>
-        <ul className="mt-2 max-h-[360px] overflow-auto divide-y divide-[rgba(78,66,57,0.08)] rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/80">
-          {files.length === 0 ? (
-            <li className="px-3 py-3 text-[13px] text-[#969E9A]">暂无可授权文件。</li>
-          ) : null}
-          {files.map((f) => (
-            <li
-              key={f.id}
-              className="flex items-center justify-between gap-3 px-3 py-2 text-[13px]"
-            >
-              <span className="min-w-0 truncate">{f.filename}</span>
-              <label className="flex shrink-0 items-center gap-1.5 text-[12px] text-[#59625F]">
-                <input
-                  type="checkbox"
-                  checked={sharedIds.has(f.id)}
-                  disabled={!canManage || Boolean(busy)}
-                  onChange={(e) => void onShare(f.id, e.target.checked)}
-                />
-                共享
-              </label>
-            </li>
-          ))}
-        </ul>
       </section>
     </div>
   );

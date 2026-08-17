@@ -538,6 +538,9 @@ export type ProjectFileRecord = {
   chunkCount: number;
   /** 是否已有落库的大模型解析结果 */
   parsed?: boolean;
+  sourceKind?: string | null;
+  sharedWithIssuer?: boolean;
+  fileCategory?: string | null;
 };
 
 export const DIRECTORY_MIME = "application/x-directory";

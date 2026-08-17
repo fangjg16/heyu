@@ -32,11 +32,11 @@ import {
   fetchProjectFiles,
   moveProjectFile,
   PROJECT_UPLOAD_FOLDER,
+  shareFileWithIssuer,
   uploadProjectPackageFile,
   type ProjectFileRecord,
 } from "@/lib/project-api";
 import {
-  buildPackageFileTree,
   filesUnderFolder,
   isHiddenKeep,
   joinRelativePath,
@@ -45,11 +45,25 @@ import {
   type FileTreeNode,
 } from "@/lib/project-file-tree";
 import {
+  buildSourceMaterialsTree,
+  buildTopicMaterialsTree,
+  canShareWithIssuer,
+  fileSourceBucket,
+  ISSUER_SOURCE_PATH,
+  isSourceRootPath,
+  isTopicPath,
+  PROJECT_SOURCE_PATH,
+  SESSION_SOURCE_PATH,
+  sourceBucketFromVirtualPath,
+  SOURCE_BUCKETS,
+  toPhysicalFolder,
+  toVirtualFolder,
+} from "@/lib/project-file-source";
+import {
   relativePathFromWebkitFile,
   unzipProjectPackageFiles,
 } from "@/lib/unzip-project-files";
 
-const SESSION_FOLDER_PATH = "__session__";
 const DND_DOC_MIME = "application/x-taizi-document";
 const FOLDER_SUMMARY =
   "该目录用于按来源和用途组织项目源文件。可继续创建子目录；知识结论不会在这里重复维护。";
@@ -198,6 +212,20 @@ function tagsForFile(
       fg: "#A06358",
     });
   }
+  if (fileSourceBucket(file) === "issuer") {
+    tags.push({
+      label: "协作方上传",
+      bg: "rgba(78,66,57,0.08)",
+      fg: "#59625F",
+    });
+  }
+  if (file.sharedWithIssuer && file.scope === "package") {
+    tags.push({
+      label: "已共享",
+      bg: "rgba(94,155,117,0.15)",
+      fg: "#3F6F63",
+    });
+  }
   return tags;
 }
 
@@ -241,9 +269,12 @@ function filterTree(
       continue;
     }
     const next = filterTree(child, query, kind, parse, parsedById, parsingId);
-    const keepEmptySession =
-      child.path === SESSION_FOLDER_PATH && !query.trim() && kind === "all" && parse === "all";
-    if (next.children.length > 0 || keepEmptySession || next.markerIds.length > 0) {
+    const keepEmptySource =
+      isSourceRootPath(child.path) &&
+      !query.trim() &&
+      kind === "all" &&
+      parse === "all";
+    if (next.children.length > 0 || keepEmptySource || next.markerIds.length > 0) {
       children.push(next);
     }
   }
@@ -300,17 +331,29 @@ function folderPathTrail(
   path: string,
 ): { label: string; path: string }[] {
   const norm = normalizeRelativePath(path);
-  if (!norm) return [{ label: "全部源文件", path: "" }];
-  if (norm === SESSION_FOLDER_PATH) {
-    return [
-      { label: "全部源文件", path: "" },
-      { label: "对话上传", path: SESSION_FOLDER_PATH },
+  if (!norm) return [];
+  if (isTopicPath(norm)) {
+    const folder = findFolder(root, norm);
+    return [{ label: folder?.name ?? "主题", path: norm }];
+  }
+  const bucket = SOURCE_BUCKETS.find(
+    (b) => norm === b.path || norm.startsWith(`${b.path}/`),
+  );
+  if (bucket) {
+    const rest = norm === bucket.path ? [] : norm.slice(bucket.path.length + 1).split("/").filter(Boolean);
+    const trail: { label: string; path: string }[] = [
+      { label: bucket.name, path: bucket.path },
     ];
+    let acc = bucket.path;
+    for (const part of rest) {
+      acc = `${acc}/${part}`;
+      const folder = findFolder(root, acc);
+      trail.push({ label: folder?.name ?? part, path: acc });
+    }
+    return trail;
   }
   const parts = norm.split("/").filter(Boolean);
-  const trail: { label: string; path: string }[] = [
-    { label: "全部源文件", path: "" },
-  ];
+  const trail: { label: string; path: string }[] = [];
   let acc = "";
   for (const part of parts) {
     acc = acc ? `${acc}/${part}` : part;
@@ -320,29 +363,11 @@ function folderPathTrail(
   return trail;
 }
 
-function buildMaterialsTree(
-  packageFiles: ProjectFileRecord[],
-  sessionFiles: ProjectFileRecord[],
-): FileTreeFolderNode {
-  const root = buildPackageFileTree(packageFiles);
-  if (sessionFiles.length === 0) return root;
-  const sessionFolder: FileTreeFolderNode = {
-    kind: "folder",
-    path: SESSION_FOLDER_PATH,
-    name: "对话上传",
-    children: sessionFiles
-      .filter((f) => !isHiddenKeep(f))
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .map((file) => ({
-        kind: "file" as const,
-        id: file.id,
-        name: file.filename,
-        relativePath: SESSION_FOLDER_PATH,
-        file,
-      })),
-    markerIds: [],
-  };
-  return { ...root, children: [...root.children, sessionFolder] };
+function resolveUploadFolder(targetFolder: string): string {
+  if (isTopicPath(targetFolder) || !targetFolder) return PROJECT_UPLOAD_FOLDER;
+  const bucket = sourceBucketFromVirtualPath(targetFolder);
+  if (bucket === "session" || bucket === "issuer") return PROJECT_UPLOAD_FOLDER;
+  return toPhysicalFolder(targetFolder);
 }
 
 async function downloadFileBlob(
@@ -399,10 +424,16 @@ export function ProjectMaterialsSection({
   const [dragOverPath, setDragOverPath] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     "": true,
-    [SESSION_FOLDER_PATH]: true,
-    [PROJECT_UPLOAD_FOLDER]: true,
+    [PROJECT_SOURCE_PATH]: true,
+    [SESSION_SOURCE_PATH]: true,
+    [ISSUER_SOURCE_PATH]: true,
   });
-  const [selection, setSelection] = useState<Selection>({ kind: "folder", path: "" });
+  const [selection, setSelection] = useState<Selection>({
+    kind: "folder",
+    path: PROJECT_SOURCE_PATH,
+  });
+  const [facet, setFacet] = useState<"source" | "topic">("source");
+  const [sharingId, setSharingId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [kindFilter, setKindFilter] = useState<FileKindFilter>("all");
   const [parseFilter, setParseFilter] = useState<ParseFilter>("all");
@@ -444,19 +475,22 @@ export function ProjectMaterialsSection({
     el.setAttribute("directory", "");
   }, []);
 
+  const allLive = liveFiles ?? [];
   const packageLive = useMemo(
-    () => (liveFiles ?? []).filter((f) => f.scope === "package"),
-    [liveFiles],
-  );
-  const sessionLive = useMemo(
-    () => (liveFiles ?? []).filter((f) => f.scope === "session"),
-    [liveFiles],
+    () => allLive.filter((f) => f.scope === "package"),
+    [allLive],
   );
 
-  const fullTree = useMemo(
-    () => buildMaterialsTree(packageLive, sessionLive),
-    [packageLive, sessionLive],
-  );
+  const fullTree = useMemo(() => {
+    if (facet === "topic") {
+      const parsedTypeById: Record<string, string | undefined> = {};
+      for (const [id, entry] of Object.entries(parsedById)) {
+        parsedTypeById[id] = entry.documentType;
+      }
+      return buildTopicMaterialsTree(allLive, parsedTypeById);
+    }
+    return buildSourceMaterialsTree(allLive);
+  }, [allLive, facet, parsedById]);
 
   const tree = useMemo(
     () =>
@@ -485,12 +519,47 @@ export function ProjectMaterialsSection({
 
   useEffect(() => {
     if (selection.kind === "file" && !findFile(fullTree, selection.id)) {
-      setSelection({ kind: "folder", path: "" });
+      setSelection({
+        kind: "folder",
+        path: facet === "source" ? PROJECT_SOURCE_PATH : "",
+      });
     }
     if (selection.kind === "folder" && selection.path && !findFolder(fullTree, selection.path)) {
-      setSelection({ kind: "folder", path: "" });
+      const fallback =
+        facet === "topic"
+          ? fullTree.children[0]?.kind === "folder"
+            ? fullTree.children[0].path
+            : ""
+          : PROJECT_SOURCE_PATH;
+      setSelection({ kind: "folder", path: fallback });
     }
-  }, [fullTree, selection]);
+  }, [facet, fullTree, selection]);
+
+  useEffect(() => {
+    if (facet === "source") {
+      setSelection({ kind: "folder", path: PROJECT_SOURCE_PATH });
+      setExpanded((prev) => ({
+        ...prev,
+        [PROJECT_SOURCE_PATH]: true,
+        [SESSION_SOURCE_PATH]: true,
+        [ISSUER_SOURCE_PATH]: true,
+      }));
+      return;
+    }
+    const first = fullTree.children.find((c) => c.kind === "folder");
+    setSelection({
+      kind: "folder",
+      path: first && first.kind === "folder" ? first.path : "",
+    });
+    setExpanded((prev) => {
+      const next = { ...prev };
+      for (const c of fullTree.children) {
+        if (c.kind === "folder") next[c.path] = true;
+      }
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅随分类方式切换
+  }, [facet]);
 
   const uploadMany = useCallback(
     async (items: { file: File; relativePath: string }[]): Promise<void> => {
@@ -518,14 +587,15 @@ export function ProjectMaterialsSection({
         await reload();
         if (ok > 0) {
           const folders = new Set(
-            items
-              .map((it) => normalizeRelativePath(it.relativePath))
-              .filter(Boolean),
+            items.map((it) =>
+              toVirtualFolder(normalizeRelativePath(it.relativePath), "project"),
+            ),
           );
           if (folders.size > 0) {
             setExpanded((prev) => {
               const next = { ...prev };
               for (const f of folders) next[f] = true;
+              next[PROJECT_SOURCE_PATH] = true;
               return next;
             });
           }
@@ -549,11 +619,12 @@ export function ProjectMaterialsSection({
   const processUploadSelection = useCallback(
     async (list: FileList | File[] | null, targetFolder: string): Promise<void> => {
       if (!list?.length) return;
+      if (sourceBucketFromVirtualPath(targetFolder) === "issuer") {
+        setError("协作方上传的文件由项目协作方在协作工作台提交");
+        return;
+      }
       const files = Array.from(list);
-      const base =
-        targetFolder === SESSION_FOLDER_PATH
-          ? PROJECT_UPLOAD_FOLDER
-          : normalizeRelativePath(targetFolder) || PROJECT_UPLOAD_FOLDER;
+      const base = resolveUploadFolder(targetFolder);
 
       if (files.length === 1 && isZipFile(files[0]!) && !hasWebkitPath(files[0]!)) {
         setUploading(true);
@@ -595,10 +666,7 @@ export function ProjectMaterialsSection({
   const onFolderInputChange = useCallback(
     async (list: FileList | null, targetFolder: string) => {
       if (!list?.length) return;
-      const base =
-        targetFolder === SESSION_FOLDER_PATH
-          ? PROJECT_UPLOAD_FOLDER
-          : normalizeRelativePath(targetFolder) || PROJECT_UPLOAD_FOLDER;
+      const base = resolveUploadFolder(targetFolder);
       await uploadMany(
         Array.from(list).map((file) => ({
           file,
@@ -611,24 +679,20 @@ export function ProjectMaterialsSection({
   );
 
   const triggerFilePicker = (targetFolder: string) => {
-    uploadTargetRef.current =
-      targetFolder === SESSION_FOLDER_PATH
-        ? PROJECT_UPLOAD_FOLDER
-        : normalizeRelativePath(targetFolder) || PROJECT_UPLOAD_FOLDER;
+    uploadTargetRef.current = targetFolder;
     fileInputRef.current?.click();
   };
 
   const triggerFolderPicker = (targetFolder: string) => {
-    uploadTargetRef.current =
-      targetFolder === SESSION_FOLDER_PATH
-        ? PROJECT_UPLOAD_FOLDER
-        : normalizeRelativePath(targetFolder) || PROJECT_UPLOAD_FOLDER;
+    uploadTargetRef.current = targetFolder;
     folderInputRef.current?.click();
   };
 
   const onCreateFolder = async (parentPath: string) => {
     if (!useLive || !canManage || uploading) return;
-    if (parentPath === SESSION_FOLDER_PATH) return;
+    if (isTopicPath(parentPath)) return;
+    const bucket = sourceBucketFromVirtualPath(parentPath || PROJECT_SOURCE_PATH);
+    if (bucket === "session" || bucket === "issuer") return;
     const name = window.prompt("新建文件夹名称", "新建文件夹")?.trim();
     if (!name) return;
     if (/[/\\]/.test(name) || name === "." || name === "..") {
@@ -638,10 +702,16 @@ export function ProjectMaterialsSection({
     setUploading(true);
     setError(null);
     try {
-      const full = joinRelativePath(parentPath, name);
-      await createProjectPackageFolder(projectId, userId, full);
-      setExpanded((prev) => ({ ...prev, [full]: true, [parentPath]: true }));
-      setSelection({ kind: "folder", path: full });
+      const virtualParent = parentPath || PROJECT_SOURCE_PATH;
+      const physicalFull = joinRelativePath(toPhysicalFolder(virtualParent), name);
+      const virtualFull = joinRelativePath(virtualParent, name);
+      await createProjectPackageFolder(projectId, userId, physicalFull);
+      setExpanded((prev) => ({
+        ...prev,
+        [virtualFull]: true,
+        [virtualParent]: true,
+      }));
+      setSelection({ kind: "folder", path: virtualFull });
       setUploadHint(`已创建文件夹「${name}」`);
       await reload();
     } catch (e) {
@@ -653,6 +723,7 @@ export function ProjectMaterialsSection({
 
   const onDeleteFile = async (file: ProjectFileRecord) => {
     if (!useLive || !canManage) return;
+    if (fileSourceBucket(file) === "issuer") return;
     if (file.scope !== "package" && file.scope !== "session") return;
     const ok = window.confirm(
       `确定删除「${file.filename}」？\n删除后列表与检索将不再显示该文件；文件数据会保留。`,
@@ -663,7 +734,7 @@ export function ProjectMaterialsSection({
     try {
       await deleteProjectFile(projectId, file.id, userId);
       if (selection.kind === "file" && selection.id === file.id) {
-        setSelection({ kind: "folder", path: "" });
+        setSelection({ kind: "folder", path: PROJECT_SOURCE_PATH });
       }
       await reload();
     } catch (e) {
@@ -673,23 +744,60 @@ export function ProjectMaterialsSection({
     }
   };
 
+  const onShareFile = async (file: ProjectFileRecord, shared: boolean) => {
+    if (!canManage || !canShareWithIssuer(file)) return;
+    setSharingId(file.id);
+    setError(null);
+    try {
+      await shareFileWithIssuer(projectId, file.id, shared, "investor_share");
+      setLiveFiles((prev) =>
+        (prev ?? []).map((f) =>
+          f.id === file.id
+            ? {
+                ...f,
+                sharedWithIssuer: shared,
+                sourceKind: shared ? "investor_share" : null,
+              }
+            : f,
+        ),
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "授权失败");
+    } finally {
+      setSharingId(null);
+    }
+  };
+
   const onMoveFile = useCallback(
     async (file: ProjectFileRecord, targetFolder: string) => {
       if (!useLive || !canManage) return;
-      if (file.scope !== "package") {
-        setError("对话上传文件暂不支持移动到项目资料夹");
+      if (fileSourceBucket(file) !== "project" || file.scope !== "package") {
+        setError("仅项目上传的文件可在资料夹之间移动");
         return;
       }
-      if (targetFolder === SESSION_FOLDER_PATH) return;
-      const target = normalizeRelativePath(targetFolder);
+      if (
+        isTopicPath(targetFolder) ||
+        sourceBucketFromVirtualPath(targetFolder) === "session" ||
+        sourceBucketFromVirtualPath(targetFolder) === "issuer"
+      ) {
+        return;
+      }
+      const target = toPhysicalFolder(targetFolder);
       if (normalizeRelativePath(file.relativePath) === target) return;
       setDeletingId(file.id);
       setError(null);
       setUploadHint(`正在移动「${file.filename}」…`);
       try {
         await moveProjectFile(projectId, file.id, userId, target);
-        setExpanded((prev) => (target ? { ...prev, [target]: true } : prev));
-        setUploadHint(`已移动到${target ? `「${target}」` : "根目录"}`);
+        const virtualTarget = normalizeRelativePath(targetFolder);
+        setExpanded((prev) =>
+          virtualTarget ? { ...prev, [virtualTarget]: true } : prev,
+        );
+        const label =
+          virtualTarget === PROJECT_SOURCE_PATH
+            ? "项目上传"
+            : virtualTarget.split("/").pop() || "项目上传";
+        setUploadHint(`已移动到「${label}」`);
         await reload();
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -704,7 +812,13 @@ export function ProjectMaterialsSection({
   const acceptTreeDrop = useCallback(
     (dataTransfer: DataTransfer, targetFolder: string) => {
       if (!canManage || !useLive) return;
-      if (targetFolder === SESSION_FOLDER_PATH) return;
+      if (
+        sourceBucketFromVirtualPath(targetFolder) === "session" ||
+        sourceBucketFromVirtualPath(targetFolder) === "issuer" ||
+        isTopicPath(targetFolder)
+      ) {
+        return;
+      }
       const raw = dataTransfer.getData(DND_DOC_MIME);
       if (raw) {
         try {
@@ -724,13 +838,25 @@ export function ProjectMaterialsSection({
   );
 
   const onDeleteFolder = async (folderPath: string) => {
-    if (!useLive || !canManage || !folderPath || folderPath === SESSION_FOLDER_PATH) {
+    if (
+      !useLive ||
+      !canManage ||
+      !folderPath ||
+      isSourceRootPath(folderPath) ||
+      isTopicPath(folderPath) ||
+      sourceBucketFromVirtualPath(folderPath) !== "project"
+    ) {
       return;
     }
-    const under = filesUnderFolder(packageLive, folderPath);
+    const physical = toPhysicalFolder(folderPath);
+    const under = filesUnderFolder(packageLive, physical);
     if (under.length === 0) return;
+    const folderName =
+      findFolder(fullTree, folderPath)?.name ||
+      folderPath.split("/").pop() ||
+      folderPath;
     const ok = window.confirm(
-      `确定删除文件夹「${folderPath}」及其下 ${under.length} 个条目？\n列表将隐藏这些条目；文件数据会保留。`,
+      `确定删除文件夹「${folderName}」及其下 ${under.length} 个条目？\n列表将隐藏这些条目；文件数据会保留。`,
     );
     if (!ok) return;
     setDeletingId(`folder:${folderPath}`);
@@ -800,7 +926,16 @@ export function ProjectMaterialsSection({
         if (result.parsed) {
           setLiveFiles((prev) =>
             (prev ?? []).map((f) =>
-              f.id === file.id ? { ...f, parsed: true } : f,
+              f.id === file.id
+                ? {
+                    ...f,
+                    parsed: true,
+                    fileCategory:
+                      String(f.fileCategory ?? "").trim() ||
+                      result.documentType ||
+                      f.fileCategory,
+                  }
+                : f,
             ),
           );
         }
@@ -872,12 +1007,7 @@ export function ProjectMaterialsSection({
         ) ?? tags[0];
       const cache = parsedById[file.id];
       const trail = [
-        ...folderPathTrail(
-          fullTree,
-          file.scope === "session"
-            ? SESSION_FOLDER_PATH
-            : normalizeRelativePath(file.relativePath),
-        ),
+        ...folderPathTrail(fullTree, selectedFileNode.relativePath),
         { label: file.filename, path: `file:${file.id}` },
       ];
       let summary = "点击文件以解析（将调用大模型生成摘要）";
@@ -900,27 +1030,35 @@ export function ProjectMaterialsSection({
         statusBg: statusTag?.bg ?? "rgba(78,66,57,0.08)",
         statusFg: statusTag?.fg ?? "#59625F",
         perm:
-          file.scope === "session"
+          fileSourceBucket(file) === "session"
             ? "对话上传者可见"
-            : canDownload
-              ? "项目成员 / Core"
-              : "仅可查看",
+            : fileSourceBucket(file) === "issuer"
+              ? "项目协作方上传"
+              : file.sharedWithIssuer
+                ? "已共享给项目协作方"
+                : canDownload
+                  ? "项目成员"
+                  : "仅可查看",
         refs: refLabels.length > 0 ? refLabels.join(" · ") : "—",
         summary,
-        documentType: cache?.documentType ?? "",
+        documentType: cache?.documentType || file.fileCategory || "",
         keyPoints: cache?.keyPoints ?? [],
         usedFor,
         srcLines: [
-          { label: "来源", value: file.scope === "session" ? "对话上传" : "项目资料包" },
+          { label: "来源", value: SOURCE_BUCKETS.find((b) => b.id === fileSourceBucket(file))?.name ?? "项目上传" },
           { label: "时间", value: formatFileDate(file.createdAt) },
           ...(file.uploadedBy
             ? [{ label: "上传者", value: file.uploadedBy }]
             : []),
           { label: "大小", value: formatFileSize(file.sizeBytes) },
+          ...(file.fileCategory
+            ? [{ label: "主题", value: file.fileCategory }]
+            : []),
           { label: "文件", value: file.filename },
         ],
         canPreview: canDownload || file.scope === "session",
         canManageFolder: false,
+        canUploadHere: false,
         childCount: 0,
       };
     }
@@ -929,15 +1067,26 @@ export function ProjectMaterialsSection({
     const folder = selectedFolder ?? fullTree;
     const childCount = folder.children.length;
     const trail = folderPathTrail(fullTree, path);
+    const bucket = sourceBucketFromVirtualPath(path);
+    const canManageProjectFolder =
+      canManage &&
+      facet === "source" &&
+      Boolean(path) &&
+      bucket === "project";
     return {
-      title: path === "" ? "全部源文件" : folder.name || path,
+      title: path === "" ? "源文件" : folder.name || path,
       trail,
       isFile: false as const,
       file: null as ProjectFileRecord | null,
       status: "分组",
       statusBg: "rgba(78,66,57,0.08)",
       statusFg: "#59625F",
-      perm: path === SESSION_FOLDER_PATH ? "会话隔离" : "继承上级",
+      perm:
+        bucket === "session"
+          ? "会话隔离"
+          : bucket === "issuer"
+            ? "项目协作方"
+            : "继承上级",
       refs: `${childCount} 子项`,
       summary: FOLDER_SUMMARY,
       documentType: "",
@@ -945,7 +1094,8 @@ export function ProjectMaterialsSection({
       usedFor: [] as string[],
       srcLines: [{ label: "说明", value: "—" }],
       canPreview: false,
-      canManageFolder: canManage && path !== SESSION_FOLDER_PATH,
+      canManageFolder: canManageProjectFolder && !isSourceRootPath(path),
+      canUploadHere: canManageProjectFolder,
       childCount,
     };
   }, [
@@ -957,6 +1107,7 @@ export function ProjectMaterialsSection({
     canManage,
     parsedById,
     parsingId,
+    facet,
   ]);
 
   const openPreview = (fileId: string) => {
@@ -990,8 +1141,8 @@ export function ProjectMaterialsSection({
         e.preventDefault();
         e.stopPropagation();
         const target =
-          dragOverPath === null || dragOverPath === ""
-            ? PROJECT_UPLOAD_FOLDER
+            dragOverPath === null || dragOverPath === ""
+            ? PROJECT_SOURCE_PATH
             : dragOverPath;
         setDragOverPath(null);
         acceptTreeDrop(e.dataTransfer, target);
@@ -1035,8 +1186,8 @@ export function ProjectMaterialsSection({
               <UploadMenu
                 disabled={busy}
                 uploading={uploading}
-                onSelectFiles={() => triggerFilePicker(PROJECT_UPLOAD_FOLDER)}
-                onSelectFolder={() => triggerFolderPicker(PROJECT_UPLOAD_FOLDER)}
+                onSelectFiles={() => triggerFilePicker(PROJECT_SOURCE_PATH)}
+                onSelectFolder={() => triggerFolderPicker(PROJECT_SOURCE_PATH)}
               />
             ) : null}
           </div>
@@ -1060,21 +1211,49 @@ export function ProjectMaterialsSection({
             <div
               className={cn(
                 "rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.78)] px-2.5 py-3 shadow-[0_10px_30px_rgba(102,80,60,0.07)]",
-                dragOverPath === PROJECT_UPLOAD_FOLDER && "ring-1 ring-[hsl(var(--wine)/0.35)]",
+                dragOverPath === PROJECT_SOURCE_PATH && "ring-1 ring-[hsl(var(--wine)/0.35)]",
                 dragOverPath === "" && "ring-1 ring-[hsl(var(--wine)/0.35)]",
               )}
             >
               <div className="mb-1 flex items-center justify-between gap-2.5 px-2.5 pb-3">
-                <div className="text-[13px] font-semibold">源文件分类</div>
+                <div className="flex items-center gap-2">
+                  <div className="text-[13px] font-semibold">源文件分类</div>
+                  <div className="flex rounded-lg border border-[rgba(78,66,57,0.14)] p-0.5 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setFacet("source")}
+                      className={cn(
+                        "h-6 rounded-md px-2",
+                        facet === "source"
+                          ? "bg-[#EFE7E6] font-medium text-[#A06358]"
+                          : "text-[#59625F]",
+                      )}
+                    >
+                      来源
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFacet("topic")}
+                      className={cn(
+                        "h-6 rounded-md px-2",
+                        facet === "topic"
+                          ? "bg-[#EFE7E6] font-medium text-[#A06358]"
+                          : "text-[#59625F]",
+                      )}
+                    >
+                      主题
+                    </button>
+                  </div>
+                </div>
                 <div className="flex items-center gap-2.5">
                   <span className="whitespace-nowrap text-[11px] text-[hsl(var(--warm-charcoal-muted))]">
                     {treeCount} 项
                   </span>
-                  {useLive && canManage ? (
+                  {useLive && canManage && facet === "source" ? (
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => void onCreateFolder("")}
+                      onClick={() => void onCreateFolder(PROJECT_SOURCE_PATH)}
                       className="h-[30px] whitespace-nowrap rounded-lg border border-[rgba(78,66,57,0.16)] bg-transparent px-2.5 text-[11.5px] text-[hsl(var(--warm-charcoal))] hover:bg-[rgba(78,66,57,0.05)] disabled:opacity-50"
                     >
                       ＋ 新建一级文件夹
@@ -1110,13 +1289,17 @@ export function ProjectMaterialsSection({
                     onSelectFile={selectFile}
                     parsedById={parsedById}
                     parsingId={parsingId}
+                    sharingId={sharingId}
                     onPreview={openPreview}
+                    onShareFile={onShareFile}
                     onDeleteFile={onDeleteFile}
                     onDeleteFolder={onDeleteFolder}
                     onDropFiles={(files, path) => {
-                      if (path !== SESSION_FOLDER_PATH) {
-                        void processUploadSelection(files, path);
+                      const bucket = sourceBucketFromVirtualPath(path);
+                      if (bucket === "session" || bucket === "issuer" || isTopicPath(path)) {
+                        return;
                       }
+                      void processUploadSelection(files, path);
                     }}
                     onDropDocument={(fileId, path) => {
                       const file = liveFiles?.find((f) => f.id === fileId);
@@ -1278,7 +1461,26 @@ export function ProjectMaterialsSection({
                     ＋ 新增子文件夹
                   </button>
                 ) : null}
-                {detail.isFile && detail.file && canManage ? (
+                {detail.isFile &&
+                detail.file &&
+                canManage &&
+                canShareWithIssuer(detail.file) ? (
+                  <label className="inline-flex h-[38px] items-center gap-2 rounded-[10px] border border-[rgba(78,66,57,0.16)] px-3 text-[13px] text-[#1F2423]">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(detail.file.sharedWithIssuer)}
+                      disabled={busy || sharingId === detail.file.id}
+                      onChange={(e) =>
+                        void onShareFile(detail.file!, e.target.checked)
+                      }
+                    />
+                    共享给项目协作方
+                  </label>
+                ) : null}
+                {detail.isFile &&
+                detail.file &&
+                canManage &&
+                fileSourceBucket(detail.file) !== "issuer" ? (
                   <button
                     type="button"
                     disabled={busy}
@@ -1288,21 +1490,21 @@ export function ProjectMaterialsSection({
                     删除文件
                   </button>
                 ) : null}
-                {!detail.isFile &&
-                selection.kind === "folder" &&
-                selection.path &&
-                selection.path !== SESSION_FOLDER_PATH &&
-                canManage ? (
+                {detail.canManageFolder ? (
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => void onDeleteFolder(selection.path)}
+                    onClick={() => {
+                      if (selection.kind === "folder") {
+                        void onDeleteFolder(selection.path);
+                      }
+                    }}
                     className="h-[38px] rounded-[10px] border border-[rgba(78,66,57,0.16)] bg-transparent px-4 text-[13px] font-medium text-[hsl(var(--warm-charcoal-muted))] hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
                   >
                     删除文件夹
                   </button>
                 ) : null}
-                {useLive && canManage && selection.kind === "folder" && selection.path !== SESSION_FOLDER_PATH ? (
+                {useLive && canManage && detail.canUploadHere ? (
                   <UploadMenu
                     disabled={busy}
                     uploading={uploading}
@@ -1484,7 +1686,9 @@ function TreeRow({
   onSelectFile,
   parsedById,
   parsingId,
+  sharingId,
   onPreview,
+  onShareFile,
   onDeleteFile,
   onDeleteFolder,
   onDropFiles,
@@ -1505,7 +1709,9 @@ function TreeRow({
   onSelectFile: (file: ProjectFileRecord) => void;
   parsedById: Record<string, ParseCacheEntry>;
   parsingId: string | null;
+  sharingId: string | null;
   onPreview: (id: string) => void;
+  onShareFile: (file: ProjectFileRecord, shared: boolean) => void;
   onDeleteFile: (file: ProjectFileRecord) => void;
   onDeleteFolder: (path: string) => void;
   onDropFiles: (files: FileList, path: string) => void;
@@ -1523,7 +1729,12 @@ function TreeRow({
     const primaryTag = tags[0];
     const canPreview =
       canDownload || node.file.scope === "session";
-    const canDrag = canManage && node.file.scope === "package";
+    const canDrag =
+      canManage &&
+      fileSourceBucket(node.file) === "project" &&
+      node.file.scope === "package";
+    const canDeleteFile = canManage && fileSourceBucket(node.file) !== "issuer";
+    const showShare = canManage && canShareWithIssuer(node.file);
     return (
       <div
         role="button"
@@ -1575,6 +1786,25 @@ function TreeRow({
             {primaryTag.label}
           </span>
         ) : null}
+        {showShare ? (
+          <label
+            className="flex shrink-0 items-center gap-1 text-[10px] text-[#59625F]"
+            title={
+              node.file.sharedWithIssuer
+                ? "已共享给项目协作方"
+                : "共享给项目协作方"
+            }
+            onClick={(e) => e.stopPropagation()}
+          >
+            <input
+              type="checkbox"
+              checked={Boolean(node.file.sharedWithIssuer)}
+              disabled={busy || sharingId === node.id}
+              onChange={(e) => void onShareFile(node.file, e.target.checked)}
+            />
+            共享
+          </label>
+        ) : null}
         {canPreview ? (
           <button
             type="button"
@@ -1589,7 +1819,7 @@ function TreeRow({
             <Eye className="h-[15px] w-[15px]" strokeWidth={1.8} />
           </button>
         ) : null}
-        {canManage ? (
+        {canDeleteFile ? (
           <button
             type="button"
             disabled={busy || deletingId === node.id}
@@ -1614,7 +1844,14 @@ function TreeRow({
 
   const open = expanded[node.path] ?? depth < 1;
   const selected = selection.kind === "folder" && selection.path === node.path;
-  const isSession = node.path === SESSION_FOLDER_PATH;
+  const bucket = sourceBucketFromVirtualPath(node.path);
+  const noDrop =
+    bucket === "session" || bucket === "issuer" || isTopicPath(node.path);
+  const noDelete =
+    isSourceRootPath(node.path) ||
+    isTopicPath(node.path) ||
+    bucket === "session" ||
+    bucket === "issuer";
   const isDrag = dragOverPath === node.path;
 
   return (
@@ -1644,7 +1881,7 @@ function TreeRow({
           }
         }}
         onDragOver={(e) => {
-          if (isSession || !canManage) return;
+          if (noDrop || !canManage) return;
           e.preventDefault();
           e.stopPropagation();
           setDragOverPath(node.path);
@@ -1658,7 +1895,7 @@ function TreeRow({
           if (dragOverPath === node.path) setDragOverPath(null);
         }}
         onDrop={(e) => {
-          if (isSession || !canManage) return;
+          if (noDrop || !canManage) return;
           e.preventDefault();
           e.stopPropagation();
           setDragOverPath(null);
@@ -1682,15 +1919,15 @@ function TreeRow({
         <span className="min-w-0 flex-1 truncate text-[13px] font-semibold" title={node.name}>
           {node.name}
         </span>
-        {isSession ? (
+        {node.path === SESSION_SOURCE_PATH ? (
           <span
             className="shrink-0 rounded-lg px-1.5 py-px text-[9.5px]"
             style={{ background: "rgba(160,99,88,0.1)", color: "#A06358" }}
           >
-            对话上传
+            对话
           </span>
         ) : null}
-        {canManage && !isSession && node.path ? (
+        {canManage && !noDelete && node.path ? (
           <button
             type="button"
             disabled={busy || deletingId === `folder:${node.path}`}
@@ -1724,7 +1961,9 @@ function TreeRow({
               onSelectFile={onSelectFile}
               parsedById={parsedById}
               parsingId={parsingId}
+              sharingId={sharingId}
               onPreview={onPreview}
+              onShareFile={onShareFile}
               onDeleteFile={onDeleteFile}
               onDeleteFolder={onDeleteFolder}
               onDropFiles={onDropFiles}

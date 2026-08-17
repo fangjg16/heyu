@@ -212,6 +212,27 @@ async function upsertParseResult(
       now,
     )
     .run();
+  await refreshFileCategoryFromParse(env, docId, payload.documentType);
+}
+
+/** 解析得到的文件类型写入 file_category（已有人工分类则不覆盖） */
+async function refreshFileCategoryFromParse(
+  env: Env,
+  docId: string,
+  documentType: string,
+): Promise<void> {
+  const topic = documentType.trim().slice(0, 128);
+  if (!topic) return;
+  try {
+    await env.DB.prepare(
+      `UPDATE documents SET file_category = ?
+       WHERE id = ? AND (file_category IS NULL OR file_category = '')`,
+    )
+      .bind(topic, docId)
+      .run();
+  } catch {
+    /* 未迁移 file_category 时忽略 */
+  }
 }
 
 async function loadExistingSourceText(

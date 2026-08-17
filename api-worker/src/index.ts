@@ -71,6 +71,7 @@ import {
   LIST_FILES_SQL_NO_SOFT_DELETE,
   LIST_FILES_SQL_NO_PARSE,
   LIST_FILES_SQL_NO_BYTE_SIZE,
+  LIST_FILES_SQL_NO_COLLAB,
   packageR2Key,
   sanitizeRelativePath,
   sessionR2Key,
@@ -361,6 +362,9 @@ async function handleListFiles(
     chunk_count: number;
     parse_count?: number;
     uploaded_by: string | null;
+    source_kind?: string | null;
+    shared_with_issuer?: number | null;
+    file_category?: string | null;
   };
 
   let results: Row[] | null = null;
@@ -369,7 +373,17 @@ async function handleListFiles(
     results = q.results ?? [];
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    if (/Unknown column ['`]?byte_size['`]?/i.test(msg) || /no such column:\s*byte_size/i.test(msg)) {
+    if (
+      /Unknown column ['`]?source_kind['`]?/i.test(msg) ||
+      /Unknown column ['`]?shared_with_issuer['`]?/i.test(msg) ||
+      /Unknown column ['`]?file_category['`]?/i.test(msg) ||
+      /no such column:\s*(source_kind|shared_with_issuer|file_category)/i.test(msg)
+    ) {
+      const q = await env.DB.prepare(LIST_FILES_SQL_NO_COLLAB)
+        .bind(projectId, userId)
+        .all<Row>();
+      results = q.results ?? [];
+    } else if (/Unknown column ['`]?byte_size['`]?/i.test(msg) || /no such column:\s*byte_size/i.test(msg)) {
       try {
         const q = await env.DB.prepare(LIST_FILES_SQL_NO_BYTE_SIZE)
           .bind(projectId, userId)
@@ -424,6 +438,9 @@ async function handleListFiles(
     uploadedBy: r.uploaded_by,
     chunkCount: Number(r.chunk_count) || 0,
     parsed: Number(r.parse_count) > 0,
+    sourceKind: r.source_kind ?? null,
+    sharedWithIssuer: Number(r.shared_with_issuer ?? 0) === 1,
+    fileCategory: r.file_category ?? null,
   }));
 
   return json({
