@@ -94,7 +94,7 @@ export function ProjectJoinRequestsSection({
         <p className="mt-3 text-sm text-amber-800">{error}</p>
       ) : null}
       {!loading && requests.length === 0 ? (
-        <p className="mt-4 rounded-xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.7)] px-4 py-5 text-sm text-[hsl(var(--warm-charcoal-muted))]">
+        <p className="heyu-card mt-4 border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.7)] px-4 py-5 text-sm text-[hsl(var(--warm-charcoal-muted))]">
           暂无待审批申请
         </p>
       ) : (
@@ -102,7 +102,7 @@ export function ProjectJoinRequestsSection({
           {requests.map((req) => (
             <li
               key={req.id}
-              className="rounded-xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.82)] px-4 py-3.5"
+              className="heyu-card border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.82)] px-4 py-3.5"
             >
               <div className="min-w-0">
                 <div className="text-[14px] font-medium text-[hsl(var(--warm-charcoal))]">

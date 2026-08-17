@@ -44,6 +44,11 @@
     --input: 35 20% 91%;
     --ring: var(--wine);
     --radius: 0.875rem;
+    /* 控件圆角：外 10 / 内边距 3 / 内 7，嵌套时同心（外半径 − 内边距） */
+    --radius-control: 10px;
+    --radius-control-pad: 3px;
+    --radius-control-inner: 7px;
+    --radius-card: 20px;
     --nav-button: var(--sand);
     --surface-alt: var(--sand);
     --landing-accent: var(--wine);
@@ -238,6 +243,56 @@
   .hy-nav-item:hover .hy-nav-tip {
     opacity: 1;
     visibility: visible;
+  }
+
+  /**
+   * 控件同心圆角（Apple 嵌套半径：内 = 外 − 垫）
+   * 默认 36×10 / 垫 3 / 内 7；紧凑 32×9 / 垫 3 / 内 6
+   */
+  .heyu-control {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    border-radius: var(--radius-control);
+  }
+
+  .heyu-control-sm {
+    display: inline-flex;
+    align-items: center;
+    height: 32px;
+    border-radius: 9px;
+  }
+
+  .heyu-segment {
+    display: inline-flex;
+    align-items: stretch;
+    overflow: hidden;
+    height: 36px;
+    padding: var(--radius-control-pad);
+    border-radius: var(--radius-control);
+  }
+
+  .heyu-segment-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-control-inner);
+  }
+
+  .heyu-segment-sm {
+    overflow: hidden;
+    height: 32px;
+    padding: 3px;
+    border-radius: 9px;
+  }
+
+  .heyu-segment-sm .heyu-segment-item {
+    border-radius: 6px;
+  }
+
+  .heyu-card {
+    border-radius: var(--radius-card);
   }
 }
 

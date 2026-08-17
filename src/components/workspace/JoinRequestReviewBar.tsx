@@ -33,7 +33,7 @@ export function JoinRequestReviewBar({
           disabled={disabled}
           onClick={() => onApprove(role)}
           className={cn(
-            "h-9 rounded-lg px-3 text-[12.5px] font-medium text-white disabled:opacity-50",
+            "heyu-control px-3 text-[12.5px] font-medium text-white disabled:opacity-50",
             approveClassName ?? "bg-[#5E9B75]",
           )}
         >
@@ -43,7 +43,7 @@ export function JoinRequestReviewBar({
           type="button"
           disabled={disabled}
           onClick={onReject}
-          className="h-9 rounded-lg border border-[rgba(160,99,88,0.3)] px-3 text-[12.5px] text-[#A06358] disabled:opacity-50"
+          className="heyu-control border border-[rgba(160,99,88,0.3)] px-3 text-[12.5px] text-[#A06358] disabled:opacity-50"
         >
           拒绝
         </button>

@@ -45,7 +45,8 @@ export function MemberRoleFields({
     <div className="flex flex-wrap items-center gap-2">
       <div
         className={cn(
-          "inline-flex rounded-lg border border-[rgba(78,66,57,0.16)] bg-[rgba(255,252,248,0.9)] p-0.5",
+          "border border-[rgba(78,66,57,0.16)] bg-[rgba(255,252,248,0.9)]",
+          compact ? "heyu-segment-sm" : "heyu-segment",
           disabled && "opacity-70",
         )}
       >
@@ -57,8 +58,7 @@ export function MemberRoleFields({
             onChange(assignableRoleFromTrack("investor", investorRole));
           }}
           className={cn(
-            "rounded-md px-2.5 text-[12px] transition-colors disabled:cursor-not-allowed",
-            compact ? "h-7" : "h-8",
+            "heyu-segment-item px-2.5 text-[12px] transition-colors disabled:cursor-not-allowed",
             track === "investor"
               ? "bg-[hsl(var(--wine-muted))] font-medium text-[hsl(var(--wine))]"
               : "text-[hsl(var(--warm-charcoal-muted))] hover:bg-[rgba(78,66,57,0.05)]",
@@ -74,8 +74,7 @@ export function MemberRoleFields({
             onChange("issuer");
           }}
           className={cn(
-            "rounded-md px-2.5 text-[12px] transition-colors disabled:cursor-not-allowed",
-            compact ? "h-7" : "h-8",
+            "heyu-segment-item px-2.5 text-[12px] transition-colors disabled:cursor-not-allowed",
             track === "issuer"
               ? "bg-[hsl(var(--wine-muted))] font-medium text-[hsl(var(--wine))]"
               : "text-[hsl(var(--warm-charcoal-muted))] hover:bg-[rgba(78,66,57,0.05)]",
@@ -87,8 +86,8 @@ export function MemberRoleFields({
       {track === "investor" ? (
         <label
           className={cn(
-            "flex items-center rounded-lg border border-[rgba(78,66,57,0.16)] bg-[rgba(255,252,248,0.9)] px-2",
-            compact ? "h-7" : "h-8",
+            "flex items-center border border-[rgba(78,66,57,0.16)] bg-[rgba(255,252,248,0.9)] px-2.5",
+            compact ? "heyu-control-sm" : "heyu-control",
             disabled && "opacity-70",
           )}
         >
