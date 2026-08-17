@@ -21,11 +21,7 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-function newLogId(): string {
-  return `rvl-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function rowToLog(r: {
+type ReviseLogRow = {
   id: string;
   project_id: string;
   run_id: string | null;
@@ -38,7 +34,13 @@ function rowToLog(r: {
   llm_backend: string | null;
   created_at: string;
   completed_at: string | null;
-}): ChapterReviseInstructionLog {
+};
+
+function newLogId(): string {
+  return `rvl-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function rowToLog(r: ReviseLogRow): ChapterReviseInstructionLog {
   return {
     id: r.id,
     projectId: r.project_id,
@@ -155,30 +157,18 @@ export async function listReviseInstructionLogs(
   }
   const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
   try {
-    const q = await db
-      .prepare(
-        `SELECT id, project_id, run_id, section_id, user_id, instruction, revise_note,
-                status, error, llm_backend, created_at, completed_at
-         FROM chapter_revise_instruction_logs
-         ${where}
-         ORDER BY created_at DESC
-         LIMIT ?`,
-      )
-      .bind(...binds, limit)
-      .all<{
-        id: string;
-        project_id: string;
-        run_id: string | null;
-        section_id: string;
-        user_id: string;
-        instruction: string;
-        revise_note: string | null;
-        status: string;
-        error: string | null;
-        llm_backend: string | null;
-        created_at: string;
-        completed_at: string | null;
-      }>();
+    const stmt = db.prepare(
+      `SELECT id, project_id, run_id, section_id, user_id, instruction, revise_note,
+              status, error, llm_backend, created_at, completed_at
+       FROM chapter_revise_instruction_logs
+       ${where}
+       ORDER BY created_at DESC
+       LIMIT ${limit}`,
+    );
+    const q =
+      binds.length > 0
+        ? await stmt.bind(...binds).all<ReviseLogRow>()
+        : await stmt.all<ReviseLogRow>();
     return (q.results ?? []).map(rowToLog);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

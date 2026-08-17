@@ -1,5 +1,4 @@
 import { Link, Navigate, Outlet, useLocation } from "react-router-dom";
-import { ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AdminApiProbeSection } from "@/components/workspace/AdminApiProbeSection";
 import { AdminDraftsSection } from "@/components/workspace/AdminDraftsSection";
@@ -50,24 +49,10 @@ export default function AdminPortal() {
         <h1 className="font-display text-[32px] font-semibold tracking-wide">
           系统管理
         </h1>
-        <p className="mt-2 text-[hsl(var(--warm-charcoal-muted))]">
-          管理账号、Hermes Skills、知识网络模板、大模型密钥、API 探测、操作日志、更新审核与改写指令。
-        </p>
 
         {allowed ? (
           <>
-            <div className="mt-6 rounded-[18px] border border-[hsl(var(--wine)/0.22)] bg-[hsl(var(--wine-muted)/0.55)] px-5 py-4 text-sm leading-relaxed">
-              <p className="flex items-center gap-2 font-semibold text-[hsl(var(--wine))]">
-                <ShieldCheck className="h-4 w-4" strokeWidth={2} />
-                平台管理员
-              </p>
-              <p className="mt-2 text-[hsl(var(--warm-charcoal-muted))]">
-                在下方各 Tab 维护工作台用户、Skills、知识网络 MD
-                模板、大模型密钥、操作日志、更新草案与改写指令复盘。
-              </p>
-            </div>
-
-            <div className="mt-8 flex flex-wrap items-end gap-1 border-b border-[rgba(78,66,57,0.12)]">
+            <div className="mt-6 flex flex-wrap items-end gap-1 border-b border-[rgba(78,66,57,0.12)]">
               {ADMIN_TABS.map((t) => (
                 <Link
                   key={t.id}

@@ -1129,14 +1129,17 @@ export type ChapterReviseLogItem = {
 };
 
 export async function listAdminChapterReviseLogs(
-  userId: string,
+  _userId: string,
   options?: { projectId?: string; filterUserId?: string; limit?: number },
 ): Promise<ChapterReviseLogItem[]> {
-  const q = new URLSearchParams({ userId });
+  const q = new URLSearchParams();
   if (options?.projectId) q.set("projectId", options.projectId);
   if (options?.filterUserId) q.set("userId", options.filterUserId);
   if (options?.limit) q.set("limit", String(options.limit));
-  const res = await jfoFetch(`/api/admin/chapter-revise-logs?${q}`);
+  const qs = q.toString();
+  const res = await jfoFetch(
+    `/api/admin/chapter-revise-logs${qs ? `?${qs}` : ""}`,
+  );
   const data = (await res.json().catch(() => ({}))) as {
     ok?: boolean;
     items?: ChapterReviseLogItem[];

@@ -143,8 +143,10 @@ async function main() {
       return;
     }
 
-    const sql = typeof body.sql === "string" ? body.sql : "";
-    const params = Array.isArray(body.params) ? body.params : [];
+      const sql = typeof body.sql === "string" ? body.sql : "";
+    const params = (Array.isArray(body.params) ? body.params : []).map((p) =>
+      p === undefined ? null : p,
+    );
     const mode = body.mode === "first" || body.mode === "run" ? body.mode : "all";
 
     if (!sql) {
