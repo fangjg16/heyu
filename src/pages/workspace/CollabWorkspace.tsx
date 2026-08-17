@@ -367,7 +367,7 @@ export function CollabItemsPage() {
                       </div>
                     </div>
                     <span className="shrink-0 rounded-md bg-[rgba(160,99,88,0.1)] px-2 py-0.5 text-[11px] font-medium text-[#A06358]">
-                      {collabStatusLabel(it.status)}
+                      {collabStatusLabel(it.status, "issuer")}
                     </span>
                   </Link>
                 </li>
@@ -476,7 +476,7 @@ export function CollabItemDetailPage() {
                   {preview.title}
                 </h2>
                 <span className="text-[12px] text-[#A06358]">
-                  {collabStatusLabel(item.status)}
+                  {collabStatusLabel(item.status, "issuer")}
                 </span>
               </div>
               {preview.detail && preview.detail !== preview.title ? (

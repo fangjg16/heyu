@@ -305,7 +305,7 @@ export default function HomeDashboard() {
         meta: collabInbox[0].projectName ?? "项目方协作",
         due: collabInbox[0].dueAt
           ? `截止 ${collabInbox[0].dueAt.slice(0, 10)}`
-          : "待回复",
+          : "待你回复",
         color: C.wine,
         to: `/app/collab/${collabInbox[0].projectId}/items/${collabInbox[0].id}`,
         listMeta: collabInbox[0].projectName ?? "",
@@ -573,13 +573,15 @@ export default function HomeDashboard() {
                       height: 42,
                       padding: "0 16px",
                       borderRadius: 12,
-                      background: "transparent",
-                      color: "rgba(255,255,255,0.9)",
+                      border: "1px solid rgba(255,255,255,0.55)",
+                      background: "rgba(255,255,255,0.12)",
+                      color: "#fff",
                       fontSize: 14,
-                      fontWeight: 500,
+                      fontWeight: 600,
                       display: "inline-flex",
                       alignItems: "center",
                       textDecoration: "none",
+                      whiteSpace: "nowrap",
                     }}
                   >
                     改措辞
@@ -598,6 +600,7 @@ export default function HomeDashboard() {
                       fontWeight: 600,
                       border: 0,
                       cursor: sendingId ? "wait" : "pointer",
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {sendingId === focusTodo.id ? "发送中…" : "发给项目方"}
@@ -831,6 +834,7 @@ export default function HomeDashboard() {
                       textDecoration: "none",
                       flexShrink: 0,
                       fontWeight: 600,
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {t.listDue} →
@@ -840,7 +844,7 @@ export default function HomeDashboard() {
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: 10,
+                      gap: 8,
                       flexShrink: 0,
                     }}
                   >
@@ -848,9 +852,18 @@ export default function HomeDashboard() {
                       to={t.to}
                       onClick={() => rememberPublishDraft(t)}
                       style={{
+                        height: 34,
+                        padding: "0 12px",
+                        borderRadius: 9,
+                        border: `1px solid ${C.wine}`,
+                        background: "transparent",
+                        color: C.wine,
                         fontSize: 13,
-                        color: C.muted,
+                        fontWeight: 600,
+                        display: "inline-flex",
+                        alignItems: "center",
                         textDecoration: "none",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       改措辞
@@ -871,6 +884,7 @@ export default function HomeDashboard() {
                         fontSize: 13,
                         fontWeight: 600,
                         cursor: sendingId ? "wait" : "pointer",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       {sendingId === t.id ? "发送中…" : "发给项目方"}
@@ -977,7 +991,7 @@ export default function HomeDashboard() {
                         color: "#969E9A",
                       }}
                     >
-                      {it.projectName ?? ""} · {collabStatusLabel(it.status)}
+                      {it.projectName ?? ""} · {collabStatusLabel(it.status, "issuer")}
                       {it.dueAt ? ` · 截止 ${it.dueAt.slice(0, 10)}` : ""}
                     </div>
                   </div>

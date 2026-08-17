@@ -1461,10 +1461,13 @@ export type CollabFileRecord = {
   versionGroup: string | null;
 };
 
-export function collabStatusLabel(status: CollabItemStatus): string {
+export function collabStatusLabel(
+  status: CollabItemStatus,
+  view: "investor" | "issuer" = "investor",
+): string {
   switch (status) {
     case "pending_reply":
-      return "待回复";
+      return view === "issuer" ? "待你回复" : "待项目方回复";
     case "saved":
       return "已保存";
     case "submitted":
