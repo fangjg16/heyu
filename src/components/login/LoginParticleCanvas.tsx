@@ -60,9 +60,15 @@ export function LoginParticleCanvas({ className }: Props) {
     let raf = 0;
 
     function resize() {
-      dpr = window.devicePixelRatio || 1;
-      width = window.innerWidth;
-      height = window.innerHeight;
+      const parent = canvas.parentElement;
+      const nextDpr = Math.min(window.devicePixelRatio || 1, 2);
+      const nextWidth = parent?.clientWidth || canvas.clientWidth || 0;
+      const nextHeight = parent?.clientHeight || canvas.clientHeight || 0;
+      if (nextWidth < 1 || nextHeight < 1) return;
+      if (nextWidth === width && nextHeight === height && nextDpr === dpr) return;
+      dpr = nextDpr;
+      width = nextWidth;
+      height = nextHeight;
       canvas.width = width * dpr;
       canvas.height = height * dpr;
       canvas.style.width = `${width}px`;
@@ -138,7 +144,11 @@ export function LoginParticleCanvas({ className }: Props) {
     }
 
     const onMouseMove = (e: MouseEvent) => {
-      mouseRef.current = { x: e.clientX, y: e.clientY };
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
     };
 
     const onMouseLeave = () => {
@@ -148,12 +158,20 @@ export function LoginParticleCanvas({ className }: Props) {
     resize();
     frame();
 
+    const parent = canvas.parentElement;
+    const observer =
+      parent && typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => resize())
+        : null;
+    observer?.observe(parent!);
+
     window.addEventListener("resize", resize);
     window.addEventListener("mousemove", onMouseMove);
     document.documentElement.addEventListener("mouseleave", onMouseLeave);
 
     return () => {
       cancelAnimationFrame(raf);
+      observer?.disconnect();
       window.removeEventListener("resize", resize);
       window.removeEventListener("mousemove", onMouseMove);
       document.documentElement.removeEventListener("mouseleave", onMouseLeave);

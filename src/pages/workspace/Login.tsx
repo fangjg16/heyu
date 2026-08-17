@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { LoginParticleCanvas } from "@/components/login/LoginParticleCanvas";
 import { loginWithPassword, fetchWorkspaceUsersDirectory } from "@/lib/api-auth";
 import { loadSessionToken, loadSessionUserId } from "@/workspace/session";
 
@@ -55,32 +56,7 @@ export default function Login() {
       <div className="flex min-h-0 flex-1">
         {/* Left brand panel */}
         <div className="relative hidden flex-[1.1] flex-col justify-between overflow-hidden bg-gradient-to-br from-[#F2EBE3] via-[#F6F3EE] to-[#F0E7E3] px-[60px] py-14 lg:flex">
-          <svg
-            viewBox="0 0 600 700"
-            preserveAspectRatio="none"
-            className="pointer-events-none absolute inset-0 h-full w-full opacity-50"
-            aria-hidden
-          >
-            <g stroke="rgba(160,99,88,0.16)" strokeWidth="1" fill="none">
-              <path d="M80 120 L240 200 L180 360 L360 300 L480 420" />
-              <path d="M240 200 L300 90 L460 160 L480 420 L520 560" />
-              <path d="M180 360 L120 520 L320 560 L360 300" />
-              <path d="M320 560 L480 600 L520 560" />
-            </g>
-            <g fill="rgba(160,99,88,0.5)">
-              <circle cx="80" cy="120" r="3.5" />
-              <circle cx="240" cy="200" r="4.5" />
-              <circle cx="300" cy="90" r="3" />
-              <circle cx="460" cy="160" r="3.5" />
-              <circle cx="180" cy="360" r="4" />
-              <circle cx="360" cy="300" r="5" />
-              <circle cx="480" cy="420" r="3.5" />
-              <circle cx="120" cy="520" r="3" />
-              <circle cx="320" cy="560" r="4" />
-              <circle cx="520" cy="560" r="3" />
-              <circle cx="480" cy="600" r="3.5" />
-            </g>
-          </svg>
+          <LoginParticleCanvas className="absolute inset-0 h-full w-full" />
 
           <div className="relative flex items-center gap-3.5">
             <Link
@@ -106,7 +82,9 @@ export default function Login() {
               建立一套可信的 AI 决策工作台
             </div>
             <div className="mt-5 max-w-[440px] text-[15px] leading-[1.9] text-[hsl(var(--warm-charcoal-muted))]">
-              把项目资料、AI 分析、家族协同、IC 决议和签约方案，串成一条可审计的清晰流程。
+              把项目资料、AI 分析、家族协同、IC 决议和签约方案，
+              <br />
+              串成一条可审计的清晰流程。
             </div>
           </div>
 
