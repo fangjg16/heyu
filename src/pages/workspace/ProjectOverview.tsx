@@ -43,6 +43,7 @@ import { filterProjectsForUser } from "@/workspace/guest-access";
 import { canUserManageProjectMetadata } from "@/workspace/project-manage";
 import {
   getProjectRole,
+  isJoinedProjectRole,
   getUserById,
   isAccountGuestUser,
   isIssuerOnlyUser,
@@ -68,7 +69,7 @@ const PROJECT_OPENNESS_OPTIONS: {
     value: "partial",
     title: "全开放",
     description:
-      "内部账号可在项目广场发现该项目；未加入成员仅为访客级，可申请加入。",
+      "内部账号可在项目广场发现该项目；未加入者可申请加入。",
   },
   {
     value: "invite",
@@ -148,9 +149,9 @@ function ProjectCard({
   withdrawing?: boolean;
 }) {
   const role = getProjectRole(userId, project.id, project.createdBy);
-  const isMember = role !== "guest";
+  const isMember = isJoinedProjectRole(role);
   const canManage = canUserManageProjectMetadata(userId, project);
-  const roleLabel = isMember ? roleFootnote(role) : "Guest";
+  const roleLabel = isMember ? roleFootnote(role) : "未加入";
   const previewText =
     role === "guest" || isIssuerRole(role)
       ? project.guestSummary || "请进入协作工作台查看待确认事项与可上传资料。"
@@ -432,7 +433,7 @@ export default function ProjectOverview() {
         new Set(
           visibleProjects.map((p) => getProjectRole(userId, p.id, p.createdBy))
         )
-      )
+      ).filter(isJoinedProjectRole)
     : [];
   const filteredProjects = userId
     ? visibleProjects.filter((p) => {
@@ -981,7 +982,7 @@ export default function ProjectOverview() {
                     </ul>
                   ) : (
                     <p className="mt-2 text-xs text-muted-foreground">
-                      不选人则仅创建人入组。选中的人将加入项目并获得对应权限；其他人仅为访客级。
+                      不选人则仅创建人入组。选中的人将加入项目并获得对应权限；未选中的人不会入组。
                     </p>
                   )}
                 </div>

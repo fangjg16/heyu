@@ -78,6 +78,11 @@ export function getProjectRole(
   return "guest";
 }
 
+/** 已加入项目（三档权限或项目方）。guest 表示未加入，不是第四档权限。 */
+export function isJoinedProjectRole(role: WorkspaceRole): boolean {
+  return role !== "guest";
+}
+
 /** 对话区与表格的展示档位 */
 export type UiTier = "full" | "mid" | "low";
 
@@ -100,7 +105,7 @@ export function roleLabelForProject(role: WorkspaceRole): string {
     case "issuer":
       return "项目方";
     case "guest":
-      return "Guest";
+      return "未加入";
     default:
       return role;
   }
@@ -130,7 +135,7 @@ export function isIssuerOnlyUser(userId: string | null | undefined): boolean {
   return roles.length > 0 && roles.every((r) => isIssuerRole(r));
 }
 
-/** 侧栏对话：看项目成员角色，不用账号 defaultRole 一刀切 Guest */
+/** 侧栏对话：看项目成员角色，不用账号 defaultRole 一刀切未加入 */
 export function canOpenWorkspaceChat(userId: string | null | undefined): boolean {
   const uid = (userId ?? "").trim();
   if (!uid) return false;

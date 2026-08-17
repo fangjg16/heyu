@@ -219,7 +219,7 @@ export function WorkspaceLeftRail() {
                   {user?.displayName ?? "用户"}
                 </div>
                 <div className="text-xs text-[hsl(var(--warm-charcoal-muted))]">
-                  {isAdmin ? "平台管理员" : isGuest ? "Guest" : "工作台成员"}
+                  {isAdmin ? "平台管理员" : isGuest ? "未加入项目" : "工作台成员"}
                 </div>
               </div>
             ) : (

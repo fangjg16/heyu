@@ -343,8 +343,8 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
               用户管理
             </h2>
             <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-              管理登录账号与项目成员权限（在「编辑」中配置）。所有人默认 Guest
-              目录可见性，仅见已加入的项目；停用后无法登录。
+              管理登录账号与项目成员权限（在「编辑」中配置）。未加入任何项目时，
+              目录里只显示已加入的项目；停用后无法登录。
             </p>
           </div>
         </div>

@@ -27,7 +27,7 @@ const OPENNESS_OPTIONS: {
     value: "partial",
     title: "全开放",
     description:
-      "内部账号可在项目广场发现该项目；未加入成员仅为访客级，可申请加入。",
+      "内部账号可在项目广场发现该项目；未加入者可申请加入。",
   },
   {
     value: "invite",
@@ -162,13 +162,16 @@ export function ProjectEditModal({
             />
           </label>
           <label className="block text-sm">
-            <span className="font-medium text-foreground">Guest 可见摘要</span>
+            <span className="font-medium text-foreground">未加入可见摘要</span>
             <textarea
               value={guestSummary}
               onChange={(e) => setGuestSummary(e.target.value)}
               rows={2}
               className="mt-1.5 w-full resize-y rounded-lg border border-border/70 px-3 py-2 text-sm"
             />
+            <span className="mt-1 block text-xs text-muted-foreground">
+              尚未加入本项目的人在广场卡片上看到的简介。
+            </span>
           </label>
           <div className="block text-sm">
             <span className="mb-1.5 block font-medium text-foreground">行业分类</span>

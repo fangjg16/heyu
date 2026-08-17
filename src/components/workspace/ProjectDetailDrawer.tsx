@@ -148,7 +148,9 @@ export function ProjectDetailDrawer({
               {project.name}
             </h2>
             <p className="mt-2 text-[11px] font-medium text-muted-foreground">
-              本项目视角：{roleLabelForProject(role)}
+              {role === "guest"
+                ? "尚未加入本项目"
+                : `本项目权限：${roleLabelForProject(role)}`}
               {canManage && project.createdBy === userId
                 ? " · 你是创建人，可编辑或删除"
                 : canManage

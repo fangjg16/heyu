@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 type KnowledgeNetworkPreviewProps = {
   html: string;
   filename?: string;
-  /** 默认 true；访客级仅保留预览与新标签页打开 */
+  /** 默认 true；未加入者仅保留预览与新标签页打开 */
   allowDownload?: boolean;
 };
 
