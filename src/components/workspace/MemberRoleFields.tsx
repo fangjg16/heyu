@@ -45,8 +45,7 @@ export function MemberRoleFields({
     <div className="flex flex-wrap items-center gap-2">
       <div
         className={cn(
-          "border border-[rgba(78,66,57,0.16)] bg-[rgba(255,252,248,0.9)]",
-          compact ? "heyu-segment-sm" : "heyu-segment",
+          compact ? "heyu-segment heyu-segment-sm" : "heyu-segment",
           disabled && "opacity-70",
         )}
       >
@@ -58,10 +57,8 @@ export function MemberRoleFields({
             onChange(assignableRoleFromTrack("investor", investorRole));
           }}
           className={cn(
-            "heyu-segment-item px-2.5 text-[12px] transition-colors disabled:cursor-not-allowed",
-            track === "investor"
-              ? "bg-[hsl(var(--wine-muted))] font-medium text-[hsl(var(--wine))]"
-              : "text-[hsl(var(--warm-charcoal-muted))] hover:bg-[rgba(78,66,57,0.05)]",
+            "heyu-segment-item disabled:cursor-not-allowed",
+            track === "investor" && "heyu-segment-item-on",
           )}
         >
           投资方
@@ -74,10 +71,8 @@ export function MemberRoleFields({
             onChange("issuer");
           }}
           className={cn(
-            "heyu-segment-item px-2.5 text-[12px] transition-colors disabled:cursor-not-allowed",
-            track === "issuer"
-              ? "bg-[hsl(var(--wine-muted))] font-medium text-[hsl(var(--wine))]"
-              : "text-[hsl(var(--warm-charcoal-muted))] hover:bg-[rgba(78,66,57,0.05)]",
+            "heyu-segment-item disabled:cursor-not-allowed",
+            track === "issuer" && "heyu-segment-item-on",
           )}
         >
           项目方
@@ -86,12 +81,12 @@ export function MemberRoleFields({
       {track === "investor" ? (
         <label
           className={cn(
-            "flex items-center border border-[rgba(78,66,57,0.16)] bg-[rgba(255,252,248,0.9)] px-2.5",
-            compact ? "heyu-control-sm" : "heyu-control",
+            "heyu-chip gap-1.5",
+            compact && "heyu-chip-sm",
             disabled && "opacity-70",
           )}
         >
-          <span className="mr-1.5 text-[11px] text-[hsl(var(--warm-charcoal-muted))]">
+          <span className="text-[11px] text-[hsl(var(--warm-charcoal-muted))]">
             权限
           </span>
           <select
@@ -107,7 +102,7 @@ export function MemberRoleFields({
                 onChange(next);
               }
             }}
-            className="bg-transparent text-[12px] text-[hsl(var(--warm-charcoal))] outline-none disabled:cursor-not-allowed"
+            className="heyu-select text-[13px] text-[hsl(var(--warm-charcoal))] outline-none disabled:cursor-not-allowed"
           >
             {INVESTOR_PERMISSION_ROLES.map((r) => (
               <option key={r} value={r}>

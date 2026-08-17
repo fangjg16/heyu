@@ -340,7 +340,7 @@ export function ProjectPermissionsSection({
                   type="button"
                   disabled={busy}
                   onClick={() => void onAddMember()}
-                  className="heyu-control inline-flex items-center justify-center bg-[hsl(var(--wine))] px-3 text-[13px] font-medium text-white hover:bg-[hsl(var(--wine-hover))] disabled:opacity-50"
+                  className="heyu-control min-w-[72px] px-[18px] text-[13px] font-medium text-white hover:bg-[hsl(var(--wine-hover))] disabled:opacity-50 bg-[hsl(var(--wine))]"
                 >
                   {adding ? "加入中…" : "加入"}
                 </button>

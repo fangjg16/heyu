@@ -26,7 +26,7 @@ export default function Notifications() {
             加载中…
           </p>
         ) : requests.length === 0 ? (
-          <div className="heyu-card mt-8 border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.82)] px-6 py-10 text-center text-sm text-[hsl(var(--warm-charcoal-muted))]">
+          <div className="heyu-card mt-8 border border-[rgba(255,255,255,0.65)] bg-[rgba(255,252,248,0.88)] px-6 py-10 text-center text-sm text-[hsl(var(--warm-charcoal-muted))] shadow-[0_8px_24px_rgba(102,80,60,0.06)]">
             有人从项目广场申请加入时，会出现在这里。
           </div>
         ) : (
@@ -34,7 +34,7 @@ export default function Notifications() {
             {requests.map((req) => (
               <li
                 key={req.id}
-                className="heyu-card border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.82)] px-5 py-4"
+                className="heyu-card border border-[rgba(255,255,255,0.65)] bg-[rgba(255,252,248,0.88)] px-5 py-4 shadow-[0_8px_24px_rgba(102,80,60,0.06)]"
               >
                 <div className="text-[15px] font-semibold text-[#1F2423]">
                   {req.applicantDisplayName ?? req.applicantUserId}
@@ -56,7 +56,7 @@ export default function Notifications() {
                   extra={
                     <Link
                       to={`/app/projects/${encodeURIComponent(req.projectId)}/overview`}
-                      className="inline-flex h-9 items-center px-2 text-[12.5px] text-[#A06358]"
+                      className="inline-flex h-8 items-center px-1 text-[13px] text-[hsl(var(--warm-charcoal-muted))] transition-colors hover:text-[hsl(var(--wine))]"
                     >
                       打开项目 →
                     </Link>
