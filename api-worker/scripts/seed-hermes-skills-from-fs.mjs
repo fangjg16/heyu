@@ -109,6 +109,26 @@ async function main() {
   let imported = 0;
 
   try {
+    if (process.argv.includes("--if-empty")) {
+      try {
+        const [rows] = await conn.query(
+          "SELECT COUNT(*) AS c FROM hermes_skills",
+        );
+        const n = Number(rows?.[0]?.c ?? 0);
+        if (n > 0) {
+          console.log(
+            `[seed-hermes-skills] skip (--if-empty)：库中已有 ${n} 个 skill`,
+          );
+          return;
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn(
+          `[seed-hermes-skills] 无法检查 hermes_skills（${msg}），跳过灌库`,
+        );
+        return;
+      }
+    }
     for (const name of names) {
       const dir = path.join(skillsRoot, name);
       const walked = walkFiles(dir);

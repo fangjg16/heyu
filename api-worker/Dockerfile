@@ -30,6 +30,8 @@ COPY api-worker/scripts ./scripts
 COPY api-worker/schema.mysql.sql ./
 COPY api-worker/migrations ./migrations
 COPY docs/knowledge-network /docs/knowledge-network
+# Admin Skills 默认从仓库目录灌库 / 列卷（容器内 repoRoot 为 /）
+COPY hermes-railway/skills /hermes-railway/skills
 EXPOSE 8787 8790
 # Default: API. Override command for mysql-bridge.
 CMD ["node", "scripts/http-server.mjs"]
