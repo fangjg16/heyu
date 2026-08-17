@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
+import { JoinRequestReviewBar } from "@/components/workspace/JoinRequestReviewBar";
 import { useJoinReviews } from "@/hooks/use-join-reviews";
 
 export default function Notifications() {
-  const { requests, pendingCount, loading, error, review } = useJoinReviews();
+  const { requests, pendingCount, loading, error, busyId, review } = useJoinReviews();
 
   return (
     <WorkspaceShell>
@@ -48,28 +49,19 @@ export default function Notifications() {
                     ? new Date(req.createdAt).toLocaleString("zh-CN")
                     : ""}
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void review(req, "approved")}
-                    className="h-9 rounded-lg bg-[#5E9B75] px-3 text-[12.5px] font-medium text-white"
-                  >
-                    通过（加入为 Basic）
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void review(req, "rejected")}
-                    className="h-9 rounded-lg border border-[rgba(160,99,88,0.3)] px-3 text-[12.5px] text-[#A06358]"
-                  >
-                    拒绝
-                  </button>
-                  <Link
-                    to={`/app/projects/${encodeURIComponent(req.projectId)}/overview`}
-                    className="inline-flex h-9 items-center px-2 text-[12.5px] text-[#A06358]"
-                  >
-                    打开项目 →
-                  </Link>
-                </div>
+                <JoinRequestReviewBar
+                  disabled={busyId === req.id}
+                  onApprove={(role) => void review(req, "approved", role)}
+                  onReject={() => void review(req, "rejected")}
+                  extra={
+                    <Link
+                      to={`/app/projects/${encodeURIComponent(req.projectId)}/overview`}
+                      className="inline-flex h-9 items-center px-2 text-[12.5px] text-[#A06358]"
+                    >
+                      打开项目 →
+                    </Link>
+                  }
+                />
               </li>
             ))}
           </ul>

@@ -19,10 +19,10 @@ import {
 } from "./project-join-db";
 import { resolveProjectRole } from "./workspace-roles";
 import {
-  getDefaultRoleForUser,
   getWorkspaceUserById,
   isKnownWorkspaceUser,
 } from "./workspace-users-db";
+import { parseApprovedJoinRole } from "./project-join-role";
 
 type Env = { DB: AppDatabase };
 
@@ -265,7 +265,7 @@ export async function handleReviewJoinRequest(
     return json({ error: "仅项目负责人或 Admin / Core 可审批加入申请" }, 403);
   }
 
-  let body: { status?: string };
+  let body: { status?: string; role?: unknown };
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -304,28 +304,35 @@ export async function handleReviewJoinRequest(
     );
   }
 
+  let assignedRole: ReturnType<typeof parseApprovedJoinRole> = "low";
+  if (next === "approved") {
+    assignedRole = parseApprovedJoinRole(body.role);
+    if (!assignedRole) {
+      return json(
+        {
+          error:
+            "通过时须指定项目方，或投资方的项目管理员 / Core / Basic",
+          code: "INVALID_ROLE",
+        },
+        400,
+      );
+    }
+  }
+
   const updated = await reviewJoinRequest(env, requestId, next, userId);
   if (!updated || updated.status !== next) {
     return json({ error: "审批失败，请刷新后重试" }, 409);
   }
 
-  if (next === "approved") {
-    let role: "admin" | "core" | "low" = "low";
-    try {
-      const def = await getDefaultRoleForUser(env, updated.applicantUserId);
-      if (def === "admin" || def === "core" || def === "low") role = def;
-      // mid（Advanced）本阶段不新分配，审批落入 Basic
-    } catch {
-      /* 保持 low */
-    }
+  if (next === "approved" && assignedRole) {
     await upsertProjectMemberRole(
       env,
       projectId,
       updated.applicantUserId,
-      role,
+      assignedRole,
       userId,
     );
   }
 
-  return json({ request: updated });
+  return json({ request: updated, assignedRole: next === "approved" ? assignedRole : null });
 }

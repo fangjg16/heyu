@@ -4,13 +4,14 @@ import {
   fetchMyProjectRoles,
   fetchProjectJoinRequests,
   reviewJoinRequest,
+  type JoinApproveRole,
   type ProjectJoinRequest,
 } from "@/lib/project-api";
 import { setMyProjectRoles } from "@/workspace/project-role-cache";
 import { notifyJoinReviewsChanged } from "@/hooks/use-join-reviews";
 import { listCachedWorkspaceUsers } from "@/workspace/workspace-users";
 import type { WorkspaceProject } from "@/workspace/projects";
-import { cn } from "@/lib/utils";
+import { JoinRequestReviewBar } from "@/components/workspace/JoinRequestReviewBar";
 
 type ProjectJoinRequestsSectionProps = {
   project: WorkspaceProject;
@@ -51,11 +52,17 @@ export function ProjectJoinRequestsSection({
     reload();
   }, [reload]);
 
-  const onReview = (req: ProjectJoinRequest, status: "approved" | "rejected") => {
+  const onReview = (
+    req: ProjectJoinRequest,
+    status: "approved" | "rejected",
+    role?: JoinApproveRole,
+  ) => {
     if (busyId) return;
     setBusyId(req.id);
     setError(null);
-    void reviewJoinRequest(project.id, req.id, status)
+    void reviewJoinRequest(project.id, req.id, status, {
+      role: status === "approved" ? role ?? "low" : undefined,
+    })
       .then(async () => {
         setRequests((prev) => prev.filter((r) => r.id !== req.id));
         try {
@@ -76,7 +83,7 @@ export function ProjectJoinRequestsSection({
     <div>
       <h2 className="font-display text-lg font-semibold">加入申请</h2>
       <p className="mt-1 text-sm text-[hsl(var(--warm-charcoal-muted))]">
-        审批来自项目广场的加入申请；通过后申请人将获得项目成员权限。
+        审批来自项目广场的加入申请。通过时先选项目方或投资方；投资方再指定项目管理员 / Core / Basic（默认 Basic）。
       </p>
       {loading ? (
         <p className="mt-3 text-sm text-[hsl(var(--warm-charcoal-muted))]">
@@ -95,7 +102,7 @@ export function ProjectJoinRequestsSection({
           {requests.map((req) => (
             <li
               key={req.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.82)] px-4 py-3.5"
+              className="rounded-xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.82)] px-4 py-3.5"
             >
               <div className="min-w-0">
                 <div className="text-[14px] font-medium text-[hsl(var(--warm-charcoal))]">
@@ -108,27 +115,12 @@ export function ProjectJoinRequestsSection({
                     : ""}
                 </div>
               </div>
-              <div className="flex shrink-0 gap-2">
-                <button
-                  type="button"
-                  disabled={busyId === req.id}
-                  onClick={() => onReview(req, "rejected")}
-                  className={cn(
-                    "h-8 rounded-lg border border-[rgba(78,66,57,0.18)] px-3 text-[12.5px]",
-                    "text-[hsl(var(--warm-charcoal-muted))] hover:bg-[rgba(78,66,57,0.06)] disabled:opacity-50",
-                  )}
-                >
-                  拒绝
-                </button>
-                <button
-                  type="button"
-                  disabled={busyId === req.id}
-                  onClick={() => onReview(req, "approved")}
-                  className="h-8 rounded-lg bg-[hsl(var(--wine))] px-3 text-[12.5px] font-medium text-white hover:bg-[hsl(var(--wine-hover))] disabled:opacity-50"
-                >
-                  通过
-                </button>
-              </div>
+              <JoinRequestReviewBar
+                disabled={busyId === req.id}
+                approveClassName="bg-[hsl(var(--wine))] hover:bg-[hsl(var(--wine-hover))]"
+                onApprove={(role) => onReview(req, "approved", role)}
+                onReject={() => onReview(req, "rejected")}
+              />
             </li>
           ))}
         </ul>

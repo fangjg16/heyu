@@ -3,6 +3,7 @@ import {
   ENABLE_LIVE_CHAT,
   fetchMyJoinReviews,
   reviewJoinRequest,
+  type JoinApproveRole,
   type ProjectJoinRequest,
 } from "@/lib/project-api";
 
@@ -17,10 +18,12 @@ export function useJoinReviews(): {
   pendingCount: number;
   loading: boolean;
   error: string | null;
+  busyId: string | null;
   reload: () => void;
   review: (
     req: ProjectJoinRequest,
     status: "approved" | "rejected",
+    role?: JoinApproveRole,
   ) => Promise<void>;
 } {
   const [requests, setRequests] = useState<ProjectJoinRequest[]>([]);
@@ -56,12 +59,18 @@ export function useJoinReviews(): {
   }, [reload]);
 
   const review = useCallback(
-    async (req: ProjectJoinRequest, status: "approved" | "rejected") => {
+    async (
+      req: ProjectJoinRequest,
+      status: "approved" | "rejected",
+      role?: JoinApproveRole,
+    ) => {
       if (busyId) return;
       setBusyId(req.id);
       setError(null);
       try {
-        await reviewJoinRequest(req.projectId, req.id, status);
+        await reviewJoinRequest(req.projectId, req.id, status, {
+          role: status === "approved" ? role ?? "low" : undefined,
+        });
         setRequests((prev) => prev.filter((r) => r.id !== req.id));
         notifyJoinReviewsChanged();
       } catch (e) {
@@ -79,6 +88,7 @@ export function useJoinReviews(): {
     pendingCount: requests.length,
     loading,
     error,
+    busyId,
     reload,
     review,
   };

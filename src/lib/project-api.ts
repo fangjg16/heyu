@@ -489,21 +489,29 @@ export async function fetchProjectJoinRequests(
   return (data.requests ?? []).map(mapJoinRequest);
 }
 
+export type JoinApproveRole = "admin" | "core" | "low" | "issuer";
+
 export async function reviewJoinRequest(
   projectId: string,
   requestId: string,
   status: "approved" | "rejected",
-  _chatEndpoint = AI_CHAT_ENDPOINT,
+  options?: { role?: JoinApproveRole },
 ): Promise<ProjectJoinRequest> {
   if (!apiBaseFromChatEndpoint(AI_CHAT_ENDPOINT)) {
     throw new Error("未配置 VITE_AI_CHAT_ENDPOINT");
+  }
+  const body: { status: "approved" | "rejected"; role?: JoinApproveRole } = {
+    status,
+  };
+  if (status === "approved") {
+    body.role = options?.role ?? "low";
   }
   const res = await jfoFetch(
     `/api/projects/${encodeURIComponent(projectId)}/join-requests/${encodeURIComponent(requestId)}`,
     {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(body),
     },
   );
   const data = (await res.json().catch(() => ({}))) as {
