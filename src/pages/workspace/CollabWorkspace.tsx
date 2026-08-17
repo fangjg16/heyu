@@ -200,7 +200,7 @@ export function CollabOverviewPage() {
           <p className="text-[13px] text-[#969E9A]">加载协作概览…</p>
         ) : data.itemCount === 0 ? (
           <div className="rounded-2xl border border-[rgba(78,66,57,0.1)] bg-white/80 px-6 py-10 text-[14px] leading-relaxed text-[#59625F]">
-            投资团队暂未向你发布待确认事项。你仍可在「源文件」中上传补充资料。
+            投资团队暂未向你发布待确认事项。知识网络里的内部问题不会自动出现在这里；他们在「项目方协作」发布后，你才能答复。你仍可在「源文件」中上传补充资料。
           </div>
         ) : (
           <>
@@ -282,9 +282,9 @@ export function CollabItemsPage() {
       <div className="mx-auto max-w-[1180px] px-6 py-8 md:px-8">
         {error ? <p className="text-[13px] text-[#A06358]">{error}</p> : null}
         {items.length === 0 && !error ? (
-          <p className="text-[13px] text-[#969E9A]">
-            投资团队暂未向你发布待确认事项。
-          </p>
+          <div className="rounded-2xl border border-[rgba(78,66,57,0.1)] bg-white/80 px-6 py-10 text-[14px] leading-relaxed text-[#59625F]">
+            投资团队暂未向你发布待确认事项。他们首页上的「内部待确认问题」只有投资团队能看见，不会自动同步到本页。
+          </div>
         ) : (
           <ul className="space-y-2">
             {items.map((it) => (

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import {
   ENABLE_LIVE_CHAT,
+  fetchCollabItems,
   fetchMyCollabInbox,
   fetchMyOpenQuestions,
   fetchProjectsFromApi,
@@ -18,9 +19,12 @@ import {
   sortProjectsForOverview,
 } from "@/workspace/project-registry";
 import { loadSessionUserId } from "@/workspace/session";
+import { useMyProjectRoles } from "@/hooks/use-my-project-roles";
 import {
   getProjectRole,
   getUserById,
+  isInvestorRole,
+  isIssuerRole,
   projectEntryPath,
 } from "@/workspace/workspace-users";
 import type { ProjectPhase, WorkspaceProject } from "@/workspace/projects";
@@ -112,30 +116,24 @@ function priorityColor(priority: MyOpenQuestionItem["priority"]): string {
   return C.green;
 }
 
+const COLLAB_PUBLISH_DRAFT_KEY = (projectId: string) =>
+  `hy-collab-publish-draft:${projectId}`;
+
 export default function HomeDashboard() {
   const userId = loadSessionUserId();
   const user = getUserById(userId);
+  useMyProjectRoles(userId);
   const [projects, setProjects] = useState<WorkspaceProject[]>([]);
   const [loading, setLoading] = useState(true);
-  const [todos, setTodos] = useState<
-    {
-      id: string;
-      text: string;
-      title: string;
-      detail: string;
-      meta: string;
-      due: string;
-      color: string;
-      to: string;
-      listMeta: string;
-      listDue: string;
-    }[]
-  >([]);
+  const [openQuestions, setOpenQuestions] = useState<MyOpenQuestionItem[]>([]);
   const [todosLoading, setTodosLoading] = useState(false);
   const [todosError, setTodosError] = useState<string | null>(null);
   const [collabInbox, setCollabInbox] = useState<
     (CollabItem & { projectName?: string })[]
   >([]);
+  const [publishedByProject, setPublishedByProject] = useState<
+    Record<string, CollabItem[]>
+  >({});
 
   useEffect(() => {
     let cancelled = false;
@@ -169,7 +167,7 @@ export default function HomeDashboard() {
 
   useEffect(() => {
     if (!ENABLE_LIVE_CHAT || !userId) {
-      setTodos([]);
+      setOpenQuestions([]);
       setTodosError(null);
       setTodosLoading(false);
       return;
@@ -181,31 +179,10 @@ export default function HomeDashboard() {
       try {
         const data = await fetchMyOpenQuestions();
         if (cancelled) return;
-        setTodos(
-          data.items.map((item) => {
-            const { title, detail } = extractOpenQuestionTitle(item.text);
-            return {
-              id: item.id,
-              text: item.text,
-              title: title || item.text,
-              detail,
-              meta: item.projectName,
-              due: item.priorityLabel,
-              color: priorityColor(item.priority),
-              to: `/app/projects/${encodeURIComponent(item.projectId)}/knowledge?section=questions`,
-              listMeta: `${item.projectName} · ${item.priority} 待确认问题`,
-              listDue:
-                item.priority === "P1"
-                  ? "阻塞"
-                  : item.priority === "P2"
-                    ? "重要"
-                    : "跟进",
-            };
-          }),
-        );
+        setOpenQuestions(data.items);
       } catch (e) {
         if (cancelled) return;
-        setTodos([]);
+        setOpenQuestions([]);
         setTodosError(e instanceof Error ? e.message : "待办加载失败");
       } finally {
         if (!cancelled) setTodosLoading(false);
@@ -235,6 +212,35 @@ export default function HomeDashboard() {
     };
   }, [userId]);
 
+  useEffect(() => {
+    if (!ENABLE_LIVE_CHAT || !userId || projects.length === 0) {
+      setPublishedByProject({});
+      return;
+    }
+    const investorIds = projects
+      .filter((p) =>
+        isInvestorRole(getProjectRole(userId, p.id, p.createdBy)),
+      )
+      .map((p) => p.id);
+    if (investorIds.length === 0) {
+      setPublishedByProject({});
+      return;
+    }
+    let cancelled = false;
+    void Promise.all(
+      investorIds.map((id) =>
+        fetchCollabItems(id)
+          .then((items) => [id, items] as const)
+          .catch(() => [id, [] as CollabItem[]] as const),
+      ),
+    ).then((rows) => {
+      if (!cancelled) setPublishedByProject(Object.fromEntries(rows));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, projects]);
+
   const now = useMemo(() => new Date(), []);
   const shortName = shortDisplayName(user?.displayName);
   const greeting = shortName
@@ -242,6 +248,43 @@ export default function HomeDashboard() {
     : greetingForHour(now.getHours());
 
   const shortList = projects.slice(0, 3);
+  const hasInvestorProject = projects.some((p) =>
+    isInvestorRole(getProjectRole(userId ?? "", p.id, p.createdBy)),
+  );
+  const hasIssuerProject = projects.some((p) =>
+    isIssuerRole(getProjectRole(userId ?? "", p.id, p.createdBy)),
+  );
+
+  const todos = useMemo(() => {
+    return openQuestions.map((item) => {
+      const { title, detail } = extractOpenQuestionTitle(item.text);
+      const published = (publishedByProject[item.projectId] ?? []).find(
+        (it) =>
+          it.sourceQuestionText === item.text ||
+          it.title === item.text.slice(0, 48),
+      );
+      return {
+        id: item.id,
+        text: item.text,
+        title: title || item.text,
+        detail,
+        meta: item.projectName,
+        due: published
+          ? `已发布 · ${collabStatusLabel(published.status)}`
+          : `${item.priorityLabel} · 未发布给项目方`,
+        color: priorityColor(item.priority),
+        to: `/app/projects/${encodeURIComponent(item.projectId)}/collab`,
+        listMeta: published
+          ? `${item.projectName} · 已发布给项目方`
+          : `${item.projectName} · 内部缺口，项目方尚未看到`,
+        listDue: published ? collabStatusLabel(published.status) : "未发布",
+        published: Boolean(published),
+        projectId: item.projectId,
+        priority: item.priority,
+      };
+    });
+  }, [openQuestions, publishedByProject]);
+
   const collabFocus = collabInbox[0]
     ? {
         id: `collab-${collabInbox[0].id}`,
@@ -256,12 +299,37 @@ export default function HomeDashboard() {
         to: `/app/collab/${collabInbox[0].projectId}/items/${collabInbox[0].id}`,
         listMeta: collabInbox[0].projectName ?? "",
         listDue: collabInbox[0].dueAt ? collabInbox[0].dueAt.slice(0, 10) : "",
+        published: true,
+        projectId: collabInbox[0].projectId,
+        priority: collabInbox[0].priority,
       }
     : null;
   const focusTodo = todos[0] ?? collabFocus;
   const displayTodos = todos.slice(0, 3);
-  const showInvestorTodos =
-    todosLoading || todos.length > 0 || collabInbox.length === 0;
+  const showInvestorTodos = hasInvestorProject;
+  const showIssuerTodos = hasIssuerProject;
+
+  const rememberPublishDraft = (item: {
+    projectId: string;
+    text: string;
+    title: string;
+    published?: boolean;
+    priority?: MyOpenQuestionItem["priority"];
+  }) => {
+    if (item.published) return;
+    try {
+      sessionStorage.setItem(
+        COLLAB_PUBLISH_DRAFT_KEY(item.projectId),
+        JSON.stringify({
+          sourceText: item.text,
+          title: item.title.slice(0, 48),
+          priority: item.priority ?? "P2",
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+  };
 
   return (
     <WorkspaceShell>
@@ -305,6 +373,7 @@ export default function HomeDashboard() {
         {focusTodo ? (
           <Link
             to={focusTodo.to}
+            onClick={() => rememberPublishDraft(focusTodo)}
             className="block transition-shadow"
             style={{
               marginTop: 36,
@@ -330,7 +399,9 @@ export default function HomeDashboard() {
                 letterSpacing: "1.5px",
               }}
             >
-              今天最重要的一件事
+              {focusTodo.to.includes("/collab/") && hasIssuerProject && !hasInvestorProject
+                ? "今天最重要的协作事项"
+                : "今天最重要的一件事"}
             </div>
             <div
               className="font-display"
@@ -387,7 +458,11 @@ export default function HomeDashboard() {
                   flexShrink: 0,
                 }}
               >
-                查看{focusTodo.to.includes("/collab/") ? "事项" : "缺口"} →
+                {focusTodo.to.startsWith("/app/collab/")
+                  ? "查看事项"
+                  : focusTodo.published
+                    ? "查看发布进度"
+                    : "发布给项目方"} →
               </span>
             </div>
           </Link>
@@ -409,7 +484,9 @@ export default function HomeDashboard() {
                 ? "正在加载待办…"
                 : loading
                   ? "欢迎使用合域"
-                  : projects.length > 0
+                  : hasIssuerProject && !hasInvestorProject
+                    ? "暂无待你处理的事项"
+                    : projects.length > 0
                     ? "暂无紧急待办"
                     : "欢迎使用合域"}
             </div>
@@ -425,8 +502,10 @@ export default function HomeDashboard() {
                 ? "正在汇总各项目待确认问题…"
                 : loading
                   ? "正在加载项目…"
-                  : projects.length > 0
-                    ? "生成知识网络「待确认问题」章节后，最紧急项将显示在此。"
+                  : hasIssuerProject && !hasInvestorProject
+                    ? "投资团队发布事项后，会显示在这里。内部研究缺口不会自动同步给你。"
+                    : projects.length > 0
+                    ? "知识网络「待确认问题」是投资团队内部缺口，项目方默认看不到。请到项目「项目方协作」发布后再等答复。"
                     : "暂无进行中的项目。前往项目库创建或加入协作。"}
             </p>
             <Link
@@ -466,16 +545,26 @@ export default function HomeDashboard() {
             className="font-display"
             style={{ fontSize: 21, fontWeight: 600, color: C.ink }}
           >
-            我的待办
+            内部待确认问题
           </div>
           <span style={{ fontSize: 14, color: C.muted }}>
             {todosLoading
               ? "…"
               : displayTodos.length > 0
-                ? `${displayTodos.length} 项 · 按优先级排序`
+                ? `${displayTodos.length} 项 · 仅投资团队可见`
                 : "—"}
           </span>
         </div>
+        <p
+          style={{
+            marginTop: 8,
+            fontSize: 13.5,
+            color: C.muted,
+            lineHeight: 1.6,
+          }}
+        >
+          来自知识网络，默认只有投资团队能看到。点进去改成对外措辞并发布后，项目方才会出现待办。
+        </p>
         <div style={{ marginTop: 14 }}>
           {todosLoading ? (
             <p
@@ -505,13 +594,14 @@ export default function HomeDashboard() {
                 color: C.muted,
               }}
             >
-              暂无待确认问题。生成知识网络「待确认问题」章节后将在此汇总。
+              暂无内部待确认问题。生成知识网络该章节后，会汇总在此；发布给项目方后对方才能答复。
             </p>
           ) : (
             displayTodos.map((t) => (
               <Link
                 key={t.id}
                 to={t.to}
+                onClick={() => rememberPublishDraft(t)}
                 className="transition-colors"
                 style={{
                   display: "flex",
@@ -600,7 +690,7 @@ export default function HomeDashboard() {
         </>
         ) : null}
 
-        {collabInbox.length > 0 ? (
+        {showIssuerTodos ? (
           <>
             <div
               style={{
@@ -621,8 +711,29 @@ export default function HomeDashboard() {
                 {collabInbox.length} 项
               </span>
             </div>
+            <p
+              style={{
+                marginTop: 8,
+                fontSize: 13.5,
+                color: C.muted,
+                lineHeight: 1.6,
+              }}
+            >
+              只显示投资团队已经发布给你的事项，不会自动带出他们内部的研究缺口。
+            </p>
             <div style={{ marginTop: 14 }}>
-              {collabInbox.slice(0, 5).map((it) => (
+              {collabInbox.length === 0 ? (
+                <p
+                  style={{
+                    padding: "28px 6px",
+                    fontSize: 15,
+                    color: C.muted,
+                  }}
+                >
+                  投资团队尚未向你发布事项。你仍可在项目「源文件」中上传补充资料。
+                </p>
+              ) : (
+                collabInbox.slice(0, 5).map((it) => (
                 <Link
                   key={it.id}
                   to={`/app/collab/${it.projectId}/items/${it.id}`}
@@ -659,7 +770,8 @@ export default function HomeDashboard() {
                   </div>
                   <span style={{ color: C.wine }}>→</span>
                 </Link>
-              ))}
+              ))
+              )}
             </div>
           </>
         ) : null}

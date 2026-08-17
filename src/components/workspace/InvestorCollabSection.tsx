@@ -47,6 +47,33 @@ export function InvestorCollabSection({
   const [investorNote, setInvestorNote] = useState("");
   const [fileReqLabel, setFileReqLabel] = useState("");
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const [incomingDraft, setIncomingDraft] = useState<{
+    sourceText: string;
+    title?: string;
+    priority?: CollabPriority;
+  } | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(`hy-collab-publish-draft:${projectId}`);
+      if (!raw) return;
+      sessionStorage.removeItem(`hy-collab-publish-draft:${projectId}`);
+      const parsed = JSON.parse(raw) as {
+        sourceText?: string;
+        title?: string;
+        priority?: CollabPriority;
+      };
+      if (parsed.sourceText?.trim()) {
+        setIncomingDraft({
+          sourceText: parsed.sourceText,
+          title: parsed.title,
+          priority: parsed.priority,
+        });
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [projectId]);
 
   const load = useCallback(async () => {
     const [its, ch, fl, shared] = await Promise.all([
@@ -84,6 +111,16 @@ export function InvestorCollabSection({
       ),
     );
   }, [projectId, userId]);
+
+  useEffect(() => {
+    if (!incomingDraft) return;
+    const t = incomingDraft.sourceText;
+    const q = questions.find((x) => x.text === t);
+    setSourceText(t);
+    setTitle((prev) => prev.trim() || incomingDraft.title || t.slice(0, 48));
+    setBody((prev) => prev.trim() || t);
+    setPriority(q?.priority ?? incomingDraft.priority ?? "P2");
+  }, [incomingDraft, questions]);
 
   useEffect(() => {
     void load().catch((e) =>
@@ -152,7 +189,7 @@ export function InvestorCollabSection({
     <div className="mx-auto max-w-[1180px] px-6 py-8 md:px-10">
       <h2 className="text-[20px] font-semibold text-[#1F2423]">项目方协作</h2>
       <p className="mt-1 text-[13px] text-[#59625F]">
-        内部待确认问题默认仅投资团队可见。确认对外措辞后发布，项目方才能看到。已确认答复会回写到知识网络「待确认问题」。
+        内部「待确认问题」只给投资团队看，设成项目方也不会自动同步。请在下方挑选内部问题、改成对外中性措辞后再发布；发布后项目方才能答复。已确认的答复会回写知识网络「待确认问题」。
       </p>
       {error ? (
         <p className="mt-3 text-[13px] text-[#A06358]">{error}</p>
@@ -180,11 +217,17 @@ export function InvestorCollabSection({
             className="mt-1 h-9 w-full rounded-lg border border-[rgba(78,66,57,0.12)] px-2 text-[13px]"
           >
             <option value="">选择内部问题，或下方手填</option>
-            {questions.map((q) => (
+            {questions.map((q) => {
+              const published = items.some(
+                (it) => it.sourceQuestionText === q.text,
+              );
+              return (
               <option key={q.text} value={q.text}>
+                {published ? "已发布 · " : ""}
                 {q.priority} · {q.text.slice(0, 80)}
               </option>
-            ))}
+              );
+            })}
           </select>
         </label>
         <input
