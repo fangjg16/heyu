@@ -120,11 +120,7 @@ export function MemberRoleFields({
             ) : null}
           </select>
         </label>
-      ) : (
-        <span className="text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
-          项目方不设投资权限档
-        </span>
-      )}
+      ) : null}
     </div>
   );
 }

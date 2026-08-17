@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Plus, Shield, Trash2, Users } from "lucide-react";
+import { Loader2, Plus, Shield, Trash2, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fetchWorkspaceUsersDirectory } from "@/lib/api-auth";
 import {
@@ -27,6 +27,8 @@ type ProjectPermissionsSectionProps = {
   onMembersChange?: (members: ProjectPermissionMember[]) => void;
 };
 
+type PendingAdd = { userId: string; name: string };
+
 function prettyName(displayName: string): string {
   return displayName.replace(/([a-z])([A-Z])/g, "$1 $2").trim();
 }
@@ -46,6 +48,7 @@ export function ProjectPermissionsSection({
   const [error, setError] = useState<string | null>(null);
   const [savedHint, setSavedHint] = useState<string | null>(null);
   const [addKeyword, setAddKeyword] = useState("");
+  const [pendingAdd, setPendingAdd] = useState<PendingAdd | null>(null);
   const [addRole, setAddRole] = useState<AssignableMemberRole>("low");
   const onMembersChangeRef = useRef(onMembersChange);
   onMembersChangeRef.current = onMembersChange;
@@ -114,7 +117,7 @@ export function ProjectPermissionsSection({
         }));
       const next = await updateProjectPermissions(project.id, userId, updates);
       applyMembers(next);
-      setSavedHint("权限已保存");
+      setSavedHint("已保存");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -122,19 +125,24 @@ export function ProjectPermissionsSection({
     }
   };
 
-  const onAddMember = async (option: { userId: string; name: string }) => {
-    if (adding || saving || removingId) return;
+  const resetAddForm = () => {
+    setPendingAdd(null);
+    setAddKeyword("");
+    setAddRole("low");
+  };
+
+  const onAddMember = async () => {
+    if (!pendingAdd || adding || saving || removingId) return;
     setAdding(true);
     setError(null);
     setSavedHint(null);
     try {
       const next = await updateProjectPermissions(project.id, userId, [
-        { userId: option.userId, role: addRole },
+        { userId: pendingAdd.userId, role: addRole },
       ]);
       applyMembers(next);
-      setAddKeyword("");
-      const kind = addRole === "issuer" ? "项目方" : roleLabelForProject(addRole);
-      setSavedHint(`已加入 ${option.name}（${kind}）`);
+      setSavedHint(`已加入 ${pendingAdd.name}`);
+      resetAddForm();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -146,7 +154,7 @@ export function ProjectPermissionsSection({
     if (member.isCreator || member.isPlatformAdmin) return;
     if (adding || saving || removingId) return;
     const name = prettyName(member.displayName);
-    if (!window.confirm(`确定移除「${name}」在本项目的成员身份？`)) return;
+    if (!window.confirm(`确定移除「${name}」？`)) return;
 
     setRemovingId(member.userId);
     setError(null);
@@ -176,25 +184,42 @@ export function ProjectPermissionsSection({
     }) ?? false;
 
   const memberIds = new Set((members ?? []).map((m) => m.userId));
-  const addOptions = listCachedWorkspaceUsers()
-    .map((u) => ({
-      userId: u.id,
-      name: prettyName(u.displayName),
-      searchText: `${u.displayName} ${prettyName(u.displayName)} ${u.id}`.toLowerCase(),
-      isPlatformAdmin: Boolean(u.isPlatformAdmin),
-    }))
-    .filter((option) => {
-      if (memberIds.has(option.userId)) return false;
-      if (option.isPlatformAdmin) return false;
-      const kw = addKeyword.trim().toLowerCase();
-      if (!kw) return false;
-      return option.searchText.includes(kw);
-    })
-    .slice(0, 8);
+  const addOptions = pendingAdd
+    ? []
+    : listCachedWorkspaceUsers()
+        .map((u) => ({
+          userId: u.id,
+          name: prettyName(u.displayName),
+          searchText: `${u.displayName} ${prettyName(u.displayName)} ${u.id}`.toLowerCase(),
+          isPlatformAdmin: Boolean(u.isPlatformAdmin),
+        }))
+        .filter((option) => {
+          if (memberIds.has(option.userId)) return false;
+          if (option.isPlatformAdmin) return false;
+          const kw = addKeyword.trim().toLowerCase();
+          if (!kw) return false;
+          return option.searchText.includes(kw);
+        })
+        .slice(0, 8);
 
   const busy = saving || adding || Boolean(removingId);
-  const addKindLabel =
-    addRole === "issuer" ? "项目方" : roleLabelForProject(addRole);
+
+  const saveButton = (
+    <button
+      type="button"
+      disabled={!dirty || busy || loading}
+      onClick={() => void onSave()}
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[hsl(var(--wine-deep)/0.32)] bg-[hsl(var(--wine-deep)/0.06)] px-3 py-1.5 text-[11px] font-semibold text-[hsl(var(--wine-deep))] transition-colors hover:bg-[hsl(var(--wine-deep)/0.1)]",
+        (!dirty || busy || loading) && "pointer-events-none opacity-50",
+      )}
+    >
+      {saving ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+      ) : null}
+      保存
+    </button>
+  );
 
   return (
     <section
@@ -204,182 +229,203 @@ export function ProjectPermissionsSection({
       )}
       aria-labelledby="project-permissions-heading"
     >
-      <div className="flex items-start justify-between gap-3">
-        {embedded ? (
-          <p
-            id="project-permissions-heading"
-            className="text-[12.5px] leading-relaxed text-[hsl(var(--warm-charcoal-muted))]"
-          >
-            添加时先选项目方或投资方；投资方默认 Basic，也可改为 Core / 项目管理员。
-          </p>
-        ) : (
-          <div className="flex items-start gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--wine-deep)/0.08)] text-[hsl(var(--wine-deep))]">
-              <Shield className="h-4 w-4" strokeWidth={2} aria-hidden />
-            </div>
-            <div>
-              <h3
-                id="project-permissions-heading"
-                className="text-xs font-bold uppercase tracking-wide text-foreground"
-              >
-                项目成员
-              </h3>
-              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                可添加项目方或投资方。投资方再指定项目管理员 / Core / Basic（默认
-                Basic）。创建人固定为 Core；平台管理员不可在此修改。
-              </p>
-            </div>
+      {!embedded ? (
+        <div className="mb-4 flex items-center gap-2.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--wine-deep)/0.08)] text-[hsl(var(--wine-deep))]">
+            <Shield className="h-4 w-4" strokeWidth={2} aria-hidden />
           </div>
-        )}
-        <button
-          type="button"
-          disabled={!dirty || busy || loading}
-          onClick={() => void onSave()}
-          className={cn(
-            "inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[hsl(var(--wine-deep)/0.32)] bg-[hsl(var(--wine-deep)/0.06)] px-3 py-1.5 text-[11px] font-semibold text-[hsl(var(--wine-deep))] transition-colors hover:bg-[hsl(var(--wine-deep)/0.1)]",
-            (!dirty || busy || loading) && "pointer-events-none opacity-50",
-          )}
-        >
-          {saving ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-          ) : null}
-          保存
-        </button>
-      </div>
+          <h3
+            id="project-permissions-heading"
+            className="text-xs font-bold uppercase tracking-wide text-foreground"
+          >
+            项目成员
+          </h3>
+        </div>
+      ) : (
+        <h3 id="project-permissions-heading" className="sr-only">
+          项目成员
+        </h3>
+      )}
 
       {loading ? (
-        <p className="mt-4 flex items-center gap-2 text-[11px] text-muted-foreground">
+        <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
           加载成员…
         </p>
       ) : null}
 
       {error ? (
-        <p className="mt-3 rounded-lg border border-rose-200/80 bg-rose-50/80 px-3 py-2 text-[11px] text-rose-700">
+        <p className="mb-3 rounded-lg border border-rose-200/80 bg-rose-50/80 px-3 py-2 text-[11px] text-rose-700">
           {error}
         </p>
       ) : null}
 
       {savedHint ? (
-        <p className="mt-3 text-[11px] font-medium text-emerald-700">{savedHint}</p>
+        <p className="mb-3 text-[11px] font-medium text-emerald-700">{savedHint}</p>
       ) : null}
 
       {members && !loading ? (
         <>
-          <div className="relative mt-4">
-            <label className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+          <div className="rounded-xl border border-dashed border-[hsl(var(--wine)/0.28)] bg-[hsl(var(--wine-muted)/0.35)] p-3.5">
+            <p className="text-[12px] font-semibold text-[hsl(var(--warm-charcoal))]">
               添加成员
-            </label>
-            <MemberRoleFields
-              role={addRole}
-              disabled={busy}
-              onChange={setAddRole}
-            />
-            <input
-              type="text"
-              value={addKeyword}
-              onChange={(e) => setAddKeyword(e.target.value)}
-              disabled={busy}
-              placeholder="输入姓名或账号搜索后加入"
-              className="mt-2 w-full rounded-lg border border-border/60 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary/30"
-            />
-            {addOptions.length > 0 ? (
-              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-border/70 bg-white py-1 shadow-md">
-                {addOptions.map((option) => (
-                  <li key={option.userId}>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void onAddMember(option)}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/60 disabled:opacity-50"
-                    >
-                      <Plus
-                        className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--wine-deep))]"
-                        aria-hidden
-                      />
-                      <span className="truncate">{option.name}</span>
-                      <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
-                        加入为{addKindLabel}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {addKeyword.trim() && addOptions.length === 0 ? (
-              <p className="mt-1.5 text-[11px] text-muted-foreground">
-                无匹配用户，或对方已在项目中 / 为平台管理员
-              </p>
-            ) : null}
-          </div>
-
-          <ul className="mt-4 space-y-2">
-            {members.map((m) => {
-              const locked = m.isPlatformAdmin || m.isCreator;
-              const removing = removingId === m.userId;
-              const value = m.isCreator
-                ? "core"
-                : m.isPlatformAdmin
-                  ? "admin"
-                  : (draft[m.userId] ?? m.defaultRole);
-              return (
-                <li
-                  key={m.userId}
-                  className="flex flex-col gap-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <Users
-                        className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-                        aria-hidden
-                      />
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {prettyName(m.displayName)}
-                        {m.isCreator ? (
-                          <span className="ml-1.5 text-[10px] font-semibold text-[hsl(var(--wine-deep))]">
-                            创建人
-                          </span>
-                        ) : null}
-                      </p>
-                    </div>
-                    {!locked ? (
+            </p>
+            <div className="relative mt-2.5">
+              {pendingAdd ? (
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-white px-3 py-2">
+                  <span className="truncate text-sm font-medium text-foreground">
+                    {pendingAdd.name}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={resetAddForm}
+                    className="rounded-full p-1 text-muted-foreground hover:bg-muted"
+                    aria-label="更换人选"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  value={addKeyword}
+                  onChange={(e) => setAddKeyword(e.target.value)}
+                  disabled={busy}
+                  placeholder="搜索姓名或账号"
+                  className="w-full rounded-lg border border-border/60 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary/30"
+                />
+              )}
+              {addOptions.length > 0 ? (
+                <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-border/70 bg-white py-1 shadow-md">
+                  {addOptions.map((option) => (
+                    <li key={option.userId}>
                       <button
                         type="button"
                         disabled={busy}
-                        onClick={() => void onRemoveMember(m)}
-                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-rose-200/80 bg-white text-rose-600 transition-colors hover:bg-rose-50 disabled:pointer-events-none disabled:opacity-50"
-                        aria-label={`移除 ${prettyName(m.displayName)}`}
-                        title="移除成员"
+                        onClick={() => {
+                          setPendingAdd({
+                            userId: option.userId,
+                            name: option.name,
+                          });
+                          setAddKeyword("");
+                          setAddRole("low");
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/60 disabled:opacity-50"
                       >
-                        {removing ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                        ) : (
-                          <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                        )}
+                        <Plus
+                          className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--wine-deep))]"
+                          aria-hidden
+                        />
+                        <span className="truncate">{option.name}</span>
                       </button>
-                    ) : null}
-                  </div>
-                  {locked ? (
-                    <p className="text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
-                      {m.isPlatformAdmin
-                        ? "平台管理员"
-                        : `投资方 · ${roleLabelForProject("core")}（创建人固定）`}
-                    </p>
-                  ) : (
-                    <MemberRoleFields
-                      role={value}
-                      disabled={busy}
-                      size="sm"
-                      onChange={(role) => {
-                        setDraft((prev) => ({ ...prev, [m.userId]: role }));
-                        setSavedHint(null);
-                      }}
-                    />
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {!pendingAdd && addKeyword.trim() && addOptions.length === 0 ? (
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  无匹配用户，或对方已在项目中
+                </p>
+              ) : null}
+            </div>
+            {pendingAdd ? (
+              <div className="mt-3 flex flex-col gap-2.5">
+                <MemberRoleFields
+                  role={addRole}
+                  disabled={busy}
+                  onChange={setAddRole}
+                />
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void onAddMember()}
+                  className="inline-flex h-9 items-center justify-center rounded-lg bg-[hsl(var(--wine))] px-3 text-[13px] font-medium text-white hover:bg-[hsl(var(--wine-hover))] disabled:opacity-50"
+                >
+                  {adding ? "加入中…" : "加入"}
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="mt-5">
+            <div className="mb-2.5 flex items-center justify-between gap-3">
+              <p className="text-[12px] font-semibold text-[hsl(var(--warm-charcoal))]">
+                现有成员
+              </p>
+              {saveButton}
+            </div>
+            <ul className="space-y-2">
+              {members.map((m) => {
+                const locked = m.isPlatformAdmin || m.isCreator;
+                const removing = removingId === m.userId;
+                const value = m.isCreator
+                  ? "core"
+                  : m.isPlatformAdmin
+                    ? "admin"
+                    : (draft[m.userId] ?? m.defaultRole);
+                return (
+                  <li
+                    key={m.userId}
+                    className="flex flex-col gap-2 rounded-xl border border-border/60 bg-[rgba(255,252,248,0.9)] px-3 py-2.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Users
+                          className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                          aria-hidden
+                        />
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {prettyName(m.displayName)}
+                          {m.isCreator ? (
+                            <span className="ml-1.5 text-[10px] font-semibold text-[hsl(var(--wine-deep))]">
+                              创建人
+                            </span>
+                          ) : null}
+                        </p>
+                      </div>
+                      {!locked ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void onRemoveMember(m)}
+                          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-rose-200/80 bg-white text-rose-600 transition-colors hover:bg-rose-50 disabled:pointer-events-none disabled:opacity-50"
+                          aria-label={`移除 ${prettyName(m.displayName)}`}
+                          title="移除"
+                        >
+                          {removing ? (
+                            <Loader2
+                              className="h-3.5 w-3.5 animate-spin"
+                              aria-hidden
+                            />
+                          ) : (
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                          )}
+                        </button>
+                      ) : null}
+                    </div>
+                    {locked ? (
+                      <p className="text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
+                        {m.isPlatformAdmin
+                          ? "平台管理员"
+                          : roleLabelForProject("core")}
+                      </p>
+                    ) : (
+                      <MemberRoleFields
+                        role={value}
+                        disabled={busy}
+                        size="sm"
+                        onChange={(role) => {
+                          setDraft((prev) => ({ ...prev, [m.userId]: role }));
+                          setSavedHint(null);
+                        }}
+                      />
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </>
       ) : null}
     </section>
