@@ -1,0 +1,79 @@
+/**
+ * workerd/Miniflare 在 Docker 里经常解析不了 Compose 服务名
+ *（getaddrinfo: Temporary failure in name resolution，host=hermes）。
+ * Node 能用 127.0.0.11，启动时把单标签主机名换成 IPv4 再交给 Worker。
+ */
+import dns from "node:dns/promises";
+
+export const WORKERD_URL_ENV_KEYS = [
+  "HERMES_BASE_URL",
+  "MYSQL_BRIDGE_URL",
+  "MINIO_ENDPOINT",
+  "SKILLS_BRIDGE_URL",
+];
+
+export function isDockerServiceHostname(hostname) {
+  if (!hostname) return false;
+  const host = String(hostname).trim().toLowerCase();
+  if (host === "localhost" || host === "127.0.0.1") return false;
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/u.test(host)) return false;
+  if (host.includes(":")) return false;
+  return !host.includes(".");
+}
+
+export function applyResolvedHostname(raw, ip) {
+  const u = new URL(raw);
+  const hadTrailing = String(raw).endsWith("/");
+  u.hostname = ip;
+  let href = u.href;
+  if (!hadTrailing && href.endsWith("/") && u.pathname === "/") {
+    href = href.slice(0, -1);
+  }
+  return href;
+}
+
+export async function lookupIpv4(hostname, lookup = dns.lookup, attempts = 20) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const result = await lookup(hostname, { family: 4 });
+      const address = typeof result === "string" ? result : result?.address;
+      if (address) return address;
+      throw new Error("empty address");
+    } catch (e) {
+      lastErr = e;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
+  throw lastErr ?? new Error(`DNS lookup failed: ${hostname}`);
+}
+
+export async function resolveUrlEnvForWorkerd(env = process.env, lookup = dns.lookup) {
+  const changes = [];
+  for (const key of WORKERD_URL_ENV_KEYS) {
+    const raw = String(env[key] ?? "").trim();
+    if (!raw) continue;
+    let url;
+    try {
+      url = new URL(raw);
+    } catch {
+      continue;
+    }
+    if (!isDockerServiceHostname(url.hostname)) continue;
+    try {
+      const ip = await lookupIpv4(url.hostname, lookup);
+      const next = applyResolvedHostname(raw, ip);
+      if (next !== raw) {
+        env[key] = next;
+        changes.push({ key, from: raw, to: next });
+        console.log(`[jfo-api] ${key}: ${raw} -> ${next} (workerd 绕过 Docker DNS)`);
+      }
+    } catch (e) {
+      console.warn(
+        `[jfo-api] ${key} 无法解析 ${url.hostname}，沿用 ${raw}:`,
+        e?.message ?? e,
+      );
+    }
+  }
+  return changes;
+}

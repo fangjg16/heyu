@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { Miniflare } from "miniflare";
 import { restartHermesGatewayFromNode } from "./hermes-k8s-restart-node.mjs";
 import { apiWorkerRoot, loadApiWorkerEnv } from "./load-env.mjs";
+import { resolveUrlEnvForWorkerd } from "./resolve-docker-dns-for-workerd.mjs";
 
 const root = apiWorkerRoot;
 const host = process.env.HOST ?? "0.0.0.0";
@@ -27,6 +28,9 @@ const REQUEST_TIMEOUT_MS = (() => {
 if (process.env.JFO_LOAD_DEV_VARS === "1") {
   loadApiWorkerEnv();
 }
+
+// workerd 无法稳定使用 Docker 内置 DNS；先由 Node 把 hermes 等服务名解析成 IP
+await resolveUrlEnvForWorkerd(process.env);
 
 const bundledWorker = path.join(root, "dist", "worker.mjs");
 const useBundledWorker = fs.existsSync(bundledWorker);
