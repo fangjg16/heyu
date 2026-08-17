@@ -32,12 +32,16 @@ export function canUserManageProjectMetadata(
   return Boolean(project.createdBy && project.createdBy === userId);
 }
 
-/** 权限管理：平台管理员或项目创建人 */
+/** 权限管理：平台管理员、项目创建人、或本项目项目管理员 */
 export function canManageProjectPermissions(
   userId: string,
   project: WorkspaceProject,
 ): boolean {
-  return canUserManageProjectMetadata(userId, project);
+  const uid = (userId ?? "").trim();
+  if (!uid) return false;
+  const creator = (project.createdBy ?? "").trim();
+  if (creator && creator === uid) return true;
+  return getProjectRole(uid, project.id, project.createdBy) === "admin";
 }
 
 /** 下载项目资料包：Admin / Core / 创建人 */

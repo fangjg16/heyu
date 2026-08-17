@@ -7,7 +7,7 @@ import {
   upsertProjectMemberRole,
 } from "./project-member-roles-db";
 import { canManageProjectRecord, isPlatformAdmin } from "./projects-auth";
-import { getProjectById, listProjects } from "./projects-db";
+import { getProjectById, listProjects, type ProjectJson } from "./projects-db";
 import { decodePathProjectId } from "./projects-resolve";
 import { resolveProjectRole, type WorkspaceRole } from "./workspace-roles";
 
@@ -94,6 +94,21 @@ async function buildPermissionMembers(
   return members;
 }
 
+async function canManageProjectMembers(
+  env: Env,
+  project: ProjectJson,
+  userId: string,
+): Promise<boolean> {
+  if (await canManageProjectRecord(env, project, userId)) return true;
+  const role = await resolveProjectRole(
+    env,
+    userId,
+    project.id,
+    project.createdBy,
+  );
+  return role === "admin";
+}
+
 /** GET /api/projects/:id/permissions?userId= */
 export async function handleGetProjectPermissions(
   env: Env,
@@ -107,9 +122,9 @@ export async function handleGetProjectPermissions(
   const project = await getProjectById(env, projectId);
   if (!project) return json({ error: "项目不存在" }, 404);
 
-  const canManage = await canManageProjectRecord(env, project, userId);
+  const canManage = await canManageProjectMembers(env, project, userId);
   if (!canManage) {
-    return json({ error: "仅平台管理员或项目创建人可查看权限管理" }, 403);
+    return json({ error: "仅项目管理员或项目创建人可查看成员权限" }, 403);
   }
 
   const members = await buildPermissionMembers(env, projectId, project.createdBy);
@@ -135,8 +150,8 @@ export async function handlePutProjectPermissions(
   const project = await getProjectById(env, projectId);
   if (!project) return json({ error: "项目不存在" }, 404);
 
-  if (!(await canManageProjectRecord(env, project, userId))) {
-    return json({ error: "仅平台管理员或项目创建人可修改权限" }, 403);
+  if (!(await canManageProjectMembers(env, project, userId))) {
+    return json({ error: "仅项目管理员或项目创建人可修改成员权限" }, 403);
   }
 
   let body: {

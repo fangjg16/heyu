@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
-import { MessageSquare, RefreshCw, Upload } from "lucide-react";
+import { MessageSquare, RefreshCw, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import {
@@ -18,6 +18,7 @@ import {
   roleLabelForProject,
 } from "@/workspace/workspace-users";
 import type { WorkspaceRole } from "@/workspace/types";
+import { ProjectPermissionsSection } from "@/components/workspace/ProjectPermissionsSection";
 
 const AVATAR_TONES = [
   "#A06358",
@@ -131,10 +132,11 @@ export function ProjectWorkspaceHeader({
   const judgment = judgmentFromPhase(project.phase);
   const canManage = canManageProjectPermissions(userId, project);
   const [members, setMembers] = useState<ProjectPermissionMember[] | null>(null);
+  const [membersOpen, setMembersOpen] = useState(false);
   const [confirmKind, setConfirmKind] = useState<
     null | "overview" | "all-chapters"
   >(null);
-  useBodyScrollLock(confirmKind !== null);
+  useBodyScrollLock(confirmKind !== null || membersOpen);
 
   useEffect(() => {
     if (!ENABLE_LIVE_CHAT || !userId || !canManage) {
@@ -241,22 +243,59 @@ export function ProjectWorkspaceHeader({
         </div>
         <div className="flex shrink-0 items-center gap-3">
           {avatarChips.length > 0 ? (
-            <div className="mr-1 flex">
-              {avatarChips.map((m, i) => (
-                <div
-                  key={m.userId}
-                  title={m.name}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#F6F3EE] text-[11px] font-bold text-white"
-                  style={{
-                    background: m.bg,
-                    marginLeft: i === 0 ? 0 : -8,
-                    zIndex: avatarChips.length - i,
-                  }}
-                >
-                  {m.mark}
-                </div>
-              ))}
-            </div>
+            canManage ? (
+              <button
+                type="button"
+                onClick={() => setMembersOpen(true)}
+                title="管理项目成员"
+                className="mr-1 flex items-center rounded-full p-0.5 transition-colors hover:bg-[hsl(var(--wine)/0.08)]"
+              >
+                <span className="flex">
+                  {avatarChips.map((m, i) => (
+                    <span
+                      key={m.userId}
+                      title={m.name}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#F6F3EE] text-[11px] font-bold text-white"
+                      style={{
+                        background: m.bg,
+                        marginLeft: i === 0 ? 0 : -8,
+                        zIndex: avatarChips.length - i,
+                      }}
+                    >
+                      {m.mark}
+                    </span>
+                  ))}
+                </span>
+                <span className="ml-2 pr-1 text-[12.5px] text-[hsl(var(--warm-charcoal-muted))]">
+                  成员
+                </span>
+              </button>
+            ) : (
+              <div className="mr-1 flex">
+                {avatarChips.map((m, i) => (
+                  <div
+                    key={m.userId}
+                    title={m.name}
+                    className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#F6F3EE] text-[11px] font-bold text-white"
+                    style={{
+                      background: m.bg,
+                      marginLeft: i === 0 ? 0 : -8,
+                      zIndex: avatarChips.length - i,
+                    }}
+                  >
+                    {m.mark}
+                  </div>
+                ))}
+              </div>
+            )
+          ) : canManage ? (
+            <button
+              type="button"
+              onClick={() => setMembersOpen(true)}
+              className="mr-1 h-8 rounded-full border border-[rgba(78,66,57,0.16)] px-3 text-[12.5px] text-[hsl(var(--wine))] hover:bg-[hsl(var(--wine-muted))]"
+            >
+              管理成员
+            </button>
           ) : null}
           <button
             type="button"
@@ -411,6 +450,48 @@ export function ProjectWorkspaceHeader({
                   >
                     {confirmCopy.confirmLabel}
                   </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+
+      {membersOpen && canManage && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[220] flex items-center justify-center bg-black/35 p-4 backdrop-blur-[1px]"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="project-members-title"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setMembersOpen(false);
+              }}
+            >
+              <div className="flex max-h-[min(86vh,40rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border/80 bg-white shadow-2xl">
+                <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
+                  <h3
+                    id="project-members-title"
+                    className="font-display text-base font-semibold text-foreground"
+                  >
+                    项目成员
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setMembersOpen(false)}
+                    className="rounded-full p-2 text-muted-foreground hover:bg-muted"
+                    aria-label="关闭"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+                  <ProjectPermissionsSection
+                    project={project}
+                    userId={userId}
+                    embedded
+                    onMembersChange={setMembers}
+                  />
                 </div>
               </div>
             </div>,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Plus, Shield, Trash2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fetchWorkspaceUsersDirectory } from "@/lib/api-auth";
@@ -12,14 +12,19 @@ import type { WorkspaceProject } from "@/workspace/projects";
 import { patchMyProjectRole } from "@/workspace/project-role-cache";
 import {
   listCachedWorkspaceUsers,
-  projectRoleSelectOptions,
   roleLabelForProject,
 } from "@/workspace/workspace-users";
 import type { WorkspaceRole } from "@/workspace/types";
+import {
+  MemberRoleFields,
+  type AssignableMemberRole,
+} from "@/components/workspace/MemberRoleFields";
 
 type ProjectPermissionsSectionProps = {
   project: WorkspaceProject;
   userId: string;
+  embedded?: boolean;
+  onMembersChange?: (members: ProjectPermissionMember[]) => void;
 };
 
 function prettyName(displayName: string): string {
@@ -29,6 +34,8 @@ function prettyName(displayName: string): string {
 export function ProjectPermissionsSection({
   project,
   userId,
+  embedded = false,
+  onMembersChange,
 }: ProjectPermissionsSectionProps) {
   const [members, setMembers] = useState<ProjectPermissionMember[] | null>(null);
   const [draft, setDraft] = useState<Record<string, WorkspaceRole>>({});
@@ -39,6 +46,9 @@ export function ProjectPermissionsSection({
   const [error, setError] = useState<string | null>(null);
   const [savedHint, setSavedHint] = useState<string | null>(null);
   const [addKeyword, setAddKeyword] = useState("");
+  const [addRole, setAddRole] = useState<AssignableMemberRole>("low");
+  const onMembersChangeRef = useRef(onMembersChange);
+  onMembersChangeRef.current = onMembersChange;
 
   const load = useCallback(async () => {
     if (!ENABLE_LIVE_CHAT) return;
@@ -50,6 +60,7 @@ export function ProjectPermissionsSection({
       });
       const data = await fetchProjectPermissions(project.id, userId);
       setMembers(data.members);
+      onMembersChangeRef.current?.(data.members);
       const next: Record<string, WorkspaceRole> = {};
       for (const m of data.members) {
         if (m.isPlatformAdmin) continue;
@@ -73,6 +84,7 @@ export function ProjectPermissionsSection({
 
   const applyMembers = (next: ProjectPermissionMember[]) => {
     setMembers(next);
+    onMembersChangeRef.current?.(next);
     const nextDraft: Record<string, WorkspaceRole> = {};
     for (const m of next) {
       if (m.isPlatformAdmin) continue;
@@ -96,7 +108,9 @@ export function ProjectPermissionsSection({
         .filter((m) => !m.isPlatformAdmin)
         .map((m) => ({
           userId: m.userId,
-          role: m.isCreator ? ("core" as const) : (draft[m.userId] ?? m.defaultRole),
+          role: m.isCreator
+            ? ("core" as const)
+            : (draft[m.userId] ?? m.defaultRole),
         }));
       const next = await updateProjectPermissions(project.id, userId, updates);
       applyMembers(next);
@@ -115,11 +129,12 @@ export function ProjectPermissionsSection({
     setSavedHint(null);
     try {
       const next = await updateProjectPermissions(project.id, userId, [
-        { userId: option.userId, role: "core" },
+        { userId: option.userId, role: addRole },
       ]);
       applyMembers(next);
       setAddKeyword("");
-      setSavedHint(`已加入 ${option.name}`);
+      const kind = addRole === "issuer" ? "项目方" : roleLabelForProject(addRole);
+      setSavedHint(`已加入 ${option.name}（${kind}）`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -131,7 +146,7 @@ export function ProjectPermissionsSection({
     if (member.isCreator || member.isPlatformAdmin) return;
     if (adding || saving || removingId) return;
     const name = prettyName(member.displayName);
-    if (!window.confirm(`确定移除「${name}」在本项目的权限？`)) return;
+    if (!window.confirm(`确定移除「${name}」在本项目的成员身份？`)) return;
 
     setRemovingId(member.userId);
     setError(null);
@@ -177,36 +192,52 @@ export function ProjectPermissionsSection({
     })
     .slice(0, 8);
 
+  const busy = saving || adding || Boolean(removingId);
+  const addKindLabel =
+    addRole === "issuer" ? "项目方" : roleLabelForProject(addRole);
+
   return (
     <section
-      className="mt-5 rounded-2xl border border-[hsl(var(--wine-deep)/0.18)] bg-white p-4 shadow-[0_1px_0_rgba(15,23,42,0.04)]"
+      className={cn(
+        !embedded &&
+          "mt-5 rounded-2xl border border-[hsl(var(--wine-deep)/0.18)] bg-white p-4 shadow-[0_1px_0_rgba(15,23,42,0.04)]",
+      )}
       aria-labelledby="project-permissions-heading"
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--wine-deep)/0.08)] text-[hsl(var(--wine-deep))]">
-            <Shield className="h-4 w-4" strokeWidth={2} aria-hidden />
+        {embedded ? (
+          <p
+            id="project-permissions-heading"
+            className="text-[12.5px] leading-relaxed text-[hsl(var(--warm-charcoal-muted))]"
+          >
+            添加时先选项目方或投资方；投资方默认 Basic，也可改为 Core / 项目管理员。
+          </p>
+        ) : (
+          <div className="flex items-start gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--wine-deep)/0.08)] text-[hsl(var(--wine-deep))]">
+              <Shield className="h-4 w-4" strokeWidth={2} aria-hidden />
+            </div>
+            <div>
+              <h3
+                id="project-permissions-heading"
+                className="text-xs font-bold uppercase tracking-wide text-foreground"
+              >
+                项目成员
+              </h3>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                可添加项目方或投资方。投资方再指定项目管理员 / Core / Basic（默认
+                Basic）。创建人固定为 Core；平台管理员不可在此修改。
+              </p>
+            </div>
           </div>
-          <div>
-            <h3
-              id="project-permissions-heading"
-              className="text-xs font-bold uppercase tracking-wide text-foreground"
-            >
-              权限管理
-            </h3>
-            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-              可搜索加入成员、调整角色或移除权限。创建人固定为 Core；平台 Admin 不可在此修改。
-            </p>
-          </div>
-        </div>
+        )}
         <button
           type="button"
-          disabled={!dirty || saving || loading || adding || Boolean(removingId)}
+          disabled={!dirty || busy || loading}
           onClick={() => void onSave()}
           className={cn(
             "inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[hsl(var(--wine-deep)/0.32)] bg-[hsl(var(--wine-deep)/0.06)] px-3 py-1.5 text-[11px] font-semibold text-[hsl(var(--wine-deep))] transition-colors hover:bg-[hsl(var(--wine-deep)/0.1)]",
-            (!dirty || saving || loading || adding || Boolean(removingId)) &&
-              "pointer-events-none opacity-50",
+            (!dirty || busy || loading) && "pointer-events-none opacity-50",
           )}
         >
           {saving ? (
@@ -219,7 +250,7 @@ export function ProjectPermissionsSection({
       {loading ? (
         <p className="mt-4 flex items-center gap-2 text-[11px] text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-          加载成员权限…
+          加载成员…
         </p>
       ) : null}
 
@@ -239,13 +270,18 @@ export function ProjectPermissionsSection({
             <label className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
               添加成员
             </label>
+            <MemberRoleFields
+              role={addRole}
+              disabled={busy}
+              onChange={setAddRole}
+            />
             <input
               type="text"
               value={addKeyword}
               onChange={(e) => setAddKeyword(e.target.value)}
-              disabled={adding || saving || Boolean(removingId)}
-              placeholder="输入成员名/昵称搜索后加入"
-              className="w-full rounded-lg border border-border/60 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary/30"
+              disabled={busy}
+              placeholder="输入姓名或账号搜索后加入"
+              className="mt-2 w-full rounded-lg border border-border/60 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary/30"
             />
             {addOptions.length > 0 ? (
               <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-border/70 bg-white py-1 shadow-md">
@@ -253,14 +289,17 @@ export function ProjectPermissionsSection({
                   <li key={option.userId}>
                     <button
                       type="button"
-                      disabled={adding || saving || Boolean(removingId)}
+                      disabled={busy}
                       onClick={() => void onAddMember(option)}
                       className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/60 disabled:opacity-50"
                     >
-                      <Plus className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--wine-deep))]" aria-hidden />
+                      <Plus
+                        className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--wine-deep))]"
+                        aria-hidden
+                      />
                       <span className="truncate">{option.name}</span>
                       <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
-                        加入为 Core
+                        加入为{addKindLabel}
                       </span>
                     </button>
                   </li>
@@ -277,7 +316,6 @@ export function ProjectPermissionsSection({
           <ul className="mt-4 space-y-2">
             {members.map((m) => {
               const locked = m.isPlatformAdmin || m.isCreator;
-              const busy = saving || adding || Boolean(removingId);
               const removing = removingId === m.userId;
               const value = m.isCreator
                 ? "core"
@@ -287,11 +325,14 @@ export function ProjectPermissionsSection({
               return (
                 <li
                   key={m.userId}
-                  className="flex flex-col gap-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5"
                 >
-                  <div className="min-w-0 flex items-center gap-2">
-                    <Users className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                    <div className="min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Users
+                        className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                        aria-hidden
+                      />
                       <p className="truncate text-sm font-medium text-foreground">
                         {prettyName(m.displayName)}
                         {m.isCreator ? (
@@ -301,44 +342,14 @@ export function ProjectPermissionsSection({
                         ) : null}
                       </p>
                     </div>
-                  </div>
-                  <div className="flex w-full items-center gap-2 sm:w-auto">
-                    <select
-                      value={value}
-                      disabled={locked || busy}
-                      onChange={(e) => {
-                        const role = e.target.value as WorkspaceRole;
-                        setDraft((prev) => ({ ...prev, [m.userId]: role }));
-                        setSavedHint(null);
-                      }}
-                      className={cn(
-                        "min-w-0 flex-1 rounded-lg border border-border/80 bg-white px-2 py-1.5 text-[11px] font-medium text-foreground sm:w-36 sm:flex-none",
-                        locked && "cursor-not-allowed opacity-70",
-                      )}
-                      aria-label={`${m.displayName} 的项目角色`}
-                    >
-                      {m.isPlatformAdmin ? (
-                        <option value="admin">{roleLabelForProject("admin")}</option>
-                      ) : m.isCreator ? (
-                        <option value="core">{roleLabelForProject("core")}</option>
-                      ) : (
-                        projectRoleSelectOptions(value).map((r) => (
-                          <option key={r} value={r}>
-                            {r === "mid"
-                              ? `${roleLabelForProject(r)}（请改档）`
-                              : roleLabelForProject(r)}
-                          </option>
-                        ))
-                      )}
-                    </select>
                     {!locked ? (
                       <button
                         type="button"
                         disabled={busy}
                         onClick={() => void onRemoveMember(m)}
                         className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-rose-200/80 bg-white text-rose-600 transition-colors hover:bg-rose-50 disabled:pointer-events-none disabled:opacity-50"
-                        aria-label={`移除 ${prettyName(m.displayName)} 的项目权限`}
-                        title="移除权限"
+                        aria-label={`移除 ${prettyName(m.displayName)}`}
+                        title="移除成员"
                       >
                         {removing ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -348,6 +359,23 @@ export function ProjectPermissionsSection({
                       </button>
                     ) : null}
                   </div>
+                  {locked ? (
+                    <p className="text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
+                      {m.isPlatformAdmin
+                        ? "平台管理员"
+                        : `投资方 · ${roleLabelForProject("core")}（创建人固定）`}
+                    </p>
+                  ) : (
+                    <MemberRoleFields
+                      role={value}
+                      disabled={busy}
+                      size="sm"
+                      onChange={(role) => {
+                        setDraft((prev) => ({ ...prev, [m.userId]: role }));
+                        setSavedHint(null);
+                      }}
+                    />
+                  )}
                 </li>
               );
             })}
