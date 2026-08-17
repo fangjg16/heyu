@@ -66,6 +66,15 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     autoProbe: true,
   },
   {
+    id: "me-join-reviews",
+    group: "我的",
+    method: "GET",
+    pathTemplate: "/api/me/join-reviews",
+    summary: "待我审批的加入申请",
+    risk: "safe",
+    autoProbe: true,
+  },
+  {
     id: "me-questions",
     group: "我的",
     method: "GET",

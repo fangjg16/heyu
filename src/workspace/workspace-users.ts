@@ -130,6 +130,18 @@ export function isIssuerOnlyUser(userId: string | null | undefined): boolean {
   return roles.length > 0 && roles.every((r) => isIssuerRole(r));
 }
 
+/** 侧栏对话：看项目成员角色，不用账号 defaultRole 一刀切 Guest */
+export function canOpenWorkspaceChat(userId: string | null | undefined): boolean {
+  const uid = (userId ?? "").trim();
+  if (!uid) return false;
+  if (isPlatformAdminUser(uid)) return true;
+  if (isIssuerOnlyUser(uid)) return false;
+  const roles = Object.values(readAllCachedProjectRoles());
+  if (roles.some((r) => isInvestorRole(r))) return true;
+  if (roles.length > 0) return false;
+  return !isAccountGuestUser(uid);
+}
+
 export function canEnterChat(role: WorkspaceRole): boolean {
   return isInvestorRole(role);
 }

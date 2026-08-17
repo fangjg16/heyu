@@ -12,6 +12,7 @@ import { logoutRemote } from "@/lib/api-auth";
 import { useMyProjectRoles } from "@/hooks/use-my-project-roles";
 import { clearSession, loadSessionUserId } from "@/workspace/session";
 import {
+  canOpenWorkspaceChat,
   getUserById,
   isAccountGuestUser,
   isIssuerOnlyUser,
@@ -75,7 +76,7 @@ export function WorkspaceLeftRail() {
   }, [pinned]);
 
   const goChat = () => {
-    if (isGuest) {
+    if (!canOpenWorkspaceChat(userId)) {
       setGuestDialog(true);
       return;
     }
@@ -256,7 +257,9 @@ export function WorkspaceLeftRail() {
               无法进入对话
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              当前为 Guest 权限，仅可浏览项目库，不能进入对话中心或查看项目对话内容。
+              {issuerOnly
+                ? "项目方工作台不包含投资团队对话。请在协作事项中答复。"
+                : "当前还没有可进入对话的投资项目。被加入项目投资团队后即可使用对话中心。"}
             </p>
             <button
               type="button"

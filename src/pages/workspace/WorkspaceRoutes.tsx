@@ -20,6 +20,7 @@ import { ProjectKnowledgeNetworkSection } from "@/components/workspace/ProjectKn
 import { ProjectMaterialsSection } from "@/components/workspace/ProjectMaterialsSection";
 import { ProjectOverviewPanel } from "@/components/workspace/ProjectOverviewPanel";
 import { InvestorCollabSection } from "@/components/workspace/InvestorCollabSection";
+import { ProjectJoinRequestsSection } from "@/components/workspace/ProjectJoinRequestsSection";
 import { ProjectWorkspaceHeader } from "@/components/workspace/ProjectWorkspaceHeader";
 import {
   canDownloadProjectMaterials,
@@ -807,12 +808,19 @@ function ProjectOverviewTab() {
     overviewRefreshKey?: number;
   }>();
   if (!project) return null;
+  const role = getProjectRole(userId, projectId, project.createdBy);
+  const canReviewJoins = role === "admin" || role === "core";
   return (
-    <ProjectOverviewPanel
-      project={project}
-      userId={userId}
-      refreshKey={overviewRefreshKey}
-    />
+    <div className="space-y-8">
+      <ProjectOverviewPanel
+        project={project}
+        userId={userId}
+        refreshKey={overviewRefreshKey}
+      />
+      {canReviewJoins ? (
+        <ProjectJoinRequestsSection project={project} userId={userId} />
+      ) : null}
+    </div>
   );
 }
 

@@ -323,6 +323,8 @@ export type ProjectJoinRequest = {
   updatedAt: string;
   reviewedBy: string | null;
   reviewedAt: string | null;
+  projectName?: string;
+  applicantDisplayName?: string;
 };
 
 function mapJoinRequest(row: {
@@ -334,6 +336,8 @@ function mapJoinRequest(row: {
   updatedAt?: string;
   reviewedBy?: string | null;
   reviewedAt?: string | null;
+  projectName?: string;
+  applicantDisplayName?: string;
 }): ProjectJoinRequest {
   const statusRaw = String(row.status ?? "")
     .trim()
@@ -349,6 +353,8 @@ function mapJoinRequest(row: {
     updatedAt: row.updatedAt ?? "",
     reviewedBy: row.reviewedBy ?? null,
     reviewedAt: row.reviewedAt ?? null,
+    projectName: row.projectName?.trim() || undefined,
+    applicantDisplayName: row.applicantDisplayName?.trim() || undefined,
   };
 }
 
@@ -363,6 +369,19 @@ export async function fetchMyJoinRequests(
   };
   if (!res.ok) {
     throw new Error(data.error || `申请列表加载失败（${res.status}）`);
+  }
+  return (data.requests ?? []).map(mapJoinRequest);
+}
+
+export async function fetchMyJoinReviews(): Promise<ProjectJoinRequest[]> {
+  if (!apiBaseFromChatEndpoint(AI_CHAT_ENDPOINT)) return [];
+  const res = await jfoFetch("/api/me/join-reviews");
+  const data = (await res.json().catch(() => ({}))) as {
+    requests?: Parameters<typeof mapJoinRequest>[0][];
+    error?: string;
+  };
+  if (!res.ok) {
+    throw new Error(data.error || `待审批申请加载失败（${res.status}）`);
   }
   return (data.requests ?? []).map(mapJoinRequest);
 }

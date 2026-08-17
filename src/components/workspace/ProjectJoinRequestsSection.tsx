@@ -7,6 +7,7 @@ import {
   type ProjectJoinRequest,
 } from "@/lib/project-api";
 import { setMyProjectRoles } from "@/workspace/project-role-cache";
+import { notifyJoinReviewsChanged } from "@/hooks/use-join-reviews";
 import { listCachedWorkspaceUsers } from "@/workspace/workspace-users";
 import type { WorkspaceProject } from "@/workspace/projects";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,7 @@ export function ProjectJoinRequestsSection({
         } catch {
           /* 角色缓存刷新失败不阻断 */
         }
+        notifyJoinReviewsChanged();
       })
       .catch((e) => {
         setError(e instanceof Error ? e.message : "审批失败");

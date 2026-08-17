@@ -13,6 +13,7 @@ import { logoutRemote } from "@/lib/api-auth";
 import { getMergedProjects } from "@/workspace/project-registry";
 import { clearSession, loadSessionUserId } from "@/workspace/session";
 import { getUserById } from "@/workspace/workspace-users";
+import { useJoinReviews } from "@/hooks/use-join-reviews";
 
 export type BreadcrumbItem = {
   label: string;
@@ -99,6 +100,7 @@ export function WorkspaceTopBar({
   const userInitial = initialsFromDisplayName(user?.displayName);
   const notifActive = pathname.startsWith("/app/notifications");
   const onLibrary = isProjectLibraryPath(pathname);
+  const { pendingCount } = useJoinReviews();
 
   const urlQuery = onLibrary ? (searchParams.get("q") ?? "") : "";
   const [query, setQuery] = useState(urlQuery);
@@ -240,7 +242,11 @@ export function WorkspaceTopBar({
         aria-label="通知"
       >
         <Bell className="h-[22px] w-[22px]" strokeWidth={1.8} />
-        {/* 推送服务接入前无未读数据，不显示红点 */}
+        {pendingCount > 0 ? (
+          <span className="absolute -right-1 -top-1 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[#A06358] px-1 text-[10px] font-bold leading-none text-white">
+            {pendingCount > 9 ? "9+" : pendingCount}
+          </span>
+        ) : null}
       </Link>
 
       <div className="relative">

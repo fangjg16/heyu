@@ -78,6 +78,19 @@ export async function getJoinRequestById(
   return row ? rowToJoinRequestJson(row) : null;
 }
 
+export async function listPendingJoinRequests(
+  env: Env,
+): Promise<JoinRequestJson[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT id, project_id, applicant_user_id, status, created_at, updated_at,
+            reviewed_by, reviewed_at
+     FROM project_join_requests
+     WHERE status = 'pending'
+     ORDER BY created_at ASC`,
+  ).all<JoinRequestRow>();
+  return (results ?? []).map(rowToJoinRequestJson);
+}
+
 export async function listJoinRequestsForApplicant(
   env: Env,
   applicantUserId: string,

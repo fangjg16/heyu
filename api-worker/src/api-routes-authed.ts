@@ -62,6 +62,7 @@ import {
 import {
   handleCreateJoinRequest,
   handleListMyJoinRequests,
+  handleListMyJoinReviews,
   handleListProjectJoinRequests,
   handleReviewJoinRequest,
 } from "./project-join-routes";
@@ -495,6 +496,10 @@ export async function routeAuthedApi(
 
   if (path === "/api/me/join-requests" && request.method === "GET") {
     return handleListMyJoinRequests(env, authUserId);
+  }
+
+  if (path === "/api/me/join-reviews" && request.method === "GET") {
+    return handleListMyJoinReviews(env, authUserId);
   }
 
   if (path === "/api/me/open-questions" && request.method === "GET") {

@@ -5,18 +5,21 @@ import {
   isUserProjectMember,
   userSeesPlazaDiscovery,
 } from "./projects-auth";
-import { getProjectById, normalizeProjectOpenness } from "./projects-db";
+import { getProjectById, listProjects, normalizeProjectOpenness, type ProjectJson } from "./projects-db";
 import { decodePathProjectId } from "./projects-resolve";
 import {
   getJoinRequestById,
   getJoinRequestByProjectAndApplicant,
   listJoinRequestsForApplicant,
   listJoinRequestsForProject,
+  listPendingJoinRequests,
   reviewJoinRequest,
   upsertPendingJoinRequest,
 } from "./project-join-db";
+import { resolveProjectRole } from "./workspace-roles";
 import {
   getDefaultRoleForUser,
+  getWorkspaceUserById,
   isKnownWorkspaceUser,
 } from "./workspace-users-db";
 
@@ -37,6 +40,16 @@ function normalizeUserId(raw: string | null | undefined): string | null {
 function isMissingJoinTable(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err ?? "");
   return /no such table|doesn't exist|Unknown table/i.test(msg);
+}
+
+async function canReviewProjectJoins(
+  env: Env,
+  userId: string,
+  project: ProjectJson,
+): Promise<boolean> {
+  if (await canManageProjectRecord(env, project, userId)) return true;
+  const role = await resolveProjectRole(env, userId, project.id, project.createdBy);
+  return role === "admin" || role === "core";
 }
 
 /** POST /api/projects/:id/join-requests */
@@ -126,6 +139,37 @@ export async function handleListMyJoinRequests(
   }
 }
 
+/** GET /api/me/join-reviews 待我审批的广场加入申请 */
+export async function handleListMyJoinReviews(
+  env: Env,
+  authUserId: string,
+): Promise<Response> {
+  const userId = normalizeUserId(authUserId);
+  if (!userId) return json({ error: "未登录" }, 401);
+  try {
+    const pending = await listPendingJoinRequests(env);
+    if (pending.length === 0) return json({ requests: [] });
+    const projects = await listProjects(env);
+    const byId = new Map(projects.map((p) => [p.id, p]));
+    const requests = [];
+    for (const req of pending) {
+      const project = byId.get(req.projectId);
+      if (!project) continue;
+      if (!(await canReviewProjectJoins(env, userId, project))) continue;
+      const applicant = await getWorkspaceUserById(env, req.applicantUserId);
+      requests.push({
+        ...req,
+        projectName: project.name,
+        applicantDisplayName: applicant?.display_name ?? req.applicantUserId,
+      });
+    }
+    return json({ requests });
+  } catch (e) {
+    if (isMissingJoinTable(e)) return json({ requests: [] });
+    throw e;
+  }
+}
+
 /** GET /api/projects/:id/join-requests */
 export async function handleListProjectJoinRequests(
   env: Env,
@@ -140,8 +184,8 @@ export async function handleListProjectJoinRequests(
   const project = await getProjectById(env, projectId);
   if (!project) return json({ error: "项目不存在" }, 404);
 
-  if (!(await canManageProjectRecord(env, project, userId))) {
-    return json({ error: "仅平台管理员或项目创建人可查看加入申请" }, 403);
+  if (!(await canReviewProjectJoins(env, userId, project))) {
+    return json({ error: "仅项目负责人或 Admin / Core 可查看加入申请" }, 403);
   }
 
   const status =
@@ -175,8 +219,8 @@ export async function handleReviewJoinRequest(
   const project = await getProjectById(env, projectId);
   if (!project) return json({ error: "项目不存在" }, 404);
 
-  if (!(await canManageProjectRecord(env, project, userId))) {
-    return json({ error: "仅平台管理员或项目创建人可审批加入申请" }, 403);
+  if (!(await canReviewProjectJoins(env, userId, project))) {
+    return json({ error: "仅项目负责人或 Admin / Core 可审批加入申请" }, 403);
   }
 
   let body: { status?: string };

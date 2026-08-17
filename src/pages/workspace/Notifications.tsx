@@ -1,6 +1,10 @@
+import { Link } from "react-router-dom";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
+import { useJoinReviews } from "@/hooks/use-join-reviews";
 
 export default function Notifications() {
+  const { requests, pendingCount, loading, error, review } = useJoinReviews();
+
   return (
     <WorkspaceShell>
       <div className="mx-auto max-w-[880px] px-8 py-10 md:px-12">
@@ -8,12 +12,68 @@ export default function Notifications() {
           通知
         </h1>
         <p className="mt-2 text-[hsl(var(--warm-charcoal-muted))]">
-          正式推送服务接入前暂无通知数据。
+          {pendingCount > 0
+            ? `${pendingCount} 条待审批的加入申请`
+            : "暂无待处理的加入申请。"}
         </p>
+        {error ? (
+          <p className="mt-3 text-sm text-[#A06358]">{error}</p>
+        ) : null}
 
-        <div className="mt-8 rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.82)] px-6 py-10 text-center text-sm text-[hsl(var(--warm-charcoal-muted))]">
-          —
-        </div>
+        {loading && requests.length === 0 ? (
+          <p className="mt-8 text-sm text-[hsl(var(--warm-charcoal-muted))]">
+            加载中…
+          </p>
+        ) : requests.length === 0 ? (
+          <div className="mt-8 rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.82)] px-6 py-10 text-center text-sm text-[hsl(var(--warm-charcoal-muted))]">
+            有人从项目广场申请加入时，会出现在这里。
+          </div>
+        ) : (
+          <ul className="mt-8 space-y-3">
+            {requests.map((req) => (
+              <li
+                key={req.id}
+                className="rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.82)] px-5 py-4"
+              >
+                <div className="text-[15px] font-semibold text-[#1F2423]">
+                  {req.applicantDisplayName ?? req.applicantUserId}
+                  <span className="font-normal text-[#59625F]">
+                    {" "}
+                    申请加入
+                  </span>{" "}
+                  {req.projectName ?? "项目"}
+                </div>
+                <div className="mt-1 text-[12.5px] text-[#969E9A]">
+                  {req.createdAt
+                    ? new Date(req.createdAt).toLocaleString("zh-CN")
+                    : ""}
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void review(req, "approved")}
+                    className="h-9 rounded-lg bg-[#5E9B75] px-3 text-[12.5px] font-medium text-white"
+                  >
+                    通过（加入为 Basic）
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void review(req, "rejected")}
+                    className="h-9 rounded-lg border border-[rgba(160,99,88,0.3)] px-3 text-[12.5px] text-[#A06358]"
+                  >
+                    拒绝
+                  </button>
+                  <Link
+                    to={`/app/projects/${encodeURIComponent(req.projectId)}/overview`}
+                    className="inline-flex h-9 items-center px-2 text-[12.5px] text-[#A06358]"
+                  >
+                    打开项目 →
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </WorkspaceShell>
   );
