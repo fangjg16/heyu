@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Check,
@@ -75,10 +75,6 @@ import {
   type ChatPersistOptions,
 } from "@/workspace/chat-persistence";
 import {
-  getProjectResourceDemo,
-  type ProjectChatSnippet,
-} from "@/workspace/project-resource-demos";
-import {
   getMergedProjects,
   getProjectById,
   subscribeApiProjects,
@@ -103,7 +99,6 @@ import {
   formatSidebarDateLabel,
   latestMessageTimeLabel,
 } from "@/workspace/chat-time";
-import { ALL_PROJECTS } from "@/workspace/projects";
 import {
   loadSessionUserId,
   saveLastChatProjectId,
@@ -114,8 +109,6 @@ import {
   getProjectRole,
   getUserById,
   roleLabelForProject,
-  workspaceRoleToUiTier,
-  type UiTier,
 } from "@/workspace/workspace-users";
 import type { WorkspaceUser } from "@/workspace/types";
 
@@ -126,8 +119,8 @@ type SessionConversation = {
   preview: string;
   updatedAt: string;
   files: string[];
-  /** 演示剧本对话；blank 为空白新对话 */
-  variant?: "demo" | "blank";
+  /** blank 为空白新对话 */
+  variant?: "blank";
 };
 
 type SessionConversationState = {
@@ -288,30 +281,13 @@ function reconcileConversationsWithMessages(
   ).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
-/** 去掉历史预填侧栏项；有真实消息的预填项一律保留 */
-function stripLegacySidebarPrefill(
-  convs: SessionConversation[],
-  currentProjectId: string,
-  messagesByConversation: Record<string, LiveChatMessage[]>,
-): SessionConversation[] {
-  return convs.filter((c) => {
-    if (!LEGACY_SIDEBAR_PREFILL_PROJECT_IDS.has(c.projectId)) return true;
-    if (c.id !== `${c.projectId}-main`) return true;
-    if (conversationHasMessages(c, messagesByConversation)) return true;
-    return c.projectId === currentProjectId;
-  });
-}
-
 function mergeConversationsForBootstrap(
   base: SessionConversation[],
   messagesByConversation: Record<string, LiveChatMessage[]>,
   isLiveAiMode: boolean,
   focusProjectId?: string,
 ): SessionConversation[] {
-  const cleaned = focusProjectId
-    ? stripLegacySidebarPrefill(base, focusProjectId, messagesByConversation)
-    : base;
-  const reconciled = reconcileConversationsWithMessages(cleaned, messagesByConversation);
+  const reconciled = reconcileConversationsWithMessages(base, messagesByConversation);
   const withTimes = applyConversationMetadataFromMessages(reconciled, messagesByConversation);
   const withMain = isLiveAiMode
     ? ensureProjectMainThreads(withTimes, messagesByConversation, focusProjectId)
@@ -405,209 +381,6 @@ const RAGFLOW_API_KEY =
 const RAGFLOW_MODE =
   ((import.meta.env.VITE_RAGFLOW_MODE as string | undefined)?.trim().toLowerCase() ??
     "proxy") as "native" | "openai" | "proxy";
-
-/** 录制演示：空格填入下一条预设问题，发送后「思考中」再展示预设回复（时长随文案长度略增） */
-type DemoAssistantPiece =
-  | { type: "admin_intro" }
-  | { type: "resource_table" }
-  | { type: "supply_prompt"; body: string }
-  | { type: "supply_body"; body: string }
-  | { type: "credibility_mid"; summaryLines?: string[] }
-  | { type: "credibility_single"; tier: UiTier }
-  | { type: "mid_refusal"; body: string }
-  | { type: "mid_text"; title?: string; body: string }
-  | { type: "ranking" };
-
-type DemoPlaybackTimelineMsg =
-  | {
-      id: string;
-      kind: "user";
-      text: string;
-      files?: readonly { name: string }[];
-      time?: string;
-    }
-  | {
-      id: string;
-      kind: "assistant";
-      piece: DemoAssistantPiece;
-      time?: string;
-    };
-
-function demoThinkingDelayMs(userLine: string): number {
-  const base = 1600;
-  const perChar = 28;
-  const cap = 3400;
-  return Math.min(cap, base + userLine.length * perChar);
-}
-
-function buildDemoPlaybackRoundSpecs(
-  projectName: string,
-  tier: UiTier,
-  workspaceRole: WorkspaceRole,
-  chat: ProjectChatSnippet,
-): Array<{
-  userLine: string;
-  files?: readonly { name: string }[];
-  assistantPieces: DemoAssistantPiece[];
-}> {
-  const rounds: Array<{
-    userLine: string;
-    files?: readonly { name: string }[];
-    assistantPieces: DemoAssistantPiece[];
-  }> = [];
-
-  const tablePieces: DemoAssistantPiece[] = [];
-  if (workspaceRole === "admin") {
-    tablePieces.push({ type: "admin_intro" });
-  }
-  tablePieces.push({ type: "resource_table" });
-
-  rounds.push({
-    userLine: `请概述「${projectName}」目前的资源配置全貌`,
-    assistantPieces: tablePieces,
-  });
-
-  if (tier === "full" && chat.supplyExchanges && chat.supplyExchanges.length > 0) {
-    for (const ex of chat.supplyExchanges) {
-      if (ex.confirmation) {
-        rounds.push({
-          userLine: ex.userLine,
-          files: ex.attachments,
-          assistantPieces: [{ type: "supply_prompt", body: ex.confirmation.agentPrompt }],
-        });
-        rounds.push({
-          userLine: ex.confirmation.userConfirmLine,
-          assistantPieces: [{ type: "supply_body", body: ex.aiBody }],
-        });
-      } else {
-        rounds.push({
-          userLine: ex.userLine,
-          files: ex.attachments,
-          assistantPieces: [{ type: "supply_body", body: ex.aiBody }],
-        });
-      }
-    }
-  } else if (tier === "mid" && chat.midFollowUp && chat.midFollowUp.length > 0) {
-    for (const step of chat.midFollowUp) {
-      const pieces: DemoAssistantPiece[] = [];
-      if (step.kind === "credibility") {
-        pieces.push({
-          type: "credibility_mid",
-          summaryLines:
-            step.summaryLines && step.summaryLines.length > 0
-              ? [...step.summaryLines]
-              : undefined,
-        });
-      } else if (step.kind === "refusal") {
-        pieces.push({ type: "mid_refusal", body: step.body });
-      } else {
-        pieces.push({ type: "mid_text", title: step.title, body: step.body });
-      }
-      rounds.push({
-        userLine: step.userLine,
-        files: step.kind === "text" ? step.attachments : undefined,
-        assistantPieces: pieces,
-      });
-    }
-  } else {
-    const credibilityLine =
-      tier === "low"
-        ? chat.credibilityUserLineLow
-        : tier === "mid"
-          ? chat.credibilityUserLineMid
-          : chat.credibilityUserLine;
-    rounds.push({
-      userLine: credibilityLine,
-      assistantPieces: [{ type: "credibility_single", tier }],
-    });
-  }
-
-  rounds.push({
-    userLine: "推荐最佳合作方案",
-    assistantPieces: [{ type: "ranking" }],
-  });
-
-  return rounds;
-}
-
-function PlaybackAssistantRenderer({
-  piece,
-  tier,
-  workspaceRole,
-  projectId,
-  projectName,
-  chat,
-  time,
-}: {
-  piece: DemoAssistantPiece;
-  tier: UiTier;
-  workspaceRole: WorkspaceRole;
-  projectId: string;
-  projectName: string;
-  chat: ProjectChatSnippet;
-  time?: string;
-}) {
-  switch (piece.type) {
-    case "admin_intro":
-      return (
-        <AiShell time={time}>
-          <p className="text-sm font-semibold text-primary">Admin 控制台</p>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-            您可调整各维度评分权重。评分权重草稿：—；Core 核心级用户可在本项目中维护本家族数据。
-          </p>
-        </AiShell>
-      );
-    case "resource_table":
-      return (
-        <ResourceTableBlock
-          tier={tier}
-          workspaceRole={workspaceRole}
-          projectId={projectId}
-          projectName={projectName}
-          time={time}
-        />
-      );
-    case "supply_prompt":
-      return (
-        <AiShell time={time}>
-          <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
-            {piece.body}
-          </p>
-          <p className="mt-3 text-[11px] text-muted-foreground">● Master Agent · 待您确认</p>
-        </AiShell>
-      );
-    case "supply_body":
-      return (
-        <AiShell time={time}>
-          <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
-            {piece.body}
-          </p>
-          <p className="mt-3 text-[11px] text-muted-foreground">
-            ● Master Agent · 已入库 · 与本项目智库字段联动
-          </p>
-        </AiShell>
-      );
-    case "credibility_mid":
-      return (
-        <CredibilityBlock
-          tier="mid"
-          chat={chat}
-          midSummaryLines={piece.summaryLines}
-          time={time}
-        />
-      );
-    case "credibility_single":
-      return <CredibilityBlock tier={piece.tier} chat={chat} time={time} />;
-    case "mid_refusal":
-      return <MidRefusalBlock body={piece.body} time={time} />;
-    case "mid_text":
-      return <MidTextBlock title={piece.title} body={piece.body} time={time} />;
-    case "ranking":
-      return <RankingBlock tier={tier} chat={chat} time={time} />;
-    default:
-      return null;
-  }
-}
 
 function buildApiHealthProbeUrl(chatEndpoint: string): string | null {
   const trimmed = chatEndpoint.trim();
@@ -808,59 +581,6 @@ function formatRagflowRequestError(message: string, endpoint: string): string {
  * - 刷新页面后自动清空
  */
 const SESSION_CONVERSATION_CACHE: Record<string, SessionConversationState> = {};
-/** 部署前为撑开侧栏预填的两个种子项目；产品期不再默认展示 */
-const LEGACY_SIDEBAR_PREFILL_PROJECT_IDS = new Set(["europe-hotel-ma", "shrimp"]);
-const NANNING_CITATION_MAP: Record<string, string> = {
-  "1": "《南宁生鲜食品智慧港项目介绍.pdf》",
-  "2": "《尽调报告二 南宁东盟生鲜食品智慧港.pdf》",
-  "3": "《尽调报告一 嘉兴中润海盐冷链产业园区.pdf》",
-  "4": "《嘉兴中润项目推介.pdf》",
-};
-const PROJECT_TIME_META: Record<
-  string,
-  {
-    dayLabel: string;
-    userTimes: [string, string, string];
-    aiTimes: [string, string, string];
-  }
-> = {
-  shrimp: {
-    dayLabel: "2026/04/09",
-    userTimes: ["09:42", "09:47", "09:53"],
-    aiTimes: ["09:44", "09:49", "09:55"],
-  },
-  "europe-hotel-ma": {
-    dayLabel: "2026/04/12",
-    userTimes: ["14:32", "14:36", "14:41"],
-    aiTimes: ["14:34", "14:38", "14:44"],
-  },
-  "natgeo-rwa": {
-    dayLabel: "2026/04/13",
-    userTimes: ["11:18", "11:23", "11:29"],
-    aiTimes: ["11:20", "11:26", "11:31"],
-  },
-  "cross-trade": {
-    dayLabel: "2026/04/16",
-    userTimes: ["17:38", "17:43", "17:48"],
-    aiTimes: ["17:40", "17:45", "17:50"],
-  },
-};
-
-function getProjectTimeMeta(projectId: string) {
-  return (
-    PROJECT_TIME_META[projectId] ?? {
-      dayLabel: "2026/04/16",
-      userTimes: ["10:30", "10:35", "10:40"] as [string, string, string],
-      aiTimes: ["10:32", "10:37", "10:42"] as [string, string, string],
-    }
-  );
-}
-
-function getLastDialogueDateTime(projectId: string): string {
-  const meta = getProjectTimeMeta(projectId);
-  return `${meta.dayLabel} ${meta.aiTimes[2]}`;
-}
-
 function getCurrentDateTimeLabel() {
   const now = new Date();
   const date = new Intl.DateTimeFormat("zh-CN", {
@@ -908,7 +628,7 @@ function citationMarkerPrefix(id: string): string {
 
 function formatCitationMarkers(
   text: string,
-  map: Record<string, string> = NANNING_CITATION_MAP,
+  map: Record<string, string> = {},
 ): string {
   let out = text.replace(/\[WEB\s*:\s*(\d+)\]/gu, "🌐[$1]");
   if (!out.includes("[ID:")) return out;
@@ -987,30 +707,16 @@ function buildConversationFromProject(
   projectId: string,
   projectOverride?: WorkspaceProject,
 ): SessionConversation | null {
-  const project =
-    projectOverride ??
-    getProjectById(projectId) ??
-    ALL_PROJECTS.find((p) => p.id === projectId);
+  const project = projectOverride ?? getProjectById(projectId);
   if (!project) return null;
-  const demo = getProjectResourceDemo(projectId);
-  const names: string[] = [];
-  demo.chat.supplyExchanges?.forEach((ex) => {
-    ex.attachments?.forEach((f) => names.push(f.name));
-  });
-  demo.chat.midFollowUp?.forEach((step) => {
-    if (step.kind === "text" && step.attachments) {
-      step.attachments.forEach((f) => names.push(f.name));
-    }
-  });
-  const isUserCreated = projectId.startsWith("proj-");
   return {
     id: `${projectId}-main`,
     projectId,
     title: `${project.name} · 全局分析`,
-    preview: isUserCreated ? "基于项目资料包与对话进行分析" : demo.chat.sidebarPreview,
-    updatedAt: getLastDialogueDateTime(projectId),
-    files: isUserCreated ? [] : Array.from(new Set(names)),
-    variant: isUserCreated ? "blank" : "demo",
+    preview: "尚未发送消息",
+    updatedAt: getCurrentDateTimeLabel(),
+    files: [],
+    variant: "blank",
   };
 }
 
@@ -1277,317 +983,6 @@ function ChatSentFilesPanel({ files }: { files: readonly { name: string }[] }) {
   );
 }
 
-function ResourceTableBlock({
-  tier,
-  workspaceRole,
-  projectId,
-  projectName,
-  time,
-}: {
-  tier: UiTier;
-  workspaceRole: WorkspaceRole;
-  projectId: string;
-  projectName: string;
-  time?: string;
-}) {
-  const demo = getProjectResourceDemo(projectId);
-
-  const intro =
-    tier === "full"
-      ? workspaceRole === "admin"
-        ? `${projectName}智库登记家族数：—（Admin：可见全站字段，并可调整各维度评分权重）。`
-        : `${projectName}智库登记家族数：—（Core 核心级：可录入与修改本家族数据，不可见其他家族明细）。`
-      : tier === "mid"
-        ? "以下为经脱敏后的资源配置概览：家族以代号呈现，资金为区间描述，细节模糊至区域级。"
-        : "按您的权限，仅展示各环节是否已具备资源覆盖情况，不展示主体身份与具体金额。";
-
-  const rows =
-    tier === "full"
-      ? demo.coreRows
-      : tier === "mid"
-        ? demo.secondaryRows
-        : demo.brokerRows;
-
-  const cols =
-    tier === "low"
-      ? ["环节", "家族/金额", "状态", "备注"]
-      : ["家族", "资金", "状态", "核心资源"];
-
-  const warn =
-    tier === "full"
-      ? demo.coreWarn
-      : tier === "mid"
-        ? demo.secondaryWarn
-        : demo.brokerWarn;
-
-  const foot =
-    tier === "full"
-      ? workspaceRole === "admin"
-        ? "权限同步 · Admin · 可调整评分维度权重"
-        : "权限同步 · Core 核心级 · 本家族数据可维护，其他家族不可见"
-      : tier === "mid"
-        ? "权限同步 · Advanced 进阶级 · 脱敏与简化视图"
-        : "权限同步 · Basic 基础级 · 最低权限对话";
-
-  return (
-    <AiShell time={time}>
-      <p className="mb-3 text-muted-foreground">{intro}</p>
-      <div className="overflow-x-auto rounded-2xl border border-border/80 bg-white/60">
-        <table className="w-full min-w-[320px] text-left text-xs md:text-sm">
-          <thead className="bg-muted/70 text-muted-foreground">
-            <tr>
-              {cols.map((c) => (
-                <th key={c} className="px-3 py-2.5 font-bold">
-                  {c}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border text-foreground">
-            {rows.map((row, i) => (
-              <tr key={i} className="bg-white/40">
-                {row.map((cell, j) => (
-                  <td key={j} className="px-3 py-2.5 font-medium">
-                    {/\d/u.test(cell) ? "—" : cell}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="mt-3 rounded-2xl border border-amber-200/70 bg-amber-50/90 px-4 py-3 text-xs font-medium leading-relaxed text-amber-950/80">
-        {warn}
-      </div>
-      <p className="mt-2 text-[11px] text-muted-foreground">● {foot}</p>
-    </AiShell>
-  );
-}
-
-function MidRefusalBlock({ body, time }: { body: string; time?: string }) {
-  return (
-    <AiShell time={time}>
-      <p className="text-sm font-semibold text-foreground">无法按此问题回答</p>
-      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
-      <p className="mt-3 text-[11px] text-muted-foreground">
-        ● 权限同步 · Advanced 进阶级 · 隐私与主体路径未开放
-      </p>
-    </AiShell>
-  );
-}
-
-function MidTextBlock({ title, body, time }: { title?: string; body: string; time?: string }) {
-  return (
-    <AiShell time={time}>
-      {title ? (
-        <p className="mb-2 text-sm font-semibold text-foreground">{title}</p>
-      ) : null}
-      <div className="space-y-2 text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
-        {body}
-      </div>
-      <p className="mt-3 text-[11px] text-muted-foreground">
-        ● Master Agent · Advanced 进阶级 · 定性说明
-      </p>
-    </AiShell>
-  );
-}
-
-function CredibilityBlock({
-  tier,
-  chat,
-  midSummaryLines,
-  time,
-}: {
-  tier: UiTier;
-  chat: ProjectChatSnippet;
-  /** Mid：在报告卡片前逐条回应用户多问 */
-  midSummaryLines?: string[];
-  time?: string;
-}) {
-  if (tier === "low") {
-    return (
-      <AiShell time={time}>
-        <p className="text-muted-foreground">
-          按 Basic 基础级权限，无法展示具体合作方名称与金额可信度拆解。核心团队已在内部记录「外部大额意向」的折算规则，您只需知晓：该笔投入在评分中
-          <strong className="text-foreground">不会</strong>
-          按已确认资金满分计入。
-        </p>
-        <p className="mt-2 text-[11px] text-muted-foreground">
-          ● 权限同步 · Basic 基础级 · 隐藏主体与数值
-        </p>
-      </AiShell>
-    );
-  }
-
-  if (tier === "mid") {
-    return (
-      <AiShell time={time}>
-        <div className="mb-2 text-base font-bold text-foreground">
-          {`可信度检测报告 · ${chat.credibilityTitleSecondary}`}
-        </div>
-        {midSummaryLines && midSummaryLines.length > 0 ? (
-          <div className="mb-4 rounded-xl border border-primary/15 bg-primary/[0.04] p-3">
-            <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-primary">
-              追问要点 · 逐条说明
-            </p>
-            <ul className="mt-3 list-disc space-y-2 pl-4 text-xs leading-relaxed text-foreground md:text-sm">
-              {midSummaryLines.map((line, i) => (
-                <li key={i}>{line}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
-          Advanced 进阶级权限：<strong className="text-foreground">评分、折算系数与金额口径的具体数值</strong>
-          不对本视图展示，以下为定性摘要。
-        </p>
-        <div className="grid gap-3 rounded-2xl border border-border/80 bg-muted/30 p-4 text-xs md:grid-cols-2 md:text-sm">
-          <div>
-            <p className="text-muted-foreground">可信度评分</p>
-            <p className="font-bold text-muted-foreground">—（数值隐藏）</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">折算系数</p>
-            <p className="font-bold text-muted-foreground">—（数值隐藏）</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">有效金额（评分用）</p>
-            <p className="font-bold text-muted-foreground">—（数值隐藏）</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">风险等级</p>
-            <p className="font-semibold text-muted-foreground">—</p>
-          </div>
-        </div>
-        <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-          建议：补充加盖公章的意向函或资金路径说明，有助于提升折算档位与方案排序（具体系数与分值仅 Admin / Core 核心级可见）。
-        </p>
-        <p className="mt-2 text-[11px] text-muted-foreground">
-          ● Sub-Agent 5 · 吹牛检测与资金分级 · Advanced 进阶级脱敏
-        </p>
-      </AiShell>
-    );
-  }
-
-  return (
-    <AiShell time={time}>
-      <div className="mb-2 text-base font-bold text-foreground">
-        {`可信度检测报告 · ${chat.credibilityTitleCore}`}
-      </div>
-      <div className="grid gap-3 rounded-2xl border border-border/80 bg-muted/30 p-4 text-xs md:grid-cols-2 md:text-sm">
-        <div>
-          <p className="text-muted-foreground">可信度评分</p>
-          <p className="font-bold text-foreground">—</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">折算系数</p>
-          <p className="font-bold text-foreground">—</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">有效金额（评分用）</p>
-          <p className="font-bold text-foreground">—</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">风险等级</p>
-          <p className="font-semibold text-muted-foreground">—</p>
-        </div>
-      </div>
-      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-        建议：补充加盖公章的意向函或资金路径说明，可将折算系数上调，改善方案排名。
-      </p>
-      <p className="mt-2 text-[11px] text-muted-foreground">
-        ● Sub-Agent 5 · 吹牛检测与资金分级
-      </p>
-    </AiShell>
-  );
-}
-
-function RankingBlock({
-  tier,
-  chat,
-  time,
-}: {
-  tier: UiTier;
-  chat: ProjectChatSnippet;
-  time?: string;
-}) {
-  if (tier === "low") {
-    return (
-      <AiShell time={time}>
-        <p className="text-base font-bold text-foreground">
-          可行合作路径
-        </p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          系统已生成多条理论可行组合，并按环节覆盖情况完成初筛。具体排名、分值与参与方细节仅向 Admin / Core 核心级全量开放。
-        </p>
-        <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
-          <li>若需推进签约，请通过核心对接人发起「方案评审」流程。</li>
-        </ul>
-        <p className="mt-3 text-[11px] text-muted-foreground">
-          ● Agent 流水线 · 输出已按权限截断
-        </p>
-      </AiShell>
-    );
-  }
-
-  const plans =
-    tier === "full" ? chat.rankingPlansCore : chat.rankingPlansSecondary;
-
-  return (
-    <AiShell time={time}>
-      {tier === "mid" ? (
-        <p className="mb-3 rounded-xl border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-xs font-medium leading-relaxed text-amber-950/90">
-          Advanced 进阶级权限：仅展示组合与推荐标记，<strong>具体分值隐藏</strong>；不可在本视图
-          <strong>触发重新评分</strong>；如需调整维度权重，请联系 Admin 或 Core 核心级。
-        </p>
-      ) : null}
-      <p className="mb-3 text-muted-foreground">
-        {tier === "mid"
-          ? "以下为 Sub-Agent 4 生成的组合地图经 Sub-Agent 5 排序后的前三名（Advanced 进阶级：名次与组合可见，具体分数隐藏）。"
-          : "以下为 Sub-Agent 4 生成的组合地图经 Sub-Agent 5 评分后的前三名（最终以人工确认稿为准）。"}
-      </p>
-      <div className="space-y-2.5">
-        {plans.map((p) => (
-          <div
-            key={p.rank}
-            className={cn(
-              "flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-3 text-xs transition-all duration-300 md:text-sm",
-              p.rec
-                ? "border-primary/45 bg-primary/10 shadow-sm"
-                : "border-border bg-background/60"
-            )}
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-muted-foreground">—</span>
-              <span className="font-semibold text-foreground">{p.name}</span>
-              {p.rec && (
-                <span className="rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground">
-                  推荐
-                </span>
-              )}
-            </div>
-            {tier === "mid" ? (
-              <span className="text-[11px] font-semibold text-muted-foreground">
-                分值 · 隐藏
-              </span>
-            ) : (
-              <span className="font-bold text-primary">—</span>
-            )}
-          </div>
-        ))}
-      </div>
-      <ul className="mt-4 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
-        {chat.rankingBullets.map((line) => (
-          <li key={line}>{line}</li>
-        ))}
-      </ul>
-      <p className="mt-3 text-[11px] text-muted-foreground">
-        ● Agent A（调取）→ Agent B（评分）→ Agent C（决策）→ 输出
-      </p>
-    </AiShell>
-  );
-}
-
 function permissionLineSidebar(role: WorkspaceRole): string {
   return roleLabelForProject(role);
 }
@@ -1634,8 +1029,6 @@ export default function ConversationCenter() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const newConversationTimerRef = useRef<number | null>(null);
-  const playbackTimeoutRef = useRef<number | null>(null);
-  const playbackSeqRef = useRef(0);
   const resumedAgentJobIdsRef = useRef<Set<string>>(new Set());
   const cancelledAgentJobPollsRef = useRef<Set<string>>(new Set());
   const chatSendAbortRef = useRef<AbortController | null>(null);
@@ -1650,14 +1043,6 @@ export default function ConversationCenter() {
     liveMessagesByConversation: {} as Record<string, LiveChatMessage[]>,
     isLiveAiMode: false,
   });
-  const [searchParams] = useSearchParams();
-  /** `.env` 设为 `0` / `false` 时可关闭主对话的「默认逐步演示」 */
-  const playbackDisabledByEnv =
-    import.meta.env.VITE_CHAT_PLAYBACK === "0" ||
-    import.meta.env.VITE_CHAT_PLAYBACK === "false";
-  const [playbackMsgs, setPlaybackMsgs] = useState<DemoPlaybackTimelineMsg[]>([]);
-  const [playbackRoundIndex, setPlaybackRoundIndex] = useState(0);
-  const [playbackThinking, setPlaybackThinking] = useState(false);
   const [chatSyncError, setChatSyncError] = useState<string | null>(null);
 
   useLayoutEffect(() => {
@@ -1697,9 +1082,6 @@ export default function ConversationCenter() {
     return () => {
       if (newConversationTimerRef.current !== null) {
         window.clearTimeout(newConversationTimerRef.current);
-      }
-      if (playbackTimeoutRef.current !== null) {
-        window.clearTimeout(playbackTimeoutRef.current);
       }
     };
   }, []);
@@ -1770,10 +1152,6 @@ export default function ConversationCenter() {
     return getProjectRole(userId, projectId, project?.createdBy);
   }, [userId, projectId, project?.createdBy, apiProjectsTick]);
 
-  const tier = projectRole
-    ? workspaceRoleToUiTier(projectRole)
-    : null;
-
   useEffect(() => {
     if (!userId || !projectId || !projectLookupDone) return;
     const p = getProjectById(projectId) ?? chatSessionProject;
@@ -1797,19 +1175,7 @@ export default function ConversationCenter() {
     chatSessionProject,
   ]);
 
-  const resourceDemo = useMemo(
-    () => getProjectResourceDemo(projectId ?? ""),
-    [projectId]
-  );
-
-  const playbackRounds = useMemo(() => {
-    if (!project || !tier || !projectRole || !resourceDemo) return [];
-    return buildDemoPlaybackRoundSpecs(project.name, tier, projectRole, resourceDemo.chat);
-  }, [project, tier, projectRole, resourceDemo]);
-
   const permissionSidebarHint = projectRole ? permissionLineSidebar(projectRole) : "";
-  const timeMeta = projectId ? getProjectTimeMeta(projectId) : getProjectTimeMeta("");
-  const todayLabel = timeMeta.dayLabel;
 
   const effectiveConversationId = useMemo(() => {
     if (!projectId) return "";
@@ -1931,8 +1297,6 @@ export default function ConversationCenter() {
       variant: "blank" as const,
     };
   }, [conversations, effectiveConversationId, projectId, isLiveAiMode]);
-
-  const isBlankThread = activeConversation?.variant === "blank";
 
   const sidebarGroups = useMemo(
     () =>
@@ -2093,29 +1457,6 @@ export default function ConversationCenter() {
     scheduleChatPersist,
   ]);
 
-  /** 一次性展开原版预设剧本（不经空格步进） */
-  const instantStaticDemoPreferred =
-    searchParams.get("chatInstant") === "1" || searchParams.get("instant") === "1";
-
-  const playbackActive =
-    !playbackDisabledByEnv &&
-    searchParams.get("playback") !== "0" &&
-    !instantStaticDemoPreferred &&
-    !isLiveAiMode &&
-    !isBlankThread &&
-    Boolean(projectId && tier && projectRole);
-
-  useEffect(() => {
-    if (!playbackActive) return;
-    setPlaybackMsgs([]);
-    setPlaybackRoundIndex(0);
-    setPlaybackThinking(false);
-    if (playbackTimeoutRef.current !== null) {
-      window.clearTimeout(playbackTimeoutRef.current);
-      playbackTimeoutRef.current = null;
-    }
-  }, [playbackActive, effectiveConversationId, playbackRounds]);
-
   /** 切换侧边对话或路由会话时清空本地「待发送」附件，避免上方气泡已发出、底下仍挂着同一批待发送 */
   useEffect(() => {
     setSelectedFiles([]);
@@ -2192,8 +1533,6 @@ export default function ConversationCenter() {
   }, [
     effectiveConversationId,
     liveMessages,
-    playbackMsgs,
-    playbackThinking,
     isCurrentConversationSending,
     hasStreamingAssistantInThread,
     showUploadPanel,
@@ -2211,7 +1550,7 @@ export default function ConversationCenter() {
           setLiveCitationMap(data.map);
         }
       } catch {
-        /* 无 API 时沿用本地 NANNING 映射 */
+        /* 无 citations 接口时沿用本轮已拉取的映射 */
       }
     };
     void run();
@@ -2491,7 +1830,7 @@ export default function ConversationCenter() {
   /** 刷新页面后恢复未完成的 Hermes 异步任务轮询 */
   useEffect(() => {
     if (!userId || !chatSyncReady || !isLiveAiMode || !AI_CHAT_ENDPOINT) return;
-    const citationMap = { ...NANNING_CITATION_MAP, ...liveCitationMap };
+    const citationMap = { ...liveCitationMap };
     for (const [conversationKey, messages] of Object.entries(liveMessagesByConversation)) {
       for (const m of messages) {
         if (m.role !== "assistant" || !m.pendingJobId) continue;
@@ -2667,69 +2006,6 @@ export default function ConversationCenter() {
     const trimmed = draftMessage.trim();
     const fileNames = selectedFiles.map((f) => f.name);
 
-    /** 仅附件、无文字：演示剧本模式下也可发送（更新侧栏预览）；Live 走下方正式上传 */
-    if (fileNames.length > 0 && !trimmed && !isLiveAiMode) {
-      if (isCurrentConversationSending) return;
-      setLiveError(null);
-      updateConversationPreview(`已选择 ${fileNames.length} 个文件`, fileNames);
-      setSelectedFiles([]);
-      setShowUploadPanel(false);
-      if (!AI_CHAT_ENDPOINT) {
-        setLiveError(
-          "演示模式：附件仅本地展示。请在 GitHub Secrets 配置 VITE_ENABLE_LIVE_CHAT=1 与 VITE_AI_CHAT_ENDPOINT 后重新部署，即可真实上传并由 AI 引用。",
-        );
-      }
-      return;
-    }
-
-    if (playbackActive) {
-      if (playbackThinking || !trimmed) return;
-      const round = playbackRounds[playbackRoundIndex];
-      if (!round || trimmed !== round.userLine.trim()) return;
-
-      playbackSeqRef.current += 1;
-      const uid = `pb-u-${playbackSeqRef.current}`;
-      const slot = Math.min(playbackRoundIndex, 2);
-      const userTime = timeMeta.userTimes[slot];
-      const aiTime = timeMeta.aiTimes[slot];
-
-      setPlaybackMsgs((prev) => [
-        ...prev,
-        {
-          id: uid,
-          kind: "user",
-          text: round.userLine,
-          files: round.files,
-          time: userTime,
-        },
-      ]);
-      updateConversationPreview(deriveConversationTopicHeuristic(round.userLine));
-      setDraftMessage("");
-      setSelectedFiles([]);
-      setShowUploadPanel(false);
-      setPlaybackThinking(true);
-
-      if (playbackTimeoutRef.current !== null) {
-        window.clearTimeout(playbackTimeoutRef.current);
-      }
-      const delay = demoThinkingDelayMs(round.userLine);
-      playbackTimeoutRef.current = window.setTimeout(() => {
-        playbackSeqRef.current += 1;
-        const base = playbackSeqRef.current;
-        const additions: DemoPlaybackTimelineMsg[] = round.assistantPieces.map((piece, i) => ({
-          id: `pb-a-${base}-${i}`,
-          kind: "assistant",
-          piece,
-          time: aiTime,
-        }));
-        setPlaybackMsgs((prev) => [...prev, ...additions]);
-        setPlaybackThinking(false);
-        setPlaybackRoundIndex((n) => n + 1);
-        playbackTimeoutRef.current = null;
-      }, delay);
-      return;
-    }
-
     if (!isLiveAiMode) {
       if (trimmed && fileNames.length === 0) {
         const hint = AI_CHAT_ENDPOINT
@@ -2821,7 +2097,6 @@ export default function ConversationCenter() {
     let streamAssistantId: string | null = null;
     let streamAccumulated = "";
     let mergedCitationMap: Record<string, string> = {
-      ...NANNING_CITATION_MAP,
       ...liveCitationMap,
     };
     setSendingConversationId(sendConversationId);
@@ -2923,7 +2198,6 @@ export default function ConversationCenter() {
       });
 
       mergedCitationMap = {
-        ...NANNING_CITATION_MAP,
         ...liveCitationMap,
       };
 
@@ -3222,7 +2496,7 @@ export default function ConversationCenter() {
     }
   };
 
-  if (!user || !userId || !tier || !projectRole) {
+  if (!user || !userId || !projectRole) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
         加载中…
@@ -3251,21 +2525,11 @@ export default function ConversationCenter() {
     project,
     projectId,
   );
-  const chatDayLabel =
-    isBlankThread
-      ? new Intl.DateTimeFormat("zh-CN", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        }).format(new Date())
-      : todayLabel;
-
-  const playbackRound = playbackActive ? playbackRounds[playbackRoundIndex] : undefined;
-  const playbackSendAllowed =
-    playbackActive &&
-    !playbackThinking &&
-    playbackRoundIndex < playbackRounds.length &&
-    draftMessage.trim() === playbackRound?.userLine.trim();
+  const chatDayLabel = new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 
   return (
     <WorkspaceShell
@@ -3566,14 +2830,7 @@ export default function ConversationCenter() {
               {chatDayLabel}
             </span>
           </div>
-          {isBlankThread && !isLiveAiMode ? (
-            <div className="flex min-h-[40vh] flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-white/40 px-6 py-16 text-center">
-              <p className="text-sm font-semibold text-foreground">空白对话</p>
-              <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-                在下方输入消息或上传文件，开始与 Master Agent 对话。
-              </p>
-            </div>
-          ) : isLiveAiMode ? (
+          {isLiveAiMode ? (
             <>
               <AiShell>
                 <p className="text-sm font-semibold text-[hsl(var(--wine-deep))]">
@@ -3731,146 +2988,13 @@ export default function ConversationCenter() {
                 </AiShell>
               ) : null}
             </>
-          ) : playbackActive ? (
-            <>
-              {playbackMsgs.map((m) =>
-                m.kind === "user" ? (
-                  <div key={m.id} className="flex flex-col items-end gap-3">
-                    {m.files && m.files.length > 0 ? (
-                      <ChatSentFilesPanel files={m.files} />
-                    ) : null}
-                    <UserBubble time={m.time}>{m.text}</UserBubble>
-                  </div>
-                ) : (
-                  <PlaybackAssistantRenderer
-                    key={m.id}
-                    piece={m.piece}
-                    tier={tier}
-                    workspaceRole={projectRole}
-                    projectId={project.id}
-                    projectName={project.name}
-                    chat={resourceDemo.chat}
-                    time={m.time}
-                  />
-                ),
-              )}
-              {playbackThinking ? (
-                <AiShell>
-                  <ChatThinkingBadge>思考中…</ChatThinkingBadge>
-                  <ChatAgentStatusLine>● Master Agent · 处理中</ChatAgentStatusLine>
-                </AiShell>
-              ) : null}
-            </>
           ) : (
-            <>
-          {projectRole === "admin" ? (
-            <AiShell>
-              <p className="text-sm font-semibold text-[hsl(var(--wine-deep))]">
-                Admin 控制台
+            <div className="flex min-h-[40vh] flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-white/40 px-6 py-16 text-center">
+              <p className="text-sm font-semibold text-foreground">空白对话</p>
+              <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+                真 AI 未接入。配置线上对话接口后，可在此发送消息与上传资料。
               </p>
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                您可调整各维度评分权重。评分权重草稿：—；Core 核心级用户可在本项目中维护本家族数据。
-              </p>
-            </AiShell>
-          ) : null}
-          <UserBubble time={timeMeta.userTimes[0]}>
-            请概述「{project.name}」目前的资源配置全貌
-          </UserBubble>
-          <ResourceTableBlock
-            tier={tier}
-            workspaceRole={projectRole}
-            projectId={project.id}
-            projectName={project.name}
-            time={timeMeta.aiTimes[0]}
-          />
-
-          {tier === "full" &&
-          resourceDemo.chat.supplyExchanges &&
-          resourceDemo.chat.supplyExchanges.length > 0
-            ? resourceDemo.chat.supplyExchanges.map((ex, i) => (
-                <div key={`supply-${i}`} className="space-y-6">
-                  <div className="flex flex-col items-end gap-3">
-                    {ex.attachments && ex.attachments.length > 0 ? (
-                      <ChatSentFilesPanel files={ex.attachments} />
-                    ) : null}
-                    <UserBubble time={timeMeta.userTimes[1]}>{ex.userLine}</UserBubble>
-                  </div>
-                  {ex.confirmation ? (
-                    <>
-                      <AiShell time={timeMeta.aiTimes[1]}>
-                        <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
-                          {ex.confirmation.agentPrompt}
-                        </p>
-                        <p className="mt-3 text-[11px] text-muted-foreground">
-                          ● Master Agent · 待您确认
-                        </p>
-                      </AiShell>
-                      <UserBubble time={timeMeta.userTimes[1]}>
-                        {ex.confirmation.userConfirmLine}
-                      </UserBubble>
-                    </>
-                  ) : null}
-                  <AiShell time={timeMeta.aiTimes[1]}>
-                    <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
-                      {ex.aiBody}
-                    </p>
-                    <p className="mt-3 text-[11px] text-muted-foreground">
-                      ● Master Agent · 已入库 · 与本项目智库字段联动
-                    </p>
-                  </AiShell>
-                </div>
-              ))
-            : null}
-
-          {tier === "mid" &&
-          resourceDemo.chat.midFollowUp &&
-          resourceDemo.chat.midFollowUp.length > 0 ? (
-            <>
-              {resourceDemo.chat.midFollowUp.map((step, i) => (
-                <div key={i} className="space-y-6">
-                  <div className="flex flex-col items-end gap-3">
-                    {step.kind === "text" &&
-                    step.attachments &&
-                    step.attachments.length > 0 ? (
-                      <ChatSentFilesPanel files={step.attachments} />
-                    ) : null}
-                    <UserBubble time={timeMeta.userTimes[1]}>{step.userLine}</UserBubble>
-                  </div>
-                  {step.kind === "credibility" ? (
-                    <CredibilityBlock
-                      tier={tier}
-                      chat={resourceDemo.chat}
-                      time={timeMeta.aiTimes[1]}
-                      midSummaryLines={
-                        step.summaryLines && step.summaryLines.length > 0
-                          ? step.summaryLines
-                          : undefined
-                      }
-                    />
-                  ) : step.kind === "refusal" ? (
-                    <MidRefusalBlock body={step.body} time={timeMeta.aiTimes[1]} />
-                  ) : (
-                    <MidTextBlock title={step.title} body={step.body} time={timeMeta.aiTimes[1]} />
-                  )}
-                </div>
-              ))}
-            </>
-          ) : (
-            <>
-              <UserBubble time={timeMeta.userTimes[1]}>
-                {tier === "low"
-                  ? resourceDemo.chat.credibilityUserLineLow
-                  : tier === "mid"
-                    ? resourceDemo.chat.credibilityUserLineMid
-                    : resourceDemo.chat.credibilityUserLine}
-              </UserBubble>
-              <CredibilityBlock tier={tier} chat={resourceDemo.chat} time={timeMeta.aiTimes[1]} />
-            </>
-          )}
-
-          <UserBubble time={timeMeta.userTimes[2]}>推荐最佳合作方案</UserBubble>
-          <RankingBlock tier={tier} chat={resourceDemo.chat} time={timeMeta.aiTimes[2]} />
-            </>
+            </div>
           )}
         </div>
 
@@ -4010,7 +3134,7 @@ export default function ConversationCenter() {
                 <button
                   key={item.label}
                   type="button"
-                  disabled={isCurrentConversationSending || playbackThinking}
+                  disabled={isCurrentConversationSending}
                   onClick={() => setDraftMessage(item.message)}
                   className="rounded-full border border-border/80 bg-white px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-[hsl(var(--wine-deep)/0.3)] hover:bg-[hsl(var(--wine-deep)/0.05)] hover:text-foreground disabled:opacity-50"
                 >
@@ -4036,17 +3160,6 @@ export default function ConversationCenter() {
                 chatImeComposingRef.current = false;
               }}
               onKeyDown={(e) => {
-                if (
-                  playbackActive &&
-                  !playbackThinking &&
-                  playbackRoundIndex < playbackRounds.length &&
-                  draftMessage === "" &&
-                  e.key === " "
-                ) {
-                  e.preventDefault();
-                  setDraftMessage(playbackRounds[playbackRoundIndex].userLine);
-                  return;
-                }
                 if (e.key === "Enter" && !e.shiftKey) {
                   if (
                     e.nativeEvent.isComposing ||
@@ -4059,7 +3172,7 @@ export default function ConversationCenter() {
                   void handleSend();
                 }
               }}
-              disabled={isCurrentConversationSending || playbackThinking}
+              disabled={isCurrentConversationSending}
               autoComplete="off"
               spellCheck={false}
               aria-label="对话输入"
@@ -4067,7 +3180,7 @@ export default function ConversationCenter() {
               className={cn(
                 "min-h-12 max-h-[88px] min-w-0 flex-1 resize-none overflow-x-hidden overflow-y-auto rounded-2xl border border-input bg-white px-5 py-2.5 text-sm font-medium leading-relaxed break-words whitespace-pre-wrap shadow-inner [overflow-wrap:anywhere] placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--wine-deep)/0.28)] focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                 draftMessage ? "text-foreground" : "text-muted-foreground",
-                (isCurrentConversationSending || playbackThinking) && "opacity-70",
+                isCurrentConversationSending && "opacity-70",
               )}
             />
             <button
@@ -4097,15 +3210,7 @@ export default function ConversationCenter() {
                 canStopCurrentTask
                   ? false
                   : isCurrentConversationSending ||
-                    playbackThinking ||
-                    (playbackActive ? !playbackSendAllowed : false) ||
-                    (!playbackActive &&
-                      !isLiveAiMode &&
-                      selectedFiles.length === 0 &&
-                      draftMessage.trim().length === 0) ||
-                    (isLiveAiMode &&
-                      draftMessage.trim().length === 0 &&
-                      selectedFiles.length === 0)
+                    (draftMessage.trim().length === 0 && selectedFiles.length === 0)
               }
               className={cn(
                 "inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-full border px-8 text-sm font-semibold shadow-[0_8px_22px_-10px_hsl(var(--wine-deep)/0.55)] transition-all active:scale-[0.98]",

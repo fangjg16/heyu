@@ -1554,8 +1554,7 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
   const slots = getCitationSlots(projectId);
   const citationMap = citationMapFromSlots(slots);
   const chatMode: SkillIntent = detectSkillIntent(message);
-  let projectTitleHint =
-    projectId === "nn-fresh-port" ? "南宁东盟生鲜食品智慧港" : projectId;
+  let projectTitleHint = projectId;
   let dbProjectSummary = "";
   try {
     const dbProject = await getDbProjectById(env, projectId);

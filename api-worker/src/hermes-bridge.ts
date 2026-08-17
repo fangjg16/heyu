@@ -28,23 +28,6 @@ export type HermesBridgeEnv = {
 
 const MAX_TEXT_CHARS = 500_000;
 
-/** 与网站 projects.ts 对齐，仅用于 manifest 展示 */
-const PROJECT_DISPLAY_NAMES: Record<string, string> = {
-  "nn-fresh-port": "南宁生鲜食品智慧港",
-  shrimp: "虾仁项目",
-  "natgeo-rwa": "国家地理 RWA",
-  "europe-hotel-ma": "欧洲酒店并购",
-  "coastal-estate": "滨海庄园",
-  "cross-trade": "跨境贸易",
-  "digital-portal": "数字门户",
-  "ip-invest": "IP 投资",
-  "hk-us-equity": "港美股权",
-  "energy-ma": "能源并购",
-  "med-channel": "医疗渠道",
-  "offshore-trust": "离岸信托",
-  "edu-ma": "教育并购",
-};
-
 function json(data: unknown, status = 200, extra: HeadersInit = {}): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -230,7 +213,7 @@ export async function handleHermesManifest(
 
   return json({
     projectId,
-    projectName: PROJECT_DISPLAY_NAMES[projectId] ?? projectId,
+    projectName: projectId,
     userId: userId ?? null,
     scope: scopeParam === "all" ? "all" : scopeSql,
     packageScope: "project",

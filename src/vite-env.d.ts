@@ -8,9 +8,4 @@ interface ImportMetaEnv {
   readonly VITE_RAGFLOW_CHAT_ENDPOINT?: string;
   readonly VITE_RAGFLOW_MODE?: string;
   readonly VITE_RAGFLOW_API_KEY?: string;
-  /**
-   * 默认已为逐步演示；设为 `"0"` / `"false"` 则关闭逐步演示（除非 URL 另有约定）。
-   * @deprecated 优先使用 URL：`?chatInstant=1` 一次性展示原版预设对话。
-   */
-  readonly VITE_CHAT_PLAYBACK?: string;
 }

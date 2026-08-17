@@ -5,10 +5,7 @@ import { cn } from "@/lib/utils";
 import { deleteProjectViaApi } from "@/lib/project-api";
 import { ProjectEditModal } from "@/components/workspace/ProjectEditModal";
 import type { WorkspaceProject } from "@/workspace/projects";
-import {
-  getProjectDetailContent,
-  type ProjectDetailTier,
-} from "@/workspace/project-details";
+import type { ProjectDetailTier } from "@/workspace/project-details";
 import { ProjectMaterialsSection } from "@/components/workspace/ProjectMaterialsSection";
 import { ProjectKnowledgeNetworkSection } from "@/components/workspace/ProjectKnowledgeNetworkSection";
 import { ProjectPermissionsSection } from "@/components/workspace/ProjectPermissionsSection";
@@ -17,7 +14,6 @@ import {
   canManageProjectPermissions,
   canUserManageProjectMetadata,
   formatProjectCreatedAt,
-  isPersistedUserProject,
 } from "@/workspace/project-manage";
 import { isCloudProject } from "@/workspace/project-registry";
 import {
@@ -96,11 +92,9 @@ export function ProjectDetailDrawer({
 
   const role = getProjectRole(userId, project.id, project.createdBy);
   const chatOk = canEnterChat(role);
-  const detail = getProjectDetailContent(project.id, detailTier);
   const canManage = canUserManageProjectMetadata(userId, project);
   const canManagePerms = canManageProjectPermissions(userId, project);
   const canDownloadMaterials = canDownloadProjectMaterials(userId, project);
-  const userCreated = isPersistedUserProject(project);
   const createdLabel = isCloudProject(project)
     ? formatProjectCreatedAt(project.createdAt)
     : null;
@@ -203,142 +197,58 @@ export function ProjectDetailDrawer({
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 pb-6 md:px-6">
-          {detail ? (
-            <>
-              <p className="text-sm leading-relaxed text-foreground">
-                {detail.lead}
-              </p>
-              {detail.chips.length > 0 ? (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {detail.chips.map((c) => (
-                    <span
-                      key={c}
-                      className="rounded-full border border-primary/20 bg-primary/[0.06] px-2.5 py-1 text-[11px] font-semibold text-primary"
-                    >
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-              <dl className="mt-5 space-y-2.5 rounded-2xl border border-border/70 bg-muted/30 p-4">
-                {detail.metrics.map((m) => (
-                  <div
-                    key={m.label}
-                    className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
-                  >
-                    <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                      {m.label}
-                    </dt>
-                    <dd className="text-sm font-medium text-foreground sm:text-right">
-                      {/\d/u.test(m.value) ? "—" : m.value}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-              {detail.sections.map((sec) => (
-                <section key={sec.title} className="mt-6">
-                  <h3 className="text-xs font-bold uppercase tracking-wide text-foreground">
-                    {sec.title}
-                  </h3>
-                  <ul className="mt-2 list-disc space-y-1.5 pl-4 text-sm leading-relaxed text-muted-foreground">
-                    {sec.lines.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                </section>
-              ))}
-              {detailTier !== "guest" ? (
-                <ProjectMaterialsSection
-                  projectId={project.id}
-                  userId={userId}
-                  canManage={chatOk}
-                  canDownload={canDownloadMaterials}
-                />
-              ) : null}
-              <ProjectKnowledgeNetworkSection
-                projectId={project.id}
-                userId={userId}
-                project={project}
-                isGuest={detailTier === "guest"}
-              />
-              {canManagePerms ? (
-                <ProjectPermissionsSection project={project} userId={userId} />
-              ) : null}
-            </>
-          ) : userCreated ? (
-            <>
-              <p className="text-sm leading-relaxed text-foreground">
-                {detailTier === "guest" ? project.guestSummary : project.summary}
-              </p>
-              <dl className="mt-5 space-y-2.5 rounded-2xl border border-border/70 bg-muted/30 p-4">
+          <>
+            <p className="text-sm leading-relaxed text-foreground">
+              {detailTier === "guest" ? project.guestSummary : project.summary}
+            </p>
+            <dl className="mt-5 space-y-2.5 rounded-2xl border border-border/70 bg-muted/30 p-4">
+              <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
+                <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                  状态
+                </dt>
+                <dd className="text-sm font-medium text-foreground">{project.phase}</dd>
+              </div>
+              <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
+                <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                  分类
+                </dt>
+                <dd className="text-sm font-medium text-foreground">{project.category}</dd>
+              </div>
+              <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
+                <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                  开放程度
+                </dt>
+                <dd className="text-sm font-medium text-foreground">
+                  {opennessLabel(project.openness)}
+                </dd>
+              </div>
+              {createdLabel ? (
                 <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
                   <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                    状态
+                    创建时间
                   </dt>
-                  <dd className="text-sm font-medium text-foreground">{project.phase}</dd>
+                  <dd className="text-sm font-medium text-foreground">{createdLabel}</dd>
                 </div>
-                <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
-                  <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                    分类
-                  </dt>
-                  <dd className="text-sm font-medium text-foreground">{project.category}</dd>
-                </div>
-                <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
-                  <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                    开放程度
-                  </dt>
-                  <dd className="text-sm font-medium text-foreground">
-                    {opennessLabel(project.openness)}
-                  </dd>
-                </div>
-                {createdLabel ? (
-                  <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
-                    <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                      创建时间
-                    </dt>
-                    <dd className="text-sm font-medium text-foreground">{createdLabel}</dd>
-                  </div>
-                ) : null}
-              </dl>
-              {detailTier !== "guest" ? (
-                <ProjectMaterialsSection
-                  projectId={project.id}
-                  userId={userId}
-                  canManage={chatOk}
-                  canDownload={canDownloadMaterials}
-                />
               ) : null}
-              <ProjectKnowledgeNetworkSection
+            </dl>
+            {detailTier !== "guest" ? (
+              <ProjectMaterialsSection
                 projectId={project.id}
                 userId={userId}
-                project={project}
-                isGuest={detailTier === "guest"}
+                canManage={chatOk}
+                canDownload={canDownloadMaterials}
               />
-              {canManagePerms ? (
-                <ProjectPermissionsSection project={project} userId={userId} />
-              ) : null}
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-muted-foreground">
-                暂无该项目的详情副本，请联系管理员。
-              </p>
-              {detailTier !== "guest" ? (
-                <ProjectMaterialsSection
-                  projectId={project.id}
-                  userId={userId}
-                  canManage={chatOk}
-                  canDownload={canDownloadMaterials}
-                />
-              ) : null}
-              <ProjectKnowledgeNetworkSection
-                projectId={project.id}
-                userId={userId}
-                project={project}
-                isGuest={detailTier === "guest"}
-              />
-            </>
-          )}
+            ) : null}
+            <ProjectKnowledgeNetworkSection
+              projectId={project.id}
+              userId={userId}
+              project={project}
+              isGuest={detailTier === "guest"}
+            />
+            {canManagePerms ? (
+              <ProjectPermissionsSection project={project} userId={userId} />
+            ) : null}
+          </>
           {manageError ? (
             <p className="mt-4 text-sm text-rose-600">{manageError}</p>
           ) : null}

@@ -26,7 +26,7 @@ export function tavilyCapabilitySystemLines(configured: boolean): string[] {
     "联网公开信息：已接入 Tavily。用户消息含「查外部资料」「网上查查」「核实是否属实」等时，本轮会注入【外部检索】。",
     "若用户只问「能不能查外部」，回答：可以；请其用「查外部资料：具体主题」或「网上查查 xxx 是否属实」发起。勿称「永远不能上网」。",
     "若本轮含【外部检索】：须先用 [WEB:n]+URL 概括网页要点，再与【资料摘录】对照（一致/差异/待核）。勿写「我无法上网」「请您自行去官网查」。",
-    "[ID:n] 仅指上传资料；[WEB:n] 仅指本轮网页检索。勿混淆演示用 [ID:1]～[ID:5] 与联网来源。",
+    "[ID:n] 仅指上传资料；[WEB:n] 仅指本轮网页检索。勿把资料编号与联网来源混用。",
   ];
 }
 
@@ -39,8 +39,7 @@ function enrichQueryFromHistory(q: string, history: HistoryLine[]): string {
     .map((m) => m.content)
     .join("\n");
   const project =
-    blob.match(/南宁[\u4e00-\u9fa5]{0,24}智慧港|东盟生鲜[\u4e00-\u9fa5]{0,16}港/u)?.[0] ??
-    blob.match(/南宁生鲜港|南宁生鲜智慧港/u)?.[0];
+    blob.match(/[\u4e00-\u9fa5]{2,24}(?:项目|园区|港口|并购)/u)?.[0];
   const area =
     blob.match(/182[,，]?\s*834[\.\d]*/u)?.[0] ??
     blob.match(/\d{2,3}\.?\d*\s*万\s*平方米/u)?.[0];

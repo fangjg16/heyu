@@ -28,11 +28,6 @@ export type WorkspaceProject = {
   researchMaturity?: number | null;
 };
 
-/** 演示种子项目已移除；列表仅来自 D1 API（proj-*） */
-export const ALL_PROJECTS: WorkspaceProject[] = [];
-
-export const TOTAL_PROJECT_COUNT = 0;
-
 export const DEFAULT_PROJECT_PHASE: ProjectPhase = "Active（资源筹备中）";
 
 export function normalizeProjectPhase(raw: string | undefined | null): ProjectPhase {

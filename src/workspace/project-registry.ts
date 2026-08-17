@@ -1,4 +1,4 @@
-import { ALL_PROJECTS, type WorkspaceProject } from "./projects";
+import type { WorkspaceProject } from "./projects";
 
 let apiProjects: WorkspaceProject[] = [];
 const apiProjectListeners = new Set<() => void>();
@@ -29,12 +29,9 @@ export function removeApiProject(projectId: string): void {
   notifyApiProjectListeners();
 }
 
-/** 云端 API 项目（种子已移除，ALL_PROJECTS 恒为空） */
+/** 云端 API 项目列表 */
 export function getMergedProjects(): WorkspaceProject[] {
-  const byId = new Map<string, WorkspaceProject>();
-  for (const p of ALL_PROJECTS) byId.set(p.id, p);
-  for (const p of apiProjects) byId.set(p.id, p);
-  return Array.from(byId.values());
+  return [...apiProjects];
 }
 
 /** 云端登记项目（D1 proj-* 等） */
@@ -56,9 +53,7 @@ export function sortProjectsForOverview(projects: WorkspaceProject[]): Workspace
 }
 
 export function getMergedProjectById(id: string): WorkspaceProject | undefined {
-  const fromApi = apiProjects.find((p) => p.id === id);
-  if (fromApi) return fromApi;
-  return ALL_PROJECTS.find((p) => p.id === id);
+  return apiProjects.find((p) => p.id === id);
 }
 
 export function getProjectById(id: string): WorkspaceProject | undefined {
