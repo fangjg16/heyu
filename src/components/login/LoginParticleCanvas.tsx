@@ -4,11 +4,19 @@ import { cn } from "@/lib/utils";
 /** 品牌酒红（略加深，亚麻底上更易辨认）≈ hsl(5 34% 40%) */
 const WINE_RGB = { r: 138, g: 76, b: 72 } as const;
 
-const PARTICLE_COUNT = 120;
-const CONNECTION_DISTANCE = 200;
-const MOUSE_RADIUS = 150;
-const PARTICLE_FILL_ALPHA = 0.32;
-const LINE_ALPHA_MAX = 0.26;
+const MOUSE_RADIUS = 110;
+const PARTICLE_FILL_ALPHA = 0.26;
+const LINE_ALPHA_MAX = 0.14;
+
+/** 按左栏面积取点数，避免半屏里挤成一张密网 */
+function particleBudget(width: number, height: number): number {
+  const area = Math.max(1, width * height);
+  return Math.max(18, Math.min(36, Math.round(area / 28000)));
+}
+
+function connectionDistanceFor(width: number, height: number): number {
+  return Math.min(112, Math.max(72, Math.min(width, height) * 0.12));
+}
 
 type Particle = {
   x: number;
@@ -24,7 +32,7 @@ function createParticle(width: number, height: number): Particle {
     y: Math.random() * height,
     vx: (Math.random() - 0.5) * 0.3,
     vy: (Math.random() - 0.5) * 0.3,
-    size: Math.random() * 2.2 + 1.2,
+    size: Math.random() * 1.6 + 1.1,
   };
 }
 
@@ -56,6 +64,7 @@ export function LoginParticleCanvas({ className }: Props) {
     let width = 0;
     let height = 0;
     let dpr = 1;
+    let connectionDistance = 96;
     let particles: Particle[] = [];
     let raf = 0;
 
@@ -69,12 +78,13 @@ export function LoginParticleCanvas({ className }: Props) {
       dpr = nextDpr;
       width = nextWidth;
       height = nextHeight;
+      connectionDistance = connectionDistanceFor(width, height);
       canvas.width = width * dpr;
       canvas.height = height * dpr;
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      particles = Array.from({ length: PARTICLE_COUNT }, () =>
+      particles = Array.from({ length: particleBudget(width, height) }, () =>
         createParticle(width, height)
       );
     }
@@ -115,13 +125,13 @@ export function LoginParticleCanvas({ className }: Props) {
           const dx = p1.x - p2.x;
           const dy = p1.y - p2.y;
           const distance = Math.hypot(dx, dy);
-          if (distance >= CONNECTION_DISTANCE) continue;
+          if (distance >= connectionDistance) continue;
 
           ctx.beginPath();
           ctx.strokeStyle = `rgba(${WINE_RGB.r}, ${WINE_RGB.g}, ${WINE_RGB.b}, ${
-            LINE_ALPHA_MAX * (1 - distance / CONNECTION_DISTANCE)
+            LINE_ALPHA_MAX * (1 - distance / connectionDistance)
           })`;
-          ctx.lineWidth = 0.65;
+          ctx.lineWidth = 0.5;
           ctx.moveTo(p1.x, p1.y);
           ctx.lineTo(p2.x, p2.y);
           ctx.stroke();
