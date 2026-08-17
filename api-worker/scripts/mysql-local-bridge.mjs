@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import mysql from "mysql2/promise";
 import { tryHandleSkillsRoutes } from "./skills-http.mjs";
+import { rewriteLimitOffsetPlaceholders } from "./mysql-limit-rewrite.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_PORT = 8790;
@@ -143,10 +144,11 @@ async function main() {
       return;
     }
 
-      const sql = typeof body.sql === "string" ? body.sql : "";
-    const params = (Array.isArray(body.params) ? body.params : []).map((p) =>
+    const rawSql = typeof body.sql === "string" ? body.sql : "";
+    const rawParams = (Array.isArray(body.params) ? body.params : []).map((p) =>
       p === undefined ? null : p,
     );
+    const { sql, params } = rewriteLimitOffsetPlaceholders(rawSql, rawParams);
     const mode = body.mode === "first" || body.mode === "run" ? body.mode : "all";
 
     if (!sql) {
@@ -155,7 +157,8 @@ async function main() {
     }
 
     try {
-      const [result, fields] = await pool.execute(sql, params);
+      // query() 走文本协议，避免 execute() 在 MySQL 8 上绑定 LIMIT 失败
+      const [result] = await pool.query(sql, params);
       if (mode === "run") {
         const meta = result;
         json(res, 200, {
