@@ -13,7 +13,7 @@ import {
   type MyOpenQuestionItem,
 } from "@/lib/project-api";
 import { extractOpenQuestionTitle, previewCollabQuestion, stripCitationMarkers } from "@/lib/kn-citations";
-import { filterProjectsForUser } from "@/workspace/guest-access";
+import { filterMemberProjectsForUser, filterProjectsForUser } from "@/workspace/guest-access";
 import {
   getMergedProjects,
   setApiProjects,
@@ -124,7 +124,7 @@ const COLLAB_PUBLISH_DRAFT_KEY = (projectId: string) =>
 export default function HomeDashboard() {
   const userId = loadSessionUserId();
   const user = getUserById(userId);
-  useMyProjectRoles(userId);
+  const rolesVersion = useMyProjectRoles(userId);
   const { pendingCount, requests: joinReviews } = useJoinReviews();
   const [projects, setProjects] = useState<WorkspaceProject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -222,7 +222,7 @@ export default function HomeDashboard() {
       setPublishedByProject({});
       return;
     }
-    const investorIds = projects
+    const investorIds = filterMemberProjectsForUser(userId, projects)
       .filter((p) =>
         isInvestorRole(getProjectRole(userId, p.id, p.createdBy)),
       )
@@ -244,7 +244,7 @@ export default function HomeDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [userId, projects]);
+  }, [userId, projects, rolesVersion]);
 
   const now = useMemo(() => new Date(), []);
   const shortName = shortDisplayName(user?.displayName);
@@ -252,11 +252,15 @@ export default function HomeDashboard() {
     ? `${greetingForHour(now.getHours())}，${shortName}`
     : greetingForHour(now.getHours());
 
-  const shortList = projects.slice(0, 3);
-  const hasInvestorProject = projects.some((p) =>
+  const memberProjects = useMemo(
+    () => filterMemberProjectsForUser(userId ?? "", projects),
+    [userId, projects, rolesVersion],
+  );
+  const shortList = memberProjects.slice(0, 3);
+  const hasInvestorProject = memberProjects.some((p) =>
     isInvestorRole(getProjectRole(userId ?? "", p.id, p.createdBy)),
   );
-  const hasIssuerProject = projects.some((p) =>
+  const hasIssuerProject = memberProjects.some((p) =>
     isIssuerRole(getProjectRole(userId ?? "", p.id, p.createdBy)),
   );
 
@@ -622,7 +626,7 @@ export default function HomeDashboard() {
                   ? "欢迎使用合域"
                   : hasIssuerProject && !hasInvestorProject
                     ? "暂无待你处理的事项"
-                    : projects.length > 0
+                    : memberProjects.length > 0
                     ? "暂无紧急待办"
                     : "欢迎使用合域"}
             </div>
@@ -640,9 +644,9 @@ export default function HomeDashboard() {
                   ? "正在加载项目…"
                   : hasIssuerProject && !hasInvestorProject
                     ? "投资团队发布事项后，会显示在这里。内部研究缺口不会自动同步给你。"
-                    : projects.length > 0
+                    : memberProjects.length > 0
                     ? "知识网络里的缺口默认按原文一键发给项目方即可；有判断性措辞时再点「改措辞」。"
-                    : "暂无进行中的项目。前往项目库创建或加入协作。"}
+                    : "暂无已加入项目。可去项目广场浏览全开放协作，或新建项目。"}
             </p>
             <Link
               to="/app/projects"
@@ -986,7 +990,9 @@ export default function HomeDashboard() {
           </>
         ) : null}
 
-        {/* 进行中的项目 */}
+        {shortList.length > 0 ? (
+          <>
+        {/* 进行中的项目：仅已加入，不含广场访客可见的空壳 */}
         <div
           style={{
             marginTop: 44,
@@ -1121,6 +1127,8 @@ export default function HomeDashboard() {
             );
           })}
         </div>
+          </>
+        ) : null}
       </div>
     </WorkspaceShell>
   );

@@ -9,33 +9,41 @@ import {
   getProjectById,
   sortProjectsForOverview,
 } from "@/workspace/project-registry";
-import { filterProjectsForUser } from "@/workspace/guest-access";
+import { filterMemberProjectsForUser } from "@/workspace/guest-access";
 import { loadLastChatProjectId } from "@/workspace/session";
+import { getProjectRole } from "@/workspace/workspace-users";
 
 function pathForConversation(projectId: string, conversationId: string): string {
   return conversationRoutePath(projectId, conversationId);
 }
 
-function pickFirstProjectChatPath(userId: string | null): string | null {
-  const sorted = sortProjectsForOverview(
-    filterProjectsForUser(userId ?? "", getMergedProjects()),
+function memberProjectsForUser(userId: string | null) {
+  return sortProjectsForOverview(
+    filterMemberProjectsForUser(userId ?? "", getMergedProjects()),
   );
-  const first = sorted[0];
+}
+
+function isMemberOfProject(userId: string | null, projectId: string): boolean {
+  if (!userId) return false;
+  const project = getProjectById(projectId);
+  return getProjectRole(userId, projectId, project?.createdBy) !== "guest";
+}
+
+function pickFirstProjectChatPath(userId: string | null): string | null {
+  const first = memberProjectsForUser(userId)[0];
   return first ? conversationRoutePath(first.id, `${first.id}-main`) : null;
 }
 
 function resolveFromLastChatOrSeed(userId: string | null): string | null {
   const lastChat = loadLastChatProjectId();
-  if (lastChat) {
-    const visible = filterProjectsForUser(userId ?? "", getMergedProjects());
-    if (visible.some((p) => p.id === lastChat)) {
-      return conversationRoutePath(lastChat, `${lastChat}-main`);
-    }
+  if (lastChat && isMemberOfProject(userId, lastChat)) {
+    return conversationRoutePath(lastChat, `${lastChat}-main`);
   }
   return pickFirstProjectChatPath(userId);
 }
 
 function resolveFromChatState(
+  userId: string | null,
   convs: Awaited<ReturnType<typeof loadChatStateForUser>>,
 ): string | null {
   if (!convs) return null;
@@ -44,7 +52,7 @@ function resolveFromChatState(
   const recentWithMessages = [...convs.conversations]
     .filter((c) => {
       const list = msgs[c.id];
-      return Array.isArray(list) && list.length > 0;
+      return Array.isArray(list) && list.length > 0 && isMemberOfProject(userId, c.projectId);
     })
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
@@ -60,7 +68,7 @@ function resolveFromChatState(
   for (const [conversationId, list] of Object.entries(msgs)) {
     if (!Array.isArray(list) || list.length === 0) continue;
     const pid = inferProjectIdFromConversationId(conversationId);
-    if (!pid) continue;
+    if (!pid || !isMemberOfProject(userId, pid)) continue;
     if (list.length > bestCount) {
       bestCount = list.length;
       bestProjectId = pid;
@@ -73,18 +81,18 @@ function resolveFromChatState(
   return null;
 }
 
-/** 同步兜底：上次打开的项目或列表中第一个云端项目；无项目时返回 null */
+/** 同步兜底：上次打开的已加入项目或列表中第一个成员项目；无项目时返回 null */
 export function resolveChatEntryPath(userId: string | null): string | null {
   return resolveFromLastChatOrSeed(userId);
 }
 
-/** 顶部「对话中心」：优先云端最近会话，否则上次项目；无项目时返回 null（由入口页展示空态） */
+/** 顶部「对话中心」：优先云端最近会话，否则上次已加入项目；无项目时返回 null（由入口页展示空态） */
 export async function resolveChatEntryPathAsync(
   userId: string | null,
 ): Promise<string | null> {
   if (userId) {
     const state = await loadChatStateForUser(userId);
-    const fromCloud = resolveFromChatState(state);
+    const fromCloud = resolveFromChatState(userId, state);
     if (fromCloud) return fromCloud;
   }
   return resolveFromLastChatOrSeed(userId);
