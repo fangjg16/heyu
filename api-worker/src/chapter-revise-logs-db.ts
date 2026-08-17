@@ -178,6 +178,10 @@ export async function listReviseInstructionLogs(
     ) {
       return [];
     }
+    if (/mysqld_stmt_execute|Incorrect arguments/i.test(msg)) {
+      console.error("[revise-log-list]", msg);
+      throw new Error("改写指令日志暂时无法读取，请稍后刷新");
+    }
     throw e;
   }
 }
