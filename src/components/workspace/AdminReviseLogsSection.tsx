@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { History, Loader2, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronRight, History, Loader2, RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   listAdminChapterReviseLogs,
   type ChapterReviseLogItem,
@@ -21,6 +22,15 @@ const SECTION_LABELS: Record<string, string> = {
   risks: "风险矩阵",
   questions: "待确认问题",
   framework: "决策路径与法律结构",
+};
+
+type ProjectGroup = {
+  projectId: string;
+  projectName: string;
+  items: ChapterReviseLogItem[];
+  latestAt: string;
+  failed: number;
+  pending: number;
 };
 
 function statusLabel(status: string): { text: string; className: string } {
@@ -64,6 +74,124 @@ function formatTime(iso: string): string {
   }
 }
 
+function previewText(raw: string, max = 72): string {
+  const one = raw.replace(/\s+/gu, " ").trim();
+  if (one.length <= max) return one;
+  return `${one.slice(0, max)}…`;
+}
+
+function groupByProject(items: ChapterReviseLogItem[]): ProjectGroup[] {
+  const map = new Map<string, ProjectGroup>();
+  for (const item of items) {
+    const key = item.projectId || "_unknown";
+    let group = map.get(key);
+    if (!group) {
+      group = {
+        projectId: item.projectId,
+        projectName: item.projectName?.trim() || item.projectId,
+        items: [],
+        latestAt: item.createdAt,
+        failed: 0,
+        pending: 0,
+      };
+      map.set(key, group);
+    }
+    group.items.push(item);
+    if (item.createdAt > group.latestAt) group.latestAt = item.createdAt;
+    if (item.status === "failed") group.failed += 1;
+    if (item.status === "pending") group.pending += 1;
+  }
+  for (const group of map.values()) {
+    group.items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  }
+  return Array.from(map.values()).sort((a, b) =>
+    a.latestAt < b.latestAt ? 1 : -1,
+  );
+}
+
+function LogCard({ item }: { item: ChapterReviseLogItem }) {
+  const [open, setOpen] = useState(false);
+  const st = statusLabel(item.status);
+  const section = SECTION_LABELS[item.sectionId] ?? item.sectionId;
+
+  return (
+    <li className="rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/70">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-start gap-2 px-4 py-3 text-left"
+      >
+        {open ? (
+          <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-[#969E9A]" />
+        ) : (
+          <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-[#969E9A]" />
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="text-[13px] font-semibold text-[#1F2423]">
+              {section}
+            </span>
+            <span
+              className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${st.className}`}
+            >
+              {st.text}
+            </span>
+          </span>
+          <span className="mt-1 block text-[11.5px] text-[#969E9A]">
+            {item.userDisplayName}（{item.userId}） · {formatTime(item.createdAt)}
+            {item.runId ? " · 草案" : " · 正式章"}
+          </span>
+          {open ? null : (
+            <span className="mt-1.5 block text-[12.5px] leading-relaxed text-[#59625F]">
+              {previewText(item.instruction)}
+            </span>
+          )}
+        </span>
+      </button>
+      {open ? (
+        <div className="space-y-2 border-t border-[rgba(78,66,57,0.08)] px-4 py-3 pl-10">
+          {item.runId ? (
+            <Link
+              to={`/app/projects/${item.projectId}/knowledge/review/${item.runId}`}
+              className="text-[12.5px] font-medium text-[#A06358] hover:underline"
+            >
+              打开草案
+            </Link>
+          ) : (
+            <Link
+              to={`/app/projects/${item.projectId}/knowledge`}
+              className="text-[12.5px] font-medium text-[#A06358] hover:underline"
+            >
+              打开知识网络
+            </Link>
+          )}
+          <div>
+            <p className="text-[11px] font-semibold tracking-wide text-[#969E9A]">
+              用户指令
+            </p>
+            <p className="mt-0.5 whitespace-pre-wrap text-[12.5px] leading-relaxed text-[#1F2423]">
+              {item.instruction}
+            </p>
+          </div>
+          {item.reviseNote?.trim() ? (
+            <div>
+              <p className="text-[11px] font-semibold tracking-wide text-[#969E9A]">
+                AI 改写说明
+              </p>
+              <p className="mt-0.5 whitespace-pre-wrap text-[12.5px] leading-relaxed text-[#59625F]">
+                {item.reviseNote}
+              </p>
+            </div>
+          ) : null}
+          {item.error?.trim() && item.status === "failed" ? (
+            <p className="text-[12px] text-[#A06358]">失败：{item.error}</p>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
 type AdminReviseLogsSectionProps = {
   userId: string;
 };
@@ -72,6 +200,11 @@ export function AdminReviseLogsSection({ userId }: AdminReviseLogsSectionProps) 
   const [items, setItems] = useState<ChapterReviseLogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState("");
+
+  const groups = useMemo(() => groupByProject(items), [items]);
+  const selected =
+    groups.find((g) => g.projectId === selectedId) ?? groups[0] ?? null;
 
   const load = async () => {
     if (!userId.trim()) return;
@@ -103,7 +236,7 @@ export function AdminReviseLogsSection({ userId }: AdminReviseLogsSectionProps) 
               改写指令日志
             </h2>
             <p className="mt-0.5 text-[12.5px] text-[#59625F]">
-              用户对章节草案/正式章提出的改写意见与 AI 说明（只读，供复盘分析）
+              按项目归类。点左侧项目查看该项目的改写意见与 AI 说明（只读）
             </p>
           </div>
         </div>
@@ -122,103 +255,89 @@ export function AdminReviseLogsSection({ userId }: AdminReviseLogsSectionProps) 
         </button>
       </div>
 
-      <div className="px-5 py-4">
-        {error ? (
-          <p className="mb-3 rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
-            {error}
-          </p>
-        ) : null}
+      {error ? (
+        <p className="mx-5 mt-4 rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
+          {error}
+        </p>
+      ) : null}
 
-        {loading && items.length === 0 ? (
-          <p className="flex items-center gap-2 text-[13px] text-[#969E9A]">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            加载中…
-          </p>
-        ) : items.length === 0 ? (
-          <p className="text-[13px] text-[#969E9A]">
-            暂无改写指令记录。用户在审核页点击「改写草案」后会出现在此。
-          </p>
-        ) : (
-          <ul className="space-y-3">
-            {items.map((item) => {
-              const st = statusLabel(item.status);
-              const section =
-                SECTION_LABELS[item.sectionId] ?? item.sectionId;
-              return (
-                <li
-                  key={item.id}
-                  className="rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/70 px-4 py-3"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Link
-                          to={`/app/projects/${item.projectId}/knowledge`}
-                          className="text-[13px] font-semibold text-[#A06358] hover:underline"
-                        >
-                          {item.projectName}
-                        </Link>
-                        <span className="text-[12px] text-[#969E9A]">·</span>
-                        <span className="text-[12.5px] text-[#1F2423]">
-                          {section}
-                        </span>
-                        <span
-                          className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${st.className}`}
-                        >
-                          {st.text}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-[11.5px] text-[#969E9A]">
-                        {item.userDisplayName}（{item.userId}） ·{" "}
-                        {formatTime(item.createdAt)}
-                        {item.runId ? (
-                          <>
-                            {" "}
-                            ·{" "}
-                            <Link
-                              to={`/app/projects/${item.projectId}/knowledge/review/${item.runId}`}
-                              className="text-[#A06358] hover:underline"
-                            >
-                              打开草案
-                            </Link>
-                          </>
-                        ) : (
-                          " · 正式章改写"
+      {loading && items.length === 0 ? (
+        <p className="flex items-center gap-2 px-5 py-8 text-[13px] text-[#969E9A]">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          加载中…
+        </p>
+      ) : items.length === 0 ? (
+        <p className="px-5 py-8 text-[13px] text-[#969E9A]">
+          暂无改写指令记录。用户在审核页点击「改写草案」后会出现在此。
+        </p>
+      ) : (
+        <div className="grid gap-0 lg:grid-cols-[240px_minmax(0,1fr)]">
+          <aside className="border-b border-[rgba(78,66,57,0.1)] text-left lg:border-b-0 lg:border-r">
+            <div className="px-3 pb-1 pt-3 text-[10px] font-medium uppercase tracking-[0.16em] text-[#969E9A]">
+              项目
+            </div>
+            <ul className="max-h-[min(40vh,360px)] space-y-0.5 overflow-auto p-2 lg:max-h-[min(70vh,760px)]">
+              {groups.map((g) => {
+                const active = selected?.projectId === g.projectId;
+                return (
+                  <li key={g.projectId}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedId(g.projectId)}
+                      className={cn(
+                        "flex w-full flex-col items-start rounded-lg px-2.5 py-2 text-left transition-colors",
+                        active
+                          ? "bg-[#EFE7E6] text-[#A06358]"
+                          : "text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]",
+                      )}
+                    >
+                      <span className="w-full truncate text-[12.5px] font-medium">
+                        {g.projectName}
+                      </span>
+                      <span
+                        className={cn(
+                          "mt-1 flex w-full flex-wrap items-center gap-1.5 text-[11px]",
+                          active ? "text-[#A06358]/80" : "text-[#969E9A]",
                         )}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-2.5 space-y-2">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#969E9A]">
-                        用户指令
-                      </p>
-                      <p className="mt-0.5 whitespace-pre-wrap text-[12.5px] leading-relaxed text-[#1F2423]">
-                        {item.instruction}
-                      </p>
-                    </div>
-                    {item.reviseNote?.trim() ? (
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-[#969E9A]">
-                          AI 改写说明
-                        </p>
-                        <p className="mt-0.5 whitespace-pre-wrap text-[12.5px] leading-relaxed text-[#59625F]">
-                          {item.reviseNote}
-                        </p>
-                      </div>
-                    ) : null}
-                    {item.error?.trim() && item.status === "failed" ? (
-                      <p className="text-[12px] text-[#A06358]">
-                        失败：{item.error}
-                      </p>
-                    ) : null}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
+                      >
+                        <span>{g.items.length} 条</span>
+                        {g.pending > 0 ? <span>进行中 {g.pending}</span> : null}
+                        {g.failed > 0 ? (
+                          <span className="text-[#A06358]">失败 {g.failed}</span>
+                        ) : null}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </aside>
+
+          <div className="min-w-0 px-5 py-4">
+            {selected ? (
+              <>
+                <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                  <Link
+                    to={`/app/projects/${selected.projectId}/knowledge`}
+                    className="text-[14px] font-semibold text-[#A06358] hover:underline"
+                  >
+                    {selected.projectName}
+                  </Link>
+                  <p className="text-[11.5px] text-[#969E9A]">
+                    {selected.items.length} 条 · 最近{" "}
+                    {formatTime(selected.latestAt)}
+                  </p>
+                </div>
+                <ul className="space-y-2">
+                  {selected.items.map((item) => (
+                    <LogCard key={item.id} item={item} />
+                  ))}
+                </ul>
+              </>
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
