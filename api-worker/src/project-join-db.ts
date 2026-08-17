@@ -208,3 +208,23 @@ export async function reviewJoinRequest(
     .run();
   return getJoinRequestById(env, requestId);
 }
+
+export async function deletePendingJoinRequestByApplicant(
+  env: Env,
+  projectId: string,
+  applicantUserId: string,
+): Promise<boolean> {
+  const existing = await getJoinRequestByProjectAndApplicant(
+    env,
+    projectId,
+    applicantUserId,
+  );
+  if (!existing || existing.status !== "pending") return false;
+  await env.DB.prepare(
+    `DELETE FROM project_join_requests
+     WHERE id = ? AND status = 'pending'`,
+  )
+    .bind(existing.id)
+    .run();
+  return true;
+}

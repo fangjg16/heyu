@@ -17,6 +17,7 @@ import {
 } from "@/workspace/projects";
 import {
   createJoinRequest,
+  withdrawJoinRequest,
   createProjectViaApi,
   deleteProjectViaApi,
   ENABLE_LIVE_CHAT,
@@ -128,19 +129,23 @@ function ProjectCard({
   userId,
   onEnter,
   onRequestJoin,
+  onWithdrawJoin,
   onEdit,
   onDelete,
   requested,
   joining,
+  withdrawing,
 }: {
   project: WorkspaceProject;
   userId: string;
   onEnter: () => void;
   onRequestJoin?: () => void;
+  onWithdrawJoin?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
   requested?: boolean;
   joining?: boolean;
+  withdrawing?: boolean;
 }) {
   const role = getProjectRole(userId, project.id, project.createdBy);
   const isMember = role !== "guest";
@@ -171,16 +176,20 @@ function ProjectCard({
     ? "进入协作"
     : isMember
     ? "进入项目"
-    : joining
-      ? "申请中…"
-      : requested
-        ? "已申请"
-        : "申请加入";
+    : withdrawing
+      ? "撤回中…"
+      : joining
+        ? "申请中…"
+        : requested
+          ? "撤回申请"
+          : "申请加入";
 
   const onAction = (e: { stopPropagation: () => void }) => {
     e.stopPropagation();
     if (isMember) onEnter();
-    else if (!requested && !joining && onRequestJoin) onRequestJoin();
+    else if (requested) {
+      if (!withdrawing && onWithdrawJoin) onWithdrawJoin();
+    } else if (!joining && onRequestJoin) onRequestJoin();
   };
 
   return (
@@ -295,18 +304,18 @@ function ProjectCard({
         <button
           type="button"
           onClick={onAction}
-          disabled={!isMember && (requested || joining)}
+          disabled={!isMember && (joining || withdrawing)}
           className={cn(
             "inline-flex h-[34px] shrink-0 items-center gap-1.5 self-end rounded-[9px] px-3 text-[13px] font-medium transition-colors",
             isMember
               ? "border border-transparent bg-transparent text-[hsl(var(--wine))] hover:bg-[hsl(var(--wine)/0.06)]"
-              : requested || joining
-                ? "cursor-default border border-[rgba(78,66,57,0.1)] bg-[rgba(78,66,57,0.06)] text-[#969E9A]"
+              : joining || withdrawing
+                ? "cursor-wait border border-[rgba(78,66,57,0.1)] bg-[rgba(78,66,57,0.06)] text-[#969E9A]"
                 : "border border-[rgba(160,99,88,0.28)] bg-transparent text-[hsl(var(--wine))] hover:bg-[hsl(var(--wine-muted))]",
           )}
         >
           {actionLabel}
-          {isMember || (!requested && !joining) ? (
+          {isMember || (!requested && !joining && !withdrawing) ? (
             <ArrowRight className="h-3.5 w-3.5" />
           ) : null}
         </button>
@@ -325,6 +334,7 @@ export default function ProjectOverview() {
   const [portfolioTab, setPortfolioTab] = useState<"mine" | "plaza">("mine");
   const [pendingJoinIds, setPendingJoinIds] = useState<string[]>([]);
   const [joiningProjectId, setJoiningProjectId] = useState<string | null>(null);
+  const [withdrawingProjectId, setWithdrawingProjectId] = useState<string | null>(null);
   const [joinToast, setJoinToast] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
@@ -696,6 +706,7 @@ export default function ProjectOverview() {
                 userId={userId!}
                 requested={pendingJoinIds.includes(p.id)}
                 joining={joiningProjectId === p.id}
+                withdrawing={withdrawingProjectId === p.id}
                 onEnter={() =>
                   navigate(
                     projectEntryPath(
@@ -744,6 +755,29 @@ export default function ProjectOverview() {
                       window.setTimeout(() => setJoinToast(null), 3600);
                     })
                     .finally(() => setJoiningProjectId(null));
+                }}
+                onWithdrawJoin={() => {
+                  if (!ENABLE_LIVE_CHAT) {
+                    setJoinToast("未配置线上 API，无法撤回申请。");
+                    window.setTimeout(() => setJoinToast(null), 3200);
+                    return;
+                  }
+                  if (joiningProjectId || withdrawingProjectId) return;
+                  if (!window.confirm(`撤回加入「${p.name}」的申请？`)) return;
+                  setWithdrawingProjectId(p.id);
+                  void withdrawJoinRequest(p.id)
+                    .then(() => {
+                      setPendingJoinIds((prev) => prev.filter((id) => id !== p.id));
+                      setJoinToast(`已撤回加入「${p.name}」的申请。`);
+                      window.setTimeout(() => setJoinToast(null), 3200);
+                    })
+                    .catch((e) => {
+                      setJoinToast(
+                        e instanceof Error ? e.message : "撤回申请失败，请稍后重试。",
+                      );
+                      window.setTimeout(() => setJoinToast(null), 3600);
+                    })
+                    .finally(() => setWithdrawingProjectId(null));
                 }}
               />
             ))}

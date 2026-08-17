@@ -452,6 +452,21 @@ export async function createJoinRequest(
   return mapJoinRequest(data.request);
 }
 
+export async function withdrawJoinRequest(
+  projectId: string,
+  _chatEndpoint = AI_CHAT_ENDPOINT,
+): Promise<void> {
+  if (!apiBaseFromChatEndpoint(AI_CHAT_ENDPOINT)) {
+    throw new Error("未配置 VITE_AI_CHAT_ENDPOINT");
+  }
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/join-requests`,
+    { method: "DELETE" },
+  );
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) throw new Error(data.error || `撤回申请失败（${res.status}）`);
+}
+
 export async function fetchProjectJoinRequests(
   projectId: string,
   options?: { status?: JoinRequestStatus },

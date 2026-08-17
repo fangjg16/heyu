@@ -61,6 +61,7 @@ import {
 } from "./project-permissions-routes";
 import {
   handleCreateJoinRequest,
+  handleWithdrawJoinRequest,
   handleListMyJoinRequests,
   handleListMyJoinReviews,
   handleListProjectJoinRequests,
@@ -608,6 +609,9 @@ export async function routeAuthedApi(
     }
     if (request.method === "POST") {
       return handleCreateJoinRequest(env, projectId, authUserId);
+    }
+    if (request.method === "DELETE") {
+      return handleWithdrawJoinRequest(env, projectId, authUserId);
     }
     return json({ error: "Method Not Allowed" }, 405);
   }

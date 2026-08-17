@@ -15,6 +15,7 @@ import {
   listPendingJoinRequests,
   reviewJoinRequest,
   upsertPendingJoinRequest,
+  deletePendingJoinRequestByApplicant,
 } from "./project-join-db";
 import { resolveProjectRole } from "./workspace-roles";
 import {
@@ -112,6 +113,47 @@ export async function handleCreateJoinRequest(
 
     const created = await upsertPendingJoinRequest(env, projectId, userId);
     return json({ request: created }, 201);
+  } catch (e) {
+    if (isMissingJoinTable(e)) {
+      return json(
+        { error: "加入申请功能尚未迁移（缺少 project_join_requests 表）" },
+        503,
+      );
+    }
+    throw e;
+  }
+}
+
+/** DELETE /api/projects/:id/join-requests — 申请人撤回自己的待审批申请 */
+export async function handleWithdrawJoinRequest(
+  env: Env,
+  pathProjectId: string,
+  authUserId: string,
+): Promise<Response> {
+  const userId = normalizeUserId(authUserId);
+  if (!userId) return json({ error: "未登录" }, 401);
+
+  const projectId = decodePathProjectId(pathProjectId);
+  const project = await getProjectById(env, projectId);
+  if (!project) return json({ error: "项目不存在" }, 404);
+
+  try {
+    const existing = await getJoinRequestByProjectAndApplicant(
+      env,
+      projectId,
+      userId,
+    );
+    if (existing?.status === "approved") {
+      return json({ error: "你已是该项目成员，无法撤回", code: "ALREADY_MEMBER" }, 400);
+    }
+    const deleted = await deletePendingJoinRequestByApplicant(env, projectId, userId);
+    if (!deleted) {
+      return json(
+        { error: "当前没有待审批的加入申请", code: "NOT_PENDING" },
+        404,
+      );
+    }
+    return json({ ok: true, projectId });
   } catch (e) {
     if (isMissingJoinTable(e)) {
       return json(

@@ -143,6 +143,16 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     needsProject: true,
   },
   {
+    id: "project-join-withdraw",
+    group: "项目",
+    method: "DELETE",
+    pathTemplate: "/api/projects/:projectId/join-requests",
+    summary: "撤回自己的待审批加入申请",
+    risk: "write",
+    autoProbe: false,
+    needsProject: true,
+  },
+  {
     id: "project-files",
     group: "资料",
     method: "GET",
