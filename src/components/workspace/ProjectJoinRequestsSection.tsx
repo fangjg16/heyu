@@ -83,7 +83,7 @@ export function ProjectJoinRequestsSection({
     <div>
       <h2 className="font-display text-lg font-semibold">加入申请</h2>
       <p className="mt-1 text-sm text-[hsl(var(--warm-charcoal-muted))]">
-        审批来自项目广场的加入申请。通过时先选项目方或投资方；投资方再指定项目管理员 / Core / Basic（默认 Basic）。
+        审批来自项目广场的加入申请。
       </p>
       {loading ? (
         <p className="mt-3 text-sm text-[hsl(var(--warm-charcoal-muted))]">
