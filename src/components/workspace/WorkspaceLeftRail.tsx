@@ -14,10 +14,9 @@ import { clearSession, loadSessionUserId } from "@/workspace/session";
 import {
   getUserById,
   isAccountGuestUser,
-  isIssuerRole,
+  isIssuerOnlyUser,
   isPlatformAdminUser,
 } from "@/workspace/workspace-users";
-import { readAllCachedProjectRoles } from "@/workspace/project-role-cache";
 
 const PIN_KEY = "hy-workspace-rail-pinned";
 
@@ -55,9 +54,7 @@ export function WorkspaceLeftRail() {
   const user = getUserById(userId);
   const isGuest = isAccountGuestUser(userId);
   const isAdmin = isPlatformAdminUser(userId);
-  const roles = Object.values(readAllCachedProjectRoles());
-  const issuerOnly =
-    roles.length > 0 && roles.every((r) => isIssuerRole(r));
+  const issuerOnly = isIssuerOnlyUser(userId);
   const userInitial = initialsFromDisplayName(user?.displayName);
 
   const [pinned, setPinned] = useState(() => {

@@ -1,5 +1,6 @@
 import type { AppDatabase } from "./app-database";
 import type { ProjectJson } from "./projects-db";
+import { listMemberRoleOverridesForUser } from "./project-member-roles-db";
 import {
   isPlatformAdminUser,
 } from "./workspace-users-db";
@@ -78,10 +79,36 @@ function isDirectoryDiscoverable(openness: string | null | undefined): boolean {
 }
 
 /**
+ * 项目广场只给投资团队 / 尚未入组的内部账号。
+ * 全部成员身份都是项目方时，只能看到被邀请加入的项目。
+ */
+export function membershipsAllowPlazaDiscovery(
+  roles: Iterable<string>,
+): boolean {
+  const list = [...roles]
+    .map((r) => String(r).trim().toLowerCase())
+    .filter(Boolean);
+  if (list.length === 0) return true;
+  return list.some((r) => r !== "issuer");
+}
+
+export async function userSeesPlazaDiscovery(
+  env: Env,
+  userId: string | null | undefined,
+): Promise<boolean> {
+  const uid = (userId ?? "").trim();
+  if (!uid) return false;
+  if (await isPlatformAdmin(env, uid)) return true;
+  const roles = await listMemberRoleOverridesForUser(env, uid);
+  return membershipsAllowPlazaDiscovery(Object.values(roles));
+}
+
+/**
  * 项目总览目录可见性：
  * 1. 平台管理员：全部
- * 2. 登录用户：已加入/自建，或全开放（partial/public）可发现
- * 3. 未登录：非 invite
+ * 2. 纯项目方：仅已加入/被邀请的项目（看不到广场）
+ * 3. 投资团队 / 尚未入组：已加入，或全开放（partial/public）可发现
+ * 4. 未登录：非 invite
  */
 export async function filterProjectsForDirectory(
   env: Env,
@@ -95,10 +122,11 @@ export async function filterProjectsForDirectory(
 
   const uid = userId.trim();
   const memberIds = await listMemberProjectIdsForUser(env, uid);
-  return projects.filter(
-    (p) =>
-      isProjectMember(p, uid, memberIds) || isDirectoryDiscoverable(p.openness),
-  );
+  const allowPlaza = await userSeesPlazaDiscovery(env, uid);
+  return projects.filter((p) => {
+    if (isProjectMember(p, uid, memberIds)) return true;
+    return allowPlaza && isDirectoryDiscoverable(p.openness);
+  });
 }
 
 export async function canSeeProjectInDirectory(

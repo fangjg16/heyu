@@ -44,6 +44,7 @@ import {
   getProjectRole,
   getUserById,
   isAccountGuestUser,
+  isIssuerOnlyUser,
   isIssuerRole,
   listCachedWorkspaceUsers,
   projectEntryPath,
@@ -404,9 +405,14 @@ export default function ProjectOverview() {
   }, [userId]);
 
   const user = getUserById(userId);
+  const issuerOnly = isIssuerOnlyUser(userId);
   // rolesVersion / apiProjectsTick：缓存更新后强制重算列表
   void rolesVersion;
   void apiProjectsTick;
+
+  useEffect(() => {
+    if (issuerOnly && portfolioTab === "plaza") setPortfolioTab("mine");
+  }, [issuerOnly, portfolioTab]);
   const visibleProjects = sortProjectsForOverview(
     filterProjectsForUser(userId ?? "", getMergedProjects()),
   );
@@ -422,7 +428,9 @@ export default function ProjectOverview() {
     ? visibleProjects.filter((p) => {
         const role = getProjectRole(userId, p.id, p.createdBy);
         if (portfolioTab === "mine" && role === "guest") return false;
-        if (portfolioTab === "plaza" && !isPlazaDiscoverable(p)) return false;
+        if (portfolioTab === "plaza") {
+          if (issuerOnly || !isPlazaDiscoverable(p)) return false;
+        }
         if (phaseFilter !== "all" && p.phase !== phaseFilter) return false;
         if (roleFilter !== "all" && role !== roleFilter) return false;
         if (!projectMatchesQuery(p, searchQuery)) return false;
@@ -586,7 +594,9 @@ export default function ProjectOverview() {
               项目库
             </h1>
             <p className="mt-2 text-[hsl(var(--warm-charcoal-muted))]">
-              管理已加入项目；全开放项目会出现在项目广场，供内部账号发现与申请加入。
+              {issuerOnly
+                ? "只显示投资团队邀请你协作的项目。项目广场与新建项目仅投资团队使用。"
+                : "管理已加入项目；全开放项目会出现在项目广场，供内部账号发现与申请加入。"}
             </p>
             {projectsLoading ? (
               <p className="mt-2 text-xs text-[hsl(var(--warm-charcoal-muted))]">
@@ -597,6 +607,7 @@ export default function ProjectOverview() {
               <p className="mt-2 text-xs text-amber-700">{projectsLoadError}</p>
             ) : null}
           </div>
+          {!issuerOnly ? (
           <button
             type="button"
             onClick={() => {
@@ -608,18 +619,21 @@ export default function ProjectOverview() {
             <Plus className="h-[18px] w-[18px]" />
             新建项目
           </button>
+          ) : null}
         </div>
 
         <div className="mt-7 flex flex-wrap items-center gap-2.5">
           <div className="flex gap-1.5">
             {(
-              [
-                { key: "mine" as const, label: `我的项目 ${memberCount}` },
-                {
-                  key: "plaza" as const,
-                  label: `项目广场 ${plazaCount}`,
-                },
-              ] as const
+              issuerOnly
+                ? ([{ key: "mine" as const, label: `我的项目 ${memberCount}` }] as const)
+                : ([
+                    { key: "mine" as const, label: `我的项目 ${memberCount}` },
+                    {
+                      key: "plaza" as const,
+                      label: `项目广场 ${plazaCount}`,
+                    },
+                  ] as const)
             ).map((t) => (
               <button
                 key={t.key}
@@ -740,14 +754,18 @@ export default function ProjectOverview() {
               {searchQuery.trim()
                 ? "未找到匹配项目"
                 : portfolioTab === "mine"
-                  ? "暂无已加入项目"
+                  ? issuerOnly
+                    ? "暂无协作项目"
+                    : "暂无已加入项目"
                   : "暂无全开放项目"}
             </p>
             <p className="mt-2 text-sm text-[hsl(var(--warm-charcoal-muted))]">
               {searchQuery.trim()
                 ? "尝试更换关键词，或清除搜索后浏览全部项目。"
                 : portfolioTab === "mine"
-                  ? "切换到项目广场浏览全开放协作机会，或新建项目。"
+                  ? issuerOnly
+                    ? "投资团队把你加为项目方之后，协作项目会出现在这里。"
+                    : "切换到项目广场浏览全开放协作机会，或新建项目。"
                   : isAccountGuestUser(userId)
                     ? "暂无可见项目。请联系管理员将您加入成员。"
                     : "将项目开放程度设为「全开放」后会出现在此；内部邀请项目仅成员可见。"}

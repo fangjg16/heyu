@@ -8,6 +8,7 @@ import {
   canManageProjectRecord,
   canSeeProjectInDirectory,
   filterProjectsForDirectory,
+  userSeesPlazaDiscovery,
 } from "./projects-auth";
 import {
   createProject,
@@ -128,6 +129,13 @@ export async function handleCreateProject(
   if (claimed && claimed !== authUserId) {
     return json(
       { error: "userId 与登录会话不一致", code: "USER_MISMATCH" },
+      403,
+    );
+  }
+
+  if (!(await userSeesPlazaDiscovery(env, authUserId))) {
+    return json(
+      { error: "项目方不能新建项目，请在已加入的协作项目中工作", code: "ISSUER_NO_CREATE" },
       403,
     );
   }

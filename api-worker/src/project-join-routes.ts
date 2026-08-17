@@ -3,6 +3,7 @@ import { upsertProjectMemberRole } from "./project-member-roles-db";
 import {
   canManageProjectRecord,
   isUserProjectMember,
+  userSeesPlazaDiscovery,
 } from "./projects-auth";
 import { getProjectById, normalizeProjectOpenness } from "./projects-db";
 import { decodePathProjectId } from "./projects-resolve";
@@ -64,6 +65,16 @@ export async function handleCreateJoinRequest(
 
   if (await isUserProjectMember(env, project, userId)) {
     return json({ error: "你已是该项目成员", code: "ALREADY_MEMBER" }, 400);
+  }
+
+  if (!(await userSeesPlazaDiscovery(env, userId))) {
+    return json(
+      {
+        error: "项目方不能通过广场申请加入其他项目，请等待投资团队邀请",
+        code: "ISSUER_NO_PLAZA",
+      },
+      403,
+    );
   }
 
   try {

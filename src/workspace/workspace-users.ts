@@ -1,5 +1,5 @@
 import type { WorkspaceRole, WorkspaceUser } from "./types";
-import { readCachedProjectRole } from "./project-role-cache";
+import { readAllCachedProjectRoles, readCachedProjectRole } from "./project-role-cache";
 import { loadSessionUserProfile } from "./session";
 
 export type { WorkspaceUser };
@@ -120,6 +120,14 @@ export function isInvestorRole(role: WorkspaceRole): boolean {
 
 export function isIssuerRole(role: WorkspaceRole): boolean {
   return role === "issuer";
+}
+
+/** 当前账号在已加入项目里全部是项目方：不进广场、不新建项目 */
+export function isIssuerOnlyUser(userId: string | null | undefined): boolean {
+  const uid = (userId ?? "").trim();
+  if (!uid || isPlatformAdminUser(uid)) return false;
+  const roles = Object.values(readAllCachedProjectRoles());
+  return roles.length > 0 && roles.every((r) => isIssuerRole(r));
 }
 
 export function canEnterChat(role: WorkspaceRole): boolean {
