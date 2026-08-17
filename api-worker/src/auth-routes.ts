@@ -7,6 +7,7 @@ import {
   resolveAuthSession,
 } from "./auth-sessions";
 import { verifyPassword } from "./password-crypto";
+import { coerceAccountStatus } from "./account-status";
 import {
   getWorkspaceUserById,
   listActiveWorkspaceUsers,
@@ -50,7 +51,7 @@ export async function handleAuthLogin(
   }
 
   const user = await getWorkspaceUserById(env, userId);
-  if (!user || user.status !== "active") {
+  if (!user || coerceAccountStatus(user.status) !== "active") {
     return json({ error: "账号或密码不正确" }, 401);
   }
 

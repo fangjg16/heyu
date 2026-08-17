@@ -1,5 +1,6 @@
 import type { AppDatabase } from "./app-database";
 import type { WorkspaceRole } from "./workspace-roles";
+import { coerceAccountStatus } from "./account-status";
 
 export type WorkspaceUserRow = {
   id: string;
@@ -29,6 +30,7 @@ export type WorkspaceUserPublic = {
   defaultRole: WorkspaceRole;
   isPlatformAdmin: boolean;
   status: string;
+  isDisabled: boolean;
 };
 
 const AVATAR_URL_MAX = 180_000;
@@ -86,6 +88,9 @@ export function normalizeLoginAlias(raw: string): string {
 }
 
 export function rowToPublic(row: WorkspaceUserRow): WorkspaceUserPublic {
+  const status = coerceAccountStatus(
+    row.status ?? (row as unknown as { STATUS?: unknown }).STATUS,
+  );
   return {
     id: row.id,
     displayName: row.display_name,
@@ -95,7 +100,8 @@ export function rowToPublic(row: WorkspaceUserRow): WorkspaceUserPublic {
     avatarUrl: (row.avatar_url ?? "").trim(),
     defaultRole: parseWorkspaceRole(row.default_role),
     isPlatformAdmin: Number(row.is_platform_admin) === 1,
-    status: row.status,
+    status,
+    isDisabled: status === "disabled",
   };
 }
 
@@ -164,7 +170,7 @@ export async function isKnownWorkspaceUser(
   userId: string,
 ): Promise<boolean> {
   const row = await getWorkspaceUserById(env, userId);
-  return Boolean(row && row.status === "active");
+  return Boolean(row && coerceAccountStatus(row.status) === "active");
 }
 
 export async function getDefaultRoleForUser(
@@ -172,7 +178,7 @@ export async function getDefaultRoleForUser(
   userId: string,
 ): Promise<WorkspaceRole> {
   const row = await getWorkspaceUserById(env, userId);
-  if (!row || row.status !== "active") return "guest";
+  if (!row || coerceAccountStatus(row.status) !== "active") return "guest";
   if (Number(row.is_platform_admin) === 1) return "admin";
   return parseWorkspaceRole(row.default_role);
 }
@@ -184,7 +190,11 @@ export async function isPlatformAdminUser(
   const id = (userId ?? "").trim();
   if (!id) return false;
   const row = await getWorkspaceUserById(env, id);
-  return Boolean(row && row.status === "active" && Number(row.is_platform_admin) === 1);
+  return Boolean(
+    row &&
+      coerceAccountStatus(row.status) === "active" &&
+      Number(row.is_platform_admin) === 1,
+  );
 }
 
 export async function workspaceUserDisplayName(

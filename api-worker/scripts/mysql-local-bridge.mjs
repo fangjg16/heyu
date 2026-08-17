@@ -78,6 +78,15 @@ function json(res, status, data) {
   res.end(JSON.stringify(data));
 }
 
+function plainRow(row) {
+  if (!row || typeof row !== "object") return row;
+  const out = {};
+  for (const [key, value] of Object.entries(row)) {
+    out[key] = Buffer.isBuffer(value) ? value.toString("utf8") : value;
+  }
+  return out;
+}
+
 async function main() {
   const cfg = envConfig();
   if (!cfg.host || !cfg.user || !cfg.database) {
@@ -157,7 +166,7 @@ async function main() {
         return;
       }
 
-      const rows = Array.isArray(result) ? result : [];
+      const rows = Array.isArray(result) ? result.map(plainRow) : [];
       if (mode === "first") {
         json(res, 200, { success: true, row: rows[0] ?? null });
         return;

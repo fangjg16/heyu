@@ -1,4 +1,5 @@
 import type { AppDatabase } from "./app-database";
+import { coerceAccountStatus } from "./account-status";
 import { randomToken, sha256Hex } from "./password-crypto";
 import {
   getWorkspaceUserById,
@@ -65,7 +66,7 @@ export async function resolveAuthSession(
     return null;
   }
   const user = await getWorkspaceUserById(env, session.user_id);
-  if (!user || user.status !== "active") {
+  if (!user || coerceAccountStatus(user.status) !== "active") {
     await env.DB.prepare(`DELETE FROM auth_sessions WHERE token_hash = ?`)
       .bind(tokenHash)
       .run();

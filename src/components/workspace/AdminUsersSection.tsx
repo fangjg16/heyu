@@ -13,6 +13,7 @@ import {
   type AdminWorkspaceUser,
 } from "@/lib/admin-users-api";
 import { fetchWorkspaceUsersDirectory, fetchAuthMe } from "@/lib/api-auth";
+import { isUserAccountDisabled } from "@/lib/account-status";
 import { resizeImageToJpegDataUrl } from "@/lib/resize-avatar";
 import {
   fetchProjectsFromApi,
@@ -174,7 +175,7 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
       orgTitle: u.orgTitle,
       avatarUrl: u.avatarUrl ?? "",
       isPlatformAdmin: u.isPlatformAdmin,
-      status: u.status === "disabled" ? "disabled" : "active",
+      status: isUserAccountDisabled(u) ? "disabled" : "active",
       password: "",
     });
     setProjectDrafts([]);
@@ -298,6 +299,11 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
     try {
       await deleteAdminWorkspaceUser(u.id);
       setHint(`已停用 ${u.displayName}`);
+      setUsers((prev) =>
+        prev.map((row) =>
+          row.id === u.id ? { ...row, status: "disabled", isDisabled: true } : row,
+        ),
+      );
       await load();
       await refreshDirectory();
     } catch (e) {
@@ -315,6 +321,11 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
     try {
       await patchAdminWorkspaceUser(u.id, { status: "active" });
       setHint(`已启用 ${u.displayName}`);
+      setUsers((prev) =>
+        prev.map((row) =>
+          row.id === u.id ? { ...row, status: "active", isDisabled: false } : row,
+        ),
+      );
       await load();
       await refreshDirectory();
     } catch (e) {
@@ -419,7 +430,7 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
       {!loading && users.length > 0 ? (
         <ul className="mt-4 space-y-2">
           {users.map((u) => {
-            const disabled = u.status === "disabled";
+            const disabled = isUserAccountDisabled(u);
             return (
               <li
                 key={u.id}
@@ -481,7 +492,7 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
                         type="button"
                         disabled={Boolean(deletingId)}
                         onClick={() => void onEnableUser(u)}
-                        className="inline-flex items-center gap-1 rounded-full border border-[hsl(var(--wine)/0.35)] bg-white px-2.5 py-1 text-[11px] font-medium text-[hsl(var(--wine))] hover:bg-[hsl(var(--wine-muted)/0.45)] disabled:opacity-50"
+                        className="inline-flex items-center gap-1 rounded-full border border-emerald-200/90 bg-white px-2.5 py-1 text-[11px] font-medium text-emerald-800 hover:bg-emerald-50 disabled:opacity-50"
                         title="启用用户"
                       >
                         {deletingId === u.id ? (

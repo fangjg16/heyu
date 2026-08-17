@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api-auth";
+import { isUserAccountDisabled } from "@/lib/account-status";
 import type { WorkspaceRole } from "@/workspace/types";
 
 export type AdminWorkspaceUser = {
@@ -12,6 +13,7 @@ export type AdminWorkspaceUser = {
   defaultRole: WorkspaceRole;
   isPlatformAdmin: boolean;
   status: string;
+  isDisabled?: boolean;
 };
 
 async function readError(res: Response): Promise<string> {
@@ -22,11 +24,20 @@ async function readError(res: Response): Promise<string> {
   return data.error || `请求失败（${res.status}）`;
 }
 
+function normalizeAdminUser(user: AdminWorkspaceUser): AdminWorkspaceUser {
+  const disabled = isUserAccountDisabled(user);
+  return {
+    ...user,
+    status: disabled ? "disabled" : "active",
+    isDisabled: disabled,
+  };
+}
+
 export async function fetchAdminWorkspaceUsers(): Promise<AdminWorkspaceUser[]> {
   const res = await apiFetch("/api/admin/workspace-users");
   if (!res.ok) throw new Error(await readError(res));
   const data = (await res.json()) as { users?: AdminWorkspaceUser[] };
-  return data.users ?? [];
+  return (data.users ?? []).map(normalizeAdminUser);
 }
 
 export async function createAdminWorkspaceUser(input: {
@@ -46,7 +57,7 @@ export async function createAdminWorkspaceUser(input: {
   if (!res.ok) throw new Error(await readError(res));
   const data = (await res.json()) as { user?: AdminWorkspaceUser };
   if (!data.user) throw new Error("创建失败：无返回用户");
-  return data.user;
+  return normalizeAdminUser(data.user);
 }
 
 export async function patchAdminWorkspaceUser(
@@ -72,7 +83,7 @@ export async function patchAdminWorkspaceUser(
   if (!res.ok) throw new Error(await readError(res));
   const data = (await res.json()) as { user?: AdminWorkspaceUser };
   if (!data.user) throw new Error("更新失败：无返回用户");
-  return data.user;
+  return normalizeAdminUser(data.user);
 }
 
 export async function setAdminWorkspaceUserPassword(
