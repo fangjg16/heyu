@@ -1471,7 +1471,7 @@ export function collabStatusLabel(
     case "saved":
       return "已保存";
     case "submitted":
-      return "已提交";
+      return view === "issuer" ? "已提交待审核" : "项目方已提交";
     case "needs_more":
       return "需补充";
     case "confirmed":
