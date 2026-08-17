@@ -205,6 +205,13 @@
     line-height: 1.6;
   }
 
+  .workspace-app button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+
   .workspace-app ::selection {
     @apply bg-primary/20 text-foreground;
   }
@@ -254,13 +261,16 @@
     justify-content: center;
     height: 32px;
     border-radius: var(--radius-control);
+    line-height: 1;
   }
 
   .heyu-control-sm {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     height: 28px;
     border-radius: 8px;
+    line-height: 1;
   }
 
   .heyu-chip {
@@ -270,6 +280,7 @@
     padding: 0 10px;
     border-radius: var(--radius-control);
     background: rgba(78, 66, 57, 0.08);
+    line-height: 1;
   }
 
   .heyu-chip-sm {
@@ -296,6 +307,7 @@
     border-radius: var(--radius-control-inner);
     padding: 0 11px;
     font-size: 13px;
+    line-height: 1;
     color: hsl(var(--warm-charcoal-muted));
     transition:
       background 0.16s ease,

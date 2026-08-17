@@ -279,7 +279,7 @@ export function InvestorCollabSection({
               type="button"
               disabled={Boolean(busy)}
               onClick={() => void onSendAllUnpublished()}
-              className="h-9 rounded-lg bg-[#A06358] px-3 text-[12.5px] font-medium text-white disabled:opacity-45"
+              className="inline-flex h-9 items-center justify-center rounded-lg bg-[#A06358] px-3 text-[12.5px] font-medium leading-none text-white disabled:opacity-45"
             >
               {busy === "publish-all" ? "发送中…" : "全部按原文发给项目协作方"}
             </button>
@@ -410,7 +410,7 @@ export function InvestorCollabSection({
           type="button"
           disabled={Boolean(busy) || !body.trim()}
           onClick={() => void onPublish()}
-          className="mt-3 h-10 rounded-xl bg-[#A06358] px-4 text-[13.5px] font-medium text-white disabled:opacity-45"
+          className="mt-3 inline-flex h-10 items-center justify-center rounded-xl bg-[#A06358] px-4 text-[13.5px] font-medium leading-none text-white disabled:opacity-45"
         >
           {busy === "publish" ? "发布中…" : "发布给项目协作方"}
         </button>

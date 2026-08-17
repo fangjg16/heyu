@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import {
@@ -44,6 +44,16 @@ const C = {
   green: "#5E9B75",
   greenDeep: "#3F6F63",
 } as const;
+
+/** 固定高度按钮：压掉继承的 1.6 行高，文字在框里水平垂直居中 */
+const btnCenter: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  lineHeight: 1,
+  boxSizing: "border-box",
+  flexShrink: 0,
+};
 
 function greetingForHour(h: number): string {
   if (h < 5) return "夜深了";
@@ -551,6 +561,7 @@ export default function HomeDashboard() {
                 <Link
                   to={focusTodo.to}
                   style={{
+                    ...btnCenter,
                     height: 42,
                     padding: "0 20px",
                     borderRadius: 12,
@@ -558,8 +569,6 @@ export default function HomeDashboard() {
                     color: C.wine,
                     fontSize: 14.5,
                     fontWeight: 600,
-                    display: "inline-flex",
-                    alignItems: "center",
                     textDecoration: "none",
                   }}
                 >
@@ -573,6 +582,7 @@ export default function HomeDashboard() {
                     to={focusTodo.to}
                     onClick={() => rememberPublishDraft(focusTodo)}
                     style={{
+                      ...btnCenter,
                       height: 42,
                       padding: "0 16px",
                       borderRadius: 12,
@@ -581,8 +591,6 @@ export default function HomeDashboard() {
                       color: "#fff",
                       fontSize: 14,
                       fontWeight: 600,
-                      display: "inline-flex",
-                      alignItems: "center",
                       textDecoration: "none",
                       whiteSpace: "nowrap",
                     }}
@@ -594,6 +602,7 @@ export default function HomeDashboard() {
                     disabled={Boolean(sendingId)}
                     onClick={() => void sendToIssuer(focusTodo)}
                     style={{
+                      ...btnCenter,
                       height: 42,
                       padding: "0 20px",
                       borderRadius: 12,
@@ -613,6 +622,7 @@ export default function HomeDashboard() {
                 <Link
                   to={focusTodo.to}
                   style={{
+                    ...btnCenter,
                     height: 42,
                     padding: "0 20px",
                     borderRadius: 12,
@@ -620,8 +630,6 @@ export default function HomeDashboard() {
                     color: C.wine,
                     fontSize: 14.5,
                     fontWeight: 600,
-                    display: "inline-flex",
-                    alignItems: "center",
                     textDecoration: "none",
                   }}
                 >
@@ -676,9 +684,8 @@ export default function HomeDashboard() {
               to="/app/projects"
               style={{
                 marginTop: 22,
-                display: "inline-flex",
+                ...btnCenter,
                 height: 44,
-                alignItems: "center",
                 padding: "0 20px",
                 borderRadius: 12,
                 background: C.wine,
@@ -738,6 +745,7 @@ export default function HomeDashboard() {
             onClick={() => void sendAllUnpublished()}
             style={{
               marginTop: 12,
+              ...btnCenter,
               height: 36,
               padding: "0 14px",
               borderRadius: 10,
@@ -875,6 +883,7 @@ export default function HomeDashboard() {
                       to={t.to}
                       onClick={() => rememberPublishDraft(t)}
                       style={{
+                        ...btnCenter,
                         height: 34,
                         padding: "0 12px",
                         borderRadius: 9,
@@ -883,8 +892,6 @@ export default function HomeDashboard() {
                         color: C.wine,
                         fontSize: 13,
                         fontWeight: 600,
-                        display: "inline-flex",
-                        alignItems: "center",
                         textDecoration: "none",
                         whiteSpace: "nowrap",
                       }}
@@ -896,6 +903,7 @@ export default function HomeDashboard() {
                       disabled={Boolean(sendingId)}
                       onClick={() => void sendToIssuer(t)}
                       style={{
+                        ...btnCenter,
                         height: 34,
                         padding: "0 12px",
                         borderRadius: 9,
