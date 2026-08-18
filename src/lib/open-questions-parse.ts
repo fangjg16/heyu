@@ -128,6 +128,35 @@ export function parseOpenQuestionsFromHtml(html: string): ParsedOpenQuestion[] {
   return items;
 }
 
+export type QuestionKind = "business" | "tech" | "finance" | "other";
+
+export const QUESTION_KIND_LABEL: Record<QuestionKind, string> = {
+  business: "业务",
+  tech: "技术",
+  finance: "财务",
+  other: "其他",
+};
+
+const KIND_KEYWORDS: Record<Exclude<QuestionKind, "other">, string[]> = {
+  business: ["业务", "模式", "客群", "市场", "客户", "销售", "运营", "商业"],
+  tech: ["技术", "电芯", "工艺", "系统", "设备", "专利", "效率", "寿命", "功率", "热管理"],
+  finance: ["财务", "回报", "IRR", "估值", "收入", "利润", "现金流", "成本", "融资", "造价"],
+};
+
+export function inferQuestionKind(text: string): QuestionKind {
+  const hay = text.toLowerCase();
+  const score = (kws: string[]) =>
+    kws.reduce((n, kw) => (hay.includes(kw.toLowerCase()) ? n + 1 : n), 0);
+  const business = score(KIND_KEYWORDS.business);
+  const tech = score(KIND_KEYWORDS.tech);
+  const finance = score(KIND_KEYWORDS.finance);
+  const max = Math.max(business, tech, finance);
+  if (max === 0) return "other";
+  if (finance === max) return "finance";
+  if (tech === max) return "tech";
+  return "business";
+}
+
 /** 章节 → 关联问题关键词 */
 const SECTION_QUESTION_KEYWORDS: Record<string, string[]> = {
   snapshot: ["快照", "概况", "主体", "阶段", "融资", "对手方", "名称"],
