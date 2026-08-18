@@ -159,7 +159,7 @@ export function InvestorCollabSection({
   const tabs = useMemo(
     () =>
       [
-        { id: "unsent" as const, label: "未发给项目协作方", count: unsentList.length },
+        { id: "unsent" as const, label: "未发送", count: unsentList.length },
         { id: "pending" as const, label: "待回复", count: pendingList.length },
         { id: "replied" as const, label: "已回复", count: repliedList.length },
       ] as const,
@@ -368,7 +368,7 @@ export function InvestorCollabSection({
         onClick={() => void onPublish()}
         className="inline-flex h-9 items-center justify-center rounded-lg bg-[#A06358] px-3 text-[12.5px] font-medium leading-none text-white disabled:opacity-45"
       >
-        {busy === "publish" ? "发送中…" : "按此措辞发给项目协作方"}
+        {busy === "publish" ? "发送中…" : "发送"}
       </button>
     </div>
   );
@@ -491,7 +491,7 @@ export function InvestorCollabSection({
               onClick={() => void onSendAllUnpublished()}
               className="inline-flex h-9 items-center justify-center rounded-lg bg-[#A06358] px-3 text-[12.5px] font-medium leading-none text-white disabled:opacity-45"
             >
-              {busy === "publish-all" ? "发送中…" : "全部按原文发给项目协作方"}
+              {busy === "publish-all" ? "发送中…" : "一键发送"}
             </button>
           ) : null}
         </div>
@@ -539,7 +539,7 @@ export function InvestorCollabSection({
                             onClick={() => void onSendQuestion(q)}
                             className="text-[12.5px] font-medium text-[#A06358] disabled:opacity-45"
                           >
-                            {busy === q.text ? "发送中…" : "发给项目协作方"}
+                            {busy === q.text ? "发送中…" : "发送"}
                           </button>
                         </div>
                       ) : null}
