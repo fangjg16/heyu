@@ -5,7 +5,7 @@ import { ArrowRight, FileText, Pencil, Plus, Trash2, Upload, X } from "lucide-re
 import { projectMatchesQuery } from "@/workspace/project-search";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import { ProjectEditModal } from "@/components/workspace/ProjectEditModal";
-import { IndustryCategoryFields } from "@/components/workspace/IndustryCategoryFields";
+import { IndustryCategoryFields, RequiredMark } from "@/components/workspace/IndustryCategoryFields";
 import { cn } from "@/lib/utils";
 import {
   formatIndustryCategory,
@@ -476,8 +476,12 @@ export default function ProjectOverview() {
       setCreateHint("请先填写项目名称。");
       return;
     }
-    if (newIndustryTheme && !newIndustrySector) {
-      setCreateHint("请选择可投子赛道 / 业务环节。");
+    if (!newIndustryTheme) {
+      setCreateHint("请选择一级分类。");
+      return;
+    }
+    if (!newIndustrySector) {
+      setCreateHint("请选择二级分类。");
       return;
     }
     if (!ENABLE_LIVE_CHAT) {
@@ -831,9 +835,6 @@ export default function ProjectOverview() {
                 >
                   新建项目
                 </h2>
-                <p className="mt-0.5 text-xs leading-relaxed text-[hsl(var(--warm-charcoal-muted))]">
-                  基础信息与参考附件
-                </p>
               </div>
               <button
                 type="button"
@@ -853,6 +854,7 @@ export default function ProjectOverview() {
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-[hsl(var(--warm-charcoal))]">
                   项目名称
+                  <RequiredMark />
                 </span>
                 <input
                   type="text"
@@ -877,20 +879,19 @@ export default function ProjectOverview() {
               </label>
 
               <div>
-                <span className="mb-1 block text-xs font-medium text-[hsl(var(--warm-charcoal))]">
-                  行业分类
-                </span>
                 <IndustryCategoryFields
                   theme={newIndustryTheme}
                   sector={newIndustrySector}
                   onThemeChange={setNewIndustryTheme}
                   onSectorChange={setNewIndustrySector}
+                  themeRequired
                 />
               </div>
 
               <div>
                 <span className="mb-1 block text-xs font-medium text-[hsl(var(--warm-charcoal))]">
                   项目开放程度
+                  <RequiredMark />
                 </span>
                 <select
                   value={newProjectOpenness}

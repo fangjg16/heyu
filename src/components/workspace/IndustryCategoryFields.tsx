@@ -1,5 +1,13 @@
 import { INDUSTRY_TAXONOMY, sectorsForTheme, UNCATEGORIZED_LABEL } from "@/workspace/industry-taxonomy";
 
+export function RequiredMark() {
+  return (
+    <span className="ml-0.5 font-medium text-red-600" aria-hidden>
+      *
+    </span>
+  );
+}
+
 type IndustryCategoryFieldsProps = {
   theme: string;
   sector: string;
@@ -8,6 +16,7 @@ type IndustryCategoryFieldsProps = {
   /** 旧自由文本分类，无法映射到新树时提示 */
   legacyLabel?: string | null;
   className?: string;
+  themeRequired?: boolean;
 };
 
 export function IndustryCategoryFields({
@@ -17,6 +26,7 @@ export function IndustryCategoryFields({
   onSectorChange,
   legacyLabel,
   className,
+  themeRequired = false,
 }: IndustryCategoryFieldsProps) {
   const sectors = sectorsForTheme(theme);
 
@@ -24,7 +34,10 @@ export function IndustryCategoryFields({
     <div className={className}>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block text-sm">
-          <span className="font-medium text-foreground">主题板块</span>
+          <span className="font-medium text-foreground">
+            一级分类
+            {themeRequired ? <RequiredMark /> : null}
+          </span>
           <select
             value={theme}
             onChange={(e) => {
@@ -32,7 +45,8 @@ export function IndustryCategoryFields({
               onSectorChange("");
             }}
             className="mt-1.5 w-full rounded-lg border border-border/70 px-3 py-2 text-sm"
-            aria-label="主题板块"
+            aria-label="一级分类"
+            required={themeRequired}
           >
             <option value="">{UNCATEGORIZED_LABEL}</option>
             {INDUSTRY_TAXONOMY.map((item) => (
@@ -43,15 +57,15 @@ export function IndustryCategoryFields({
           </select>
         </label>
         <label className="block text-sm">
-          <span className="font-medium text-foreground">可投子赛道 / 业务环节</span>
+          <span className="font-medium text-foreground">二级分类</span>
           <select
             value={sector}
             onChange={(e) => onSectorChange(e.target.value)}
             disabled={!theme}
             className="mt-1.5 w-full rounded-lg border border-border/70 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-55"
-            aria-label="可投子赛道"
+            aria-label="二级分类"
           >
-            <option value="">{theme ? "请选择子赛道" : "先选主题板块"}</option>
+            <option value="">{theme ? "请选择二级分类" : "先选一级分类"}</option>
             {sectors.map((s) => (
               <option key={s} value={s}>
                 {s}
@@ -68,3 +82,4 @@ export function IndustryCategoryFields({
     </div>
   );
 }
+

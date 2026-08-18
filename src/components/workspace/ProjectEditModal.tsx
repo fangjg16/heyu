@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { updateProjectViaApi } from "@/lib/project-api";
-import { IndustryCategoryFields } from "@/components/workspace/IndustryCategoryFields";
+import { IndustryCategoryFields, RequiredMark } from "@/components/workspace/IndustryCategoryFields";
 import {
   formatIndustryCategory,
   parseIndustryCategory,
@@ -98,7 +98,7 @@ export function ProjectEditModal({
       return;
     }
     if (industryTheme && !industrySector) {
-      setError("请选择可投子赛道 / 业务环节");
+      setError("请选择二级分类");
       return;
     }
     setSaving(true);
@@ -145,7 +145,10 @@ export function ProjectEditModal({
         </div>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
           <label className="block text-sm">
-            <span className="font-medium text-foreground">项目名称</span>
+            <span className="font-medium text-foreground">
+              项目名称
+              <RequiredMark />
+            </span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -174,7 +177,6 @@ export function ProjectEditModal({
             </span>
           </label>
           <div className="block text-sm">
-            <span className="mb-1.5 block font-medium text-foreground">行业分类</span>
             <IndustryCategoryFields
               theme={industryTheme}
               sector={industrySector}
@@ -187,6 +189,7 @@ export function ProjectEditModal({
                 setLegacyCategory(null);
               }}
               legacyLabel={legacyCategory}
+              themeRequired
             />
           </div>
           <label className="block text-sm">
@@ -204,7 +207,10 @@ export function ProjectEditModal({
             </select>
           </label>
           <div className="block text-sm">
-            <span className="font-medium text-foreground">项目开放程度</span>
+            <span className="font-medium text-foreground">
+              项目开放程度
+              <RequiredMark />
+            </span>
             <select
               value={openness}
               onChange={(e) => setOpenness(e.target.value as ProjectOpenness)}
