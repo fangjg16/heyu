@@ -2,6 +2,11 @@ type ClerkLikeError = {
   code?: string;
   message?: string;
   longMessage?: string;
+  errors?: Array<{
+    code?: string;
+    message?: string;
+    longMessage?: string;
+  }>;
 } | null | undefined;
 
 const CODE_ZH: Record<string, string> = {
@@ -13,7 +18,7 @@ const CODE_ZH: Record<string, string> = {
   form_password_length_too_short: "密码至少 8 位。",
   form_password_pwned: "该密码过于常见，请换一个更安全的密码。",
   form_password_size_in_bytes_exceeded: "密码过长，请缩短后再试。",
-  form_password_matches_identifier: "密码不能与邮箱相同，请换一个。",
+  form_password_matches_identifier: "密码不能与邮箱或用户名相同，请换一个。",
   form_password_not_strong_enough: "密码强度不够，请换一个。",
   form_username_invalid_length: "用户名长度不符合要求。",
   form_username_invalid_character: "用户名只能含字母、数字或下划线。",
@@ -42,9 +47,16 @@ export function clerkErrorToZh(
   err: ClerkLikeError,
   fallback = "操作失败，请稍后重试。",
 ): string {
-  const code = (err?.code ?? "").trim();
+  const nested = err?.errors?.[0];
+  const code = (err?.code ?? nested?.code ?? "").trim();
   if (code && CODE_ZH[code]) return CODE_ZH[code]!;
-  const msg = (err?.longMessage || err?.message || "").trim();
+  const msg = (
+    err?.longMessage ||
+    nested?.longMessage ||
+    err?.message ||
+    nested?.message ||
+    ""
+  ).trim();
   for (const [re, zh] of MSG_ZH) {
     if (re.test(msg)) return zh;
   }

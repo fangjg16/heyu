@@ -321,7 +321,7 @@ function ClerkAuthForm() {
       return;
     }
     if (password.toLowerCase() === mail.toLowerCase()) {
-      setError("密码不能与邮箱相同，请换一个。");
+      setError("密码不能与邮箱或用户名相同，请换一个。");
       return;
     }
     const extra = name
@@ -350,7 +350,7 @@ function ClerkAuthForm() {
       ));
     }
     if (isPasswordMatchesIdentifierError(err)) {
-      setError("密码不能与邮箱相同，请换一个。");
+      setError("密码不能与邮箱或用户名相同，请换一个。");
       return;
     }
     if (err) {
@@ -443,21 +443,23 @@ function ClerkAuthForm() {
   const title = pending
     ? "验证邮箱"
     : mode === "signup"
-      ? "注册工作台账号"
+      ? "注册账号"
       : "登录工作台";
   const subtitle = pending
     ? "验证码已发送到你的邮箱，请填写后继续。"
     : mode === "signup"
-      ? "用邮箱注册后即可进入工作台。新账号默认未加入项目。"
+      ? ""
       : "请输入账号或邮箱与密码登录。";
 
   return (
     <>
       <MobileBrand />
       <h1 className="font-display text-[28px] font-semibold">{title}</h1>
-      <p className="mt-2 text-[13.5px] text-[hsl(var(--warm-charcoal-muted))]">
-        {subtitle}
-      </p>
+      {subtitle ? (
+        <p className="mt-2 text-[13.5px] text-[hsl(var(--warm-charcoal-muted))]">
+          {subtitle}
+        </p>
+      ) : null}
       {fromSwitch && !pending ? <SwitchNotice /> : null}
 
       <form onSubmit={onSubmitForm} className="mt-[30px] flex flex-col gap-3.5">
@@ -615,9 +617,10 @@ function SwitchNotice() {
 }
 
 function ErrorBanner({ text }: { text: string }) {
+  const zh = clerkErrorToZh({ message: text, longMessage: text });
   return (
     <p className="rounded-xl border border-[hsl(var(--wine)/0.28)] bg-[hsl(var(--wine-muted))] px-3 py-2.5 text-sm">
-      {text}
+      {zh}
     </p>
   );
 }
