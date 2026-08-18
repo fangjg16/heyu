@@ -461,7 +461,7 @@ export async function handleReviewCollabItem(
   });
 }
 
-/** POST 已回复事项：AI 判断答复完整否并起草补充问询，人工再改再发 */
+/** POST 协作方已答复的事项：AI 判断完整否并起草补充问询，人工再改再发 */
 export async function handleSuggestCollabFollowUp(
   env: Env & LlmClientEnv,
   pathProjectId: string,
@@ -476,8 +476,13 @@ export async function handleSuggestCollabFollowUp(
   }
   const row = await getCollabItem(env, projectId, itemId);
   if (!row) return json({ error: "事项不存在" }, 404);
-  if (row.status !== "submitted" && row.status !== "confirmed") {
-    return json({ error: "仅已回复事项可补充问询" }, 400);
+  const replied =
+    Boolean(String(row.reply_text ?? "").trim()) ||
+    row.status === "submitted" ||
+    row.status === "confirmed" ||
+    row.status === "needs_more";
+  if (!replied) {
+    return json({ error: "协作方尚未答复" }, 400);
   }
   const files = await listItemFiles(env, projectId, itemId);
   try {

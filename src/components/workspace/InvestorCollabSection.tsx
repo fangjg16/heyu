@@ -49,6 +49,15 @@ function defaultAssignedTo(list: CollabIssuerAccount[]) {
   return list.length === 1 ? list[0].userId : "";
 }
 
+function hasCollaboratorReply(it: CollabItem): boolean {
+  if (it.replyText?.trim()) return true;
+  return (
+    it.status === "submitted" ||
+    it.status === "confirmed" ||
+    it.status === "needs_more"
+  );
+}
+
 export function InvestorCollabSection({
   projectId,
   userId,
@@ -471,17 +480,15 @@ export function InvestorCollabSection({
     </div>
   );
 
-  const renderPublished = (
-    list: CollabItem[],
-    allowFollowUp: boolean,
-  ) =>
+  const renderPublished = (list: CollabItem[]) =>
     list.length === 0 ? (
       <p className="mt-4 text-[13px] text-[#969E9A]">暂无事项。</p>
     ) : (
       <ul className="mt-4 space-y-3">
         {list.map((it) => {
           const preview = previewCollabQuestion(it);
-          const expanded = allowFollowUp && followUpId === it.id;
+          const canFollowUp = canManage && hasCollaboratorReply(it);
+          const expanded = canFollowUp && followUpId === it.id;
           const suggest = followUpSuggests[it.id];
           const suggesting = suggestingId === it.id;
           return (
@@ -491,14 +498,21 @@ export function InvestorCollabSection({
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="font-semibold text-[#1F2423]">{preview.title}</div>
+                  <div className="font-semibold text-[#1F2423]">
+                    {canFollowUp ? (
+                      <span className="mr-1.5 text-[11px] font-medium text-[#A06358]">
+                        {collabStatusLabel(it.status)}
+                      </span>
+                    ) : null}
+                    {preview.title}
+                  </div>
                   {preview.detail ? (
                     <div className="mt-1 text-[12.5px] text-[#59625F] line-clamp-2">
                       {preview.detail}
                     </div>
                   ) : null}
                 </div>
-                {allowFollowUp && canManage ? (
+                {canFollowUp ? (
                   <div className="flex shrink-0 items-center gap-2">
                     <button
                       type="button"
@@ -708,8 +722,8 @@ export function InvestorCollabSection({
         </div>
       ) : null}
 
-      {tab === "pending" ? renderPublished(pendingList, false) : null}
-      {tab === "replied" ? renderPublished(repliedList, true) : null}
+      {tab === "pending" ? renderPublished(pendingList) : null}
+      {tab === "replied" ? renderPublished(repliedList) : null}
     </div>
   );
 }
