@@ -101,6 +101,12 @@ function buildBindings() {
     "KN_SLOT_BATCH_PARALLEL_LIMIT",
     "KN_GENERATION_MODE",
     "KN_SLOT_BATCH_SMOKE_ENABLED",
+    "CLERK_SECRET_KEY",
+    "CLERK_PUBLISHABLE_KEY",
+    "CLERK_JWT_ISSUER",
+    "CLERK_JWKS_URL",
+    "CLERK_JWT_KEY",
+    "CLERK_AUTHORIZED_PARTIES",
   ];
   const bindings = {};
   for (const k of keys) {

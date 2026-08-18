@@ -186,6 +186,7 @@ CREATE TABLE IF NOT EXISTS project_knowledge_network_versions (
 
 CREATE TABLE IF NOT EXISTS workspace_users (
   id VARCHAR(128) PRIMARY KEY COMMENT '用户 ID',
+  clerk_user_id VARCHAR(128) NULL COMMENT 'Clerk user id',
   username VARCHAR(128) NOT NULL COMMENT '唯一登录名（归一化小写）',
   display_name VARCHAR(256) NOT NULL COMMENT '展示名',
   org_title VARCHAR(512) NOT NULL DEFAULT '' COMMENT '隶属组织',
@@ -201,6 +202,7 @@ CREATE TABLE IF NOT EXISTS workspace_users (
   created_at VARCHAR(32) NOT NULL COMMENT '创建时间（ISO 8601）',
   updated_at VARCHAR(32) NOT NULL COMMENT '更新时间（ISO 8601）',
   UNIQUE KEY uk_workspace_users_username (username),
+  UNIQUE KEY uk_workspace_users_clerk (clerk_user_id),
   INDEX idx_workspace_users_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='工作区用户账号';
 

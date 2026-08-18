@@ -2,13 +2,19 @@ import type { AppDatabase } from "./app-database";
 import { coerceAccountStatus } from "./account-status";
 import { randomToken, sha256Hex } from "./password-crypto";
 import {
+  clerkConfigured,
+  verifyClerkSessionToken,
+  type ClerkEnv,
+} from "./clerk-verify";
+import {
+  getWorkspaceUserByClerkId,
   getWorkspaceUserById,
   rowToPublic,
   type WorkspaceUserPublic,
   type WorkspaceUserRow,
 } from "./workspace-users-db";
 
-type Env = { DB: AppDatabase };
+type Env = { DB: AppDatabase } & ClerkEnv;
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -52,6 +58,14 @@ export async function resolveAuthSession(
 ): Promise<{ userId: string; user: WorkspaceUserRow } | null> {
   const raw = token.trim();
   if (!raw) return null;
+  if (raw.split(".").length === 3 && clerkConfigured(env)) {
+    const claims = await verifyClerkSessionToken(raw, env);
+    const clerkUserId = typeof claims?.sub === "string" ? claims.sub : "";
+    if (!clerkUserId) return null;
+    const user = await getWorkspaceUserByClerkId(env, clerkUserId);
+    if (!user || coerceAccountStatus(user.status) !== "active") return null;
+    return { userId: user.id, user };
+  }
   const tokenHash = await sha256Hex(raw);
   const session = await env.DB.prepare(
     `SELECT user_id, expires_at FROM auth_sessions WHERE token_hash = ?`,

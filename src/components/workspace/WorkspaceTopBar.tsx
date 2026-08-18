@@ -10,6 +10,7 @@ import {
 import { Bell, LogOut, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logoutRemote } from "@/lib/api-auth";
+import { signOutClerkBrowser } from "@/lib/clerk-enabled";
 import { getMergedProjects } from "@/workspace/project-registry";
 import { clearSession, loadSessionUserId } from "@/workspace/session";
 import { getUserById } from "@/workspace/workspace-users";
@@ -148,8 +149,9 @@ export function WorkspaceTopBar({
     setMenuOpen(false);
     clearSession();
     void logoutRemote();
-    // 硬跳转，避免嵌套路由 / 登录页 effect 竞态
-    window.location.assign(`${import.meta.env.BASE_URL}app/login`);
+    void signOutClerkBrowser().finally(() => {
+      window.location.assign(`${import.meta.env.BASE_URL}app/login`);
+    });
   };
 
   return (

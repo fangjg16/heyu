@@ -1,9 +1,11 @@
 import type { AppDatabase } from "./app-database";
 import type { WorkspaceRole } from "./workspace-roles";
 import { coerceAccountStatus } from "./account-status";
+import { hashPassword, randomToken } from "./password-crypto";
 
 export type WorkspaceUserRow = {
   id: string;
+  clerk_user_id: string | null;
   username: string;
   display_name: string;
   org_title: string;
@@ -105,7 +107,7 @@ export function rowToPublic(row: WorkspaceUserRow): WorkspaceUserPublic {
   };
 }
 
-const USER_SELECT = `SELECT id, username, display_name, org_title, avatar_char, avatar_class,
+const USER_SELECT = `SELECT id, clerk_user_id, username, display_name, org_title, avatar_char, avatar_class,
               avatar_url, default_role, is_platform_admin, status,
               password_hash, password_salt, password_iters,
               created_at, updated_at
@@ -238,6 +240,33 @@ export async function getWorkspaceUserByUsername(
   );
 }
 
+export async function getWorkspaceUserByClerkId(
+  env: Env,
+  clerkUserId: string,
+): Promise<WorkspaceUserRow | null> {
+  const id = clerkUserId.trim();
+  if (!id) return null;
+  return (
+    (await env.DB.prepare(`${USER_SELECT} WHERE clerk_user_id = ? LIMIT 1`)
+      .bind(id)
+      .first<WorkspaceUserRow>()) ?? null
+  );
+}
+
+export async function allocateUsername(
+  env: Env,
+  desired: string,
+): Promise<string> {
+  const base = normalizeUsername(desired).slice(0, 96) || "user";
+  let candidate = base;
+  for (let i = 0; i < 20; i++) {
+    const exists = await getWorkspaceUserByUsername(env, candidate);
+    if (!exists) return candidate;
+    candidate = `${base}-${i + 2}`.slice(0, 128);
+  }
+  return `${base}-${crypto.randomUUID().slice(0, 8)}`.slice(0, 128);
+}
+
 function slugifyUserId(username: string): string {
   const base = normalizeUsername(username)
     .replace(/[^a-z0-9-]+/gu, "-")
@@ -261,6 +290,8 @@ export async function allocateUserId(
 }
 
 export type CreateWorkspaceUserInput = {
+  id?: string;
+  clerkUserId?: string | null;
   username: string;
   passwordHash: string;
   passwordSalt: string;
@@ -283,7 +314,8 @@ export async function createWorkspaceUser(
   const taken = await getWorkspaceUserByUsername(env, username);
   if (taken) throw new Error("登录名已存在");
 
-  const id = await allocateUserId(env, username);
+  const id = (input.id ?? "").trim() || (await allocateUserId(env, username));
+  const clerkUserId = (input.clerkUserId ?? "").trim() || null;
   const displayName = input.displayName.trim() || username;
   const avatarChar =
     (input.avatarChar ?? "").trim().slice(0, 1) ||
@@ -293,14 +325,15 @@ export async function createWorkspaceUser(
   const t = nowIso();
   await env.DB.prepare(
     `INSERT INTO workspace_users (
-      id, username, display_name, org_title, avatar_char, avatar_class,
+      id, clerk_user_id, username, display_name, org_title, avatar_char, avatar_class,
       avatar_url, default_role, is_platform_admin, status,
       password_hash, password_salt, password_iters,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
   )
     .bind(
       id,
+      clerkUserId,
       username,
       displayName,
       (input.orgTitle ?? "").trim(),
@@ -480,5 +513,38 @@ export async function deleteWorkspaceUser(
   }
 
   await updateWorkspaceUser(env, id, { status: "disabled" });
+}
+
+export async function upsertWorkspaceUserFromClerk(
+  env: Env,
+  input: { clerkUserId: string; username: string; displayName: string },
+): Promise<WorkspaceUserRow> {
+  const clerkUserId = input.clerkUserId.trim();
+  if (!clerkUserId) throw new Error("缺少 Clerk 用户");
+  const existing = await getWorkspaceUserByClerkId(env, clerkUserId);
+  if (existing) return existing;
+
+  const byId = await getWorkspaceUserById(env, clerkUserId);
+  if (byId) {
+    if (!(byId.clerk_user_id ?? "").trim()) {
+      await env.DB.prepare(
+        `UPDATE workspace_users SET clerk_user_id = ?, updated_at = ? WHERE id = ?`,
+      )
+        .bind(clerkUserId, nowIso(), byId.id)
+        .run();
+      return (await getWorkspaceUserById(env, byId.id)) ?? byId;
+    }
+  }
+
+  const hashed = await hashPassword(randomToken(32));
+  return createWorkspaceUser(env, {
+    id: byId ? undefined : clerkUserId,
+    clerkUserId,
+    username: await allocateUsername(env, input.username),
+    passwordHash: hashed.hash,
+    passwordSalt: hashed.salt,
+    passwordIters: hashed.iterations,
+    displayName: input.displayName,
+  });
 }
 

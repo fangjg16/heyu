@@ -8,4 +8,6 @@ interface ImportMetaEnv {
   readonly VITE_RAGFLOW_CHAT_ENDPOINT?: string;
   readonly VITE_RAGFLOW_MODE?: string;
   readonly VITE_RAGFLOW_API_KEY?: string;
+  /** Clerk Publishable Key（`pk_...`）；未设时登录页仅支持已有账号密码 */
+  readonly VITE_CLERK_PUBLISHABLE_KEY?: string;
 }

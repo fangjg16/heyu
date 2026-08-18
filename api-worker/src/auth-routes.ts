@@ -9,14 +9,22 @@ import {
 import { verifyPassword } from "./password-crypto";
 import { coerceAccountStatus } from "./account-status";
 import {
+  clerkConfigured,
+  fetchClerkUser,
+  profileFromClerkUser,
+  verifyClerkSessionToken,
+  type ClerkEnv,
+} from "./clerk-verify";
+import {
   getWorkspaceUserById,
   listActiveWorkspaceUsers,
   resolveUserIdByUsername,
   rowToPublic,
+  upsertWorkspaceUserFromClerk,
   type WorkspaceUserPublic,
 } from "./workspace-users-db";
 
-type Env = { DB: AppDatabase };
+type Env = { DB: AppDatabase } & ClerkEnv;
 
 function json(data: unknown, status = 200, extra: HeadersInit = {}): Response {
   return new Response(JSON.stringify(data), {
@@ -68,6 +76,42 @@ export async function handleAuthLogin(
   const token = await createAuthSession(env, user.id);
   const profile = authProfile(user);
   return json({ ok: true, token, user: profile });
+}
+
+export async function handleAuthClerk(
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  if (!clerkConfigured(env)) {
+    return json({ error: "未配置 Clerk 鉴权", code: "CLERK_NOT_CONFIGURED" }, 503);
+  }
+  const token = extractBearerToken(request);
+  if (!token) return json({ error: "未登录" }, 401);
+  const claims = await verifyClerkSessionToken(token, env);
+  const clerkUserId = typeof claims?.sub === "string" ? claims.sub : "";
+  if (!clerkUserId) {
+    return json({ error: "登录已失效，请重新登录" }, 401);
+  }
+  const clerkUser = await fetchClerkUser(env, clerkUserId);
+  if (!clerkUser) {
+    return json({ error: "无法读取 Clerk 账号" }, 401);
+  }
+  const mapped = profileFromClerkUser(clerkUser);
+  if (mapped.banned) {
+    return json({ error: "账号不可用" }, 403);
+  }
+  let user;
+  try {
+    user = await upsertWorkspaceUserFromClerk(env, mapped);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "创建账号失败";
+    return json({ error: msg }, 400);
+  }
+  if (coerceAccountStatus(user.status) !== "active") {
+    return json({ error: "账号已停用" }, 403);
+  }
+  const appToken = await createAuthSession(env, user.id);
+  return json({ ok: true, token: appToken, user: authProfile(user) });
 }
 
 export async function handleAuthLogout(

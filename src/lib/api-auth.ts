@@ -91,6 +91,36 @@ export async function loginWithPassword(
   return data.user;
 }
 
+export async function loginWithClerkToken(
+  clerkToken: string,
+): Promise<AuthUserProfile> {
+  const base = apiBase();
+  if (!base) throw new Error("未配置线上 API（VITE_AI_CHAT_ENDPOINT）");
+  const token = clerkToken.trim();
+  if (!token) throw new Error("Clerk 会话无效");
+  const res = await fetch(`${base}/api/auth/clerk`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    token?: string;
+    user?: AuthUserProfile;
+  };
+  if (!res.ok || !data.token || !data.user) {
+    if (res.status === 503) {
+      throw new Error("工作台尚未接通 Clerk，请联系管理员配置密钥。");
+    }
+    throw new Error(data.error || `登录失败（${res.status}）`);
+  }
+  saveSessionAuth(data.token, data.user.id, data.user as SessionUserProfile);
+  applyProfile(data.user);
+  return data.user;
+}
+
 export async function fetchAuthMe(): Promise<AuthUserProfile | null> {
   const token = loadSessionToken();
   if (!token) return null;

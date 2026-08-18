@@ -129,6 +129,12 @@ services:
       JFO_INTERNAL_KEY: ${JFO_INTERNAL_KEY}
       JFO_API_PUBLIC_BASE: ${JFO_API_PUBLIC_BASE}
       ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-https://fangjg16.github.io}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:-}
+      CLERK_JWT_ISSUER: ${CLERK_JWT_ISSUER:-}
+      CLERK_JWKS_URL: ${CLERK_JWKS_URL:-}
+      CLERK_JWT_KEY: ${CLERK_JWT_KEY:-}
+      CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES:-}
     depends_on:
       mysql-bridge:
         condition: service_healthy

@@ -121,6 +121,7 @@ import {
   handleAuthLogin,
   handleAuthLogout,
   handleAuthMe,
+  handleAuthClerk,
   handleListWorkspaceUsers,
   requireAuthContext,
 } from "./auth-routes";
@@ -186,6 +187,12 @@ export interface Env {
   KN_SLOT_BATCH_SMOKE_ENABLED?: string;
   /** full/initial/incremental 主路径：fragment（默认）| structured */
   KN_GENERATION_MODE?: string;
+  CLERK_SECRET_KEY?: string;
+  CLERK_PUBLISHABLE_KEY?: string;
+  CLERK_JWT_ISSUER?: string;
+  CLERK_JWKS_URL?: string;
+  CLERK_JWT_KEY?: string;
+  CLERK_AUTHORIZED_PARTIES?: string;
 }
 
 function isSlotBatchSmokeApiEnabled(env: Env): boolean {
@@ -1870,6 +1877,8 @@ export default {
         response = hermesRes ?? json({ error: "Not Found" }, 404);
       } else if (path === "/api/auth/login" && request.method === "POST") {
         response = await handleAuthLogin(request, env);
+      } else if (path === "/api/auth/clerk" && request.method === "POST") {
+        response = await handleAuthClerk(request, env);
       } else if (path === "/api/auth/logout" && request.method === "POST") {
         response = await handleAuthLogout(request, env);
       } else if (path === "/api/auth/me" && request.method === "GET") {

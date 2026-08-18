@@ -1,60 +1,28 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { getToken, useAuth, useSignIn, useSignUp } from "@clerk/react";
 import { LoginParticleCanvas } from "@/components/login/LoginParticleCanvas";
-import { loginWithPassword, fetchWorkspaceUsersDirectory } from "@/lib/api-auth";
+import {
+  fetchWorkspaceUsersDirectory,
+  loginWithClerkToken,
+  loginWithPassword,
+} from "@/lib/api-auth";
+import { isClerkEnabled } from "@/lib/clerk-enabled";
+import { clerkErrorToZh } from "@/lib/clerk-errors";
 import { loadSessionToken, loadSessionUserId } from "@/workspace/session";
 
 const REMEMBER_USER_KEY = "fo-login-remember-user";
 
-export default function Login() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const fromSwitch = searchParams.get("switch") === "1";
+const fieldClass =
+  "h-11 w-full rounded-xl border border-[hsl(var(--wine)/0.16)] bg-[rgba(255,252,248,0.9)] px-4 text-sm text-[hsl(var(--warm-charcoal))] outline-none focus:border-[hsl(var(--wine)/0.4)]";
 
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+const primaryBtnClass =
+  "mt-1.5 h-[46px] rounded-xl bg-[hsl(var(--wine))] text-[15px] font-medium text-white transition-colors hover:bg-[hsl(var(--wine-hover))] disabled:opacity-60";
 
-  useEffect(() => {
-    if (loadSessionUserId() && loadSessionToken()) {
-      navigate("/app/home", { replace: true });
-      return;
-    }
-    const remembered = localStorage.getItem(REMEMBER_USER_KEY);
-    if (remembered) setUsername(remembered);
-  }, [navigate]);
-
-  const submit = (u: string, p: string) => {
-    if (submitting) return;
-    setError(null);
-    setSubmitting(true);
-    void (async () => {
-      try {
-        await loginWithPassword(u, p);
-        try {
-          await fetchWorkspaceUsersDirectory();
-        } catch {
-          /* ignore */
-        }
-        localStorage.setItem(REMEMBER_USER_KEY, u.trim());
-        navigate("/app/home", { replace: true });
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "账号或密码不正确，请核对后重试。");
-        setSubmitting(false);
-      }
-    })();
-  };
-
-  const onSubmitForm = (e: FormEvent) => {
-    e.preventDefault();
-    submit(username, password);
-  };
-
+function LoginShell({ children }: { children: ReactNode }) {
   return (
     <div className="login-page flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[#F6F3EE] font-sans text-[hsl(var(--warm-charcoal))]">
       <div className="flex min-h-0 flex-1">
-        {/* Left brand panel */}
         <div className="relative hidden flex-[1.1] flex-col justify-between overflow-hidden bg-gradient-to-br from-[#F2EBE3] via-[#F6F3EE] to-[#F0E7E3] px-[60px] py-14 lg:flex">
           <LoginParticleCanvas className="absolute inset-0 h-full w-full" />
 
@@ -97,72 +65,548 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Right form */}
         <div className="flex flex-[0.9] items-center justify-center bg-[#F6F3EE] px-6">
-          <div className="w-[420px] max-w-[88%]">
-            <div className="mb-4 lg:hidden">
-              <Link
-                to="/"
-                className="font-display text-lg font-bold text-[hsl(var(--wine))]"
-              >
-                合域 AI
-              </Link>
-            </div>
-            <h1 className="font-display text-[28px] font-semibold">登录工作台</h1>
-            <p className="mt-2 text-[13.5px] text-[hsl(var(--warm-charcoal-muted))]">
-              请输入内部账号与密码登录。
-            </p>
-            {fromSwitch ? (
-              <p className="mt-3 rounded-xl border border-[hsl(var(--wine)/0.22)] bg-[hsl(var(--wine-muted))] px-3.5 py-2.5 text-xs text-[hsl(var(--warm-charcoal))]">
-                已退出当前会话，请重新输入账号与密码。
-              </p>
-            ) : null}
-
-            <form onSubmit={onSubmitForm} className="mt-[30px] flex flex-col gap-3.5">
-              <div>
-                <div className="mb-1.5 text-[12.5px] text-[hsl(var(--warm-charcoal-muted))]">
-                  用户名
-                </div>
-                <input
-                  type="text"
-                  autoComplete="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  disabled={submitting}
-                  className="h-11 w-full rounded-xl border border-[hsl(var(--wine)/0.16)] bg-[rgba(255,252,248,0.9)] px-4 text-sm text-[hsl(var(--warm-charcoal))] outline-none focus:border-[hsl(var(--wine)/0.4)]"
-                  placeholder="账号或邮箱"
-                />
-              </div>
-              <div>
-                <div className="mb-1.5 text-[12.5px] text-[hsl(var(--warm-charcoal-muted))]">
-                  密码
-                </div>
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={submitting}
-                  className="h-11 w-full rounded-xl border border-[hsl(var(--wine)/0.16)] bg-[rgba(255,252,248,0.9)] px-4 text-sm outline-none focus:border-[hsl(var(--wine)/0.4)]"
-                  placeholder="请输入密码"
-                />
-              </div>
-              {error ? (
-                <p className="rounded-xl border border-[hsl(var(--wine)/0.28)] bg-[hsl(var(--wine-muted))] px-3 py-2.5 text-sm">
-                  {error}
-                </p>
-              ) : null}
-              <button
-                type="submit"
-                disabled={submitting}
-                className="mt-1.5 h-[46px] rounded-xl bg-[hsl(var(--wine))] text-[15px] font-medium text-white transition-colors hover:bg-[hsl(var(--wine-hover))] disabled:opacity-60"
-              >
-                {submitting ? "登录中..." : "登录"}
-              </button>
-            </form>
-          </div>
+          <div className="w-[420px] max-w-[88%]">{children}</div>
         </div>
       </div>
+    </div>
+  );
+}
+
+async function enterWorkspace() {
+  try {
+    await fetchWorkspaceUsersDirectory();
+  } catch {
+    /* ignore */
+  }
+}
+
+export default function Login() {
+  return (
+    <LoginShell>
+      {isClerkEnabled() ? <ClerkAuthForm /> : <PasswordAuthForm />}
+    </LoginShell>
+  );
+}
+
+function PasswordAuthForm() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const fromSwitch = searchParams.get("switch") === "1";
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (loadSessionUserId() && loadSessionToken()) {
+      navigate("/app/home", { replace: true });
+      return;
+    }
+    const remembered = localStorage.getItem(REMEMBER_USER_KEY);
+    if (remembered) setUsername(remembered);
+  }, [navigate]);
+
+  const onSubmitForm = (e: FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    setError(null);
+    setSubmitting(true);
+    void (async () => {
+      try {
+        await loginWithPassword(username, password);
+        localStorage.setItem(REMEMBER_USER_KEY, username.trim());
+        await enterWorkspace();
+        navigate("/app/home", { replace: true });
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "账号或密码不正确，请核对后重试。",
+        );
+        setSubmitting(false);
+      }
+    })();
+  };
+
+  return (
+    <>
+      <MobileBrand />
+      <h1 className="font-display text-[28px] font-semibold">登录工作台</h1>
+      <p className="mt-2 text-[13.5px] text-[hsl(var(--warm-charcoal-muted))]">
+        请输入内部账号与密码登录。
+      </p>
+      {fromSwitch ? <SwitchNotice /> : null}
+      <form onSubmit={onSubmitForm} className="mt-[30px] flex flex-col gap-3.5">
+        <LabeledInput
+          label="用户名"
+          type="text"
+          autoComplete="username"
+          value={username}
+          onChange={setUsername}
+          disabled={submitting}
+          placeholder="账号或邮箱"
+        />
+        <LabeledInput
+          label="密码"
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={setPassword}
+          disabled={submitting}
+          placeholder="请输入密码"
+        />
+        {error ? <ErrorBanner text={error} /> : null}
+        <button type="submit" disabled={submitting} className={primaryBtnClass}>
+          {submitting ? "登录中..." : "登录"}
+        </button>
+      </form>
+    </>
+  );
+}
+
+function ClerkAuthForm() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const fromSwitch = searchParams.get("switch") === "1";
+  const { isLoaded, isSignedIn } = useAuth();
+  const { signIn, errors: signInErrors, fetchStatus: signInFetch } = useSignIn();
+  const { signUp, errors: signUpErrors, fetchStatus: signUpFetch } = useSignUp();
+
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [pending, setPending] = useState<null | "signup-email" | "signin-trust">(
+    null,
+  );
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [password2, setPassword2] = useState("");
+  const [code, setCode] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const autoExchanged = useRef(false);
+
+  const fetching =
+    submitting || signInFetch === "fetching" || signUpFetch === "fetching";
+
+  useEffect(() => {
+    if (loadSessionUserId() && loadSessionToken()) {
+      navigate("/app/home", { replace: true });
+      return;
+    }
+    const remembered = localStorage.getItem(REMEMBER_USER_KEY);
+    if (remembered) {
+      if (remembered.includes("@")) setEmail(remembered);
+      else setUsername(remembered);
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    if (fromSwitch || !isLoaded || !isSignedIn) return;
+    if (loadSessionToken()) return;
+    if (autoExchanged.current) return;
+    autoExchanged.current = true;
+    setSubmitting(true);
+    void finishClerkLogin().catch((err) => {
+      setError(err instanceof Error ? err.message : "登录失败");
+      setSubmitting(false);
+    });
+  }, [fromSwitch, isLoaded, isSignedIn]);
+
+  const finishClerkLogin = async () => {
+    const token = await getToken({ skipCache: true });
+    if (!token) throw new Error("Clerk 会话无效");
+    await loginWithClerkToken(token);
+    const remember = (email || username).trim();
+    if (remember) localStorage.setItem(REMEMBER_USER_KEY, remember);
+    await enterWorkspace();
+    navigate("/app/home", { replace: true });
+  };
+
+  const noNav = { navigate: async () => undefined };
+
+  const onSignIn = async () => {
+    const identifier = (username.trim() || email.trim()).trim();
+    if (!identifier || !password) {
+      setError("请填写账号和密码");
+      return;
+    }
+    const { error: err } = await signIn.password({ identifier, password });
+    if (err) {
+      const notFound =
+        err.code === "form_identifier_not_found" ||
+        err.code === "form_param_nil";
+      if (notFound) {
+        try {
+          await loginWithPassword(identifier, password);
+          localStorage.setItem(REMEMBER_USER_KEY, identifier);
+          await enterWorkspace();
+          navigate("/app/home", { replace: true });
+          return;
+        } catch {
+          /* fall through */
+        }
+      }
+      setError(
+        clerkErrorToZh(err, clerkErrorToZh(signInErrors.fields.password)) ||
+          clerkErrorToZh(signInErrors.fields.identifier, "账号或密码不正确，请核对后重试。"),
+      );
+      return;
+    }
+    if (signIn.status === "complete") {
+      const { error: finErr } = await signIn.finalize(noNav);
+      if (finErr) {
+        setError(clerkErrorToZh(finErr));
+        return;
+      }
+      await finishClerkLogin();
+      return;
+    }
+    if (
+      signIn.status === "needs_client_trust" ||
+      signIn.status === "needs_second_factor"
+    ) {
+      const { error: sendErr } = await signIn.mfa.sendEmailCode();
+      if (sendErr) {
+        setError(clerkErrorToZh(sendErr));
+        return;
+      }
+      setPending("signin-trust");
+      setError(null);
+      return;
+    }
+    setError("登录未完成，请稍后重试。");
+  };
+
+  const onSignUp = async () => {
+    const mail = email.trim();
+    const name = username.trim();
+    if (!mail || !password) {
+      setError("请填写邮箱和密码");
+      return;
+    }
+    if (password !== password2) {
+      setError("两次输入的密码不一致");
+      return;
+    }
+    if (password.length < 8) {
+      setError("密码至少 8 位");
+      return;
+    }
+    const payload = name
+      ? {
+          emailAddress: mail,
+          password,
+          username: name,
+          legalAccepted: true,
+          locale: "zh-CN",
+        }
+      : { emailAddress: mail, password, legalAccepted: true, locale: "zh-CN" };
+    let { error: err } = await signUp.password(payload);
+    if (err && name && /username/i.test(err.code || err.message || "")) {
+      ({ error: err } = await signUp.password({
+        emailAddress: mail,
+        password,
+        legalAccepted: true,
+        locale: "zh-CN",
+      }));
+    }
+    if (err) {
+      setError(
+        clerkErrorToZh(err) ||
+          clerkErrorToZh(signUpErrors.fields.emailAddress) ||
+          clerkErrorToZh(signUpErrors.fields.password) ||
+          clerkErrorToZh(signUpErrors.fields.username),
+      );
+      return;
+    }
+    if (signUp.status === "complete") {
+      const { error: finErr } = await signUp.finalize(noNav);
+      if (finErr) {
+        setError(clerkErrorToZh(finErr));
+        return;
+      }
+      await finishClerkLogin();
+      return;
+    }
+    const { error: sendErr } = await signUp.verifications.sendEmailCode();
+    if (sendErr) {
+      setError(clerkErrorToZh(sendErr));
+      return;
+    }
+    setPending("signup-email");
+    setError(null);
+  };
+
+  const onVerify = async () => {
+    const trimmed = code.trim();
+    if (!trimmed) {
+      setError("请填写验证码");
+      return;
+    }
+    if (pending === "signup-email") {
+      const { error: err } = await signUp.verifications.verifyEmailCode({
+        code: trimmed,
+      });
+      if (err) {
+        setError(clerkErrorToZh(err, clerkErrorToZh(signUpErrors.fields.code)));
+        return;
+      }
+      if (signUp.status === "complete") {
+        const { error: finErr } = await signUp.finalize(noNav);
+        if (finErr) {
+          setError(clerkErrorToZh(finErr));
+          return;
+        }
+        await finishClerkLogin();
+      } else {
+        setError("验证未完成，请重新获取验证码。");
+      }
+      return;
+    }
+    const { error: err } = await signIn.mfa.verifyEmailCode({ code: trimmed });
+    if (err) {
+      setError(clerkErrorToZh(err, clerkErrorToZh(signInErrors.fields.code)));
+      return;
+    }
+    if (signIn.status === "complete") {
+      const { error: finErr } = await signIn.finalize(noNav);
+      if (finErr) {
+        setError(clerkErrorToZh(finErr));
+        return;
+      }
+      await finishClerkLogin();
+      return;
+    }
+    setError("验证未完成，请重新获取验证码。");
+  };
+
+  const onSubmitForm = (e: FormEvent) => {
+    e.preventDefault();
+    if (fetching || !isLoaded) return;
+    setError(null);
+    setSubmitting(true);
+    const run = pending ? onVerify : mode === "signup" ? onSignUp : onSignIn;
+    void run()
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "操作失败，请稍后重试。");
+      })
+      .finally(() => setSubmitting(false));
+  };
+
+  const title = pending
+    ? "验证邮箱"
+    : mode === "signup"
+      ? "注册工作台账号"
+      : "登录工作台";
+  const subtitle = pending
+    ? "验证码已发送到你的邮箱，请填写后继续。"
+    : mode === "signup"
+      ? "用邮箱注册后即可进入工作台。新账号默认未加入项目。"
+      : "请输入账号或邮箱与密码登录。";
+
+  return (
+    <>
+      <MobileBrand />
+      <h1 className="font-display text-[28px] font-semibold">{title}</h1>
+      <p className="mt-2 text-[13.5px] text-[hsl(var(--warm-charcoal-muted))]">
+        {subtitle}
+      </p>
+      {fromSwitch && !pending ? <SwitchNotice /> : null}
+
+      <form onSubmit={onSubmitForm} className="mt-[30px] flex flex-col gap-3.5">
+        {pending ? (
+          <LabeledInput
+            label="验证码"
+            type="text"
+            autoComplete="one-time-code"
+            value={code}
+            onChange={setCode}
+            disabled={fetching}
+            placeholder="邮箱里的 6 位数字"
+          />
+        ) : (
+          <>
+            {mode === "signup" ? (
+              <LabeledInput
+                label="用户名"
+                type="text"
+                autoComplete="username"
+                value={username}
+                onChange={setUsername}
+                disabled={fetching}
+                placeholder="登录名（可选）"
+              />
+            ) : null}
+            <LabeledInput
+              label={mode === "signup" ? "邮箱" : "用户名"}
+              type={mode === "signup" ? "email" : "text"}
+              autoComplete={mode === "signup" ? "email" : "username"}
+              value={mode === "signup" ? email : username || email}
+              onChange={mode === "signup" ? setEmail : (v) => {
+                setUsername(v);
+                if (v.includes("@")) setEmail(v);
+              }}
+              disabled={fetching}
+              placeholder={mode === "signup" ? "name@example.com" : "账号或邮箱"}
+            />
+            <LabeledInput
+              label="密码"
+              type="password"
+              autoComplete={
+                mode === "signup" ? "new-password" : "current-password"
+              }
+              value={password}
+              onChange={setPassword}
+              disabled={fetching}
+              placeholder={mode === "signup" ? "至少 8 位" : "请输入密码"}
+            />
+            {mode === "signup" ? (
+              <LabeledInput
+                label="确认密码"
+                type="password"
+                autoComplete="new-password"
+                value={password2}
+                onChange={setPassword2}
+                disabled={fetching}
+                placeholder="再输入一次密码"
+              />
+            ) : null}
+          </>
+        )}
+        {error ? <ErrorBanner text={error} /> : null}
+        {mode === "signup" || pending === "signup-email" ? (
+          <div id="clerk-captcha" className="min-h-0" />
+        ) : null}
+        <button
+          type="submit"
+          disabled={fetching || !isLoaded}
+          className={primaryBtnClass}
+        >
+          {!isLoaded
+            ? "加载中..."
+            : fetching
+              ? pending
+                ? "验证中..."
+                : mode === "signup"
+                  ? "注册中..."
+                  : "登录中..."
+              : pending
+                ? "验证并进入"
+                : mode === "signup"
+                  ? "注册"
+                  : "登录"}
+        </button>
+      </form>
+
+      {!pending ? (
+        <p className="mt-5 text-center text-[13px] text-[hsl(var(--warm-charcoal-muted))]">
+          {mode === "signup" ? (
+            <>
+              已有账号？
+              <button
+                type="button"
+                className="ml-1 text-[hsl(var(--wine))] hover:underline"
+                onClick={() => {
+                  setMode("signin");
+                  setError(null);
+                }}
+              >
+                去登录
+              </button>
+            </>
+          ) : (
+            <>
+              没有账号？
+              <button
+                type="button"
+                className="ml-1 text-[hsl(var(--wine))] hover:underline"
+                onClick={() => {
+                  setMode("signup");
+                  setError(null);
+                }}
+              >
+                注册
+              </button>
+            </>
+          )}
+        </p>
+      ) : (
+        <p className="mt-5 text-center text-[13px] text-[hsl(var(--warm-charcoal-muted))]">
+          <button
+            type="button"
+            className="text-[hsl(var(--wine))] hover:underline"
+            onClick={() => {
+              setPending(null);
+              setCode("");
+              setError(null);
+            }}
+          >
+            返回
+          </button>
+        </p>
+      )}
+    </>
+  );
+}
+
+function MobileBrand() {
+  return (
+    <div className="mb-4 lg:hidden">
+      <Link to="/" className="font-display text-lg font-bold text-[hsl(var(--wine))]">
+        合域 AI
+      </Link>
+    </div>
+  );
+}
+
+function SwitchNotice() {
+  return (
+    <p className="mt-3 rounded-xl border border-[hsl(var(--wine)/0.22)] bg-[hsl(var(--wine-muted))] px-3.5 py-2.5 text-xs text-[hsl(var(--warm-charcoal))]">
+      已退出当前会话，请重新输入账号与密码。
+    </p>
+  );
+}
+
+function ErrorBanner({ text }: { text: string }) {
+  return (
+    <p className="rounded-xl border border-[hsl(var(--wine)/0.28)] bg-[hsl(var(--wine-muted))] px-3 py-2.5 text-sm">
+      {text}
+    </p>
+  );
+}
+
+function LabeledInput({
+  label,
+  type,
+  autoComplete,
+  value,
+  onChange,
+  disabled,
+  placeholder,
+}: {
+  label: string;
+  type: string;
+  autoComplete: string;
+  value: string;
+  onChange: (v: string) => void;
+  disabled: boolean;
+  placeholder: string;
+}) {
+  return (
+    <div>
+      <div className="mb-1.5 text-[12.5px] text-[hsl(var(--warm-charcoal-muted))]">
+        {label}
+      </div>
+      <input
+        type={type}
+        autoComplete={autoComplete}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className={fieldClass}
+        placeholder={placeholder}
+      />
     </div>
   );
 }

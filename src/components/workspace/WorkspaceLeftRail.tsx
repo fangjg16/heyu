@@ -10,6 +10,7 @@ import {
 import { UserAvatar } from "@/components/workspace/UserAvatar";
 import { cn } from "@/lib/utils";
 import { logoutRemote } from "@/lib/api-auth";
+import { signOutClerkBrowser } from "@/lib/clerk-enabled";
 import { useMyProjectRoles } from "@/hooks/use-my-project-roles";
 import { clearSession, loadSessionUserId } from "@/workspace/session";
 import {
@@ -69,7 +70,9 @@ export function WorkspaceLeftRail() {
   const logout = () => {
     clearSession();
     void logoutRemote();
-    window.location.assign(`${import.meta.env.BASE_URL}app/login`);
+    void signOutClerkBrowser().finally(() => {
+      window.location.assign(`${import.meta.env.BASE_URL}app/login`);
+    });
   };
 
   const topNav: NavItem[] = [
