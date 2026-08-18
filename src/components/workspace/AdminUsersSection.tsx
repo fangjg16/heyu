@@ -151,7 +151,7 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
           projectId: p.id,
           name: p.name,
           selected: Boolean(m) || isCreator,
-          role: isCreator ? "core" : role,
+          role: isCreator ? "admin" : role,
           isCreator,
         };
       });

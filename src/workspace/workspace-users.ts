@@ -70,7 +70,8 @@ export function getProjectRole(
   if (isPlatformAdminUser(uid)) return "admin";
 
   const creator = (createdBy ?? "").trim();
-  if (creator && creator === uid) return "core";
+  /** 项目创建人：本项目 Admin（不是平台管理员） */
+  if (creator && creator === uid) return "admin";
 
   const cached = readCachedProjectRole(projectId);
   if (cached) return cached;

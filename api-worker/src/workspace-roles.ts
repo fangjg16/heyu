@@ -23,6 +23,20 @@ function higherRole(a: WorkspaceRole, b: WorkspaceRole): WorkspaceRole {
   return ROLE_RANK[a] >= ROLE_RANK[b] ? a : b;
 }
 
+/** 项目创建人在本项目内至少为 Admin（项目权限，不是平台管理员）。 */
+export function roleWithCreatorFloor(
+  userId: string,
+  createdBy: string | null | undefined,
+  role: WorkspaceRole | null | undefined,
+): WorkspaceRole {
+  const uid = userId.trim();
+  const creator = (createdBy ?? "").trim();
+  if (creator && creator === uid) {
+    return role ? higherRole(role, "admin") : "admin";
+  }
+  return role ?? "guest";
+}
+
 type RoleEnv = { DB: AppDatabase };
 
 export function isInvestorRole(role: WorkspaceRole): boolean {
@@ -35,8 +49,9 @@ export function isIssuerRole(role: WorkspaceRole): boolean {
 
 /**
  * 解析用户在项目上的有效角色。
- * 仅平台 Admin / 创建人 / project_member_roles 成员有非 guest 权限；
+ * 仅平台管理员 / 项目创建人 / project_member_roles 成员有非 guest 权限；
  * 不再用账号 default_role 自动把所有人拉进项目。
+ * 项目创建人在本项目内为 Admin（项目权限，不是平台管理员）。
  */
 export async function resolveProjectRole(
   env: RoleEnv,
@@ -50,17 +65,7 @@ export async function resolveProjectRole(
 
   const creator = (createdBy ?? "").trim();
   const override = await getProjectMemberRoleOverride(env, projectId, uid);
-
-  if (override) {
-    let role: WorkspaceRole = override;
-    if (creator && creator === uid) {
-      role = higherRole(role, "core");
-    }
-    return role;
-  }
-
-  if (creator && creator === uid) return "core";
-  return "guest";
+  return roleWithCreatorFloor(uid, creator, override);
 }
 
 export async function canViewProjectKnowledgeNetwork(
@@ -88,7 +93,7 @@ export async function canListProjectFiles(
   return isInvestorRole(role);
 }
 
-/** 上传/覆盖项目知识网络 HTML：admin / core（创建人自动为 core） */
+/** 上传/覆盖项目知识网络 HTML：admin / core */
 export async function canPublishProjectKnowledgeNetwork(
   env: RoleEnv,
   userId: string,

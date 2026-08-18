@@ -9,7 +9,7 @@ import {
 import { canManageProjectRecord, isPlatformAdmin } from "./projects-auth";
 import { getProjectById, listProjects, type ProjectJson } from "./projects-db";
 import { decodePathProjectId } from "./projects-resolve";
-import { resolveProjectRole, type WorkspaceRole } from "./workspace-roles";
+import { resolveProjectRole, roleWithCreatorFloor, type WorkspaceRole } from "./workspace-roles";
 import { formatUserLabel, recordOperationLog } from "./operation-logs-db";
 import { getWorkspaceUserById } from "./workspace-users-db";
 
@@ -25,18 +25,6 @@ function json(data: unknown, status = 200): Response {
 function normalizeUserId(raw: string | null | undefined): string | null {
   const id = (raw ?? "").trim();
   return id.length > 0 ? id : null;
-}
-
-const ROLE_RANK: Record<WorkspaceRole, number> = {
-  guest: 0,
-  low: 1,
-  mid: 2,
-  core: 3,
-  admin: 4,
-};
-
-function higherRole(a: WorkspaceRole, b: WorkspaceRole): WorkspaceRole {
-  return ROLE_RANK[a] >= ROLE_RANK[b] ? a : b;
 }
 
 export type ProjectPermissionMember = {
@@ -70,11 +58,12 @@ async function buildPermissionMembers(
     const displayName = knownUser?.displayName ?? userId;
     const platformAdmin = Boolean(knownUser?.isPlatformAdmin);
     const overrideRole = overrides[userId] ?? null;
-    let effectiveRole: WorkspaceRole = overrideRole ?? (creator === userId ? "core" : "guest");
     const isCreator = Boolean(creator && creator === userId);
-    if (isCreator) {
-      effectiveRole = higherRole(effectiveRole, "core");
-    }
+    let effectiveRole: WorkspaceRole = roleWithCreatorFloor(
+      userId,
+      creator,
+      overrideRole,
+    );
     if (platformAdmin) {
       effectiveRole = "admin";
     }
@@ -208,9 +197,7 @@ export async function handlePutProjectPermissions(
       );
     }
     let role: WorkspaceRole = rawRole;
-    if (creator && creator === targetId) {
-      role = higherRole(role, "core");
-    }
+    role = roleWithCreatorFloor(targetId, creator, role);
     await upsertProjectMemberRole(env, projectId, targetId, role, userId);
   }
 

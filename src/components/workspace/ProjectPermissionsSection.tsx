@@ -69,7 +69,7 @@ export function ProjectPermissionsSection({
         if (m.isPlatformAdmin) continue;
         next[m.userId] = m.overrideRole ?? m.defaultRole;
         if (m.isCreator) {
-          next[m.userId] = "core";
+          next[m.userId] = "admin";
         }
       }
       setDraft(next);
@@ -92,7 +92,7 @@ export function ProjectPermissionsSection({
     for (const m of next) {
       if (m.isPlatformAdmin) continue;
       nextDraft[m.userId] = m.overrideRole ?? m.defaultRole;
-      if (m.isCreator) nextDraft[m.userId] = "core";
+      if (m.isCreator) nextDraft[m.userId] = "admin";
     }
     setDraft(nextDraft);
     const self = next.find((m) => m.userId === userId);
@@ -112,7 +112,7 @@ export function ProjectPermissionsSection({
         .map((m) => ({
           userId: m.userId,
           role: m.isCreator
-            ? ("core" as const)
+            ? ("admin" as const)
             : (draft[m.userId] ?? m.defaultRole),
         }));
       const next = await updateProjectPermissions(project.id, userId, updates);
@@ -360,7 +360,7 @@ export function ProjectPermissionsSection({
                 const locked = m.isPlatformAdmin || m.isCreator;
                 const removing = removingId === m.userId;
                 const value = m.isCreator
-                  ? "core"
+                  ? "admin"
                   : m.isPlatformAdmin
                     ? "admin"
                     : (draft[m.userId] ?? m.defaultRole);
@@ -408,7 +408,7 @@ export function ProjectPermissionsSection({
                       <p className="text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
                         {m.isPlatformAdmin
                           ? "平台管理员"
-                          : roleLabelForProject("core")}
+                          : roleLabelForProject("admin")}
                       </p>
                     ) : (
                       <MemberRoleFields

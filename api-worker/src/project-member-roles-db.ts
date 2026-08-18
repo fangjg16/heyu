@@ -225,7 +225,7 @@ export async function seedProjectMemberRoles(
   const seen = new Set<string>();
 
   if (creator) {
-    await upsertProjectMemberRole(env, projectId, creator, "core", updatedBy);
+    await upsertProjectMemberRole(env, projectId, creator, "admin", updatedBy);
     seen.add(creator);
   }
 
