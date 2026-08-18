@@ -21,7 +21,6 @@ import {
 } from "@/workspace/project-registry";
 import { loadSessionUserId } from "@/workspace/session";
 import { useMyProjectRoles } from "@/hooks/use-my-project-roles";
-import { useJoinReviews } from "@/hooks/use-join-reviews";
 import {
   getProjectRole,
   getUserById,
@@ -136,7 +135,6 @@ export default function HomeDashboard() {
   const userId = loadSessionUserId();
   const user = getUserById(userId);
   const rolesVersion = useMyProjectRoles(userId);
-  const { pendingCount, requests: joinReviews } = useJoinReviews();
   const [projects, setProjects] = useState<WorkspaceProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [openQuestions, setOpenQuestions] = useState<MyOpenQuestionItem[]>([]);
@@ -459,33 +457,6 @@ export default function HomeDashboard() {
         >
           {greeting}
         </h1>
-
-        {pendingCount > 0 ? (
-          <Link
-            to="/app/notifications"
-            style={{
-              marginTop: 20,
-              display: "block",
-              borderRadius: 16,
-              border: "1px solid rgba(160,99,88,0.28)",
-              background: "rgba(160,99,88,0.08)",
-              padding: "14px 18px",
-              textDecoration: "none",
-              color: "inherit",
-            }}
-          >
-            <div style={{ fontSize: 13, fontWeight: 600, color: C.wine }}>
-              {pendingCount} 条加入申请待审批
-            </div>
-            <div style={{ marginTop: 4, fontSize: 13.5, color: C.muted }}>
-              {joinReviews[0]?.applicantDisplayName ?? "有人"}申请加入
-              {joinReviews[0]?.projectName
-                ? `「${joinReviews[0].projectName}」`
-                : "项目"}
-              {pendingCount > 1 ? " 等" : ""}。点此处理。
-            </div>
-          </Link>
-        ) : null}
 
         {/* 焦点卡：最紧急待确认问题（对齐原型 homeFocus） */}
         {focusTodo ? (
