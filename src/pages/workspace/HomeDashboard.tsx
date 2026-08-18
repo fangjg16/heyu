@@ -288,14 +288,14 @@ export default function HomeDashboard() {
         detail,
         meta: item.projectName,
         due: published
-          ? `已发布 · ${collabStatusLabel(published.status)}`
-          : `${item.priorityLabel} · 未发布给项目协作方`,
+          ? `已发送 · ${collabStatusLabel(published.status)}`
+          : `${item.priorityLabel} · 未发送`,
         color: priorityColor(item.priority),
         to: `/app/projects/${encodeURIComponent(item.projectId)}/collab`,
         listMeta: published
-          ? `${item.projectName} · 已发布给项目协作方`
-          : `${item.projectName} · 内部缺口，项目协作方尚未看到`,
-        listDue: published ? collabStatusLabel(published.status) : "未发布",
+          ? `${item.projectName} · 已发送`
+          : `${item.projectName} · 未发送`,
+        listDue: published ? collabStatusLabel(published.status) : "未发送",
         published: Boolean(published),
         projectId: item.projectId,
         priority: item.priority,
@@ -311,7 +311,7 @@ export default function HomeDashboard() {
         text: collabInbox[0].title,
         title: preview.title,
         detail: preview.detail,
-        meta: collabInbox[0].projectName ?? "项目协作方协作",
+        meta: collabInbox[0].projectName ?? "项目协作",
         due: collabInbox[0].dueAt
           ? `截止 ${collabInbox[0].dueAt.slice(0, 10)}`
           : "待你回复",
@@ -355,7 +355,7 @@ export default function HomeDashboard() {
   }) => {
     if (item.published || sendingId) return;
     if (!canPublishForProject(item.projectId)) {
-      setSendError("仅 Admin / Core 可发给项目协作方");
+      setSendError("仅 Admin / Core 可发送");
       return;
     }
     setSendingId(item.id);
@@ -566,7 +566,7 @@ export default function HomeDashboard() {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    改措辞
+                    编辑
                   </Link>
                   <button
                     type="button"
@@ -586,7 +586,7 @@ export default function HomeDashboard() {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {sendingId === focusTodo.id ? "发送中…" : "发给项目协作方"}
+                    {sendingId === focusTodo.id ? "发送中…" : "发送"}
                   </button>
                 </>
               ) : (
@@ -648,8 +648,8 @@ export default function HomeDashboard() {
                   : hasIssuerProject && !hasInvestorProject
                     ? "投资团队发布事项后，会显示在这里。内部研究缺口不会自动同步给你。"
                     : memberProjects.length > 0
-                    ? "知识网络里的缺口默认按原文一键发给项目协作方即可；有判断性措辞时再点「改措辞」。"
-                    : "暂无已加入项目。可去项目广场浏览全开放协作，或新建项目。"}
+                    ? "暂无紧急待办。"
+                    : "暂无已加入项目。"}
             </p>
             <Link
               to="/app/projects"
@@ -697,18 +697,6 @@ export default function HomeDashboard() {
                 : "—"}
           </span>
         </div>
-        <p
-          style={{
-            marginTop: 8,
-            fontSize: 13.5,
-            color: C.muted,
-            lineHeight: 1.6,
-          }}
-        >
-          {canSendUnpublished
-            ? "默认按原文发给项目协作方，发布后冻结。含投资判断的条目请先「改措辞」。"
-            : "知识网络章节中的待确认问题会汇总在此。"}
-        </p>
         {canSendUnpublished ? (
           <button
             type="button"
@@ -730,7 +718,7 @@ export default function HomeDashboard() {
           >
             {sendingId === "all"
               ? "发送中…"
-              : `全部按原文发给项目协作方（${unpublishedCount}）`}
+              : `一键发送（${unpublishedCount}）`}
           </button>
         ) : null}
         {sendError ? (
@@ -867,7 +855,7 @@ export default function HomeDashboard() {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      改措辞
+                      编辑
                     </Link>
                     <button
                       type="button"
@@ -887,7 +875,7 @@ export default function HomeDashboard() {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {sendingId === t.id ? "发送中…" : "发给项目协作方"}
+                      {sendingId === t.id ? "发送中…" : "发送"}
                     </button>
                   </div>
                 ) : (
