@@ -99,7 +99,7 @@ export function ProjectOverviewPanel({
     return (
       <div className="flex min-h-[280px] items-center justify-center px-8 py-16">
         <p className="max-w-md text-center text-[13px] leading-relaxed text-[#969E9A]">
-          尚无项目概览。请点击顶栏「更新概览」，根据模板与上传资料生成（含时间轴与关系图）。
+          尚无项目概览。点「更新概览」根据模板与上传资料生成。
         </p>
       </div>
     );

@@ -704,7 +704,6 @@ function ProjectWorkspaceLayout() {
           project={project}
           userId={userId}
           tab={tab}
-          onUpload={() => navigate(`/app/projects/${project.id}/materials`)}
           onChat={goChat}
           onUpdateOverview={() => void onUpdateOverview()}
           overviewBusy={overviewBusy}

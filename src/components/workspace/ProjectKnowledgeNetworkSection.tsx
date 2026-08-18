@@ -723,7 +723,7 @@ export function ProjectKnowledgeNetworkSection({
               placeholder={
                 hasHtml
                   ? "输入对本节内容的改写指令，例如：把研究结论写得更简洁"
-                  : "请先使用顶栏「更新全部章节」生成内容后再改写"
+                  : "请先「更新全部章节」生成后再改写"
               }
               className="min-h-[52px] flex-1 resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/80 px-3.5 py-2.5 text-[13px] leading-relaxed text-[#1F2423] outline-none placeholder:text-[#969E9A] focus:border-[rgba(160,99,88,0.35)] disabled:cursor-not-allowed disabled:opacity-60"
             />
@@ -828,7 +828,7 @@ export function ProjectKnowledgeNetworkSection({
                     <p className="text-center text-[13px] text-[#969E9A]">
                       {canRetryFailed
                         ? "本章上次生成失败，可点击右侧「更新本章」重试"
-                        : "本章尚无内容，请先使用顶栏「更新全部章节」生成"}
+                        : "本章尚无内容，请先「更新全部章节」生成"}
                     </p>
                   </div>
                 )}
@@ -849,7 +849,7 @@ export function ProjectKnowledgeNetworkSection({
                         sectionBusy
                           ? "本章正在生成草案"
                           : !canUpdateChapter
-                            ? "本章尚无内容，请先使用顶栏「更新全部章节」生成"
+                            ? "本章尚无内容，请先「更新全部章节」生成"
                             : "生成本章更新草案（正式版本不会被覆盖），审核后再发布"
                       }
                       className="h-9 w-full whitespace-nowrap rounded-[9px] border border-[rgba(160,99,88,0.3)] bg-transparent px-2.5 text-[12px] font-medium text-[#A06358] transition-colors hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-50"
@@ -1136,7 +1136,7 @@ export function ProjectKnowledgeNetworkSection({
             ) : versionMetas.length === 0 ? (
               <div className="flex min-h-[200px] items-center justify-center px-8 py-12">
                 <p className="text-center text-[13px] text-[#969E9A]">
-                  尚无归档版本。使用顶栏「更新全部章节」生成草案并发布后，将在此显示版本记录。
+                  尚无归档版本。使用「更新全部章节」生成草案并发布后，将在此显示版本记录。
                 </p>
               </div>
             ) : (

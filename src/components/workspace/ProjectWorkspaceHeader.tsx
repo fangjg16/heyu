@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
-import { MessageSquare, RefreshCw, Upload, X } from "lucide-react";
+import { MessageSquare, RefreshCw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import {
@@ -86,7 +86,6 @@ type ProjectWorkspaceHeaderProps = {
   project: WorkspaceProject;
   userId: string;
   tab: "overview" | "knowledge" | "materials" | "collab";
-  onUpload: () => void;
   onChat: () => void;
   onUpdateOverview?: () => void;
   overviewBusy?: boolean;
@@ -117,7 +116,6 @@ export function ProjectWorkspaceHeader({
   project,
   userId,
   tab,
-  onUpload,
   onChat,
   onUpdateOverview,
   overviewBusy = false,
@@ -299,63 +297,11 @@ export function ProjectWorkspaceHeader({
           ) : null}
           <button
             type="button"
-            onClick={() => setConfirmKind("overview")}
-            disabled={
-              !canUpdateOverview ||
-              overviewBusy ||
-              allChaptersBusy ||
-              !onUpdateOverview
-            }
-            title={
-              canUpdateOverview
-                ? "生成项目概览更新草案（正式版本不会被覆盖），审核后再发布"
-                : "无权限更新项目概览"
-            }
-            className="inline-flex h-10 items-center gap-1.5 rounded-[11px] border border-[rgba(78,66,57,0.18)] bg-transparent px-4 text-[13.5px] font-medium text-[#59625F] transition-colors hover:border-[hsl(var(--wine)/0.3)] hover:bg-[hsl(var(--wine-muted))] hover:text-[hsl(var(--wine))] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <RefreshCw
-              className={cn("h-3.5 w-3.5", overviewBusy && "animate-spin")}
-              strokeWidth={2}
-            />
-            {overviewBusy ? "生成草案中…" : "更新概览"}
-          </button>
-          <button
-            type="button"
-            onClick={onUpload}
-            className="inline-flex h-10 items-center gap-1.5 rounded-[11px] border border-[hsl(var(--wine)/0.3)] bg-transparent px-4 text-[13.5px] font-medium text-[hsl(var(--wine))] hover:bg-[hsl(var(--wine-muted))]"
-          >
-            <Upload className="h-3.5 w-3.5" strokeWidth={2} />
-            上传资料
-          </button>
-          <button
-            type="button"
             onClick={onChat}
             className="inline-flex h-10 items-center gap-1.5 rounded-[11px] bg-[hsl(var(--wine))] px-[18px] text-[13.5px] font-medium text-white hover:bg-[hsl(var(--wine-hover))]"
           >
             <MessageSquare className="h-3.5 w-3.5" strokeWidth={2} />
             进入对话
-          </button>
-          <button
-            type="button"
-            onClick={() => setConfirmKind("all-chapters")}
-            disabled={
-              !canUpdateAllChapters ||
-              allChaptersBusy ||
-              overviewBusy ||
-              !onUpdateAllChapters
-            }
-            title={
-              canUpdateAllChapters
-                ? "生成全部章节更新草案（正式版本不会被覆盖）"
-                : "无权限更新知识网络章节"
-            }
-            className="inline-flex h-10 items-center gap-1.5 rounded-[11px] border border-[hsl(var(--wine)/0.35)] bg-[hsl(var(--wine-muted))] px-4 text-[13.5px] font-medium text-[hsl(var(--wine))] transition-colors hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <RefreshCw
-              className={cn("h-3.5 w-3.5", allChaptersBusy && "animate-spin")}
-              strokeWidth={2}
-            />
-            {allChaptersBusy ? "生成草案中…" : "更新全部章节"}
           </button>
         </div>
       </div>
@@ -395,21 +341,65 @@ export function ProjectWorkspaceHeader({
         </div>
       ) : null}
 
-      <div className="mt-5 flex flex-wrap items-end gap-1 border-b border-[rgba(78,66,57,0.12)]">
-        {tabs.map((t) => (
-          <Link
-            key={t.id}
-            to={t.to}
-            className={cn(
-              "mb-[-1px] inline-flex h-[42px] items-end px-4 pb-2.5 text-sm leading-none transition-colors",
-              tab === t.id
-                ? "border-b-2 border-[hsl(var(--wine))] font-semibold text-[hsl(var(--wine))]"
-                : "border-b-2 border-transparent font-normal text-[hsl(var(--warm-charcoal-muted))] hover:text-[hsl(var(--warm-charcoal))]",
-            )}
-          >
-            {t.label}
-          </Link>
-        ))}
+      <div className="mt-5 flex flex-wrap items-end justify-between gap-2 border-b border-[rgba(78,66,57,0.12)]">
+        <div className="flex flex-wrap items-end gap-1">
+          {tabs.map((t) => (
+            <Link
+              key={t.id}
+              to={t.to}
+              className={cn(
+                "mb-[-1px] inline-flex h-[42px] items-end px-4 pb-2.5 text-sm leading-none transition-colors",
+                tab === t.id
+                  ? "border-b-2 border-[hsl(var(--wine))] font-semibold text-[hsl(var(--wine))]"
+                  : "border-b-2 border-transparent font-normal text-[hsl(var(--warm-charcoal-muted))] hover:text-[hsl(var(--warm-charcoal))]",
+              )}
+            >
+              {t.label}
+            </Link>
+          ))}
+        </div>
+        {tab === "overview" || tab === "knowledge" ? (
+        <div className="flex shrink-0 items-center gap-2 pb-2">
+          {tab === "overview" ? (
+            <button
+              type="button"
+              onClick={() => setConfirmKind("overview")}
+              disabled={
+                !canUpdateOverview ||
+                overviewBusy ||
+                allChaptersBusy ||
+                !onUpdateOverview
+              }
+              className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[rgba(78,66,57,0.18)] bg-transparent px-3.5 text-[13px] font-medium text-[#59625F] transition-colors hover:border-[hsl(var(--wine)/0.3)] hover:bg-[hsl(var(--wine-muted))] hover:text-[hsl(var(--wine))] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <RefreshCw
+                className={cn("h-3.5 w-3.5", overviewBusy && "animate-spin")}
+                strokeWidth={2}
+              />
+              {overviewBusy ? "生成草案中…" : "更新概览"}
+            </button>
+          ) : null}
+          {tab === "knowledge" ? (
+            <button
+              type="button"
+              onClick={() => setConfirmKind("all-chapters")}
+              disabled={
+                !canUpdateAllChapters ||
+                allChaptersBusy ||
+                overviewBusy ||
+                !onUpdateAllChapters
+              }
+              className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[hsl(var(--wine)/0.35)] bg-[hsl(var(--wine-muted))] px-3.5 text-[13px] font-medium text-[hsl(var(--wine))] transition-colors hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <RefreshCw
+                className={cn("h-3.5 w-3.5", allChaptersBusy && "animate-spin")}
+                strokeWidth={2}
+              />
+              {allChaptersBusy ? "生成草案中…" : "更新全部章节"}
+            </button>
+          ) : null}
+        </div>
+        ) : null}
       </div>
 
       {confirmCopy && typeof document !== "undefined"
