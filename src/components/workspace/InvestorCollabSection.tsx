@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   collabStatusLabel,
   fetchCollabBoard,
@@ -7,7 +7,9 @@ import {
   publishCollabItem,
   publishOpenQuestionToIssuer,
   reviewCollabItem,
+  suggestCollabFollowUp,
   uploadProjectPackageFile,
+  type CollabFollowUpSuggest,
   type CollabIssuerAccount,
   type CollabItem,
   type CollabPriority,
@@ -75,6 +77,12 @@ export function InvestorCollabSection({
   const [dueAt, setDueAt] = useState("");
   const [attachFiles, setAttachFiles] = useState<File[]>([]);
   const [fileInputKey, setFileInputKey] = useState(0);
+  const [followUpId, setFollowUpId] = useState<string | null>(null);
+  const followUpIdRef = useRef<string | null>(null);
+  const [followUpSuggests, setFollowUpSuggests] = useState<
+    Record<string, CollabFollowUpSuggest>
+  >({});
+  const [suggestingId, setSuggestingId] = useState<string | null>(null);
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
   const [incomingDraft, setIncomingDraft] = useState<{
     sourceText: string;
@@ -148,6 +156,10 @@ export function InvestorCollabSection({
     setAssignedTo((prev) => prev || defaultAssignedTo(issuers));
   }, [issuers]);
 
+  useEffect(() => {
+    followUpIdRef.current = followUpId;
+  }, [followUpId]);
+
   const unpublishedQuestions = questions.filter(
     (q) => !items.some((it) => it.sourceQuestionText === q.text),
   );
@@ -190,6 +202,7 @@ export function InvestorCollabSection({
     setPriority("P2");
     setEditingKey(null);
     setComposing(false);
+    setFollowUpId(null);
   };
 
   const openEdit = (q: { text: string; priority: CollabPriority }) => {
@@ -198,6 +211,7 @@ export function InvestorCollabSection({
       return;
     }
     setComposing(false);
+    setFollowUpId(null);
     setEditingKey(q.text);
     setSourceText(q.text);
     const formatted = formatOpenQuestionForIssuer(q.text);
@@ -213,6 +227,7 @@ export function InvestorCollabSection({
   const openCompose = () => {
     setTab("unsent");
     setEditingKey(null);
+    setFollowUpId(null);
     setSourceText("");
     setTitle("");
     setBody("");
@@ -222,6 +237,52 @@ export function InvestorCollabSection({
     setAttachFiles([]);
     setFileInputKey((k) => k + 1);
     setComposing(true);
+  };
+
+  const openFollowUp = async (it: CollabItem) => {
+    if (followUpId === it.id) {
+      setFollowUpId(null);
+      return;
+    }
+    if (!canManage) {
+      setError("仅 Admin / Core 可补充问询");
+      return;
+    }
+    setComposing(false);
+    setEditingKey(null);
+    setFollowUpId(it.id);
+    setSourceText(
+      `补充问询｜${it.title}${it.replyText ? `\n原答复：${it.replyText}` : ""}`,
+    );
+    setTitle("");
+    setBody("");
+    setPriority(it.priority);
+    setAssignedTo(it.assignedTo?.trim() || defaultAssignedTo(issuers));
+    setDueAt("");
+    setAttachFiles([]);
+    setFileInputKey((k) => k + 1);
+    setError(null);
+    const cached = followUpSuggests[it.id];
+    if (cached) {
+      setTitle(cached.title);
+      setBody(cached.body);
+      return;
+    }
+    setSuggestingId(it.id);
+    try {
+      const s = await suggestCollabFollowUp(projectId, it.id);
+      setFollowUpSuggests((m) => ({ ...m, [it.id]: s }));
+      if (followUpIdRef.current === it.id) {
+        setTitle(s.title);
+        setBody(s.body);
+      }
+    } catch (e) {
+      if (followUpIdRef.current === it.id) {
+        setError(e instanceof Error ? e.message : "判断失败");
+      }
+    } finally {
+      setSuggestingId((cur) => (cur === it.id ? null : cur));
+    }
   };
 
   const onSendQuestion = async (q: { text: string; priority: CollabPriority }) => {
@@ -329,11 +390,12 @@ export function InvestorCollabSection({
   };
 
   const canSubmitWording =
-    Boolean(body.trim() || sourceText.trim()) &&
+    Boolean(title.trim() && body.trim()) &&
     !(issuers.length > 0 && !assignedTo);
 
-  const wordingForm = (showSend: boolean) => (
+  const wordingForm = (showSend: boolean, lead?: ReactNode) => (
     <div className="mt-3 space-y-2 rounded-xl border border-[rgba(78,66,57,0.08)] bg-[rgba(248,243,238,0.55)] px-3 py-3">
+      {lead}
       <input
         className="h-9 w-full rounded-lg border border-[rgba(78,66,57,0.12)] bg-white px-2 text-[13px]"
         placeholder="对外中性标题"
@@ -409,13 +471,19 @@ export function InvestorCollabSection({
     </div>
   );
 
-  const renderPublished = (list: CollabItem[]) =>
+  const renderPublished = (
+    list: CollabItem[],
+    allowFollowUp: boolean,
+  ) =>
     list.length === 0 ? (
       <p className="mt-4 text-[13px] text-[#969E9A]">暂无事项。</p>
     ) : (
       <ul className="mt-4 space-y-3">
         {list.map((it) => {
           const preview = previewCollabQuestion(it);
+          const expanded = allowFollowUp && followUpId === it.id;
+          const suggest = followUpSuggests[it.id];
+          const suggesting = suggestingId === it.id;
           return (
             <li
               key={it.id}
@@ -430,15 +498,60 @@ export function InvestorCollabSection({
                     </div>
                   ) : null}
                 </div>
-                <span className="shrink-0 text-[11.5px] text-[#A06358]">
-                  {collabStatusLabel(it.status)}
-                </span>
+                {allowFollowUp && canManage ? (
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      className="inline-flex h-8 items-center justify-center rounded-lg border border-[rgba(78,66,57,0.16)] bg-transparent px-3 text-[12.5px] font-medium text-[#59625F] hover:bg-[rgba(78,66,57,0.04)]"
+                      onClick={() => void openFollowUp(it)}
+                    >
+                      {expanded ? "收起" : "补充问询"}
+                    </button>
+                    {expanded ? (
+                      <button
+                        type="button"
+                        disabled={
+                          Boolean(busy) ||
+                          suggesting ||
+                          !canSubmitWording
+                        }
+                        onClick={() => void onPublish()}
+                        className="inline-flex h-8 items-center justify-center rounded-lg bg-[#A06358] px-3 text-[12.5px] font-medium text-white disabled:opacity-45"
+                      >
+                        {busy === "publish" ? "发送中…" : "发送"}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : (
+                  <span className="shrink-0 text-[11.5px] text-[#A06358]">
+                    {collabStatusLabel(it.status)}
+                  </span>
+                )}
               </div>
               {it.replyText ? (
                 <p className="mt-2 text-[13px] leading-relaxed text-[#1F2423]">
                   项目协作方答复：{it.replyText}
                 </p>
               ) : null}
+              {expanded
+                ? wordingForm(
+                    false,
+                    suggesting ? (
+                      <p className="text-[12.5px] text-[#59625F]">判断中…</p>
+                    ) : suggest ? (
+                      <>
+                        <p className="text-[12.5px] leading-relaxed text-[#1F2423]">
+                          答复{suggest.complete ? "完整" : "不完整"}。
+                          {suggest.completeness}
+                        </p>
+                        <p className="text-[12.5px] leading-relaxed text-[#1F2423]">
+                          {suggest.shouldFollowUp ? "建议补充" : "可不补充"}。
+                          {suggest.followUpAdvice}
+                        </p>
+                      </>
+                    ) : null,
+                  )
+                : null}
               {canManage && it.status === "submitted" ? (
                 <div className="mt-2 flex flex-wrap gap-2">
                   <input
@@ -595,8 +708,8 @@ export function InvestorCollabSection({
         </div>
       ) : null}
 
-      {tab === "pending" ? renderPublished(pendingList) : null}
-      {tab === "replied" ? renderPublished(repliedList) : null}
+      {tab === "pending" ? renderPublished(pendingList, false) : null}
+      {tab === "replied" ? renderPublished(repliedList, true) : null}
     </div>
   );
 }

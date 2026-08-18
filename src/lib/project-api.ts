@@ -1704,6 +1704,32 @@ export async function reviewCollabItem(
   return data.item;
 }
 
+export type CollabFollowUpSuggest = {
+  complete: boolean;
+  completeness: string;
+  shouldFollowUp: boolean;
+  followUpAdvice: string;
+  title: string;
+  body: string;
+};
+
+export async function suggestCollabFollowUp(
+  projectId: string,
+  itemId: string,
+): Promise<CollabFollowUpSuggest> {
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/collab/items/${encodeURIComponent(itemId)}/follow-up-suggest`,
+    { method: "POST" },
+  );
+  const data = (await res.json().catch(() => ({}))) as {
+    suggest?: CollabFollowUpSuggest;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(data.error || "判断失败");
+  if (!data.suggest) throw new Error("未返回判断结果");
+  return data.suggest;
+}
+
 export async function fetchCollabFiles(
   projectId: string,
 ): Promise<CollabFileRecord[]> {

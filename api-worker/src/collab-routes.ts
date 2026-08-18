@@ -31,6 +31,12 @@ import {
 import { getWorkspaceUserById } from "./workspace-users-db";
 import { listProjectMemberRoleOverrides } from "./project-member-roles-db";
 import { stripCitationMarkers } from "./kn-citation-markers";
+import { callLlm, type LlmClientEnv } from "./llm-client";
+import {
+  buildCollabFollowUpUserPrompt,
+  COLLAB_FOLLOW_UP_SYSTEM,
+  parseCollabFollowUpSuggest,
+} from "./collab-follow-up";
 
 type Env = { DB: AppDatabase };
 
@@ -453,6 +459,49 @@ export async function handleReviewCollabItem(
     item: rowToPublic(next!, { includeInternal: true }),
     wroteBack: true,
   });
+}
+
+/** POST 已回复事项：AI 判断答复完整否并起草补充问询，人工再改再发 */
+export async function handleSuggestCollabFollowUp(
+  env: Env & LlmClientEnv,
+  pathProjectId: string,
+  itemId: string,
+  userId: string,
+): Promise<Response> {
+  const projectId = decodePathProjectId(pathProjectId);
+  const project = await getProjectById(env, projectId);
+  if (!project) return json({ error: "项目不存在" }, 404);
+  if (!(await canManageProjectCollab(env, userId, projectId, project.createdBy))) {
+    return json({ error: "仅 Admin / Core 可补充问询" }, 403);
+  }
+  const row = await getCollabItem(env, projectId, itemId);
+  if (!row) return json({ error: "事项不存在" }, 404);
+  if (row.status !== "submitted" && row.status !== "confirmed") {
+    return json({ error: "仅已回复事项可补充问询" }, 400);
+  }
+  const files = await listItemFiles(env, projectId, itemId);
+  try {
+    const { answer } = await callLlm(env, [
+      { role: "system", content: COLLAB_FOLLOW_UP_SYSTEM },
+      {
+        role: "user",
+        content: buildCollabFollowUpUserPrompt({
+          title: row.title,
+          body: row.body,
+          replyText: row.reply_text ?? "",
+          fileNames: files.map((f) => f.filename),
+        }),
+      },
+    ]);
+    const parsed = parseCollabFollowUpSuggest(answer);
+    if (!parsed) {
+      return json({ error: "未能解析判断结果" }, 502);
+    }
+    return json({ suggest: parsed });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return json({ error: msg || "判断失败" }, 502);
+  }
 }
 
 /** GET /api/projects/:id/collab/files */

@@ -79,6 +79,7 @@ import {
   handlePublishCollabItem,
   handleReviewCollabItem,
   handleShareDocumentWithIssuer,
+  handleSuggestCollabFollowUp,
 } from "./collab-routes";
 import { decodePathProjectId } from "./projects-resolve";
 import { reconcileActiveAgentJobsForUser } from "./agent-jobs";
@@ -520,6 +521,17 @@ export async function routeAuthedApi(
   if (/^\/api\/projects\/[^/]+\/collab\/files$/u.test(path) && request.method === "GET") {
     const projectId = decodePathProjectId(path.split("/")[3] ?? "");
     return handleListCollabFiles(env, projectId, authUserId);
+  }
+
+  if (
+    /^\/api\/projects\/[^/]+\/collab\/items\/[^/]+\/follow-up-suggest$/u.test(
+      path,
+    ) &&
+    request.method === "POST"
+  ) {
+    const projectId = decodePathProjectId(path.split("/")[3] ?? "");
+    const itemId = path.split("/")[6] ?? "";
+    return handleSuggestCollabFollowUp(env, projectId, itemId, authUserId);
   }
 
   if (
