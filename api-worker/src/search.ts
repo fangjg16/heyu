@@ -243,11 +243,11 @@ export async function selectChunksForChatWithVectors(
   return selectChunksForChat(chunks, query, options);
 }
 
-export function chunkPlainText(text: string, size = 900): string[] {
+export function chunkPlainText(text: string, size = 900, maxChunks = 120): string[] {
   const normalized = text.replace(/\r\n/g, "\n").trim();
   if (!normalized) return [];
   const out: string[] = [];
-  for (let i = 0; i < normalized.length; i += size) {
+  for (let i = 0; i < normalized.length && out.length < maxChunks; i += size) {
     out.push(normalized.slice(i, i + size));
   }
   return out;

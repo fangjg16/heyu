@@ -549,6 +549,8 @@ export const DIRECTORY_MIME = "application/x-directory";
 export const PROJECT_UPLOAD_FOLDER = "项目上传的";
 /** 对话附件默认一级目录（relative_path；会话树仍按 scope=session 归入「对话上传」） */
 export const SESSION_UPLOAD_FOLDER = "对话上传";
+/** 对话中 AI 产出的 Markdown */
+export const AI_GENERATED_FOLDER = "AI生成";
 
 /** 项目资料包按 projectId 共享；userId 仅用于拉取该用户的对话临时文件 */
 export async function fetchProjectFiles(
@@ -661,6 +663,14 @@ export function dedupeFilesByFilename(
   );
 }
 
+export type UploadProjectFileResult = {
+  documentId: string;
+  filename: string;
+  parsed: boolean;
+  parseQueued?: boolean;
+  chunks?: number;
+};
+
 export async function uploadProjectPackageFile(
   projectId: string,
   userId: string,
@@ -677,7 +687,7 @@ export async function uploadProjectPackageFile(
     versionGroup?: string;
   },
   _chatEndpoint = AI_CHAT_ENDPOINT,
-): Promise<void> {
+): Promise<UploadProjectFileResult> {
   const form = new FormData();
   form.append("file", file);
   form.append("userId", userId);
@@ -702,6 +712,16 @@ export async function uploadProjectPackageFile(
     const err = await res.text().catch(() => "");
     throw new Error(err || `上传失败（${res.status}）`);
   }
+  const data = (await res.json().catch(() => ({}))) as Partial<UploadProjectFileResult> & {
+    documentId?: string;
+  };
+  return {
+    documentId: String(data.documentId ?? "").trim(),
+    filename: String(data.filename ?? file.name),
+    parsed: Boolean(data.parsed),
+    parseQueued: Boolean(data.parseQueued),
+    chunks: Number(data.chunks) || 0,
+  };
 }
 
 /** 创建空文件夹占位（.keep + directory mime） */

@@ -161,6 +161,19 @@ export function shouldFallbackToDashscope(hermesErrorMessage: string): boolean {
   );
 }
 
+/** 把上游偶发的 Cloudflare/网关英文错误改成用户可读中文 */
+export function humanizeUpstreamLlmError(raw: string): string {
+  const msg = (raw ?? "").trim();
+  if (!msg) return "上游模型服务暂时异常，请稍后重试。";
+  if (/internal error;\s*reference\s*=/i.test(msg)) {
+    return "上游模型服务暂时异常，请稍后重试。";
+  }
+  if (/too many requests|rate limit|429/i.test(msg)) {
+    return "模型请求过于频繁，请稍后重试。";
+  }
+  return msg;
+}
+
 export async function callLlm(
   env: LlmClientEnv,
   messages: LlmMessage[],

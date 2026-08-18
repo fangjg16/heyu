@@ -2,6 +2,7 @@ import type { ProjectFileRecord } from "@/lib/project-api";
 import {
   PROJECT_UPLOAD_FOLDER,
   SESSION_UPLOAD_FOLDER,
+  AI_GENERATED_FOLDER,
 } from "@/lib/project-api";
 import {
   buildPackageFileTree,
@@ -12,11 +13,12 @@ import {
   type FileTreeNode,
 } from "@/lib/project-file-tree";
 
-export type FileSourceBucket = "project" | "session" | "issuer";
+export type FileSourceBucket = "project" | "session" | "issuer" | "ai";
 
 export const PROJECT_SOURCE_PATH = "__source_project__";
 export const SESSION_SOURCE_PATH = "__session__";
 export const ISSUER_SOURCE_PATH = "__source_issuer__";
+export const AI_SOURCE_PATH = "__source_ai__";
 export const TOPIC_ROOT_PATH = "__topic__";
 
 export const SOURCE_BUCKETS: {
@@ -27,6 +29,7 @@ export const SOURCE_BUCKETS: {
   { id: "project", path: PROJECT_SOURCE_PATH, name: "项目上传" },
   { id: "session", path: SESSION_SOURCE_PATH, name: "对话上传" },
   { id: "issuer", path: ISSUER_SOURCE_PATH, name: "协作方上传" },
+  { id: "ai", path: AI_SOURCE_PATH, name: "AI生成" },
 ];
 
 const ISSUER_PREFIXES = ["项目协作方上传", "项目方上传"];
@@ -34,10 +37,12 @@ const ISSUER_PREFIXES = ["项目协作方上传", "项目方上传"];
 export function fileSourceBucket(file: ProjectFileRecord): FileSourceBucket {
   if (file.scope === "session") return "session";
   if (file.sourceKind === "issuer_upload") return "issuer";
+  if (file.sourceKind === "ai_generated") return "ai";
   const path = normalizeRelativePath(file.relativePath);
   for (const prefix of ISSUER_PREFIXES) {
     if (path === prefix || path.startsWith(`${prefix}/`)) return "issuer";
   }
+  if (path === AI_GENERATED_FOLDER || path.startsWith(`${AI_GENERATED_FOLDER}/`)) return "ai";
   return "project";
 }
 
@@ -55,6 +60,7 @@ export function stripSourcePrefix(
   const p = normalizeRelativePath(path);
   if (bucket === "project") return stripPrefix(p, PROJECT_UPLOAD_FOLDER);
   if (bucket === "session") return stripPrefix(p, SESSION_UPLOAD_FOLDER);
+  if (bucket === "ai") return stripPrefix(p, AI_GENERATED_FOLDER);
   for (const prefix of ISSUER_PREFIXES) {
     if (p === prefix || p.startsWith(`${prefix}/`)) return stripPrefix(p, prefix);
   }
@@ -66,7 +72,8 @@ export function isSourceRootPath(path: string): boolean {
   return (
     p === PROJECT_SOURCE_PATH ||
     p === SESSION_SOURCE_PATH ||
-    p === ISSUER_SOURCE_PATH
+    p === ISSUER_SOURCE_PATH ||
+    p === AI_SOURCE_PATH
   );
 }
 
@@ -88,6 +95,9 @@ export function sourceBucketFromVirtualPath(
   if (p === ISSUER_SOURCE_PATH || p.startsWith(`${ISSUER_SOURCE_PATH}/`)) {
     return "issuer";
   }
+  if (p === AI_SOURCE_PATH || p.startsWith(`${AI_SOURCE_PATH}/`)) {
+    return "ai";
+  }
   return null;
 }
 
@@ -102,7 +112,9 @@ export function toVirtualFolder(
       ? PROJECT_SOURCE_PATH
       : bucket === "session"
         ? SESSION_SOURCE_PATH
-        : ISSUER_SOURCE_PATH;
+        : bucket === "ai"
+          ? AI_SOURCE_PATH
+          : ISSUER_SOURCE_PATH;
   return joinRelativePath(root, rest);
 }
 
@@ -130,6 +142,10 @@ export function toPhysicalFolder(virtualPath: string): string {
       p.slice(ISSUER_SOURCE_PATH.length + 1),
     );
   }
+  if (p === AI_SOURCE_PATH) return AI_GENERATED_FOLDER;
+  if (p.startsWith(`${AI_SOURCE_PATH}/`)) {
+    return joinRelativePath(AI_GENERATED_FOLDER, p.slice(AI_SOURCE_PATH.length + 1));
+  }
   return p;
 }
 
@@ -155,7 +171,7 @@ function folderAt(root: FileTreeFolderNode, path: string): FileTreeFolderNode | 
   return null;
 }
 
-/** 左侧按上传来源：项目上传 / 对话上传 / 协作方上传 */
+/** 左侧按上传来源：项目上传 / 对话上传 / 协作方上传 / AI生成 */
 export function buildSourceMaterialsTree(
   files: ProjectFileRecord[],
 ): FileTreeFolderNode {

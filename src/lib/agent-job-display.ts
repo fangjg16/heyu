@@ -279,7 +279,11 @@ export function formatAgentJobFailureDisplay(
   }
 
   if (ans.startsWith("深度分析失败")) {
-    return code ? `${ans}\n\n错误代码：${code}` : ans;
+    const cleaned = ans.replace(
+      /internal error;\s*reference\s*=\s*\S+/gi,
+      "上游模型服务暂时异常，请稍后重试。",
+    );
+    return code ? `${cleaned}\n\n错误代码：${code}` : cleaned;
   }
 
   const knFriendly = code ? KN_ERROR_FRIENDLY[code] : undefined;
@@ -292,9 +296,12 @@ export function formatAgentJobFailureDisplay(
   }
 
   if (err && !TECHNICAL_SUBMIT_RE.test(err)) {
+    const shown = /internal error;\s*reference\s*=/i.test(err)
+      ? "上游模型服务暂时异常，请稍后重试。"
+      : err;
     return code
-      ? `任务未能完成：${err}\n\n错误代码：${code}`
-      : `任务未能完成：${err}`;
+      ? `任务未能完成：${shown}\n\n错误代码：${code}`
+      : `任务未能完成：${shown}`;
   }
 
   const fallback = isKn

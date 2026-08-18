@@ -2,6 +2,8 @@ import type { AppObjectStorage } from "./app-storage";
 import type { AppDatabase } from "./app-database";
 import type { SkillIntent } from "./chat-modes";
 import { extractKnowledgeNetworkHtmlLoose } from "./chat-modes";
+import { persistAgentAnswerAsMarkdown } from "./ai-generated-documents";
+import { humanizeUpstreamLlmError } from "./llm-client";
 import { syncAgentJobTerminalToChat } from "./chat-sync";
 import {
   cancelHermesRun,
@@ -1000,6 +1002,11 @@ export async function completeAgentJob(
       answer: displayAnswer,
       knowledgeNetworkHtml: finalized.knowledgeNetworkHtml,
     });
+    try {
+      await persistAgentAnswerAsMarkdown(env, row, displayAnswer);
+    } catch {
+      /* 源文件落库失败不影响对话 */
+    }
   }
 }
 
@@ -1014,7 +1021,8 @@ export async function failAgentJob(
     return;
   }
 
-  const rawAnswer = (answerForChat ?? "").trim() || `深度分析失败：${error}`;
+  const displayError = humanizeUpstreamLlmError(error);
+  const rawAnswer = (answerForChat ?? "").trim() || `深度分析失败：${displayError}`;
   const answer = stripStructuredKbPayloadFromDisplayAnswer(rawAnswer);
 
   await env.DB.prepare(

@@ -24,7 +24,8 @@ const PARSE_SYSTEM = `你是投研工作台的源文件解析助手。根据给�
 3. 输出唯一 JSON 对象，字段：
 {"summary":"不超过100字的投研向摘要","documentType":"文件类型简述","keyPoints":["要点"],"refs":["可引用主题"],"usedFor":["投研用途建议"]}
 4. summary 必须 ≤100 个汉字/字符；keyPoints、refs、usedFor 各最多 6 条；无内容用空数组。
-5. refs=该文件可作为何种证据/主题被引用；usedFor=建议用于哪些投研环节；均须可从原文合理概括。`;
+5. refs=该文件可作为何种证据/主题被引用，必须是不超过 16 字的中文短词（如「竞品定价」「团队背景」）；禁止 URL、域名、脚注编号、原文摘录。
+6. usedFor=建议用于哪些投研环节，同样用短词，禁止 URL。`;
 
 type ParseResultRow = {
   document_id: string;
@@ -75,12 +76,27 @@ function truncateSummary(text: string, max = SUMMARY_MAX_CHARS): string {
   return `${chars.slice(0, max).join("")}`;
 }
 
+function looksLikeNoisyLabel(s: string): boolean {
+  const t = s.trim();
+  if (!t) return true;
+  if (t.length > 24) return true;
+  if (/https?:\/\//i.test(t)) return true;
+  if (/\.(com|ai|io|org|net|cn)\b/i.test(t)) return true;
+  if (/\[[A-Za-z]+\d*\]/.test(t)) return true;
+  if (/\*\*|`/.test(t)) return true;
+  return false;
+}
+
+function sanitizeTopicLabels(items: string[], max = 6): string[] {
+  return items.filter((s) => !looksLikeNoisyLabel(s)).slice(0, max);
+}
+
 function parseStringArray(raw: unknown, max = 6): string[] {
   if (!Array.isArray(raw)) return [];
-  return raw
-    .map((x) => String(x ?? "").trim())
-    .filter(Boolean)
-    .slice(0, max);
+  return sanitizeTopicLabels(
+    raw.map((x) => String(x ?? "").trim()).filter(Boolean),
+    max,
+  );
 }
 
 function parseJsonStringArray(raw: string | null | undefined): string[] {
@@ -119,7 +135,10 @@ function parseLlmDocumentJson(answer: string): {
       refs?: unknown;
       usedFor?: unknown;
     };
-    const summary = truncateSummary(String(obj.summary ?? "").trim());
+    const summaryRaw = String(obj.summary ?? "").trim();
+    const summary = /https?:\/\//i.test(summaryRaw)
+      ? "未能生成可用摘要，请直接预览原文。"
+      : truncateSummary(summaryRaw);
     const documentType = String(obj.documentType ?? "").trim().slice(0, 128);
     const keyPoints = parseStringArray(obj.keyPoints);
     const refs = parseStringArray(obj.refs);
@@ -130,8 +149,11 @@ function parseLlmDocumentJson(answer: string): {
   } catch {
     /* fall through */
   }
+  const fallback = /https?:\/\//i.test(cleaned)
+    ? "未能生成可用摘要，请直接预览原文。"
+    : cleaned || "模型未返回有效摘要。";
   return {
-    summary: truncateSummary(cleaned || "模型未返回有效摘要。"),
+    summary: truncateSummary(fallback),
     documentType: "",
     keyPoints: [],
     refs: [],
@@ -599,5 +621,30 @@ export async function handleParseProjectFileSummary(
       usedFor: [],
       warning: extractWarning ?? null,
     });
+  }
+}
+
+/** 上传后后台解析；失败不影响上传结果 */
+export async function runDocumentParseSummaryBackground(
+  env: Env,
+  ctx: ExecutionContext,
+  opts: { projectId: string; documentId: string; userId: string },
+): Promise<void> {
+  const userId = opts.userId.trim();
+  const documentId = opts.documentId.trim();
+  if (!userId || !documentId) return;
+  try {
+    const req = new Request(
+      `https://jfo.local/parse-summary?userId=${encodeURIComponent(userId)}`,
+    );
+    await handleParseProjectFileSummary(
+      req,
+      env,
+      ctx,
+      opts.projectId,
+      documentId,
+    );
+  } catch {
+    /* ignore */
   }
 }

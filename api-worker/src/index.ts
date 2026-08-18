@@ -9,10 +9,12 @@ import {
 } from "./chat-sync";
 import { extractPdfPlainText } from "./pdf-text";
 import { extractSpreadsheetPlainText } from "./spreadsheet-text";
+import { runDocumentParseSummaryBackground } from "./documents-parse-summary";
 import {
   callHermes,
   callLlm,
   callQwen,
+  humanizeUpstreamLlmError,
   shouldFallbackToDashscope,
 } from "./llm-client";
 import { withResolvedDashscopeEnv } from "./llm-runtime-config";
@@ -518,9 +520,15 @@ async function handleUpload(
   const isDir = isDirectoryMarker(mimeRaw, baseName) || mimeRaw === DIRECTORY_MIME;
   const mime = isDir ? DIRECTORY_MIME : mimeRaw;
   let relativePath = sanitizeRelativePath(String(form.get("relativePath") || ""));
-  // 未指定父目录时：资料包 →「项目上传的」；对话附件 →「对话上传」
+  const requestedKind = String(form.get("sourceKind") || "").trim();
+  // 未指定父目录时：资料包 →「项目上传的」；对话附件 →「对话上传」；AI 产出 →「AI生成」
   if (!relativePath && !isDir) {
-    relativePath = scope === "session" ? "对话上传" : "项目上传的";
+    relativePath =
+      requestedKind === "ai_generated"
+        ? "AI生成"
+        : scope === "session"
+          ? "对话上传"
+          : "项目上传的";
   }
   const bytes = await file.arrayBuffer();
 
@@ -742,6 +750,13 @@ async function handleUpload(
 
   if (parsed && parts.length > 0) {
     ctx.waitUntil(embedDocumentChunks(env, docId));
+    ctx.waitUntil(
+      runDocumentParseSummaryBackground(env, ctx, {
+        projectId,
+        documentId: docId,
+        userId: uploadedBy,
+      }),
+    );
   }
 
   return json({
@@ -752,6 +767,7 @@ async function handleUpload(
     r2Key,
     chunks: parts.length,
     parsed,
+    parseQueued: Boolean(parsed && parts.length > 0),
     pdfWarning: pdfWarning ?? null,
   });
 }
@@ -915,7 +931,7 @@ async function processHermesJobViaChat(
       instructions +=
         "\n\n【聊天兼容·无 bash】无法 curl。交付方式仅有：在本条回复末尾附完整 ```html 整页；禁止只写路径或要求用户再发一条。";
     }
-    const { answer } = await callHermes(env, [
+    const { answer } = await callLlm(env, [
       { role: "system", content: instructions },
       ...params.history.slice(-12),
       { role: "user", content: params.message },

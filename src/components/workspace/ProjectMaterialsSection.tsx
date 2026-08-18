@@ -88,7 +88,7 @@ type FileTag = {
 type ParseCacheEntry = {
   summary: string;
   chunkCount: number;
-  status: "parsed" | "failed";
+  status: "parsed" | "failed" | "parsing";
   documentType?: string;
   keyPoints?: string[];
   refs?: string[];
@@ -166,6 +166,7 @@ function parseUiStatus(
 ): ParseUiStatus {
   if (parsingId === fileId) return "parsing";
   const cached = parsedById[fileId];
+  if (cached?.status === "parsing") return "parsing";
   if (cached?.status === "parsed") return "parsed";
   if (cached?.status === "failed") return "failed";
   if (dbParsed) return "parsed";
@@ -213,6 +214,13 @@ function tagsForFile(
       label: "协作方上传",
       bg: "rgba(78,66,57,0.08)",
       fg: "#59625F",
+    });
+  }
+  if (fileSourceBucket(file) === "ai") {
+    tags.push({
+      label: "AI生成",
+      bg: "rgba(160,99,88,0.1)",
+      fg: "#A06358",
     });
   }
   if (file.sharedWithIssuer && file.scope === "package") {
@@ -350,7 +358,7 @@ function folderPathTrail(
 function resolveUploadFolder(targetFolder: string): string {
   if (isTopicPath(targetFolder) || !targetFolder) return PROJECT_UPLOAD_FOLDER;
   const bucket = sourceBucketFromVirtualPath(targetFolder);
-  if (bucket === "session" || bucket === "issuer") return PROJECT_UPLOAD_FOLDER;
+  if (bucket === "session" || bucket === "issuer" || bucket === "ai") return PROJECT_UPLOAD_FOLDER;
   return toPhysicalFolder(targetFolder);
 }
 
@@ -550,16 +558,27 @@ export function ProjectMaterialsSection({
       setError(null);
       setUploadHint(null);
       const errors: string[] = [];
+      const parseQueue: string[] = [];
       let ok = 0;
       try {
         for (let i = 0; i < items.length; i++) {
           const item = items[i]!;
           setUploadHint(`上传中 ${i + 1}/${items.length}：${item.file.name}`);
           try {
-            await uploadProjectPackageFile(projectId, userId, item.file, {
-              relativePath: item.relativePath,
-            });
+            const uploaded = await uploadProjectPackageFile(
+              projectId,
+              userId,
+              item.file,
+              { relativePath: item.relativePath },
+            );
             ok += 1;
+            if (
+              uploaded.documentId &&
+              (uploaded.parseQueued || uploaded.parsed) &&
+              item.file.name !== ".keep"
+            ) {
+              parseQueue.push(uploaded.documentId);
+            }
           } catch (e) {
             errors.push(
               `${item.file.name}: ${e instanceof Error ? e.message : String(e)}`,
@@ -589,7 +608,75 @@ export function ProjectMaterialsSection({
             }`,
           );
         } else {
-          setUploadHint(`已上传 ${ok} 个文件`);
+          setUploadHint(
+            parseQueue.length > 0
+              ? `已上传 ${ok} 个文件，正在自动解析 ${parseQueue.length} 个…`
+              : `已上传 ${ok} 个文件`,
+          );
+        }
+        if (parseQueue.length > 0) {
+          setParsedById((prev) => {
+            const next = { ...prev };
+            for (const id of parseQueue) {
+              if (next[id]?.status === "parsed") continue;
+              next[id] = {
+                summary: "上传后自动解析中…",
+                chunkCount: 0,
+                status: "parsing",
+                keyPoints: [],
+                refs: [],
+                usedFor: [],
+              };
+            }
+            return next;
+          });
+          void (async () => {
+            for (const docId of parseQueue) {
+              try {
+                const result = await fetchProjectFileParseSummary(
+                  projectId,
+                  docId,
+                  userId,
+                );
+                setParsedById((prev) => ({
+                  ...prev,
+                  [docId]: {
+                    summary: result.summary,
+                    chunkCount: result.chunkCount,
+                    status: result.parsed ? "parsed" : "failed",
+                    documentType: result.documentType,
+                    keyPoints: result.keyPoints ?? [],
+                    refs: result.refs ?? [],
+                    usedFor: result.usedFor ?? [],
+                  },
+                }));
+                if (result.parsed) {
+                  setLiveFiles((prev) =>
+                    (prev ?? []).map((f) =>
+                      f.id === docId ? { ...f, parsed: true } : f,
+                    ),
+                  );
+                }
+              } catch (e) {
+                setParsedById((prev) => ({
+                  ...prev,
+                  [docId]: {
+                    summary: e instanceof Error ? e.message : String(e),
+                    chunkCount: 0,
+                    status: "failed",
+                    keyPoints: [],
+                    refs: [],
+                    usedFor: [],
+                  },
+                }));
+              }
+            }
+            setUploadHint((hint) =>
+              hint?.includes("自动解析")
+                ? `已上传 ${ok} 个文件，自动解析完成`
+                : hint,
+            );
+          })();
         }
       } finally {
         setUploading(false);
@@ -603,6 +690,10 @@ export function ProjectMaterialsSection({
       if (!list?.length) return;
       if (sourceBucketFromVirtualPath(targetFolder) === "issuer") {
         setError("协作方上传的文件由项目协作方在协作工作台提交");
+        return;
+      }
+      if (sourceBucketFromVirtualPath(targetFolder) === "ai") {
+        setError("AI生成目录由对话产出写入，请上传到「项目上传」");
         return;
       }
       const files = Array.from(list);
@@ -674,7 +765,7 @@ export function ProjectMaterialsSection({
     if (!useLive || !canManage || uploading) return;
     if (isTopicPath(parentPath)) return;
     const bucket = sourceBucketFromVirtualPath(parentPath || PROJECT_SOURCE_PATH);
-    if (bucket === "session" || bucket === "issuer") return;
+    if (bucket === "session" || bucket === "issuer" || bucket === "ai") return;
     const name = window.prompt("新建文件夹名称", "新建文件夹")?.trim();
     if (!name) return;
     if (/[/\\]/.test(name) || name === "." || name === "..") {
@@ -761,7 +852,8 @@ export function ProjectMaterialsSection({
       if (
         isTopicPath(targetFolder) ||
         sourceBucketFromVirtualPath(targetFolder) === "session" ||
-        sourceBucketFromVirtualPath(targetFolder) === "issuer"
+        sourceBucketFromVirtualPath(targetFolder) === "issuer" ||
+        sourceBucketFromVirtualPath(targetFolder) === "ai"
       ) {
         return;
       }
@@ -885,6 +977,7 @@ export function ProjectMaterialsSection({
         return;
       }
       if (parsedById[file.id]?.status === "parsed") return;
+      if (parsedById[file.id]?.status === "parsing") return;
       if (parsingId === file.id) return;
       setParsingId(file.id);
       setError(null);
@@ -1015,8 +1108,10 @@ export function ProjectMaterialsSection({
             ? "对话上传"
             : fileSourceBucket(file) === "issuer"
               ? "协作方上传"
-              : "",
-        refs: refLabels,
+              : fileSourceBucket(file) === "ai"
+                ? "AI生成"
+                : "",
+        refs: refLabels.filter((r) => r.length <= 24 && !/https?:\/\//i.test(r)),
         summary,
         documentType: cache?.documentType || file.fileCategory || "",
         keyPoints: cache?.keyPoints ?? [],
@@ -1244,7 +1339,7 @@ export function ProjectMaterialsSection({
                     onSelectFile={selectFile}
                     onDropFiles={(files, path) => {
                       const bucket = sourceBucketFromVirtualPath(path);
-                      if (bucket === "session" || bucket === "issuer" || isTopicPath(path)) {
+                      if (bucket === "session" || bucket === "issuer" || bucket === "ai" || isTopicPath(path)) {
                         return;
                       }
                       void processUploadSelection(files, path);
@@ -1313,9 +1408,7 @@ export function ProjectMaterialsSection({
 
               {detail.isFile ? (
                 <p className="mt-2 text-[13px] text-[hsl(var(--warm-charcoal-muted))]">
-                  {[detail.status, detail.perm, ...detail.refs]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  {[detail.status, detail.perm].filter(Boolean).join(" · ")}
                 </p>
               ) : null}
 
@@ -1727,7 +1820,7 @@ function TreeRow({
   const selected = selection.kind === "folder" && selection.path === node.path;
   const bucket = sourceBucketFromVirtualPath(node.path);
   const noDrop =
-    bucket === "session" || bucket === "issuer" || isTopicPath(node.path);
+    bucket === "session" || bucket === "issuer" || bucket === "ai" || isTopicPath(node.path);
   const isDrag = dragOverPath === node.path;
 
   return (
