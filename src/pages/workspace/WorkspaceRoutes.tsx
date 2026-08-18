@@ -708,9 +708,7 @@ function ProjectWorkspaceLayout() {
           onUpdateOverview={() => void onUpdateOverview()}
           overviewBusy={overviewBusy}
           canUpdateOverview={canUpdateOverview}
-          onUpdateAllChapters={() => void onUpdateAllChapters()}
           allChaptersBusy={allChaptersBusy}
-          canUpdateAllChapters={canUpdateOverview}
           allChaptersProgress={null}
         />
 
@@ -754,6 +752,9 @@ function ProjectWorkspaceLayout() {
               overviewRefreshKey,
               knowledgeRefreshKey,
               allChaptersBusy,
+              overviewBusy,
+              canUpdateAllChapters: canUpdateOverview,
+              onUpdateAllChapters: () => void onUpdateAllChapters(),
               updatingChapterIds,
               failedChapterIds,
               onChapterGenerateSucceeded,
@@ -834,12 +835,20 @@ function ProjectKnowledgeTab() {
     failedChapterIds = [],
     onChapterGenerateSucceeded,
     onChapterGenerateFailed,
+    allChaptersBusy = false,
+    overviewBusy = false,
+    canUpdateAllChapters = false,
+    onUpdateAllChapters,
   } = useOutletContext<{
     knowledgeRefreshKey?: number;
     updatingChapterIds?: string[];
     failedChapterIds?: string[];
     onChapterGenerateSucceeded?: (sectionId: string) => void;
     onChapterGenerateFailed?: (sectionId: string) => void;
+    allChaptersBusy?: boolean;
+    overviewBusy?: boolean;
+    canUpdateAllChapters?: boolean;
+    onUpdateAllChapters?: () => void;
   }>();
   return (
     <ProjectKnowledgeNetworkSection
@@ -852,6 +861,10 @@ function ProjectKnowledgeTab() {
       failedChapterIds={failedChapterIds}
       onChapterGenerateSucceeded={onChapterGenerateSucceeded}
       onChapterGenerateFailed={onChapterGenerateFailed}
+      allChaptersBusy={allChaptersBusy}
+      overviewBusy={overviewBusy}
+      canUpdateAllChapters={canUpdateAllChapters}
+      onUpdateAllChapters={onUpdateAllChapters}
     />
   );
 }

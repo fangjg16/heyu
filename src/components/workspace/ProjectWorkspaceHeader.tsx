@@ -90,9 +90,7 @@ type ProjectWorkspaceHeaderProps = {
   onUpdateOverview?: () => void;
   overviewBusy?: boolean;
   canUpdateOverview?: boolean;
-  onUpdateAllChapters?: () => void;
   allChaptersBusy?: boolean;
-  canUpdateAllChapters?: boolean;
   allChaptersProgress?: {
     done: number;
     total: number;
@@ -120,9 +118,7 @@ export function ProjectWorkspaceHeader({
   onUpdateOverview,
   overviewBusy = false,
   canUpdateOverview = false,
-  onUpdateAllChapters,
   allChaptersBusy = false,
-  canUpdateAllChapters = false,
   allChaptersProgress = null,
 }: ProjectWorkspaceHeaderProps) {
   const navigate = useNavigate();
@@ -131,9 +127,7 @@ export function ProjectWorkspaceHeader({
   const canManage = canManageProjectPermissions(userId, project);
   const [members, setMembers] = useState<ProjectPermissionMember[] | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
-  const [confirmKind, setConfirmKind] = useState<
-    null | "overview" | "all-chapters"
-  >(null);
+  const [confirmKind, setConfirmKind] = useState<null | "overview">(null);
   useBodyScrollLock(confirmKind !== null || membersOpen);
 
   useEffect(() => {
@@ -193,23 +187,12 @@ export function ProjectWorkspaceHeader({
           body: "将根据模板与已上传资料生成「项目概览」更新草案（含时间轴与关系图）。正式版本不会被覆盖，需审核后再发布。确定开始？",
           confirmLabel: "开始更新概览",
         }
-      : confirmKind === "all-chapters"
-        ? {
-            title: "确认更新全部章节",
-            body: "将并行生成全部知识网络章节的更新草案。正式版本不会被覆盖，生成完成后可进入审核页对照差异再发布。耗时可能较长。确定开始？",
-            confirmLabel: "开始更新全部章节",
-          }
-        : null;
+      : null;
 
   const onConfirmStart = () => {
     if (confirmKind === "overview") {
       setConfirmKind(null);
       onUpdateOverview?.();
-      return;
-    }
-    if (confirmKind === "all-chapters") {
-      setConfirmKind(null);
-      onUpdateAllChapters?.();
     }
   };
 
@@ -358,46 +341,25 @@ export function ProjectWorkspaceHeader({
             </Link>
           ))}
         </div>
-        {tab === "overview" || tab === "knowledge" ? (
+        {tab === "overview" ? (
         <div className="flex shrink-0 items-center gap-2 pb-2">
-          {tab === "overview" ? (
-            <button
-              type="button"
-              onClick={() => setConfirmKind("overview")}
-              disabled={
-                !canUpdateOverview ||
-                overviewBusy ||
-                allChaptersBusy ||
-                !onUpdateOverview
-              }
-              className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[rgba(78,66,57,0.18)] bg-transparent px-3.5 text-[13px] font-medium text-[#59625F] transition-colors hover:border-[hsl(var(--wine)/0.3)] hover:bg-[hsl(var(--wine-muted))] hover:text-[hsl(var(--wine))] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <RefreshCw
-                className={cn("h-3.5 w-3.5", overviewBusy && "animate-spin")}
-                strokeWidth={2}
-              />
-              {overviewBusy ? "生成草案中…" : "更新概览"}
-            </button>
-          ) : null}
-          {tab === "knowledge" ? (
-            <button
-              type="button"
-              onClick={() => setConfirmKind("all-chapters")}
-              disabled={
-                !canUpdateAllChapters ||
-                allChaptersBusy ||
-                overviewBusy ||
-                !onUpdateAllChapters
-              }
-              className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[hsl(var(--wine)/0.35)] bg-[hsl(var(--wine-muted))] px-3.5 text-[13px] font-medium text-[hsl(var(--wine))] transition-colors hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <RefreshCw
-                className={cn("h-3.5 w-3.5", allChaptersBusy && "animate-spin")}
-                strokeWidth={2}
-              />
-              {allChaptersBusy ? "生成草案中…" : "更新全部章节"}
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={() => setConfirmKind("overview")}
+            disabled={
+              !canUpdateOverview ||
+              overviewBusy ||
+              allChaptersBusy ||
+              !onUpdateOverview
+            }
+            className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[rgba(78,66,57,0.18)] bg-transparent px-3.5 text-[13px] font-medium text-[#59625F] transition-colors hover:border-[hsl(var(--wine)/0.3)] hover:bg-[hsl(var(--wine-muted))] hover:text-[hsl(var(--wine))] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <RefreshCw
+              className={cn("h-3.5 w-3.5", overviewBusy && "animate-spin")}
+              strokeWidth={2}
+            />
+            {overviewBusy ? "生成草案中…" : "更新概览"}
+          </button>
         </div>
         ) : null}
       </div>

@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import {
   KnowledgeDraftGeneratingDialog,
   type DraftGeneratingProgress,
@@ -111,6 +114,10 @@ type ProjectKnowledgeNetworkSectionProps = {
   failedChapterIds?: string[];
   onChapterGenerateSucceeded?: (sectionId: string) => void;
   onChapterGenerateFailed?: (sectionId: string) => void;
+  allChaptersBusy?: boolean;
+  overviewBusy?: boolean;
+  canUpdateAllChapters?: boolean;
+  onUpdateAllChapters?: () => void;
 };
 
 export function ProjectKnowledgeNetworkSection({
@@ -123,6 +130,10 @@ export function ProjectKnowledgeNetworkSection({
   failedChapterIds = [],
   onChapterGenerateSucceeded,
   onChapterGenerateFailed,
+  allChaptersBusy = false,
+  overviewBusy = false,
+  canUpdateAllChapters = false,
+  onUpdateAllChapters,
 }: ProjectKnowledgeNetworkSectionProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -174,6 +185,8 @@ export function ProjectKnowledgeNetworkSection({
     CHAPTER_GROUPS[0]!.sections[0]!.id,
   );
   const [versionDetailLoading, setVersionDetailLoading] = useState(false);
+  const [allChaptersConfirm, setAllChaptersConfirm] = useState(false);
+  useBodyScrollLock(allChaptersConfirm);
 
   const flatSections = useMemo(
     () => CHAPTER_GROUPS.flatMap((g) => g.sections),
@@ -686,7 +699,7 @@ export function ProjectKnowledgeNetworkSection({
         知识网络
       </h3>
 
-      <div className="mb-4 flex flex-wrap items-center justify-end gap-3.5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3.5">
         <div className="inline-flex items-center gap-0.5 rounded-[10px] bg-[rgba(78,66,57,0.07)] p-0.5">
           {VIEW_TABS.map((t) => {
             const active = view === t.id;
@@ -707,6 +720,25 @@ export function ProjectKnowledgeNetworkSection({
             );
           })}
         </div>
+        {canUpdateAllChapters || canPublish ? (
+          <button
+            type="button"
+            onClick={() => setAllChaptersConfirm(true)}
+            disabled={
+              !canUpdateAllChapters ||
+              allChaptersBusy ||
+              overviewBusy ||
+              !onUpdateAllChapters
+            }
+            className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[hsl(var(--wine)/0.35)] bg-[hsl(var(--wine-muted))] px-3.5 text-[13px] font-medium text-[hsl(var(--wine))] transition-colors hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <RefreshCw
+              className={cn("h-3.5 w-3.5", allChaptersBusy && "animate-spin")}
+              strokeWidth={2}
+            />
+            {allChaptersBusy ? "生成草案中…" : "更新全部章节"}
+          </button>
+        ) : null}
       </div>
 
       {view === "chapters" ? (
@@ -1196,6 +1228,54 @@ export function ProjectKnowledgeNetworkSection({
         onClose={() => setDraftDialogOpen(false)}
         onGoReview={goDraftReview}
       />
+
+      {allChaptersConfirm && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[200] flex items-center justify-center bg-black/35 px-4 backdrop-blur-[2px]"
+              role="dialog"
+              aria-modal
+              aria-labelledby="all-chapters-confirm-title"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setAllChaptersConfirm(false);
+              }}
+            >
+              <div className="w-full max-w-md overflow-hidden rounded-xl border border-[rgba(78,66,57,0.12)] bg-white shadow-2xl">
+                <div className="border-b border-[rgba(78,66,57,0.1)] px-5 py-4">
+                  <h3
+                    id="all-chapters-confirm-title"
+                    className="font-display text-lg font-semibold text-[#1F2423]"
+                  >
+                    确认更新全部章节
+                  </h3>
+                  <p className="mt-2 text-[12.5px] leading-relaxed text-[#59625F]">
+                    将并行生成全部知识网络章节的更新草案。正式版本不会被覆盖，生成完成后可进入审核页对照差异再发布。耗时可能较长。确定开始？
+                  </p>
+                </div>
+                <div className="flex justify-end gap-2 px-5 py-3">
+                  <button
+                    type="button"
+                    onClick={() => setAllChaptersConfirm(false)}
+                    className="rounded-full border border-[rgba(78,66,57,0.14)] px-4 py-2 text-xs font-semibold text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAllChaptersConfirm(false);
+                      onUpdateAllChapters?.();
+                    }}
+                    className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+                  >
+                    开始更新全部章节
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </section>
   );
 }
