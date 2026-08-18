@@ -40,6 +40,7 @@ import {
   isHiddenKeep,
   joinRelativePath,
   normalizeRelativePath,
+  type FileTreeFileNode,
   type FileTreeFolderNode,
   type FileTreeNode,
 } from "@/lib/project-file-tree";
@@ -727,6 +728,7 @@ export function ProjectMaterialsSection({
 
   const onShareFile = async (file: ProjectFileRecord, shared: boolean) => {
     if (!canManage || !canShareWithIssuer(file)) return;
+    if (Boolean(file.sharedWithIssuer) === shared) return;
     setSharingId(file.id);
     setError(null);
     try {
@@ -1013,9 +1015,7 @@ export function ProjectMaterialsSection({
             ? "对话上传"
             : fileSourceBucket(file) === "issuer"
               ? "协作方上传"
-              : file.sharedWithIssuer
-                ? "已共享"
-                : "",
+              : "",
         refs: refLabels,
         summary,
         documentType: cache?.documentType || file.fileCategory || "",
@@ -1077,6 +1077,14 @@ export function ProjectMaterialsSection({
     parsingId,
     facet,
   ]);
+
+  const folderShareFiles = useMemo(() => {
+    if (selection.kind !== "folder" || !selectedFolder) return [];
+    return selectedFolder.children
+      .filter((c): c is FileTreeFileNode => c.kind === "file")
+      .map((c) => c.file)
+      .filter((f) => canShareWithIssuer(f));
+  }, [selection, selectedFolder]);
 
   const openPreview = (fileId: string) => {
     if (!canDownload) {
@@ -1302,6 +1310,33 @@ export function ProjectMaterialsSection({
                 </p>
               ) : null}
 
+              {!detail.isFile && folderShareFiles.length > 0 ? (
+                <div className="mt-6 divide-y divide-[rgba(78,66,57,0.08)] border-y border-[rgba(78,66,57,0.08)]">
+                  {folderShareFiles.map((file) => (
+                    <div key={file.id} className="flex items-center gap-3 py-2.5">
+                      <button
+                        type="button"
+                        className="min-w-0 flex-1 truncate text-left text-[13px] text-[#1F2423] hover:text-[hsl(var(--wine))]"
+                        onClick={() => selectFile(file)}
+                      >
+                        {file.filename}
+                      </button>
+                      {canManage ? (
+                        <IssuerVisibilityControl
+                          shared={Boolean(file.sharedWithIssuer)}
+                          disabled={busy || sharingId === file.id}
+                          onChange={(next) => void onShareFile(file, next)}
+                        />
+                      ) : (
+                        <span className="shrink-0 text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
+                          {file.sharedWithIssuer ? "协作方" : "项目内"}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
               {detail.isFile ? (
                 <div className="mt-5 text-sm leading-[1.9] text-[hsl(var(--warm-charcoal))]">
                   {parsingId === detail.file?.id ? (
@@ -1329,8 +1364,26 @@ export function ProjectMaterialsSection({
                 </div>
               ) : null}
 
-              {detail.isFile && detail.srcLines.length > 0 ? (
-                <div className="mt-[22px] flex flex-col gap-1.5 text-[13px] leading-snug">
+              {detail.isFile && (detail.srcLines.length > 0 || (detail.file && canShareWithIssuer(detail.file))) ? (
+                <div className="mt-[22px] flex flex-col gap-2.5 text-[13px] leading-snug">
+                  {detail.file && canShareWithIssuer(detail.file) ? (
+                    <div className="flex items-center gap-2">
+                      <span className="w-11 shrink-0 text-[hsl(var(--warm-charcoal-muted))]">
+                        可见
+                      </span>
+                      {canManage ? (
+                        <IssuerVisibilityControl
+                          shared={Boolean(detail.file.sharedWithIssuer)}
+                          disabled={busy || sharingId === detail.file.id}
+                          onChange={(next) => void onShareFile(detail.file!, next)}
+                        />
+                      ) : (
+                        <span className="text-[hsl(var(--warm-charcoal))]">
+                          {detail.file.sharedWithIssuer ? "协作方" : "项目内"}
+                        </span>
+                      )}
+                    </div>
+                  ) : null}
                   {detail.srcLines.map((row) => (
                     <div key={row.label} className="flex gap-2">
                       <span className="w-11 shrink-0 text-[hsl(var(--warm-charcoal-muted))]">
@@ -1379,29 +1432,6 @@ export function ProjectMaterialsSection({
                     className="h-[38px] rounded-[10px] border border-[rgba(160,99,88,0.3)] bg-transparent px-4 text-[13px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:opacity-50"
                   >
                     新建文件夹
-                  </button>
-                ) : null}
-                {detail.isFile &&
-                detail.file &&
-                canManage &&
-                canShareWithIssuer(detail.file) ? (
-                  <button
-                    type="button"
-                    disabled={busy || sharingId === detail.file.id}
-                    onClick={() =>
-                      void onShareFile(
-                        detail.file!,
-                        !detail.file!.sharedWithIssuer,
-                      )
-                    }
-                    className={cn(
-                      "h-[38px] rounded-[10px] px-4 text-[13px] font-medium disabled:opacity-50",
-                      detail.file.sharedWithIssuer
-                        ? "border border-[rgba(94,155,117,0.35)] bg-[rgba(94,155,117,0.1)] text-[#3F6F63]"
-                        : "border border-[rgba(78,66,57,0.16)] bg-transparent text-[#1F2423] hover:bg-[#EFE7E6]",
-                    )}
-                  >
-                    {detail.file.sharedWithIssuer ? "已共享" : "共享给项目协作方"}
                   </button>
                 ) : null}
                 {detail.isFile &&
@@ -1508,6 +1538,51 @@ export function ProjectMaterialsSection({
         />
       ) : null}
     </section>
+  );
+}
+
+function IssuerVisibilityControl({
+  shared,
+  disabled,
+  onChange,
+}: {
+  shared: boolean;
+  disabled?: boolean;
+  onChange: (shared: boolean) => void;
+}) {
+  return (
+    <div
+      className="inline-grid grid-cols-2 rounded-[8px] bg-[rgba(78,66,57,0.06)] p-0.5 text-[12px]"
+      role="group"
+      aria-label="可见范围"
+    >
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange(false)}
+        className={cn(
+          "h-7 rounded-md px-2.5 disabled:opacity-50",
+          !shared
+            ? "bg-white font-medium text-[#A06358] shadow-[0_1px_2px_rgba(78,66,57,0.08)]"
+            : "text-[#59625F]",
+        )}
+      >
+        项目内
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange(true)}
+        className={cn(
+          "h-7 rounded-md px-2.5 disabled:opacity-50",
+          shared
+            ? "bg-white font-medium text-[#A06358] shadow-[0_1px_2px_rgba(78,66,57,0.08)]"
+            : "text-[#59625F]",
+        )}
+      >
+        协作方
+      </button>
+    </div>
   );
 }
 
