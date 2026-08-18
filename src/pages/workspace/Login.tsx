@@ -84,6 +84,21 @@ async function enterWorkspace() {
   }
 }
 
+function isLocalLoginHardStop(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : "";
+  return (
+    msg.includes("未配置") ||
+    msg.includes("无法连接") ||
+    msg.includes("登录接口不存在")
+  );
+}
+
+function localLoginErrorMessage(err: unknown): string {
+  const msg = err instanceof Error ? err.message.trim() : "";
+  if (msg) return clerkErrorToZh({ message: msg }, msg);
+  return "账号或密码不正确，请核对后重试。";
+}
+
 function clerkUsernameNotMatchingPassword(
   preferred: string,
   mail: string,
@@ -258,25 +273,38 @@ function ClerkAuthForm() {
       setError("请填写账号和密码");
       return;
     }
-    const { error: err } = await signIn.password({ identifier, password });
-    if (err) {
-      const notFound =
-        err.code === "form_identifier_not_found" ||
-        err.code === "form_param_nil";
-      if (notFound) {
-        try {
-          await loginWithPassword(identifier, password);
-          localStorage.setItem(REMEMBER_USER_KEY, identifier);
-          await enterWorkspace();
-          navigate("/app/home", { replace: true });
-          return;
-        } catch {
-          /* fall through */
-        }
+    try {
+      await loginWithPassword(identifier, password);
+      localStorage.setItem(REMEMBER_USER_KEY, identifier);
+      await enterWorkspace();
+      navigate("/app/home", { replace: true });
+      return;
+    } catch (localErr) {
+      if (isLocalLoginHardStop(localErr)) {
+        setError(localLoginErrorMessage(localErr));
+        return;
       }
+    }
+    let err: { code?: string; message?: string; longMessage?: string } | null =
+      null;
+    try {
+      const result = await signIn.password({ identifier, password });
+      err = result.error ?? null;
+    } catch (clerkErr) {
       setError(
-        clerkErrorToZh(err, clerkErrorToZh(signInErrors.fields.password)) ||
-          clerkErrorToZh(signInErrors.fields.identifier, "账号或密码不正确，请核对后重试。"),
+        clerkErrorToZh(
+          {
+            message: clerkErr instanceof Error ? clerkErr.message : "",
+          },
+          "账号或密码不正确，请核对后重试。",
+        ),
+      );
+      return;
+    }
+    if (err) {
+      setError(
+        clerkErrorToZh(err, "账号或密码不正确，请核对后重试。") ||
+          clerkErrorToZh(signInErrors.fields.password, "账号或密码不正确，请核对后重试。"),
       );
       return;
     }

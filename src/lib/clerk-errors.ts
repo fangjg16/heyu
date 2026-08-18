@@ -10,6 +10,7 @@ type ClerkLikeError = {
 } | null | undefined;
 
 const CODE_ZH: Record<string, string> = {
+  form_password_or_identifier_incorrect: "账号或密码不正确，请核对后重试。",
   form_identifier_not_found: "账号或密码不正确，请核对后重试。",
   form_password_incorrect: "账号或密码不正确，请核对后重试。",
   strategy_for_user_invalid: "账号或密码不正确，请核对后重试。",
@@ -31,6 +32,7 @@ const CODE_ZH: Record<string, string> = {
 };
 
 const MSG_ZH: Array<[RegExp, string]> = [
+  [/failed to fetch|networkerror|load failed/i, "无法连接登录服务，请稍后重试。"],
   [/password cannot match/i, CODE_ZH.form_password_matches_identifier!],
   [/password is too short/i, CODE_ZH.form_password_length_too_short!],
   [/already exists/i, CODE_ZH.form_identifier_exists!],

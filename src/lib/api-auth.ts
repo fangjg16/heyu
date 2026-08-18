@@ -68,11 +68,16 @@ export async function loginWithPassword(
 ): Promise<AuthUserProfile> {
   const base = apiBase();
   if (!base) throw new Error("未配置线上 API（VITE_AI_CHAT_ENDPOINT）");
-  const res = await fetch(`${base}/api/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${base}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+  } catch {
+    throw new Error("无法连接登录服务，请稍后重试。");
+  }
   const data = (await res.json().catch(() => ({}))) as {
     error?: string;
     token?: string;
