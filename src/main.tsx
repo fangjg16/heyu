@@ -15,14 +15,17 @@ import "@fontsource/jetbrains-mono/500.css";
 import "@fontsource/jetbrains-mono/600.css";
 import "./index.css";
 import App from "./App.tsx";
-import { isClerkEnabled } from "@/lib/clerk-enabled";
+import { clerkPublishableKey, isClerkEnabled } from "@/lib/clerk-enabled";
 
 const afterSignOutUrl = `${import.meta.env.BASE_URL}app/login`;
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     {isClerkEnabled() ? (
-      <ClerkProvider afterSignOutUrl={afterSignOutUrl}>
+      <ClerkProvider
+        publishableKey={clerkPublishableKey()}
+        afterSignOutUrl={afterSignOutUrl}
+      >
         <App />
       </ClerkProvider>
     ) : (

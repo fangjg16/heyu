@@ -115,12 +115,10 @@ curl -sS "$JFO_API_PUBLIC_BASE/api/health"
 2. **Settings → Secrets and variables → Actions** 新增：
    - Name: `VITE_AI_CHAT_ENDPOINT`
    - Value: `https://xxxx.trycloudflare.com/api/chat`
-   - Name: `VITE_CLERK_PUBLISHABLE_KEY`
-   - Value: Clerk Dashboard 的 Publishable Key（`pk_...`）
 3. 推送 `main` 或手动 **Actions → Deploy GitHub Pages → Run workflow**
 4. 打开：https://fangjg16.github.io/heyu/
 
-登录/注册走 [Clerk](https://clerk.com/)（保持现有合域登录页）。请在 Clerk Dashboard 打开 **Email + Password**，并把 `fangjg16.github.io`、`localhost:5173` 加到允许来源。ECS `.env` 填 `CLERK_SECRET_KEY`（及可选 `CLERK_PUBLISHABLE_KEY`）后重建 `jfo-api`，并执行 `deploy/ecs/scripts/migrate.sh`。
+登录/注册走 [Clerk](https://clerk.com/)（保持现有合域登录页）。请在 Clerk Dashboard 打开 **Email + Password**，并把 `fangjg16.github.io`、`localhost:5173` 加到允许来源。ECS `.env` 必须填 `CLERK_SECRET_KEY`（`sk_...`），`CLERK_PUBLISHABLE_KEY` / `CLERK_JWT_ISSUER` 见 `.env.example`。然后重建 `jfo-api` 并执行 `deploy/ecs/scripts/migrate.sh`。
 
 已有演示账号（如 `jimmyhuang` / `jfo2026`）在 Clerk 未命中时仍可走原密码登录；新用户请用注册。**上线后请停用或改密演示账号。**
 

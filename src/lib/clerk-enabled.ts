@@ -1,5 +1,15 @@
+const FALLBACK_PUBLISHABLE_KEY =
+  "pk_test_a2luZC1maXNoLTU2NTMuY2xlcmsuYWNjb3VudHMuZGV2JA";
+
+export function clerkPublishableKey(): string {
+  return (
+    import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.trim() ||
+    FALLBACK_PUBLISHABLE_KEY
+  );
+}
+
 export function isClerkEnabled(): boolean {
-  return Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.trim());
+  return Boolean(clerkPublishableKey());
 }
 
 export async function signOutClerkBrowser(): Promise<void> {
