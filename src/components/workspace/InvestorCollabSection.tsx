@@ -328,7 +328,11 @@ export function InvestorCollabSection({
     }
   };
 
-  const wordingForm = (
+  const canSubmitWording =
+    Boolean(body.trim() || sourceText.trim()) &&
+    !(issuers.length > 0 && !assignedTo);
+
+  const wordingForm = (showSend: boolean) => (
     <div className="mt-3 space-y-2 rounded-xl border border-[rgba(78,66,57,0.08)] bg-[rgba(248,243,238,0.55)] px-3 py-3">
       <input
         className="h-9 w-full rounded-lg border border-[rgba(78,66,57,0.12)] bg-white px-2 text-[13px]"
@@ -392,18 +396,16 @@ export function InvestorCollabSection({
           }
         />
       </label>
-      <button
-        type="button"
-        disabled={
-          Boolean(busy) ||
-          !(body.trim() || sourceText.trim()) ||
-          (issuers.length > 0 && !assignedTo)
-        }
-        onClick={() => void onPublish()}
-        className="inline-flex h-9 items-center justify-center rounded-lg bg-[#A06358] px-3 text-[12.5px] font-medium leading-none text-white disabled:opacity-45"
-      >
-        {busy === "publish" ? "发送中…" : "发送"}
-      </button>
+      {showSend ? (
+        <button
+          type="button"
+          disabled={Boolean(busy) || !canSubmitWording}
+          onClick={() => void onPublish()}
+          className="inline-flex h-9 items-center justify-center rounded-lg bg-[#A06358] px-3 text-[12.5px] font-medium leading-none text-white disabled:opacity-45"
+        >
+          {busy === "publish" ? "发送中…" : "发送"}
+        </button>
+      ) : null}
     </div>
   );
 
@@ -533,7 +535,7 @@ export function InvestorCollabSection({
 
       {tab === "unsent" ? (
         <div className="mt-4">
-          {canManage && composing ? wordingForm : null}
+          {canManage && composing ? wordingForm(true) : null}
           {unsentList.length === 0 && !composing ? (
             <p className="mt-4 text-[13px] text-[#969E9A]">暂无未发事项。</p>
           ) : (
@@ -569,16 +571,22 @@ export function InvestorCollabSection({
                           </button>
                           <button
                             type="button"
-                            disabled={Boolean(busy)}
-                            onClick={() => void onSendQuestion(q)}
+                            disabled={
+                              Boolean(busy) || (expanded && !canSubmitWording)
+                            }
+                            onClick={() =>
+                              void (expanded ? onPublish() : onSendQuestion(q))
+                            }
                             className="inline-flex h-8 items-center justify-center rounded-lg bg-[#A06358] px-3 text-[12.5px] font-medium text-white disabled:opacity-45"
                           >
-                            {busy === q.text ? "发送中…" : "发送"}
+                            {busy === q.text || (expanded && busy === "publish")
+                              ? "发送中…"
+                              : "发送"}
                           </button>
                         </div>
                       ) : null}
                     </div>
-                    {expanded ? wordingForm : null}
+                    {expanded ? wordingForm(false) : null}
                   </li>
                 );
               })}
