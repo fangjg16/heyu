@@ -1290,15 +1290,24 @@ export function ProjectMaterialsSection({
                   </div>
                 </div>
                 {detail.isFile && detail.file ? (
-                  <button
-                    type="button"
-                    disabled={!detail.canPreview}
-                    onClick={() => openPreview(detail.file!.id)}
-                    className="inline-flex h-[38px] shrink-0 items-center gap-2 whitespace-nowrap rounded-[10px] border border-[rgba(160,99,88,0.3)] bg-transparent px-[15px] text-[13px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <Eye className="h-4 w-4" strokeWidth={1.8} aria-hidden />
-                    预览文件
-                  </button>
+                <div className="flex shrink-0 items-center gap-3">
+                  {canShareWithIssuer(detail.file) ? (
+                    <IssuerShareTick
+                      shared={Boolean(detail.file.sharedWithIssuer)}
+                      disabled={!canManage || busy || sharingId === detail.file.id}
+                      onChange={(next) => void onShareFile(detail.file!, next)}
+                    />
+                  ) : null}
+                    <button
+                      type="button"
+                      disabled={!detail.canPreview}
+                      onClick={() => openPreview(detail.file!.id)}
+                      className="inline-flex h-[38px] shrink-0 items-center gap-2 whitespace-nowrap rounded-[10px] border border-[rgba(160,99,88,0.3)] bg-transparent px-[15px] text-[13px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Eye className="h-4 w-4" strokeWidth={1.8} aria-hidden />
+                      预览文件
+                    </button>
+                </div>
                 ) : null}
               </div>
 
@@ -1322,14 +1331,14 @@ export function ProjectMaterialsSection({
                         {file.filename}
                       </button>
                       {canManage ? (
-                        <IssuerVisibilityControl
+                        <IssuerShareTick
                           shared={Boolean(file.sharedWithIssuer)}
                           disabled={busy || sharingId === file.id}
                           onChange={(next) => void onShareFile(file, next)}
                         />
                       ) : (
                         <span className="shrink-0 text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
-                          {file.sharedWithIssuer ? "协作方" : "项目内"}
+                          {file.sharedWithIssuer ? "协作方可见" : ""}
                         </span>
                       )}
                     </div>
@@ -1364,26 +1373,8 @@ export function ProjectMaterialsSection({
                 </div>
               ) : null}
 
-              {detail.isFile && (detail.srcLines.length > 0 || (detail.file && canShareWithIssuer(detail.file))) ? (
-                <div className="mt-[22px] flex flex-col gap-2.5 text-[13px] leading-snug">
-                  {detail.file && canShareWithIssuer(detail.file) ? (
-                    <div className="flex items-center gap-2">
-                      <span className="w-11 shrink-0 text-[hsl(var(--warm-charcoal-muted))]">
-                        可见
-                      </span>
-                      {canManage ? (
-                        <IssuerVisibilityControl
-                          shared={Boolean(detail.file.sharedWithIssuer)}
-                          disabled={busy || sharingId === detail.file.id}
-                          onChange={(next) => void onShareFile(detail.file!, next)}
-                        />
-                      ) : (
-                        <span className="text-[hsl(var(--warm-charcoal))]">
-                          {detail.file.sharedWithIssuer ? "协作方" : "项目内"}
-                        </span>
-                      )}
-                    </div>
-                  ) : null}
+              {detail.isFile && detail.srcLines.length > 0 ? (
+                <div className="mt-[22px] flex flex-col gap-1.5 text-[13px] leading-snug">
                   {detail.srcLines.map((row) => (
                     <div key={row.label} className="flex gap-2">
                       <span className="w-11 shrink-0 text-[hsl(var(--warm-charcoal-muted))]">
@@ -1541,7 +1532,7 @@ export function ProjectMaterialsSection({
   );
 }
 
-function IssuerVisibilityControl({
+function IssuerShareTick({
   shared,
   disabled,
   onChange,
@@ -1551,38 +1542,21 @@ function IssuerVisibilityControl({
   onChange: (shared: boolean) => void;
 }) {
   return (
-    <div
-      className="inline-grid grid-cols-2 rounded-[8px] bg-[rgba(78,66,57,0.06)] p-0.5 text-[12px]"
-      role="group"
-      aria-label="可见范围"
+    <label
+      className={cn(
+        "inline-flex h-[38px] shrink-0 items-center gap-1.5 text-[13px] text-[#1F2423]",
+        disabled ? "cursor-default opacity-50" : "cursor-pointer",
+      )}
     >
-      <button
-        type="button"
+      <input
+        type="checkbox"
+        className="h-3.5 w-3.5 accent-[hsl(var(--wine))]"
+        checked={shared}
         disabled={disabled}
-        onClick={() => onChange(false)}
-        className={cn(
-          "h-7 rounded-md px-2.5 disabled:opacity-50",
-          !shared
-            ? "bg-white font-medium text-[#A06358] shadow-[0_1px_2px_rgba(78,66,57,0.08)]"
-            : "text-[#59625F]",
-        )}
-      >
-        项目内
-      </button>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => onChange(true)}
-        className={cn(
-          "h-7 rounded-md px-2.5 disabled:opacity-50",
-          shared
-            ? "bg-white font-medium text-[#A06358] shadow-[0_1px_2px_rgba(78,66,57,0.08)]"
-            : "text-[#59625F]",
-        )}
-      >
-        协作方
-      </button>
-    </div>
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      协作方可见
+    </label>
   );
 }
 
