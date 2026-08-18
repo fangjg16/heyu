@@ -43,10 +43,10 @@ const env = {
   DASHSCOPE_BASE_URL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
 };
 const changes = await resolveUrlEnvForWorkerd(env, lookup);
-assert(env.HERMES_BASE_URL === "http://172.30.0.13:8642", "rewrite hermes");
+assert(env.HERMES_BASE_URL === "http://hermes:8642", "hermes stays hostname for Node proxy");
 assert(env.MYSQL_BRIDGE_URL === "http://172.30.0.13:8790", "rewrite bridge");
 assert(env.MINIO_ENDPOINT === "http://172.30.0.13:9000", "rewrite minio");
-assert(changes.length === 3, `changes ${changes.length}`);
+assert(changes.length === 2, `changes ${changes.length}`);
 
 const publicEnv = {
   HERMES_BASE_URL: "https://hermes-agent.up.railway.app",

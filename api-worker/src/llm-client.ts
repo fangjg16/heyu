@@ -140,18 +140,10 @@ function isHermesAuthError(message: string): boolean {
   );
 }
 
-/** Hermes 已接通但上游模型 URL/密钥未配好时，可降级千问 */
+/** Hermes 地址指到 Dashboard 网页等配置错误时，轻问才可降级千问。连通失败必须修 Hermes，不走 plan B。 */
 function isHermesUpstreamMisconfigError(message: string): boolean {
   const m = message.toLowerCase();
-  return (
-    m.includes("invalid url") ||
-    m.includes("undefined") ||
-    m.includes("返回了网页") ||
-    m.includes("enotfound") ||
-    m.includes("fetch failed") ||
-    // Hermes/代理偶发把上游异常收成 Cloudflare 风格文案
-    m.includes("internal error; reference")
-  );
+  return m.includes("返回了网页") || (m.includes("invalid url") && m.includes("undefined"));
 }
 
 export function shouldFallbackToDashscope(hermesErrorMessage: string): boolean {
@@ -164,9 +156,12 @@ export function shouldFallbackToDashscope(hermesErrorMessage: string): boolean {
 /** 把上游偶发的 Cloudflare/网关英文错误改成用户可读中文 */
 export function humanizeUpstreamLlmError(raw: string): string {
   const msg = (raw ?? "").trim();
-  if (!msg) return "上游模型服务暂时异常，请稍后重试。";
+  if (!msg) return "Hermes 引擎暂时无响应，请稍后重试。";
   if (/internal error;\s*reference\s*=/i.test(msg)) {
-    return "上游模型服务暂时异常，请稍后重试。";
+    return "无法连接 Hermes 引擎。请在 ECS 重建 jfo-api 后重试。";
+  }
+  if (/hermes 上游不可达/i.test(msg)) {
+    return msg;
   }
   if (/too many requests|rate limit|429/i.test(msg)) {
     return "模型请求过于频繁，请稍后重试。";

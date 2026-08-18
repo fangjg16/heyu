@@ -22,7 +22,10 @@ export function normalizeHermesBaseUrl(raw: string): string {
   try {
     const u = new URL(base);
     if (u.protocol !== "http:" && u.protocol !== "https:") return "";
-    return `${u.protocol}//${u.host}`;
+    const path = u.pathname.replace(/\/+$/u, "");
+    const origin = `${u.protocol}//${u.host}`;
+    // 保留 /__jfo/internal/hermes 等前缀；裸主机（pathname 为 /）仍只返回 origin
+    return path && path !== "/" ? `${origin}${path}` : origin;
   } catch {
     return "";
   }

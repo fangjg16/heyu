@@ -1,12 +1,12 @@
 /**
  * workerd/Miniflare 在 Docker 里经常解析不了 Compose 服务名
- *（getaddrinfo: Temporary failure in name resolution，host=hermes）。
- * Node 能用 127.0.0.11，启动时把单标签主机名换成 IPv4 再交给 Worker。
+ *（getaddrinfo: Temporary failure in name resolution）。
+ * Node 能用 127.0.0.11，启动时把 mysql-bridge / minio 等单标签主机名换成 IPv4 再交给 Worker。
+ * Hermes 不在这里改 IP：workerd 直连 172.x 会变成 internal error，改由 http-server Node 反代。
  */
 import dns from "node:dns/promises";
 
 export const WORKERD_URL_ENV_KEYS = [
-  "HERMES_BASE_URL",
   "MYSQL_BRIDGE_URL",
   "MINIO_ENDPOINT",
   "SKILLS_BRIDGE_URL",

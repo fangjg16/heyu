@@ -171,6 +171,8 @@ export interface Env {
   EMBED_DIMENSION?: string;
   EMBED_INSTRUCT?: string;
   HERMES_BASE_URL?: string;
+  /** Node 反代真正请求的 Hermes 地址（如 http://hermes:8642） */
+  HERMES_UPSTREAM_URL?: string;
   HERMES_API_KEY?: string;
   HERMES_MODEL?: string;
   /** 用户说「查外部资料」等时联网检索（与 Railway Hermes 的 Tavily 独立配置） */
@@ -286,6 +288,7 @@ function normalizeUserId(raw: string | null | undefined): string | null {
 
 async function handleHealth(env: Env): Promise<Response> {
   const hermes = (env.HERMES_BASE_URL || "").trim();
+  const hermesUpstream = (env.HERMES_UPSTREAM_URL || "").trim();
   const apiRoot = hermes ? resolveHermesApiRoot(hermes) : "";
   const dashscope = Boolean((env.DASHSCOPE_API_KEY || "").trim());
   const hermesUnified = isHermesAgentConfigured(env);
@@ -296,6 +299,7 @@ async function handleHealth(env: Env): Promise<Response> {
   const hermesRuns = hermesUnified
     ? await probeHermesRunsStart(env)
     : { ok: false, httpStatus: 0, probeUrl: "", bodyPreview: "", runId: null };
+  const viaNodeProxy = hermes.includes("/__jfo/internal/hermes");
   return json({
     ok: true,
     service: "jfo-api",
@@ -308,6 +312,8 @@ async function handleHealth(env: Env): Promise<Response> {
     hermesBridgeConfigured: hermesBridge,
     hermesConfigured: Boolean(hermes && env.HERMES_API_KEY),
     hermesAgentRunsConfigured: hermesUnified,
+    hermesViaNodeProxy: viaNodeProxy,
+    hermesUpstreamUrl: hermesUpstream || null,
     hermesAuthOk: hermesAuth.ok,
     hermesAuthHttpStatus: hermesAuth.httpStatus,
     hermesAuthProbeUrl: hermesAuth.probeUrl || null,
