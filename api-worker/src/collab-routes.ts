@@ -29,9 +29,36 @@ import {
   resolveProjectRole,
 } from "./workspace-roles";
 import { getWorkspaceUserById } from "./workspace-users-db";
+import { listProjectMemberRoleOverrides } from "./project-member-roles-db";
 import { stripCitationMarkers } from "./kn-citation-markers";
 
 type Env = { DB: AppDatabase };
+
+async function listIssuerAccounts(
+  env: Env,
+  projectId: string,
+): Promise<{ userId: string; displayName: string }[]> {
+  const overrides = await listProjectMemberRoleOverrides(env, projectId);
+  const out: { userId: string; displayName: string }[] = [];
+  for (const [userId, role] of Object.entries(overrides)) {
+    if (role !== "issuer") continue;
+    const u = await getWorkspaceUserById(env, userId);
+    out.push({
+      userId,
+      displayName: (u?.display_name || u?.username || userId).trim() || userId,
+    });
+  }
+  out.sort((a, b) => a.displayName.localeCompare(b.displayName, "zh"));
+  return out;
+}
+
+function visibleToIssuer(
+  row: { assigned_to?: string | null },
+  userId: string,
+): boolean {
+  const assigned = String(row.assigned_to ?? "").trim();
+  return !assigned || assigned === userId;
+}
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -153,7 +180,10 @@ export async function handleGetCollabOverview(
   }
   const role = await resolveProjectRole(env, userId, projectId, project.createdBy);
   const includeInternal = isInvestorRole(role);
-  const rows = await listCollabItems(env, projectId);
+  let rows = await listCollabItems(env, projectId);
+  if (isIssuerRole(role)) {
+    rows = rows.filter((r) => visibleToIssuer(r, userId));
+  }
   const items = rows.map((r) => rowToPublic(r, { includeInternal }));
   const attached = await attachedItemIds(env, projectId);
   const counts = summarizeCollabItems(items, attached);
@@ -187,9 +217,13 @@ export async function handleListCollabItems(
   }
   const role = await resolveProjectRole(env, userId, projectId, project.createdBy);
   const includeInternal = isInvestorRole(role);
-  const rows = await listCollabItems(env, projectId);
+  let rows = await listCollabItems(env, projectId);
+  if (isIssuerRole(role)) {
+    rows = rows.filter((r) => visibleToIssuer(r, userId));
+  }
   const items = rows.map((r) => rowToPublic(r, { includeInternal }));
-  return json({ items });
+  const issuers = includeInternal ? await listIssuerAccounts(env, projectId) : [];
+  return json({ items, issuers });
 }
 
 /** GET /api/projects/:id/collab/items/:itemId */
@@ -208,6 +242,9 @@ export async function handleGetCollabItem(
   const row = await getCollabItem(env, projectId, itemId);
   if (!row) return json({ error: "事项不存在" }, 404);
   const role = await resolveProjectRole(env, userId, projectId, project.createdBy);
+  if (isIssuerRole(role) && !visibleToIssuer(row, userId)) {
+    return json({ error: "事项不存在" }, 404);
+  }
   const files = await listItemFiles(env, projectId, itemId);
   return json({
     item: rowToPublic(row, { includeInternal: isInvestorRole(role) }),
@@ -241,6 +278,13 @@ export async function handlePublishCollabItem(
     return json({ error: "请填写对外标题与需确认内容" }, 400);
   }
   const fileReqs = parseFileReqs(JSON.stringify(body.fileReqs ?? []));
+  const assignedTo = String(body.assignedTo ?? "").trim() || null;
+  if (assignedTo) {
+    const issuers = await listIssuerAccounts(env, projectId);
+    if (!issuers.some((i) => i.userId === assignedTo)) {
+      return json({ error: "请选择该项目的协作方账号" }, 400);
+    }
+  }
   const id = crypto.randomUUID();
   const row = await insertCollabItem(env, {
     id,
@@ -257,6 +301,7 @@ export async function handlePublishCollabItem(
       id: f.id || crypto.randomUUID(),
     })) as CollabFileReq[],
     publishedBy: userId,
+    assignedTo,
   });
   return json({ item: rowToPublic(row, { includeInternal: true }) }, 201);
 }
@@ -277,7 +322,9 @@ export async function handleIssuerPatchCollabItem(
     return json({ error: "仅项目协作方可保存或提交答复" }, 403);
   }
   const row = await getCollabItem(env, projectId, itemId);
-  if (!row) return json({ error: "事项不存在" }, 404);
+  if (!row || !visibleToIssuer(row, userId)) {
+    return json({ error: "事项不存在" }, 404);
+  }
   if (row.status === "confirmed") {
     return json({ error: "已确认事项不可再改" }, 400);
   }
@@ -552,6 +599,7 @@ export async function handleListMyCollabInbox(
   const nameById = new Map(issuerProjects.map((p) => [p.id, p.name] as const));
   const items = rows
     .filter((r) => r.status !== "confirmed")
+    .filter((r) => visibleToIssuer(r, userId))
     .map((r) => ({
       ...rowToPublic(r),
       projectName: nameById.get(r.project_id) ?? r.project_id,

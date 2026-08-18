@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   collabStatusLabel,
-  fetchCollabItems,
+  fetchCollabBoard,
   fetchProjectKnowledgeChapter,
+  PROJECT_UPLOAD_FOLDER,
   publishCollabItem,
   publishOpenQuestionToIssuer,
   reviewCollabItem,
+  uploadProjectPackageFile,
+  type CollabIssuerAccount,
   type CollabItem,
   type CollabPriority,
-  type CollabReplyMode,
 } from "@/lib/project-api";
 import {
   inferQuestionKind,
@@ -41,11 +43,16 @@ const KIND_OPTIONS: { id: KindFilter; label: string }[] = [
   { id: "other", label: "其他" },
 ];
 
+function defaultAssignedTo(list: CollabIssuerAccount[]) {
+  return list.length === 1 ? list[0].userId : "";
+}
+
 export function InvestorCollabSection({
   projectId,
   userId,
 }: InvestorCollabSectionProps) {
   const [items, setItems] = useState<CollabItem[]>([]);
+  const [issuers, setIssuers] = useState<CollabIssuerAccount[]>([]);
   const [questions, setQuestions] = useState<{ text: string; priority: CollabPriority }[]>(
     [],
   );
@@ -63,11 +70,11 @@ export function InvestorCollabSection({
   const [sourceText, setSourceText] = useState("");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [replyMode, setReplyMode] = useState<CollabReplyMode>("both");
+  const [assignedTo, setAssignedTo] = useState("");
   const [priority, setPriority] = useState<CollabPriority>("P2");
   const [dueAt, setDueAt] = useState("");
-  const [investorNote, setInvestorNote] = useState("");
-  const [fileReqLabel, setFileReqLabel] = useState("");
+  const [attachFiles, setAttachFiles] = useState<File[]>([]);
+  const [fileInputKey, setFileInputKey] = useState(0);
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
   const [incomingDraft, setIncomingDraft] = useState<{
     sourceText: string;
@@ -98,13 +105,14 @@ export function InvestorCollabSection({
   }, [projectId]);
 
   const load = useCallback(async () => {
-    const [its, ch] = await Promise.all([
-      fetchCollabItems(projectId),
+    const [board, ch] = await Promise.all([
+      fetchCollabBoard(projectId),
       fetchProjectKnowledgeChapter(projectId, "questions", userId).catch(
         () => null,
       ),
     ]);
-    setItems(its);
+    setItems(board.items);
+    setIssuers(board.issuers);
     if (ch?.html) {
       setQuestions(
         parseOpenQuestionsFromHtml(ch.html).map((q) => ({
@@ -127,13 +135,18 @@ export function InvestorCollabSection({
     setTitle(incomingDraft.title || formatted.title);
     setBody(formatted.body);
     setPriority(q?.priority ?? incomingDraft.priority ?? "P2");
-  }, [incomingDraft, questions]);
+    setAssignedTo(defaultAssignedTo(issuers));
+  }, [incomingDraft, questions, issuers]);
 
   useEffect(() => {
     void load().catch((e) =>
       setError(e instanceof Error ? e.message : "加载失败"),
     );
   }, [load]);
+
+  useEffect(() => {
+    setAssignedTo((prev) => prev || defaultAssignedTo(issuers));
+  }, [issuers]);
 
   const unpublishedQuestions = questions.filter(
     (q) => !items.some((it) => it.sourceQuestionText === q.text),
@@ -170,10 +183,10 @@ export function InvestorCollabSection({
     setTitle("");
     setBody("");
     setSourceText("");
-    setFileReqLabel("");
-    setInvestorNote("");
+    setAttachFiles([]);
+    setFileInputKey((k) => k + 1);
     setDueAt("");
-    setReplyMode("both");
+    setAssignedTo(defaultAssignedTo(issuers));
     setPriority("P2");
     setEditingKey(null);
     setComposing(false);
@@ -191,6 +204,10 @@ export function InvestorCollabSection({
     setTitle(formatted.title);
     setBody(formatted.body);
     setPriority(q.priority);
+    setAssignedTo(defaultAssignedTo(issuers));
+    setDueAt("");
+    setAttachFiles([]);
+    setFileInputKey((k) => k + 1);
   };
 
   const openCompose = () => {
@@ -200,10 +217,10 @@ export function InvestorCollabSection({
     setTitle("");
     setBody("");
     setPriority("P2");
-    setReplyMode("both");
+    setAssignedTo(defaultAssignedTo(issuers));
     setDueAt("");
-    setFileReqLabel("");
-    setInvestorNote("");
+    setAttachFiles([]);
+    setFileInputKey((k) => k + 1);
     setComposing(true);
   };
 
@@ -259,10 +276,14 @@ export function InvestorCollabSection({
       setError("仅 Admin / Core 可发给项目协作方");
       return;
     }
+    if (issuers.length > 0 && !assignedTo) {
+      setError("请选择发送账号");
+      return;
+    }
     setBusy("publish");
     setError(null);
     try {
-      await publishCollabItem(projectId, {
+      const item = await publishCollabItem(projectId, {
         title:
           stripCitationMarkers(title.trim() || sourceText).slice(0, 80) ||
           formatOpenQuestionForIssuer(sourceText).title,
@@ -270,18 +291,22 @@ export function InvestorCollabSection({
           stripCitationMarkers(body.trim() || sourceText) ||
           formatOpenQuestionForIssuer(sourceText).body,
         sourceQuestionText: sourceText,
-        replyMode,
+        replyMode: "both",
         priority,
         dueAt: dueAt ? new Date(dueAt).toISOString() : null,
-        investorNote: investorNote.trim() || null,
-        fileReqs: fileReqLabel.trim()
-          ? [{ id: crypto.randomUUID(), label: fileReqLabel.trim(), required: true }]
-          : [],
+        assignedTo: assignedTo || null,
       });
+      for (const file of attachFiles) {
+        await uploadProjectPackageFile(projectId, userId, file, {
+          relativePath: PROJECT_UPLOAD_FOLDER,
+          collabItemId: item.id,
+          sourceKind: "investor_share",
+        });
+      }
       resetCompose();
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "发布失败");
+      setError(e instanceof Error ? e.message : "发送失败");
     } finally {
       setBusy(null);
     }
@@ -304,67 +329,76 @@ export function InvestorCollabSection({
   };
 
   const wordingForm = (
-    extra: boolean,
-  ) => (
     <div className="mt-3 space-y-2 rounded-xl border border-[rgba(78,66,57,0.08)] bg-[rgba(248,243,238,0.55)] px-3 py-3">
       <input
         className="h-9 w-full rounded-lg border border-[rgba(78,66,57,0.12)] bg-white px-2 text-[13px]"
-        placeholder="对外标题"
+        placeholder="对外中性标题"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
       />
       <textarea
         className="w-full rounded-lg border border-[rgba(78,66,57,0.12)] bg-white px-2 py-2 text-[13px]"
         rows={4}
-        placeholder="发给项目协作方的措辞"
+        placeholder="需确认的具体内容"
         value={body}
         onChange={(e) => setBody(e.target.value)}
       />
-      {extra ? (
-        <>
-          <div className="grid gap-2 sm:grid-cols-3">
-            <select
-              value={replyMode}
-              onChange={(e) => setReplyMode(e.target.value as CollabReplyMode)}
-              className="h-9 rounded-lg border border-[rgba(78,66,57,0.12)] bg-white px-2 text-[13px]"
-            >
-              <option value="both">文字 + 文件</option>
-              <option value="text">仅文字</option>
-              <option value="file">仅文件</option>
-            </select>
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value as CollabPriority)}
-              className="h-9 rounded-lg border border-[rgba(78,66,57,0.12)] bg-white px-2 text-[13px]"
-            >
-              <option value="P1">P1 紧急</option>
-              <option value="P2">P2 重要</option>
-              <option value="P3">P3 跟进</option>
-            </select>
-            <input
-              type="date"
-              value={dueAt}
-              onChange={(e) => setDueAt(e.target.value)}
-              className="h-9 rounded-lg border border-[rgba(78,66,57,0.12)] bg-white px-2 text-[13px]"
-            />
-          </div>
-          <input
-            className="h-9 w-full rounded-lg border border-[rgba(78,66,57,0.12)] bg-white px-2 text-[13px]"
-            placeholder="待补充文件（可选）"
-            value={fileReqLabel}
-            onChange={(e) => setFileReqLabel(e.target.value)}
-          />
-          <input
-            className="h-9 w-full rounded-lg border border-[rgba(78,66,57,0.12)] bg-white px-2 text-[13px]"
-            placeholder="对外补充说明（可选）"
-            value={investorNote}
-            onChange={(e) => setInvestorNote(e.target.value)}
-          />
-        </>
-      ) : null}
+      <div className="grid gap-2 sm:grid-cols-3">
+        <select
+          value={assignedTo}
+          onChange={(e) => setAssignedTo(e.target.value)}
+          className="h-9 rounded-lg border border-[rgba(78,66,57,0.12)] bg-white px-2 text-[13px]"
+        >
+          {issuers.length === 0 ? (
+            <option value="">暂无协作方账号</option>
+          ) : (
+            <>
+              {issuers.length > 1 ? (
+                <option value="">选择发送账号</option>
+              ) : null}
+              {issuers.map((acc) => (
+                <option key={acc.userId} value={acc.userId}>
+                  {acc.displayName}
+                </option>
+              ))}
+            </>
+          )}
+        </select>
+        <select
+          value={priority}
+          onChange={(e) => setPriority(e.target.value as CollabPriority)}
+          className="h-9 rounded-lg border border-[rgba(78,66,57,0.12)] bg-white px-2 text-[13px]"
+        >
+          <option value="P1">P1 紧急</option>
+          <option value="P2">P2 重要</option>
+          <option value="P3">P3 跟进</option>
+        </select>
+        <input
+          type="date"
+          value={dueAt}
+          onChange={(e) => setDueAt(e.target.value)}
+          className="h-9 rounded-lg border border-[rgba(78,66,57,0.12)] bg-white px-2 text-[13px]"
+        />
+      </div>
+      <label className="flex h-9 items-center gap-2 rounded-lg border border-[rgba(78,66,57,0.12)] bg-white px-2 text-[13px] text-[#59625F]">
+        <span className="shrink-0">增加附件</span>
+        <input
+          key={fileInputKey}
+          type="file"
+          multiple
+          className="min-w-0 flex-1 text-[12.5px] file:mr-2 file:rounded file:border-0 file:bg-transparent file:text-[12.5px]"
+          onChange={(e) =>
+            setAttachFiles(Array.from(e.target.files ?? []))
+          }
+        />
+      </label>
       <button
         type="button"
-        disabled={Boolean(busy) || !body.trim()}
+        disabled={
+          Boolean(busy) ||
+          !(body.trim() || sourceText.trim()) ||
+          (issuers.length > 0 && !assignedTo)
+        }
         onClick={() => void onPublish()}
         className="inline-flex h-9 items-center justify-center rounded-lg bg-[#A06358] px-3 text-[12.5px] font-medium leading-none text-white disabled:opacity-45"
       >
@@ -499,7 +533,7 @@ export function InvestorCollabSection({
 
       {tab === "unsent" ? (
         <div className="mt-4">
-          {canManage && composing ? wordingForm(true) : null}
+          {canManage && composing ? wordingForm : null}
           {unsentList.length === 0 && !composing ? (
             <p className="mt-4 text-[13px] text-[#969E9A]">暂无未发事项。</p>
           ) : (
@@ -544,7 +578,7 @@ export function InvestorCollabSection({
                         </div>
                       ) : null}
                     </div>
-                    {expanded ? wordingForm(false) : null}
+                    {expanded ? wordingForm : null}
                   </li>
                 );
               })}

@@ -626,6 +626,10 @@ async function handleUpload(
     const sourceKind = isIssuerRole(role)
       ? "issuer_upload"
       : String(form.get("sourceKind") || "").trim() || null;
+    const shareWithIssuer =
+      isIssuerRole(role) ||
+      sourceKind === "investor_share" ||
+      sourceKind === "public_source";
     try {
       await env.DB.prepare(
         `UPDATE documents SET
@@ -636,7 +640,7 @@ async function handleUpload(
       )
         .bind(
           sourceKind,
-          isIssuerRole(role) ? 1 : 0,
+          shareWithIssuer ? 1 : 0,
           collabItemId,
           fileCategory,
           periodLabel,

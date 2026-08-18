@@ -257,6 +257,7 @@ CREATE TABLE IF NOT EXISTS project_collab_items (
   status VARCHAR(32) NOT NULL DEFAULT 'pending_reply' COMMENT 'pending_reply|saved|submitted|needs_more|confirmed',
   published_at VARCHAR(32) NOT NULL,
   published_by VARCHAR(128) NOT NULL,
+  assigned_to VARCHAR(128) NULL COMMENT '接收方协作账号 user id；空=项目内全部协作方',
   reply_text LONGTEXT NULL COMMENT '项目方文字答复',
   reply_saved_at VARCHAR(32) NULL,
   reply_submitted_at VARCHAR(32) NULL,
@@ -268,7 +269,8 @@ CREATE TABLE IF NOT EXISTS project_collab_items (
   updated_at VARCHAR(32) NOT NULL,
   INDEX idx_collab_items_project (project_id),
   INDEX idx_collab_items_status (project_id, status),
-  INDEX idx_collab_items_due (project_id, due_at)
+  INDEX idx_collab_items_due (project_id, due_at),
+  INDEX idx_collab_items_assigned (project_id, assigned_to)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='发布给项目方的协作事项';
 
 CREATE TABLE IF NOT EXISTS platform_operation_logs (

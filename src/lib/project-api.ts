@@ -668,6 +668,7 @@ export async function uploadProjectPackageFile(
   options?: {
     relativePath?: string;
     collabItemId?: string;
+    sourceKind?: string;
     fileCategory?: string;
     periodLabel?: string;
     isFinal?: boolean;
@@ -684,6 +685,7 @@ export async function uploadProjectPackageFile(
   const rel = (options?.relativePath ?? "").trim();
   if (rel) form.append("relativePath", rel);
   if (options?.collabItemId) form.append("collabItemId", options.collabItemId);
+  if (options?.sourceKind) form.append("sourceKind", options.sourceKind);
   if (options?.fileCategory) form.append("fileCategory", options.fileCategory);
   if (options?.periodLabel) form.append("periodLabel", options.periodLabel);
   if (options?.isFinal != null) form.append("isFinal", options.isFinal ? "1" : "0");
@@ -1488,7 +1490,13 @@ export type CollabItem = {
   reviewNote: string | null;
   confirmedAt: string | null;
   sourceQuestionText?: string;
+  assignedTo?: string | null;
   updatedAt: string;
+};
+
+export type CollabIssuerAccount = {
+  userId: string;
+  displayName: string;
 };
 
 export type CollabOverview = {
@@ -1556,16 +1564,31 @@ export async function fetchCollabOverview(
   return data;
 }
 
-export async function fetchCollabItems(projectId: string): Promise<CollabItem[]> {
+export async function fetchCollabBoard(projectId: string): Promise<{
+  items: CollabItem[];
+  issuers: CollabIssuerAccount[];
+}> {
   const res = await jfoFetch(
     `/api/projects/${encodeURIComponent(projectId)}/collab/items`,
   );
-  const data = (await res.json().catch(() => ({}))) as {
+  const data = (await res.json().catch(() => ({}))) as unknown;
+  if (!res.ok) {
+    const err = data as { error?: string };
+    throw new Error(err.error || "协作事项加载失败");
+  }
+  if (Array.isArray(data)) {
+    return { items: data as CollabItem[], issuers: [] };
+  }
+  const payload = data as {
     items?: CollabItem[];
-    error?: string;
+    issuers?: CollabIssuerAccount[];
   };
-  if (!res.ok) throw new Error(data.error || "协作事项加载失败");
-  return data.items ?? [];
+  return { items: payload.items ?? [], issuers: payload.issuers ?? [] };
+}
+
+export async function fetchCollabItems(projectId: string): Promise<CollabItem[]> {
+  const { items } = await fetchCollabBoard(projectId);
+  return items;
 }
 
 export async function fetchCollabItem(
@@ -1596,6 +1619,7 @@ export async function publishCollabItem(
     dueAt?: string | null;
     investorNote?: string | null;
     fileReqs?: CollabFileReq[];
+    assignedTo?: string | null;
   },
 ): Promise<CollabItem> {
   const res = await jfoFetch(
