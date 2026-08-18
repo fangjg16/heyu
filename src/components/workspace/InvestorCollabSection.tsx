@@ -444,18 +444,18 @@ export function InvestorCollabSection({
         <p className="mt-3 text-[13px] text-[#A06358]">{error}</p>
       ) : null}
 
-      <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="flex items-end gap-5">
+      <div className="mt-5 flex flex-wrap items-center gap-3">
+        <div className="flex h-9 items-center rounded-[10px] bg-[rgba(78,66,57,0.06)] p-0.5">
           {tabs.map((t) => (
             <button
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
               className={cn(
-                "pb-1.5 text-[13px]",
+                "h-8 rounded-md px-3 text-[12.5px] leading-none",
                 tab === t.id
-                  ? "border-b-2 border-[#A06358] font-medium text-[#1F2423]"
-                  : "border-b-2 border-transparent text-[#59625F]",
+                  ? "bg-white font-medium text-[#A06358] shadow-[0_1px_2px_rgba(78,66,57,0.08)]"
+                  : "text-[#59625F]",
               )}
             >
               {t.label}
@@ -466,7 +466,7 @@ export function InvestorCollabSection({
         <select
           value={kindFilter}
           onChange={(e) => setKindFilter(e.target.value as KindFilter)}
-          className="h-9 rounded-lg border border-[rgba(78,66,57,0.14)] bg-white px-2.5 text-[12.5px] text-[#59625F]"
+          className="h-9 rounded-[10px] border border-[rgba(78,66,57,0.14)] bg-white px-2.5 text-[12.5px] text-[#59625F]"
         >
           {KIND_OPTIONS.map((opt) => (
             <option key={opt.id} value={opt.id}>
@@ -474,12 +474,12 @@ export function InvestorCollabSection({
             </option>
           ))}
         </select>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+        <div className="ml-auto flex h-9 items-center gap-2">
           {canManage ? (
             <button
               type="button"
               onClick={openCompose}
-              className="inline-flex h-9 items-center justify-center rounded-lg border border-[rgba(78,66,57,0.2)] bg-transparent px-3 text-[12.5px] font-medium text-[#1F2423]"
+              className="inline-flex h-9 items-center justify-center rounded-[10px] border border-[rgba(78,66,57,0.18)] bg-transparent px-3.5 text-[12.5px] font-medium text-[#1F2423]"
             >
               新增
             </button>
@@ -489,7 +489,7 @@ export function InvestorCollabSection({
               type="button"
               disabled={Boolean(busy)}
               onClick={() => void onSendAllUnpublished()}
-              className="inline-flex h-9 items-center justify-center rounded-lg bg-[#A06358] px-3 text-[12.5px] font-medium leading-none text-white disabled:opacity-45"
+              className="inline-flex h-9 items-center justify-center rounded-[10px] bg-[#A06358] px-3.5 text-[12.5px] font-medium leading-none text-white disabled:opacity-45"
             >
               {busy === "publish-all" ? "发送中…" : "一键发送"}
             </button>
@@ -510,10 +510,10 @@ export function InvestorCollabSection({
                 return (
                   <li
                     key={q.text}
-                    className="rounded-xl border border-[rgba(78,66,57,0.08)] bg-white/80 px-3 py-2.5"
+                    className="rounded-xl border border-[rgba(78,66,57,0.08)] bg-white/80 px-4 py-3"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 text-[13px] leading-relaxed text-[#1F2423]">
+                    <div className="flex items-center gap-4">
+                      <div className="min-w-0 flex-1 text-[13px] leading-relaxed text-[#1F2423]">
                         <span className="mr-1.5 text-[11px] text-[#A06358]">
                           {q.priority}
                         </span>
@@ -525,10 +525,10 @@ export function InvestorCollabSection({
                         ) : null}
                       </div>
                       {canManage ? (
-                        <div className="flex shrink-0 items-center gap-3">
+                        <div className="flex shrink-0 items-center gap-2">
                           <button
                             type="button"
-                            className="text-[12.5px] font-medium text-[#59625F]"
+                            className="inline-flex h-8 items-center justify-center rounded-lg border border-[rgba(78,66,57,0.16)] bg-transparent px-3 text-[12.5px] font-medium text-[#59625F] hover:bg-[rgba(78,66,57,0.04)]"
                             onClick={() => openEdit(q)}
                           >
                             {expanded ? "收起" : "编辑"}
@@ -537,7 +537,7 @@ export function InvestorCollabSection({
                             type="button"
                             disabled={Boolean(busy)}
                             onClick={() => void onSendQuestion(q)}
-                            className="text-[12.5px] font-medium text-[#A06358] disabled:opacity-45"
+                            className="inline-flex h-8 items-center justify-center rounded-lg bg-[#A06358] px-3 text-[12.5px] font-medium text-white disabled:opacity-45"
                           >
                             {busy === q.text ? "发送中…" : "发送"}
                           </button>
