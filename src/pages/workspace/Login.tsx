@@ -8,7 +8,10 @@ import {
   loginWithPassword,
 } from "@/lib/api-auth";
 import { isClerkEnabled } from "@/lib/clerk-enabled";
-import { clerkErrorToZh } from "@/lib/clerk-errors";
+import {
+  clerkErrorToZh,
+  isPasswordMatchesIdentifierError,
+} from "@/lib/clerk-errors";
 import { loadSessionToken, loadSessionUserId } from "@/workspace/session";
 
 const REMEMBER_USER_KEY = "fo-login-remember-user";
@@ -79,6 +82,26 @@ async function enterWorkspace() {
   } catch {
     /* ignore */
   }
+}
+
+function clerkUsernameNotMatchingPassword(
+  preferred: string,
+  mail: string,
+  password: string,
+): string {
+  const local = (mail.split("@")[0] ?? "").replace(/[^a-zA-Z0-9_]/gu, "");
+  const domain = (mail.split("@")[1] ?? "mail")
+    .split(".")[0]
+    ?.replace(/[^a-zA-Z0-9_]/gu, "") || "mail";
+  const pwd = password.toLowerCase();
+  const mailLower = mail.toLowerCase();
+  for (const candidate of [preferred, local, `${local}_${domain}`]) {
+    const n = candidate.trim();
+    if (n.length < 4) continue;
+    if (n.toLowerCase() === pwd || n.toLowerCase() === mailLower) continue;
+    return n;
+  }
+  return `u${Date.now().toString(36)}`;
 }
 
 export default function Login() {
@@ -208,7 +231,11 @@ function ClerkAuthForm() {
     autoExchanged.current = true;
     setSubmitting(true);
     void finishClerkLogin().catch((err) => {
-      setError(err instanceof Error ? err.message : "登录失败");
+      setError(
+        clerkErrorToZh({
+          message: err instanceof Error ? err.message : "",
+        }, "登录失败"),
+      );
       setSubmitting(false);
     });
   }, [fromSwitch, isLoaded, isSignedIn]);
@@ -293,23 +320,38 @@ function ClerkAuthForm() {
       setError("密码至少 8 位");
       return;
     }
-    const payload = name
-      ? {
-          emailAddress: mail,
-          password,
-          username: name,
-          legalAccepted: true,
-          locale: "zh-CN",
-        }
-      : { emailAddress: mail, password, legalAccepted: true, locale: "zh-CN" };
-    let { error: err } = await signUp.password(payload);
-    if (err && name && /username/i.test(err.code || err.message || "")) {
-      ({ error: err } = await signUp.password({
+    if (password.toLowerCase() === mail.toLowerCase()) {
+      setError("密码不能与邮箱相同，请换一个。");
+      return;
+    }
+    const extra = name
+      ? { firstName: name, unsafeMetadata: { preferredUsername: name } }
+      : {};
+    const attempt = (clerkUsername?: string) =>
+      signUp.password({
         emailAddress: mail,
         password,
         legalAccepted: true,
         locale: "zh-CN",
-      }));
+        ...extra,
+        ...(clerkUsername ? { username: clerkUsername } : {}),
+      } as Parameters<typeof signUp.password>[0]);
+
+    let { error: err } = await attempt();
+    const needsUsername =
+      Boolean(err) &&
+      !isPasswordMatchesIdentifierError(err) &&
+      /username/i.test(
+        `${err?.code ?? ""} ${err?.message ?? ""} ${err?.longMessage ?? ""}`,
+      );
+    if (needsUsername) {
+      ({ error: err } = await attempt(
+        clerkUsernameNotMatchingPassword(name, mail, password),
+      ));
+    }
+    if (isPasswordMatchesIdentifierError(err)) {
+      setError("密码不能与邮箱相同，请换一个。");
+      return;
     }
     if (err) {
       setError(
@@ -389,7 +431,11 @@ function ClerkAuthForm() {
     const run = pending ? onVerify : mode === "signup" ? onSignUp : onSignIn;
     void run()
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "操作失败，请稍后重试。");
+        setError(
+          clerkErrorToZh({
+            message: err instanceof Error ? err.message : "",
+          }),
+        );
       })
       .finally(() => setSubmitting(false));
   };

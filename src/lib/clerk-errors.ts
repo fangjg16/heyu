@@ -13,6 +13,8 @@ const CODE_ZH: Record<string, string> = {
   form_password_length_too_short: "密码至少 8 位。",
   form_password_pwned: "该密码过于常见，请换一个更安全的密码。",
   form_password_size_in_bytes_exceeded: "密码过长，请缩短后再试。",
+  form_password_matches_identifier: "密码不能与邮箱相同，请换一个。",
+  form_password_not_strong_enough: "密码强度不够，请换一个。",
   form_username_invalid_length: "用户名长度不符合要求。",
   form_username_invalid_character: "用户名只能含字母、数字或下划线。",
   form_code_incorrect: "验证码不正确，请重试。",
@@ -23,6 +25,19 @@ const CODE_ZH: Record<string, string> = {
   session_exists: "该账号已在本机登录。",
 };
 
+const MSG_ZH: Array<[RegExp, string]> = [
+  [/password cannot match/i, CODE_ZH.form_password_matches_identifier!],
+  [/password is too short/i, CODE_ZH.form_password_length_too_short!],
+  [/already exists/i, CODE_ZH.form_identifier_exists!],
+  [/incorrect (password|code)|invalid code/i, "账号或验证码不正确，请重试。"],
+];
+
+function looksEnglish(text: string): boolean {
+  const letters = text.replace(/[^A-Za-z]/gu, "");
+  const cjk = text.replace(/[^\u4e00-\u9fff]/gu, "");
+  return letters.length >= 8 && cjk.length === 0;
+}
+
 export function clerkErrorToZh(
   err: ClerkLikeError,
   fallback = "操作失败，请稍后重试。",
@@ -30,5 +45,16 @@ export function clerkErrorToZh(
   const code = (err?.code ?? "").trim();
   if (code && CODE_ZH[code]) return CODE_ZH[code]!;
   const msg = (err?.longMessage || err?.message || "").trim();
-  return msg || fallback;
+  for (const [re, zh] of MSG_ZH) {
+    if (re.test(msg)) return zh;
+  }
+  if (!msg || looksEnglish(msg)) return fallback;
+  return msg;
+}
+
+export function isPasswordMatchesIdentifierError(err: ClerkLikeError): boolean {
+  const code = (err?.code ?? "").trim();
+  if (code === "form_password_matches_identifier") return true;
+  const msg = `${err?.longMessage ?? ""} ${err?.message ?? ""}`;
+  return /password cannot match/i.test(msg);
 }

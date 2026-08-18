@@ -7,7 +7,14 @@ export type ClerkUserPayload = {
   last_name?: string | null;
   banned?: boolean;
   email_addresses?: Array<{ email_address?: string | null }>;
+  unsafe_metadata?: Record<string, unknown> | null;
 };
+
+function preferredUsernameFromMetadata(user: ClerkUserPayload): string {
+  const meta = user.unsafe_metadata ?? {};
+  const raw = meta.preferredUsername ?? meta.preferred_username;
+  return typeof raw === "string" ? normalizeUsername(raw) : "";
+}
 
 export function primaryClerkEmail(user: ClerkUserPayload): string {
   for (const row of user.email_addresses ?? []) {
@@ -25,12 +32,16 @@ export function clerkDisplayName(user: ClerkUserPayload): string {
   if (name) return name;
   const username = (user.username ?? "").trim();
   if (username) return username;
+  const preferred = preferredUsernameFromMetadata(user);
+  if (preferred) return preferred;
   const email = primaryClerkEmail(user);
   if (email) return email.split("@")[0] || email;
   return user.id;
 }
 
 export function clerkUsernameCandidate(user: ClerkUserPayload): string {
+  const preferred = preferredUsernameFromMetadata(user);
+  if (preferred) return preferred;
   const fromUsername = normalizeUsername(user.username ?? "");
   if (fromUsername) return fromUsername;
   const email = primaryClerkEmail(user);
