@@ -14,6 +14,7 @@ import {
   extractSummaryField,
   looksLikeRawParseJson,
   normalizeParseSummaryText,
+  shouldRefreshCachedSummary,
   truncateSummary,
 } from "./parse-summary-text";
 
@@ -526,7 +527,7 @@ export async function handleParseProjectFileSummary(
   }
 
   const cached = await loadParseResult(env, id);
-  if (cached && truncateSummary(cached.summary)) {
+  if (cached && !shouldRefreshCachedSummary(cached.summary)) {
     return json(parseResponseBody(row, rowToPayload(cached)));
   }
 
@@ -628,6 +629,9 @@ export async function handleParseProjectFileSummary(
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    if (cached) {
+      return json(parseResponseBody(row, rowToPayload(cached)));
+    }
     return json({
       documentId: id,
       filename: row.filename,

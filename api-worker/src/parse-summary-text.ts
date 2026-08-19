@@ -1,5 +1,9 @@
-/** 按 Unicode 码点截断（中文按字计） */
-export const PARSE_SUMMARY_MAX_CHARS = 280;
+/** 按 Unicode 码点截断（中文按字计）；优先在句号处断开 */
+export const PARSE_SUMMARY_MAX_CHARS = 500;
+
+const SENTENCE_END = /[.。！？!?…]$/u;
+const PLACEHOLDER_SUMMARY =
+  /未能生成可用摘要|暂未解析正文|模型未返回|文件夹占位|大模型解析失败|当前权限|无法解析|正在调用/u;
 
 export function truncateSummary(
   text: string,
@@ -7,7 +11,26 @@ export function truncateSummary(
 ): string {
   const chars = Array.from(text.trim());
   if (chars.length <= max) return chars.join("");
-  return chars.slice(0, max).join("");
+  const head = chars.slice(0, max);
+  for (let i = head.length - 1; i >= 24; i--) {
+    if (head[i] === "。" || head[i] === "！" || head[i] === "？") {
+      return head.slice(0, i + 1).join("");
+    }
+  }
+  return head.join("");
+}
+
+/** 旧版 100 字硬截、残缺 JSON、或 VARCHAR 截断：点开时应重跑解析 */
+export function shouldRefreshCachedSummary(raw: string): boolean {
+  const original = (raw ?? "").trim();
+  if (!original) return true;
+  if (looksLikeRawParseJson(original)) return true;
+  const t = normalizeParseSummaryText(original);
+  if (!t) return true;
+  if (PLACEHOLDER_SUMMARY.test(t)) return false;
+  if (SENTENCE_END.test(t)) return false;
+  const n = Array.from(t).length;
+  return n === 100 || n === 200;
 }
 
 function unescapeJsonString(raw: string): string {

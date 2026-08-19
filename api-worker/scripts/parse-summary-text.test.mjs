@@ -3,6 +3,8 @@ import {
   extractSummaryField,
   looksLikeRawParseJson,
   normalizeParseSummaryText,
+  shouldRefreshCachedSummary,
+  truncateSummary,
 } from "../src/parse-summary-text.ts";
 
 const escaped =
@@ -35,5 +37,18 @@ assert.equal(normalizeParseSummaryText("正常摘要").startsWith("正常"), tru
 
 const closed = '{"summary":"完整一句。","documentType":"研报"}';
 assert.equal(extractSummaryField(closed), "完整一句。");
+
+const chopped100 =
+  "本初Narrative Forge为AI剧本连续性QA工具，Pre-product阶段，无产品/用户/收入。BP市场规模与财务预测显著脱离独立研究（TAM约1-2亿元vs BP称800亿）。已有中外竞";
+assert.equal(Array.from(chopped100).length, 100);
+assert.equal(shouldRefreshCachedSummary(chopped100), true);
+assert.equal(shouldRefreshCachedSummary("完整一句。"), false);
+assert.equal(shouldRefreshCachedSummary(escaped), true);
+assert.equal(shouldRefreshCachedSummary("未能生成可用摘要，请直接预览原文。"), false);
+
+const over =
+  `${"甲。".repeat(20)}这是会被截掉的半句`;
+assert.equal(truncateSummary(over, 40).endsWith("。"), true);
+assert.equal(truncateSummary(over, 40).includes("半句"), false);
 
 console.log("parse-summary-text: ok");
