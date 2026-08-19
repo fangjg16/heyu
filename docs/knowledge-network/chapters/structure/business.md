@@ -4,98 +4,56 @@ group: structure
 groupLabel: 方案与回报
 title: 业务模式
 kicker: 方案与回报 · C.1
-canonicalHint: business
+canonicalHint: business-model
 ---
 
-<div style="margin:8px 0 18px;font-size:13.5px;line-height:1.75;color:#59625F">待补（本节导语：保留经审查认定为可行的路径范围与边界）</div>
+<div style="margin:8px 0 18px;font-size:13.5px;line-height:1.75;color:#59625F">待补（模型类型与单位经济一句话）</div>
 
-<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 路径总览</h3>
-<p style="font-size:12.5px;color:#969E9A;margin-bottom:10px">横轴：业务阶段；纵轴：可选路径</p>
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 回报模型类型</h3>
+
+<div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
   <thead>
-    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F">
-      <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">路径</th>
-      <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">货源</th>
-      <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">合规</th>
-      <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">销售</th>
-      <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">变现</th>
-    </tr>
+    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">交易类型</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">模型结构</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">关键产出</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">本项目判定</th></tr>
   </thead>
   <tbody>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1);vertical-align:top">
-      <td style="padding:13px 14px;font-weight:600">路径 ①<br><span style="font-weight:400;font-size:12px;color:#969E9A">待补</span></td>
-      <td style="padding:13px 14px">待补</td>
-      <td style="padding:13px 14px">待补</td>
-      <td style="padding:13px 14px">待补</td>
-      <td style="padding:13px 14px">待补</td>
-    </tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1);vertical-align:top">
-      <td style="padding:13px 14px;font-weight:600">路径 ②<br><span style="font-weight:400;font-size:12px;color:#969E9A">待补</span></td>
-      <td style="padding:13px 14px">待补</td>
-      <td style="padding:13px 14px">待补</td>
-      <td style="padding:13px 14px">待补</td>
-      <td style="padding:13px 14px">待补</td>
-    </tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">Development build & sell</td><td style="padding:13px 14px">土地→建设→销售→退出</td><td style="padding:13px 14px">开发利润率 / IRR / MOIC</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">Development build & hold</td><td style="padding:13px 14px">建设→稳定 NOI→终值</td><td style="padding:13px 14px">杠杆 IRR / 现金收益 / NAV</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">Acquisition operating</td><td style="padding:13px 14px">购入→经营现金流→退出</td><td style="padding:13px 14px">杠杆/非杠杆 IRR</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">Acquisition turnaround</td><td style="padding:13px 14px">购入→改造→稳定→退出</td><td style="padding:13px 14px">总回报拆解</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">JV / Co-invest</td><td style="padding:13px 14px">分配瀑布</td><td style="padding:13px 14px">LP IRR / promote</td><td style="padding:13px 14px">待补</td></tr>
   </tbody>
 </table>
-
-<h3 style="margin:1.75rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">2. 各路径详情</h3>
-
-<div style="margin-bottom:16px;border:1px solid rgba(78,66,57,0.12);overflow:hidden">
-  <div style="padding:12px 16px;background:rgba(78,66,57,0.05);display:flex;gap:10px;align-items:baseline">
-    <span style="font-size:12px;font-weight:700;color:#A3262C">路径 ①</span>
-    <span style="font-size:14px;font-weight:600">待补</span>
-  </div>
-  <div style="padding:14px 16px;border-top:1px solid rgba(78,66,57,0.08)">
-    <div style="margin-bottom:12px">
-      <div style="font-size:11px;font-weight:600;color:#59625F;margin-bottom:4px">目标客群 · 定价</div>
-      <div style="font-size:13px;line-height:1.7">待补</div>
-    </div>
-    <div style="margin-bottom:12px">
-      <div style="font-size:11px;font-weight:600;color:#59625F;margin-bottom:4px">单位经济（成本结构 · 毛利估算）</div>
-      <div style="font-size:13px;line-height:1.7">待补</div>
-    </div>
-    <div style="margin-bottom:12px">
-      <div style="font-size:11px;font-weight:600;color:#59625F;margin-bottom:4px">核心运营前提（牌照 · 合规 · 合作方）</div>
-      <div style="font-size:13px;line-height:1.7">待补</div>
-    </div>
-    <div>
-      <div style="font-size:11px;font-weight:600;color:#59625F;margin-bottom:4px">当前可行性状态</div>
-      <div style="font-size:13px;line-height:1.7">待补</div>
-    </div>
-  </div>
 </div>
 
-<div style="margin-bottom:16px;border:1px solid rgba(78,66,57,0.12);overflow:hidden">
-  <div style="padding:12px 16px;background:rgba(78,66,57,0.05);display:flex;gap:10px;align-items:baseline">
-    <span style="font-size:12px;font-weight:700;color:#A3262C">路径 ②</span>
-    <span style="font-size:14px;font-weight:600">待补</span>
-  </div>
-  <div style="padding:14px 16px;border-top:1px solid rgba(78,66,57,0.08)">
-    <div style="margin-bottom:12px">
-      <div style="font-size:11px;font-weight:600;color:#59625F;margin-bottom:4px">目标客群 · 定价</div>
-      <div style="font-size:13px;line-height:1.7">待补</div>
-    </div>
-    <div style="margin-bottom:12px">
-      <div style="font-size:11px;font-weight:600;color:#59625F;margin-bottom:4px">单位经济（成本结构 · 毛利估算）</div>
-      <div style="font-size:13px;line-height:1.7">待补</div>
-    </div>
-    <div style="margin-bottom:12px">
-      <div style="font-size:11px;font-weight:600;color:#59625F;margin-bottom:4px">核心运营前提（牌照 · 合规 · 合作方）</div>
-      <div style="font-size:13px;line-height:1.7">待补</div>
-    </div>
-    <div>
-      <div style="font-size:11px;font-weight:600;color:#59625F;margin-bottom:4px">当前可行性状态</div>
-      <div style="font-size:13px;line-height:1.7">待补</div>
-    </div>
-  </div>
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">2. 收入与成本驱动</h3>
+
+<div style="overflow-x:auto">
+<table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
+  <thead>
+    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">驱动项</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">口径</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">数值</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">来源/确定性</th></tr>
+  </thead>
+  <tbody>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+  </tbody>
+</table>
 </div>
 
-<div style="margin-top:22px;padding:15px 17px;background:rgba(163,38,44,0.06);border:1px solid rgba(163,38,44,0.22)">
-  <div style="font-size:12px;font-weight:600;color:#A3262C;margin-bottom:8px">⚠ 制约财务建模的信息缺口</div>
-  <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.75">
-    <li>待补</li>
-    <li>待补</li>
-    <li>待补</li>
-  </ul>
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">3. 三情景经营假设</h3>
+
+<div style="overflow-x:auto">
+<table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
+  <thead>
+    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">情景</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">收入假设</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">成本假设</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">退出假设</th></tr>
+  </thead>
+  <tbody>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">Base</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">Upside</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">Downside</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+  </tbody>
+</table>
 </div>

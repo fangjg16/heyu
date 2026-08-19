@@ -69,7 +69,7 @@ describe("buildChapterSkillMethodBlock", () => {
     const block = await buildChapterSkillMethodBlock("diligence");
     expect(block).toContain("【分析方法 · 只用于填写模板中的「待补」】");
     expect(block).toContain("dd-checklist");
-    expect(block).toContain("禁止增加模板外的章节或表格列");
+    expect(block).toContain("禁止改表头或替换【章节 Markdown 模板】");
     expect(block).toContain("Due Diligence Checklist");
   });
 

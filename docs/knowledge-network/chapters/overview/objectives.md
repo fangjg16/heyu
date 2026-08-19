@@ -7,46 +7,81 @@ kicker: 项目概况 · A.2
 canonicalHint: assets
 ---
 
-<table style="width:100%;border-collapse:collapse;margin-top:24px;border:1px solid rgba(78,66,57,0.12)">
+<div style="margin:8px 0 18px;font-size:13.5px;line-height:1.75;color:#59625F">待补（审计摘要：检索条数、已核实/存疑/矛盾）</div>
+
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 公开检索档案</h3>
+
+<div style="overflow-x:auto">
+<table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
   <thead>
-    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F">
-      <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12);width:150px">判断维度</th>
-      <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12);border-left:1px solid rgba(78,66,57,0.12)">当前结论</th>
-      <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12);border-left:1px solid rgba(78,66,57,0.12);width:96px">状态</th>
-    </tr>
+    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">#</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">类别</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">发现</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">来源</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">日期</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">可信度</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">相关度</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">备注</th></tr>
   </thead>
   <tbody>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)">
-      <td style="padding:13px 14px;font-weight:600">当前投资标的 / 研究对象</td>
-      <td style="padding:13px 14px;border-left:1px solid rgba(78,66,57,0.1)">待补</td>
-      <td style="padding:13px 14px;border-left:1px solid rgba(78,66,57,0.1)"><span style="font-size:10.5px;padding:3px 8px;background:rgba(213,154,47,0.15);color:#B07d1f;white-space:nowrap">待补</span></td>
-    </tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)">
-      <td style="padding:13px 14px;font-weight:600">技术与产品 / 可投资资产</td>
-      <td style="padding:13px 14px;border-left:1px solid rgba(78,66,57,0.1)">待补</td>
-      <td style="padding:13px 14px;border-left:1px solid rgba(78,66,57,0.1)"><span style="font-size:10.5px;padding:3px 8px;background:rgba(213,154,47,0.15);color:#B07d1f;white-space:nowrap">待补</span></td>
-    </tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)">
-      <td style="padding:13px 14px;font-weight:600">产线 / 交付物</td>
-      <td style="padding:13px 14px;border-left:1px solid rgba(78,66,57,0.1)">待补</td>
-      <td style="padding:13px 14px;border-left:1px solid rgba(78,66,57,0.1)"><span style="font-size:10.5px;padding:3px 8px;background:rgba(213,154,47,0.15);color:#B07d1f;white-space:nowrap">待补</span></td>
-    </tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)">
-      <td style="padding:13px 14px;font-weight:600">知识产权</td>
-      <td style="padding:13px 14px;border-left:1px solid rgba(78,66,57,0.1)">待补</td>
-      <td style="padding:13px 14px;border-left:1px solid rgba(78,66,57,0.1)"><span style="font-size:10.5px;padding:3px 8px;background:rgba(213,154,47,0.15);color:#B07d1f;white-space:nowrap">待补</span></td>
-    </tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)">
-      <td style="padding:13px 14px;font-weight:600">交易边界</td>
-      <td style="padding:13px 14px;border-left:1px solid rgba(78,66,57,0.1)">待补</td>
-      <td style="padding:13px 14px;border-left:1px solid rgba(78,66,57,0.1)"><span style="font-size:10.5px;padding:3px 8px;background:#F7EDEE;color:#A3262C;white-space:nowrap">待补</span></td>
-    </tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">1</td><td style="padding:13px 14px">监管审批</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">Direct</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">2</td><td style="padding:13px 14px">主体股权</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">Direct</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">3</td><td style="padding:13px 14px">土地权属</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">Direct</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">4</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">5</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
   </tbody>
 </table>
-
-<div style="margin-top:22px;padding:15px 17px;background:rgba(213,154,47,0.08);border:1px solid rgba(213,154,47,0.25)">
-  <div style="font-size:12px;font-weight:600;color:#B07d1f">进入估值与交易讨论前的门槛</div>
-  <div style="font-size:13px;line-height:1.75;margin-top:6px">待补</div>
 </div>
 
-<div style="margin-top:22px;font-size:12px;color:#59625F">来源：待补</div>
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">2. 声明审计</h3>
+
+<div style="overflow-x:auto">
+<table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
+  <thead>
+    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">声明</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">出处</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">提出方</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">财务重要性</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">可信度</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">核验方法</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">证据</th></tr>
+  </thead>
+  <tbody>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">3. 矛盾登记</h3>
+
+<div style="overflow-x:auto">
+<table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
+  <thead>
+    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">矛盾编号</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">主题</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">来源A</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">来源B</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">差距</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">建议处理</th></tr>
+  </thead>
+  <tbody>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">C-001</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">C-002</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">4. 假设敏感性</h3>
+
+<div style="overflow-x:auto">
+<table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
+  <thead>
+    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">声明</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">关键假设</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">基准</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">下行</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">对项目价值影响</th></tr>
+  </thead>
+  <tbody>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">5. 待核项</h3>
+
+<div style="overflow-x:auto">
+<table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
+  <thead>
+    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">待核声明</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">缺什么</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">建议来源</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">紧急度</th></tr>
+  </thead>
+  <tbody>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+  </tbody>
+</table>
+</div>

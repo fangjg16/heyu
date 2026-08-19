@@ -39,7 +39,7 @@ const FILES = [
 const DEFAULT_GENERATE_SYSTEM = `你是投研知识网络章节撰写助手。根据「章节 Markdown 模板」的结构，并**综合分析本项目资料包全部上传附件**中的事实，输出带标记的 HTML（不要完整 html/body/head，不要 markdown 围栏）。
 
 硬性规则：
-1. 模板有什么结构与内联 style，输出就保留什么；禁止增加模板中不存在的章节（尤其禁止「填写指引」、长篇前言、页外说明）。
+1. 模板有什么块、表头与内联 style，输出就保留什么；允许按资料增删数据行，禁止改表头、禁止增加模板没有的大块（尤其禁止「填写指引」、长篇前言、页外说明）。
 2. 输出格式严格为标记分段（顺序固定）：
 ===CHAPTER===
 （本章 HTML）
@@ -55,39 +55,39 @@ const DEFAULT_GENERATE_SYSTEM = `你是投研知识网络章节撰写助手。�
 6. 表格表头须可单行完整显示（勿把长表头拆成多行文字）。
 7. 若模板已含带 style 的 HTML 骨架：必须保留这些 style，只替换「待补」内容。
 8. 事实必须来自附件摘录；缺依据写「待补」，禁止编造。
-9. 标记外禁止任何说明文字。关系图禁止输出 SVG/HTML，只输出 JSON。
-10. 若用户消息含「分析方法」：只用来填模板中的「待补」；禁止按分析方法改 HTML 骨架、加列、改成散文或替换模板表。版式仍以章节 Markdown 模板为准。`;
+9. 标记外禁止任何说明文字。章节内图表用 HTML <table>（含热力图格子），禁止 SVG。关系图禁止输出 SVG/HTML，只输出 JSON。
+10. 若用户消息含「分析方法」：只用来填模板中的「待补」；禁止改表头、禁止用分析方法里的示例表替换骨架、禁止改成散文。允许按资料增删数据行。版式以章节 Markdown 模板为准。`;
 
 /** 与 project-knowledge-chapters-routes.ts SECTION_FORMAT_HINT 对齐 */
 const DEFAULT_FORMAT_HINTS = {
   snapshot:
-    "===CHAPTER=== 下一张三列表（项目项｜内容｜证据/来源）；「项目项」列文字单行完整显示（勿换行）；证据/来源列只写 [A-1] 等引用标记，禁止其它说明文字。表头单行完整显示。随后 ===SOURCES_ADD===（六列，仅新 ID）与 ===GLOSSARY_ADD===（仅非常用缩写/术语）。",
+    "===CHAPTER=== 按模板：项目范围表 + Factor A 十一段完整度表 + Factor B 来源多样性表 + 综合成熟度/入驻状态表。保留表头与内联 style；允许增删数据行；证据/来源列只写 [A-1]。禁止散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   objectives:
-    "===CHAPTER=== 必须原样保留模板中的 HTML 结构与内联 style（尤其门槛卡片的金底边框样式），只替换「待补」为事实。门槛块必须是：margin-top:22px;padding:15px 17px;background:rgba(213,154,47,0.08);border:1px solid rgba(213,154,47,0.25)；标题 color:#B07d1f。禁止改成 callout/卡片阴影/h3 散文。最后一行「来源：…」用 font-size:12px;color:#59625F。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：公开检索档案表 + 声明审计表 + 矛盾登记表 + 假设敏感性表 + 待核项表。保留表头与内联 style；允许增删数据行；禁止改成门槛卡片或散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   risks:
-    "===CHAPTER=== 只输出一张风险矩阵 HTML <table>（级别｜风险｜证据｜缓释），表格外禁止任何文字。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：总体风险画像 + 4×4 热力图表格 + 风险登记表 + 高风险明细 + 缓释行动表。热力图用 HTML 表，禁止 SVG。允许增删数据行，禁止改表头。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   questions:
-    "===CHAPTER=== 严格按模板：三个 <details> 分组（P1/P2/P3），每组内为编号问题段落；保留内联 style；禁止改成研究结论散文或五列表格。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：缺口汇总 + 缺口登记表（缺口编号｜缺口描述｜来源｜紧急度｜影响层级｜状态）+ 下周优先三项。紧急度用 Blocking / Precision / Enhancement。允许增删数据行；禁止改成 P1/P2/P3 散文分组。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   industry:
-    "===CHAPTER=== 严格按模板 HTML 骨架输出（对齐 BPC 行业分析版式）：①产品/标的背景表 ②作用机制四宫格+纠偏条 ③产品形态对比表 ④市场规模表(指标|数据|来源) ⑤供给侧参与方表 ⑥监管/行业时间线。保留模板内联 style；只替换「待补」；禁止改成「研究结论+关键发现」三块散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：公开检索档案（类别含监管审批/土地权属/市场数据/可比交易/政策/新闻）。保留表头；允许增删行；禁止四宫格散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   legal:
-    "===CHAPTER=== 严格按模板（对齐 BPC 合规分析）：监管前提红条 + 路径总览表 + 路径一闭环表 + 角色定位表 + 政策窗口提示 + 路径二表 + 执法风险提示 + 资质表 + 建议行动表 + 待审查清单。保留内联 style；禁止三块散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：声明审计表 + 矛盾登记表 + 假设敏感性 + 待核项（聚焦合规/审批/权属声明）。允许增删行；禁止路径卡片散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   benchmarks:
-    "===CHAPTER=== 严格按模板（对齐 BPC 对标分析）：范围说明条 + 对标组表 + 运营范式表/风险条 + 定价层级表。保留内联 style；禁止三块散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：筛选标准表 + 可比交易表 + 溢价/折价锚点表 + 估值区间表。允许增删可比行（约 3–8 条）；禁止改表头。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   business:
-    "===CHAPTER=== 严格按模板（对齐 BPC 业务模式）：导语 + 路径总览表 + 路径详情卡片（客群/单位经济/前提/可行性）+ 信息缺口条。保留内联 style；禁止三块散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：回报模型类型表 + 收入/成本驱动表 + 三情景假设表。允许增删行；缺数字写待补，禁止编造。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   returns:
-    "===CHAPTER=== 严格按模板（对齐 BPC 财务与回报）：前置条件缺口条 + 参考利润结构表（非正式 IRR）。保留内联 style；禁止编造正式回报数字。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：三情景指标看板 + 年度现金流表 + 杠杆敏感性表 + 假设登记 + 单变量敏感性表 + 双变量表 + 情景矩阵 + 盈亏平衡表。图表用 HTML 表，禁止 SVG。缺数字写待补。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   capabilities:
-    "===CHAPTER=== 严格按模板（对齐 BPC 资源网络）：通道 A/B/C 三张「维度|内容|可信度」表 + 缺乏资料清单条。保留内联 style；禁止三块散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：公开检索档案（主体/股权/关系/舆情）+ 关系与对手方表。允许增删行；禁止三通道散文卡。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   ownership:
-    "===CHAPTER=== 严格按模板：结构状态条 + 主体控制权表 + 合同权利表。保留内联 style；禁止三块散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：调查结论 + 主体档案表 + 个人档案表 + 诉讼登记 + 关联交易 + 红旗表。股权链用表格，禁止 SVG。允许增删行。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   diligence:
-    "===CHAPTER=== 严格按模板：导语 + 尽调覆盖度表 + 优先补齐清单表。保留内联 style；禁止三块散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：工作流进度表 + 检查项跟踪表（事项｜工作流｜优先级｜状态｜负责人｜截止日期｜备注）+ 红旗表。状态用 Not Started / Requested / Received / In Review / Complete / Red Flag。允许增删行。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   framework:
-    "===CHAPTER=== 严格按模板（对齐 BPC 决策框架）：导语 + 路径比较矩阵 + 推荐逻辑卡片 + 行动清单表 + 无法出具正式建议条。保留内联 style；禁止三块散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：总体风险画像 + Top5 风险表 + 三情景回报摘要 + 决策建议表。允许增删行；禁止改成路径卡片散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "project-overview":
-    "===CHAPTER=== 必须原样保留模板 HTML（含「项目时间轴」卡片网格）：判断标题、简介、成熟度、当前判断、下一步、核心风险、四块摘要、时间轴。时间轴只写与本项目直接相关的带日期节点；状态可用已发生/已取得/待核验/待完成/计划/项目协作方披露等。禁止增加 SVG 关系图。随后 ===GRAPH=== 输出关系图 JSON（禁止 SVG）；再 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 保留模板既有概览卡片与时间轴，并填写其后的 Factor A/B 成熟度表。时间轴只写与本项目直接相关的带日期节点。禁止 SVG。随后 ===GRAPH=== 输出关系图 JSON；再 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
 };
 
 function loadDevVars() {

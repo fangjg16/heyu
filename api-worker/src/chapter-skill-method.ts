@@ -4,7 +4,7 @@ import { getSkillMdContent } from "./skills-db";
 
 /** 拼进 generate_system：有分析方法时只填待补，不得改 HTML 版式 */
 export const GENERATE_SYSTEM_SKILL_LOCK =
-  "10. 若用户消息含「分析方法」：只用来填模板中的「待补」；禁止按分析方法改 HTML 骨架、加列、改成散文或替换模板表。版式仍以章节 Markdown 模板为准。";
+  "10. 若用户消息含「分析方法」：只用来填模板中的「待补」；禁止改表头、禁止用分析方法里的示例表替换骨架、禁止改成散文。允许按资料增删数据行。版式以章节 Markdown 模板为准。";
 
 export function stripSkillFrontmatter(raw: string): string {
   const t = String(raw ?? "").replace(/^\uFEFF/, "");
@@ -35,7 +35,7 @@ function wrapMethodBlock(
   return [
     "【分析方法 · 只用于填写模板中的「待补」】",
     `本章 ${sectionId} 对应 skill：${parts.map((p) => p.skill).join("、")}。`,
-    "禁止增加模板外的章节或表格列，禁止改成 Markdown 散文，禁止用下列方法里的示例表或旧 KB Handoff 替换【章节 Markdown 模板】，禁止改内联 style。",
+    "禁止改表头或替换【章节 Markdown 模板】，禁止改成 Markdown 散文，禁止用下列方法里的示例表或旧 KB Handoff 替换骨架，禁止改内联 style。允许按资料增删数据行。",
     "缺证据仍写「待补」。版式以【章节 Markdown 模板】和「版式锁定」为准。",
     "知识网络只在网页章节生成；不要写入 [AI]_知识网络.html，不要调用 knowledge-base-generation。",
     "",

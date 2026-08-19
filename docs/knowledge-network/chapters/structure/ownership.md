@@ -7,43 +7,113 @@ kicker: 方案与回报 · C.4
 canonicalHint: ownership
 ---
 
-<div style="margin:8px 0 18px;padding:15px 17px;background:rgba(213,154,47,0.08);border:1px solid rgba(213,154,47,0.25)">
-  <div style="font-size:12px;font-weight:600;color:#B07d1f;margin-bottom:6px">当前结构状态</div>
-  <div style="font-size:13px;line-height:1.75">待补（是否已有正式实体 / 股权 / 合同；概念阶段则明确写出）</div>
+<div style="margin:8px 0 18px;font-size:13.5px;line-height:1.75;color:#59625F">待补（Clean / Flags identified / Significant concerns）</div>
+
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 调查对象</h3>
+
+<div style="overflow-x:auto">
+<table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
+  <thead>
+    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">类型</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">名称</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">角色</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">辖区</th></tr>
+  </thead>
+  <tbody>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">出售主体</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">最终受益人</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">关键个人</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">关联主体</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">顾问</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+  </tbody>
+</table>
 </div>
 
-<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 主体与控制权</h3>
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">2. 股权链</h3>
+
+<div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
   <thead>
-    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F">
-      <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">核查项</th>
-      <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">当前结论</th>
-      <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">状态</th>
-    </tr>
+    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">层级</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">主体</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">持股/控制</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">注册地</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">备注</th></tr>
   </thead>
   <tbody>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px;font-weight:500">项目实体 / 公司名称</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px"><span style="font-size:10.5px;padding:3px 8px;background:#F7EDEE;color:#A3262C;white-space:nowrap">待补</span></td></tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px;font-weight:500">UBO / 实控人</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px"><span style="font-size:10.5px;padding:3px 8px;background:#F7EDEE;color:#A3262C;white-space:nowrap">待补</span></td></tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px;font-weight:500">股权与出资安排</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px"><span style="font-size:10.5px;padding:3px 8px;background:#F7EDEE;color:#A3262C;white-space:nowrap">待补</span></td></tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px;font-weight:500">拟议持股 / 代持结构</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px"><span style="font-size:10.5px;padding:3px 8px;background:rgba(213,154,47,0.15);color:#B07d1f;white-space:nowrap">待补</span></td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
   </tbody>
 </table>
+</div>
 
-<h3 style="margin:1.75rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">2. 合同权利与合作安排</h3>
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">3. 主体档案</h3>
+
+<div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
   <thead>
-    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F">
-      <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">权利 / 协议</th>
-      <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">当前结论</th>
-      <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">状态</th>
-    </tr>
+    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">主体</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">登记状态</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">董事/高管</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">股东</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">抵押/查封</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">来源</th></tr>
   </thead>
   <tbody>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px;font-weight:500">供应 / 采购协议</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px"><span style="font-size:10.5px;padding:3px 8px;background:#F7EDEE;color:#A3262C;white-space:nowrap">待补</span></td></tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px;font-weight:500">渠道 / 合作方协议</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px"><span style="font-size:10.5px;padding:3px 8px;background:#F7EDEE;color:#A3262C;white-space:nowrap">待补</span></td></tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px;font-weight:500">知识产权归属</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px"><span style="font-size:10.5px;padding:3px 8px;background:#F7EDEE;color:#A3262C;white-space:nowrap">待补</span></td></tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px;font-weight:500">权利负担 / 质押 / 诉讼</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px"><span style="font-size:10.5px;padding:3px 8px;background:#F7EDEE;color:#A3262C;white-space:nowrap">待补</span></td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
   </tbody>
 </table>
+</div>
 
-<p style="margin-top:14px;font-size:12.5px;color:#59625F;line-height:1.65">补充说明：待补（跨境结构、FIRB/外资审查等额外负担若适用）</p>
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">4. 个人档案</h3>
+
+<div style="overflow-x:auto">
+<table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
+  <thead>
+    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">姓名</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">任职履历</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">诉讼/失信</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">制裁筛查</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">负面舆情</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">来源</th></tr>
+  </thead>
+  <tbody>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">5. 诉讼与争议</h3>
+
+<div style="overflow-x:auto">
+<table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
+  <thead>
+    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">事项</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">主体</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">状态</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">重要性</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">来源</th></tr>
+  </thead>
+  <tbody>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">6. 关联交易</h3>
+
+<div style="overflow-x:auto">
+<table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
+  <thead>
+    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">交易</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">关联方</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">是否公允</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">说明</th></tr>
+  </thead>
+  <tbody>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">7. 红旗</h3>
+
+<div style="overflow-x:auto">
+<table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
+  <thead>
+    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">红旗</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">严重度</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">建议跟进</th></tr>
+  </thead>
+  <tbody>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+  </tbody>
+</table>
+</div>

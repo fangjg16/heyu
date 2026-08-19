@@ -83,6 +83,50 @@ function extractTableCells(blockHtml: string): string[] {
   return out;
 }
 
+function detectGapUrgency(raw: string): OpenQuestionPriority {
+  const s = raw.toUpperCase();
+  if (/BLOCKING|阻断|P1|紧急/u.test(s)) return "P1";
+  if (/ENHANCEMENT|增强|P3|跟进/u.test(s)) return "P3";
+  if (/PRECISION|精度|P2|重要/u.test(s)) return "P2";
+  return "P2";
+}
+
+function extractGapRegistry(html: string): ParsedOpenQuestion[] {
+  const items: ParsedOpenQuestion[] = [];
+  const tableRe = /<table\b[\s\S]*?<\/table>/giu;
+  let tm: RegExpExecArray | null;
+  while ((tm = tableRe.exec(html))) {
+    const table = tm[0] ?? "";
+    const headerRow = /<thead\b[\s\S]*?<tr\b[^>]*>([\s\S]*?)<\/tr>/iu.exec(table);
+    const headerHtml = headerRow?.[1] ?? "";
+    const headers: string[] = [];
+    const thRe = /<th\b[^>]*>([\s\S]*?)<\/th>/giu;
+    let th: RegExpExecArray | null;
+    while ((th = thRe.exec(headerHtml))) {
+      headers.push(stripTags(th[1] ?? ""));
+    }
+    const descIdx = headers.findIndex((h) => /缺口描述|description/iu.test(h));
+    if (descIdx < 0) continue;
+    const urgencyIdx = headers.findIndex((h) => /紧急度|urgency/iu.test(h));
+    const body = /<tbody\b[^>]*>([\s\S]*?)<\/tbody>/iu.exec(table)?.[1] ?? table;
+    const trRe = /<tr\b[^>]*>([\s\S]*?)<\/tr>/giu;
+    let tr: RegExpExecArray | null;
+    while ((tr = trRe.exec(body))) {
+      const cells: string[] = [];
+      const tdRe = /<td\b[^>]*>([\s\S]*?)<\/td>/giu;
+      let td: RegExpExecArray | null;
+      while ((td = tdRe.exec(tr[1] ?? ""))) {
+        cells.push(stripTags(td[1] ?? ""));
+      }
+      const text = stripLeadingMarker(cells[descIdx] ?? "");
+      if (isPlaceholderQuestion(text)) continue;
+      const urgency = urgencyIdx >= 0 ? cells[urgencyIdx] ?? "" : "";
+      items.push({ text, priority: detectGapUrgency(urgency) });
+    }
+  }
+  return items;
+}
+
 function stripCollabWriteback(html: string): string {
   return html
     .replace(
@@ -118,6 +162,8 @@ export function parseOpenQuestionsFromHtml(html: string): ParsedOpenQuestion[] {
   }
 
   if (!foundDetails) {
+    const fromGap = extractGapRegistry(raw);
+    if (fromGap.length > 0) return fromGap;
     const paras = extractParagraphs(raw);
     const texts = paras.length > 0 ? paras : extractTableCells(raw);
     for (const text of texts) {

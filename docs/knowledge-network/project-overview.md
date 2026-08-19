@@ -94,6 +94,52 @@ canonicalHint: project-overview
     </div>
   </div>
 
+  <h3 style="margin:28px 0 12px;font-size:15px;font-weight:600;color:#1F2423">入驻诊断 · Factor A 内容完整度</h3>
+  <div style="overflow-x:auto">
+  <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
+    <thead>
+      <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F">
+        <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">知识网络章节</th>
+        <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">完整度</th>
+        <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">硬证据要点</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">一 项目快照</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+      <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">二 资产构成</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+      <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">三 法律结构与关系网</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+      <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">四 业务模式与收入假设</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+      <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">五 融资与资本结构</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+      <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">六 市场对标</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+      <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">七 投资回报与敏感性</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+      <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">八 项目时间轴</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+      <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">九 关键风险与缓释</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+      <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">十 待确认问题</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+      <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">十一 决策框架</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">入驻诊断 · Factor B 与综合状态</h3>
+  <div style="overflow-x:auto">
+  <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
+    <thead>
+      <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F">
+        <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">指标</th>
+        <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">数值</th>
+        <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">含义</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">Factor A</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+      <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">Factor B</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+      <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">综合成熟度</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+      <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">入驻状态</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">Bare lead / Early / Mid / Mature</td></tr>
+      <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">建议下一步</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    </tbody>
+  </table>
+  </div>
+
   <div id="project-timeline" style="margin-top:34px;padding-top:26px;border-top:1px solid rgba(78,66,57,0.12)">
     <div style="font-family:'Noto Serif SC',serif;font-size:20px;font-weight:600;color:#1F2423">项目时间轴</div>
     <div style="font-size:12px;color:#59625F;margin-top:5px">按已发生事项、待核验节点和后续计划呈现项目进展；仅写入与本项目直接相关的带日期事件</div>

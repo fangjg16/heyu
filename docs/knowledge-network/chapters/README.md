@@ -11,7 +11,7 @@
 ```powershell
 cd api-worker
 npm run mysql:migrate:local
-npm run seed:kn-chapter-templates
+npm run seed:kn-chapter-templates -- --force
 ```
 
 管理 API（需平台管理员）：
@@ -55,27 +55,27 @@ npm run seed:kn-chapter-templates
 
 模板正文即期望生成的 HTML 结构，**不要**再写「填写指引」等说明文字（易导致模型跳出版式）。
 
-| 章节 | 版式 |
+| 章节 | 版式（对齐对应 skill 产出，不含底色） |
 |------|------|
-| `snapshot` | 仅一张三列表格 |
-| `objectives` | 判断维度表 + 金底门槛卡片 + 来源 |
-| `industry` | 背景表 + 机制四宫格 + 形态表 + 宏观数据表 + 供给侧表 + 时间线 |
-| `legal` | 监管前提 + 路径总览/闭环/角色/资质/行动表（对齐 BPC 合规） |
-| `benchmarks` | 范围说明 + 对标组表 + 运营范式 + 定价层级（对齐 BPC 对标） |
-| `business` | 路径总览 + 路径详情卡片 + 缺口条（对齐 BPC 业务模式） |
-| `returns` | 前置缺口条 + 参考利润结构表（对齐 BPC 回报） |
-| `capabilities` | 关系通道 A/B/C 表 + 缺乏资料条（对齐 BPC 资源网络） |
-| `ownership` | 结构状态 + 主体/合同权利核查表 |
-| `diligence` | 覆盖度表 + 优先补齐清单 |
-| `risks` | 仅一张风险矩阵表 |
-| `questions` | P1/P2/P3 `<details>` 问题分组（对齐 BPC） |
-| `framework` | 路径矩阵 + 推荐卡片 + 行动清单 + 无法正式建议条（对齐 BPC） |
+| `snapshot` | project-intake：范围表 + Factor A 十一段 + Factor B + 入驻状态 |
+| `objectives` | public-info-search 检索档案 + dd-claim-audit 审计/矛盾/敏感性/待核 |
+| `industry` | public-info-search 七类检索档案 + 信息质量 |
+| `legal` | dd-claim-audit 合规声明审计四表 |
+| `benchmarks` | comp-analysis：筛选标准 + 可比表 + 溢价/折价锚 + 估值区间 |
+| `business` | returns-analysis：模型类型 + 收入成本驱动 + 三情景假设 |
+| `returns` | returns-analysis + sensitivity-analysis：看板/现金流/杠杆/Tornado 表/双变量/情景/盈亏平衡 |
+| `capabilities` | public-info-search 检索档案 + 关系对手方 |
+| `ownership` | background-check：对象/股权链/主体/个人/诉讼/关联交易/红旗 |
+| `diligence` | dd-checklist：工作流进度 + 检查项跟踪 + 红旗 |
+| `risks` | risk-matrix：HTML 热力图 + 风险登记 + 高风险明细 + 缓释行动 |
+| `questions` | gap-tracking：缺口登记（编号/描述/来源/紧急度/影响/状态）+ 优先三项 |
+| `framework` | risk-matrix + returns-analysis：风险画像 + Top5 + 回报摘要 + 决策建议 |
 
-待填处统一写「待补」，由「更新本章」据项目上传附件填充。
+待填处统一写「待补」，由「更新本章」据项目上传附件填充。行数可按资料增减，表头不可改。
 
 ## 使用边界
 
-- 种子源在本目录；改 MD 后执行 `npm run seed:kn-chapter-templates` 写入数据库。
+- 种子源在本目录；改 MD 后执行 `npm run seed:kn-chapter-templates -- --force` 写入数据库（`--force` 才会覆盖已有 format_hint）。
 - 前端「更新本章」读库中 markdown + 项目资料生成 HTML。
 - 不包含顶层 Tab「引用来源 / 名词解释 / 版本记录」的模板。
 - 工作台「项目概览」模板见上级 [`project-overview.md`](../project-overview.md)（`id: project-overview`，不计入 13 章进度）。

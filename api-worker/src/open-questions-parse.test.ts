@@ -31,4 +31,23 @@ describe("parseOpenQuestionsFromHtml", () => {
       { text: "关键合同条款是否含回购？", priority: "P2" },
     ]);
   });
+
+  it("extracts gap-tracking description column and maps urgency", () => {
+    const html = `
+<table>
+  <thead><tr>
+    <th>缺口编号</th><th>缺口描述</th><th>来源</th><th>紧急度</th><th>影响层级</th><th>状态</th>
+  </tr></thead>
+  <tbody>
+    <tr><td>G-001</td><td>开工法定定义未确认</td><td>L2</td><td>Blocking</td><td>L3</td><td>Not Started</td></tr>
+    <tr><td>G-002</td><td>待补</td><td>L2</td><td>Precision</td><td>L3</td><td>Not Started</td></tr>
+    <tr><td>G-003</td><td>历史租金合同尚未取得</td><td>L0</td><td>Enhancement</td><td>L4</td><td>Requested</td></tr>
+  </tbody>
+</table>`;
+    const items = parseOpenQuestionsFromHtml(html);
+    expect(items).toEqual([
+      { text: "开工法定定义未确认", priority: "P1" },
+      { text: "历史租金合同尚未取得", priority: "P3" },
+    ]);
+  });
 });
