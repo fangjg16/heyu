@@ -133,8 +133,7 @@ export async function fetchMyProjectRoles(
 export type ProjectPermissionMember = {
   userId: string;
   displayName: string;
-  defaultRole: import("@/workspace/types").WorkspaceRole;
-  overrideRole: import("@/workspace/types").WorkspaceRole | null;
+  role: import("@/workspace/types").WorkspaceRole | null;
   effectiveRole: import("@/workspace/types").WorkspaceRole;
   isCreator: boolean;
   isPlatformAdmin: boolean;

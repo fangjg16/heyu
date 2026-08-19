@@ -45,7 +45,6 @@ import {
   getProjectRole,
   isJoinedProjectRole,
   getUserById,
-  isAccountGuestUser,
   isIssuerOnlyUser,
   isIssuerRole,
   listCachedWorkspaceUsers,
@@ -443,7 +442,14 @@ export default function ProjectOverview() {
           if (issuerOnly || !isPlazaDiscoverable(p)) return false;
         }
         if (phaseFilter !== "all" && p.phase !== phaseFilter) return false;
-        if (roleFilter !== "all" && role !== roleFilter) return false;
+        // 广场按开放程度浏览，不要用「我的项目」里选中的权限档把未加入项目滤掉
+        if (
+          portfolioTab !== "plaza" &&
+          roleFilter !== "all" &&
+          role !== roleFilter
+        ) {
+          return false;
+        }
         if (!projectMatchesQuery(p, searchQuery)) return false;
         return true;
       })
@@ -608,11 +614,6 @@ export default function ProjectOverview() {
             <h1 className="font-display text-[32px] font-semibold tracking-wide">
               项目库
             </h1>
-            <p className="mt-2 text-[hsl(var(--warm-charcoal-muted))]">
-              {issuerOnly
-                ? "只显示投资团队邀请你协作的项目。项目广场与新建项目仅投资团队使用。"
-                : "管理已加入项目；全开放项目会出现在项目广场，供内部账号发现与申请加入。"}
-            </p>
             {projectsLoading ? (
               <p className="mt-2 text-xs text-[hsl(var(--warm-charcoal-muted))]">
                 正在同步云端项目...
@@ -805,9 +806,7 @@ export default function ProjectOverview() {
                   ? issuerOnly
                     ? "投资团队把你加为项目协作方之后，协作项目会出现在这里。"
                     : "切换到项目广场浏览全开放协作机会，或新建项目。"
-                  : isAccountGuestUser(userId)
-                    ? "暂无可见项目。请联系管理员将您加入成员。"
-                    : "将项目开放程度设为「全开放」后会出现在此；内部邀请项目仅成员可见。"}
+                  : "全开放项目会出现在这里；内部邀请项目仅成员可见。"}
             </p>
           </div>
         )}

@@ -193,7 +193,7 @@ CREATE TABLE IF NOT EXISTS workspace_users (
   avatar_char VARCHAR(8) NOT NULL DEFAULT '?' COMMENT '头像字母（无图时回退）',
   avatar_class VARCHAR(512) NOT NULL DEFAULT '' COMMENT '头像 CSS class',
   avatar_url MEDIUMTEXT NULL COMMENT '头像 data URL，空则用展示名首字母',
-  default_role VARCHAR(32) NOT NULL DEFAULT 'guest' COMMENT '默认项目角色：admin|core|mid|low|guest',
+  default_role VARCHAR(32) NOT NULL DEFAULT 'guest' COMMENT '遗留列，不表示账号身份；项目权限只在项目成员里',
   is_platform_admin TINYINT NOT NULL DEFAULT 0 COMMENT '是否平台管理员',
   status VARCHAR(32) NOT NULL DEFAULT 'active' COMMENT 'active|disabled',
   password_hash VARCHAR(128) NOT NULL COMMENT 'PBKDF2 密码哈希（hex）',

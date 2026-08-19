@@ -10,11 +10,17 @@ import { decodePathProjectId } from "./projects-resolve";
 import { chunkPlainText } from "./search";
 import { extractSpreadsheetPlainText } from "./spreadsheet-text";
 import { canDownloadProjectFile } from "./workspace-roles";
+import {
+  extractSummaryField,
+  looksLikeRawParseJson,
+  normalizeParseSummaryText,
+  shouldRefreshCachedSummary,
+  truncateSummary,
+} from "./parse-summary-text";
 
 type Env = { DB: AppDatabase; FILES: AppObjectStorage } & LlmClientEnv;
 
 const SOURCE_MAX = 12_000;
-const SUMMARY_MAX_CHARS = 100;
 const DIRECTORY_MIME = "application/x-directory";
 
 const PARSE_SYSTEM = `你是投研工作台的源文件解析助手。根据给定文件正文摘录，输出 JSON（不要 markdown 围栏，不要其它说明）。
@@ -22,10 +28,11 @@ const PARSE_SYSTEM = `你是投研工作台的源文件解析助手。根据给�
 1. 只依据原文，禁止编造原文未出现的事实、数据、主体或结论。
 2. 若信息不足，在 summary 中如实说明「原文未披露…」，不要猜测。
 3. 输出唯一 JSON 对象，字段：
-{"summary":"不超过100字的投研向摘要","documentType":"文件类型简述","keyPoints":["要点"],"refs":["可引用主题"],"usedFor":["投研用途建议"]}
-4. summary 必须 ≤100 个汉字/字符；keyPoints、refs、usedFor 各最多 6 条；无内容用空数组。
-5. refs=该文件可作为何种证据/主题被引用，必须是不超过 16 字的中文短词（如「竞品定价」「团队背景」）；禁止 URL、域名、脚注编号、原文摘录。
-6. usedFor=建议用于哪些投研环节，同样用短词，禁止 URL。`;
+{"summary":"不超过220字的投研向摘要","documentType":"文件类型简述","keyPoints":["要点"],"refs":["可引用主题"],"usedFor":["投研用途建议"]}
+4. summary 必须是完整句子，约 120–220 字，最多 220 个汉字/字符；keyPoints、refs、usedFor 各最多 6 条；无内容用空数组。
+5. summary 是 JSON 字符串：内部英文双引号必须写成 \\"，专名优先用「」或『』，禁止未转义的 "。
+6. refs=该文件可作为何种证据/主题被引用，必须是不超过 16 字的中文短词（如「竞品定价」「团队背景」）；禁止 URL、域名、脚注编号、原文摘录。
+7. usedFor=建议用于哪些投研环节，同样用短词，禁止 URL。`;
 
 type ParseResultRow = {
   document_id: string;
@@ -67,13 +74,6 @@ function truncateSource(text: string, max = SOURCE_MAX): string {
   const t = text.trim();
   if (t.length <= max) return t;
   return `${t.slice(0, max)}\n\n…（正文已截断）`;
-}
-
-/** 按 Unicode 码点截断（中文按字计） */
-function truncateSummary(text: string, max = SUMMARY_MAX_CHARS): string {
-  const chars = Array.from(text.trim());
-  if (chars.length <= max) return chars.join("");
-  return `${chars.slice(0, max).join("")}`;
 }
 
 function looksLikeNoisyLabel(s: string): boolean {
@@ -149,6 +149,27 @@ function parseLlmDocumentJson(answer: string): {
   } catch {
     /* fall through */
   }
+  const extracted = extractSummaryField(cleaned);
+  if (extracted) {
+    return {
+      summary: /https?:\/\//i.test(extracted)
+        ? "未能生成可用摘要，请直接预览原文。"
+        : truncateSummary(extracted),
+      documentType: "",
+      keyPoints: [],
+      refs: [],
+      usedFor: [],
+    };
+  }
+  if (looksLikeRawParseJson(cleaned)) {
+    return {
+      summary: "未能生成可用摘要，请直接预览原文。",
+      documentType: "",
+      keyPoints: [],
+      refs: [],
+      usedFor: [],
+    };
+  }
   const fallback = /https?:\/\//i.test(cleaned)
     ? "未能生成可用摘要，请直接预览原文。"
     : cleaned || "模型未返回有效摘要。";
@@ -163,7 +184,7 @@ function parseLlmDocumentJson(answer: string): {
 
 function rowToPayload(row: ParseResultRow): DocumentParsePayload {
   return {
-    summary: truncateSummary(row.summary || "—"),
+    summary: normalizeParseSummaryText(row.summary || "—"),
     documentType: (row.document_type ?? "").trim(),
     keyPoints: parseJsonStringArray(row.key_points_json),
     refs: parseJsonStringArray(row.refs_json),
@@ -223,7 +244,7 @@ async function upsertParseResult(
   )
     .bind(
       docId,
-      truncateSummary(payload.summary),
+      truncateSummary(normalizeParseSummaryText(payload.summary)),
       payload.documentType || null,
       JSON.stringify(payload.keyPoints ?? []),
       JSON.stringify(payload.refs ?? []),
@@ -506,7 +527,7 @@ export async function handleParseProjectFileSummary(
   }
 
   const cached = await loadParseResult(env, id);
-  if (cached && truncateSummary(cached.summary)) {
+  if (cached && !shouldRefreshCachedSummary(cached.summary)) {
     return json(parseResponseBody(row, rowToPayload(cached)));
   }
 
@@ -608,6 +629,9 @@ export async function handleParseProjectFileSummary(
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    if (cached) {
+      return json(parseResponseBody(row, rowToPayload(cached)));
+    }
     return json({
       documentId: id,
       filename: row.filename,

@@ -62,5 +62,22 @@ export OPENAI_API_BASE="$BASE"
 export OPENAI_BASE_URL="$BASE"
 export DASHSCOPE_API_KEY="$KEY"
 export MODEL_DEFAULT="$MODEL"
+# 官方镜像里 cwd/PATH 上的 gateway 是目录，不能 exec；须走 hermes CLI。
+# 自定义 entrypoint 会绕过 s6，以 root 跑时需允许。
+export HERMES_ALLOW_ROOT_GATEWAY="${HERMES_ALLOW_ROOT_GATEWAY:-1}"
 
-exec gateway run
+echo "[hermes-entrypoint] starting hermes gateway run"
+
+if [[ -x /opt/hermes/bin/hermes ]]; then
+  exec /opt/hermes/bin/hermes gateway run
+fi
+
+hermes_bin="$(command -v hermes 2>/dev/null || true)"
+if [[ -n "$hermes_bin" && -f "$hermes_bin" && -x "$hermes_bin" ]]; then
+  exec "$hermes_bin" gateway run
+fi
+
+echo "[hermes-entrypoint] ERROR: hermes CLI not found (do not exec gateway — it is a directory)" >&2
+command -v gateway >&2 || true
+ls -ld gateway /opt/hermes/gateway /usr/local/bin/hermes /opt/hermes/bin/hermes 2>/dev/null >&2 || true
+exit 1

@@ -4,6 +4,7 @@ api-worker/node_modules
 dist
 api-worker/dist
 api-worker/.wrangler
+*.tsbuildinfo
 
 # Local / generated secrets — never commit
 local.dev.secrets.env

@@ -4,6 +4,9 @@ import { listMemberRoleOverridesForUser } from "./project-member-roles-db";
 import {
   isPlatformAdminUser,
 } from "./workspace-users-db";
+import { membershipsAllowPlazaDiscovery } from "./plaza-discovery";
+
+export { membershipsAllowPlazaDiscovery } from "./plaza-discovery";
 
 type Env = { DB: AppDatabase };
 
@@ -78,20 +81,6 @@ function isDirectoryDiscoverable(openness: string | null | undefined): boolean {
   return o === "partial" || o === "public" || o === "";
 }
 
-/**
- * 项目广场只给投资团队 / 尚未入组的内部账号。
- * 全部成员身份都是项目方时，只能看到被邀请加入的项目。
- */
-export function membershipsAllowPlazaDiscovery(
-  roles: Iterable<string>,
-): boolean {
-  const list = [...roles]
-    .map((r) => String(r).trim().toLowerCase())
-    .filter(Boolean);
-  if (list.length === 0) return true;
-  return list.some((r) => r !== "issuer");
-}
-
 export async function userSeesPlazaDiscovery(
   env: Env,
   userId: string | null | undefined,
@@ -106,9 +95,8 @@ export async function userSeesPlazaDiscovery(
 /**
  * 项目总览目录可见性：
  * 1. 平台管理员：全部
- * 2. 纯项目方：仅已加入/被邀请的项目（看不到广场）
- * 3. 投资团队 / 尚未入组：已加入，或全开放（partial/public）可发现
- * 4. 未登录：非 invite
+ * 2. 已登录：已加入项目，以及全开放可发现
+ * 3. 未登录：非 invite
  */
 export async function filterProjectsForDirectory(
   env: Env,

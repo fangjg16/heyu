@@ -1,12 +1,12 @@
 /**
  * workerd/Miniflare 在 Docker 里经常解析不了 Compose 服务名
- *（getaddrinfo: Temporary failure in name resolution，host=hermes）。
- * Node 能用 127.0.0.11，启动时把单标签主机名换成 IPv4 再交给 Worker。
+ *（getaddrinfo: Temporary failure in name resolution）。
+ * Node 能用 127.0.0.11，启动时把 mysql-bridge / minio 等单标签主机名换成 IPv4 再交给 Worker。
+ * Hermes 不在这里改 IP：workerd 直连 172.x 会变成 internal error，改由 http-server Node 反代。
  */
 import dns from "node:dns/promises";
 
 export const WORKERD_URL_ENV_KEYS = [
-  "HERMES_BASE_URL",
   "MYSQL_BRIDGE_URL",
   "MINIO_ENDPOINT",
   "SKILLS_BRIDGE_URL",
@@ -32,8 +32,9 @@ export function applyResolvedHostname(raw, ip) {
   return href;
 }
 
-export async function lookupIpv4(hostname, lookup = dns.lookup, attempts = 20) {
+export async function lookupIpv4(hostname, lookup = dns.lookup, attempts = 20, delayMs = 1000) {
   let lastErr;
+  const wait = Number.isFinite(delayMs) && delayMs >= 0 ? delayMs : 1000;
   for (let i = 0; i < attempts; i++) {
     try {
       const result = await lookup(hostname, { family: 4 });
@@ -42,10 +43,85 @@ export async function lookupIpv4(hostname, lookup = dns.lookup, attempts = 20) {
       throw new Error("empty address");
     } catch (e) {
       lastErr = e;
-      await new Promise((r) => setTimeout(r, 1000));
+      if (i < attempts - 1 && wait > 0) {
+        await new Promise((r) => setTimeout(r, wait));
+      }
     }
   }
   throw lastErr ?? new Error(`DNS lookup failed: ${hostname}`);
+}
+
+export function dockerHostnameCandidates(hostname) {
+  const host = String(hostname || "").trim().toLowerCase();
+  if (!host) return [];
+  const project = (process.env.COMPOSE_PROJECT_NAME || "heyu-jfo").trim() || "heyu-jfo";
+  return [...new Set([host, `${project}-${host}-1`])];
+}
+
+async function resolve4ViaDockerDns(hostname) {
+  const resolver = new dns.Resolver({ timeout: 1500, tries: 2 });
+  try {
+    resolver.setServers(["127.0.0.11"]);
+  } catch {
+    /* 非 Docker 环境没有 127.0.0.11 */
+  }
+  const addrs = await resolver.resolve4(hostname);
+  const ip = addrs?.[0];
+  if (!ip) throw new Error(`empty resolve4: ${hostname}`);
+  return ip;
+}
+
+export async function lookupDockerIpv4(hostname, lookup = dns.lookup) {
+  const names = dockerHostnameCandidates(hostname);
+  const useResolver = lookup === dns.lookup;
+  let lastErr;
+  if (useResolver) {
+    for (const name of names) {
+      try {
+        return await resolve4ViaDockerDns(name);
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+  }
+  for (const name of names) {
+    try {
+      return await lookupIpv4(name, lookup, useResolver ? 6 : 8, useResolver ? 300 : 0);
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr ?? new Error(`DNS lookup failed: ${hostname}`);
+}
+
+const hostnameCache = new Map();
+const HOST_TTL_MS = 15_000;
+
+export function clearDockerHostnameCache() {
+  hostnameCache.clear();
+}
+
+/** Node fetch 直接查 hermes 常 EAI_AGAIN；请求时用 Docker DNS / family:4 解析再打 IP。 */
+export async function resolveDockerServiceUrl(rawUrl, lookup = dns.lookup) {
+  const raw = String(rawUrl || "").trim();
+  if (!raw) return raw;
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return raw;
+  }
+  if (!isDockerServiceHostname(parsed.hostname)) return raw;
+  const host = parsed.hostname;
+  const now = Date.now();
+  const hit = hostnameCache.get(host);
+  let ip = hit && now - hit.at < HOST_TTL_MS ? hit.ip : "";
+  if (!ip) {
+    ip = await lookupDockerIpv4(host, lookup);
+    hostnameCache.set(host, { ip, at: Date.now() });
+    console.log(`[jfo-api] Docker DNS ${host} -> ${ip}`);
+  }
+  return applyResolvedHostname(raw, ip);
 }
 
 export async function resolveUrlEnvForWorkerd(env = process.env, lookup = dns.lookup) {

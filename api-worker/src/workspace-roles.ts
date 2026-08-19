@@ -50,7 +50,7 @@ export function isIssuerRole(role: WorkspaceRole): boolean {
 /**
  * 解析用户在项目上的有效角色。
  * 仅平台管理员 / 项目创建人 / project_member_roles 成员有非 guest 权限；
- * 不再用账号 default_role 自动把所有人拉进项目。
+ * 项目内权限看项目成员，不再按账号级角色自动把人拉进项目。
  * 项目创建人在本项目内为 Admin（项目权限，不是平台管理员）。
  */
 export async function resolveProjectRole(

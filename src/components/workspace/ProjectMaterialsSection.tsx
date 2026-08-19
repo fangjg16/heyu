@@ -124,6 +124,16 @@ function formatFileSize(bytes: number | undefined | null): string {
   return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
+/** 旧版 100 字硬截或残缺 JSON：再点一次应重新向接口拉摘要 */
+function shouldRefetchParseSummary(summary: string): boolean {
+  const t = summary.trim();
+  if (!t || t === "—") return true;
+  if (t.startsWith("{") && /"summary"\s*:/u.test(t)) return true;
+  if (/[.。！？!?…]$/u.test(t)) return false;
+  const n = Array.from(t).length;
+  return n === 100 || n === 200;
+}
+
 function hasWebkitPath(file: File): boolean {
   return Boolean((file as File & { webkitRelativePath?: string }).webkitRelativePath);
 }
@@ -976,7 +986,11 @@ export function ProjectMaterialsSection({
         setError("当前权限无法解析该文件（受限）");
         return;
       }
-      if (parsedById[file.id]?.status === "parsed") return;
+      if (parsedById[file.id]?.status === "parsed") {
+        if (!shouldRefetchParseSummary(parsedById[file.id]?.summary ?? "")) {
+          return;
+        }
+      }
       if (parsedById[file.id]?.status === "parsing") return;
       if (parsingId === file.id) return;
       setParsingId(file.id);
@@ -1043,11 +1057,12 @@ export function ProjectMaterialsSection({
       setSelection({ kind: "file", id: file.id });
       if (!canParseFile(file)) return;
       const cached = parsedById[file.id];
-      // 已有完整落库缓存则不重复请求
+      // 已有完整落库缓存则不重复请求；半截 100 字摘要除外
       if (
         cached?.status === "parsed" &&
         cached.summary &&
-        cached.summary !== "—"
+        cached.summary !== "—" &&
+        !shouldRefetchParseSummary(cached.summary)
       ) {
         return;
       }

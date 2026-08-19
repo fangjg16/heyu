@@ -1,7 +1,7 @@
 import type { AppDatabase } from "./app-database";
-import type { WorkspaceRole } from "./workspace-roles";
 import { coerceAccountStatus } from "./account-status";
 import { hashPassword, randomToken } from "./password-crypto";
+import { stripOrgRoleLabel } from "./org-title";
 
 export type WorkspaceUserRow = {
   id: string;
@@ -12,7 +12,6 @@ export type WorkspaceUserRow = {
   avatar_char: string;
   avatar_class: string;
   avatar_url: string | null;
-  default_role: string;
   is_platform_admin: number;
   status: string;
   password_hash: string;
@@ -29,7 +28,6 @@ export type WorkspaceUserPublic = {
   avatarChar: string;
   avatarClass: string;
   avatarUrl: string;
-  defaultRole: WorkspaceRole;
   isPlatformAdmin: boolean;
   status: string;
   isDisabled: boolean;
@@ -65,20 +63,6 @@ export const DEFAULT_AVATAR_CLASS =
 
 type Env = { DB: AppDatabase };
 
-const VALID_ROLES: WorkspaceRole[] = [
-  "admin",
-  "core",
-  "mid",
-  "low",
-  "issuer",
-  "guest",
-];
-
-export function parseWorkspaceRole(raw: string | null | undefined): WorkspaceRole {
-  const role = (raw ?? "").trim() as WorkspaceRole;
-  return VALID_ROLES.includes(role) ? role : "guest";
-}
-
 /** 登录名归一化：trim + 小写 + 去空白 */
 export function normalizeUsername(raw: string): string {
   return raw.trim().toLowerCase().replace(/\s+/gu, "");
@@ -96,11 +80,10 @@ export function rowToPublic(row: WorkspaceUserRow): WorkspaceUserPublic {
   return {
     id: row.id,
     displayName: row.display_name,
-    orgTitle: row.org_title,
+    orgTitle: stripOrgRoleLabel(row.org_title),
     avatarChar: row.avatar_char,
     avatarClass: row.avatar_class,
     avatarUrl: (row.avatar_url ?? "").trim(),
-    defaultRole: parseWorkspaceRole(row.default_role),
     isPlatformAdmin: Number(row.is_platform_admin) === 1,
     status,
     isDisabled: status === "disabled",
@@ -108,7 +91,7 @@ export function rowToPublic(row: WorkspaceUserRow): WorkspaceUserPublic {
 }
 
 const USER_SELECT = `SELECT id, clerk_user_id, username, display_name, org_title, avatar_char, avatar_class,
-              avatar_url, default_role, is_platform_admin, status,
+              avatar_url, is_platform_admin, status,
               password_hash, password_salt, password_iters,
               created_at, updated_at
        FROM workspace_users`;
@@ -173,16 +156,6 @@ export async function isKnownWorkspaceUser(
 ): Promise<boolean> {
   const row = await getWorkspaceUserById(env, userId);
   return Boolean(row && coerceAccountStatus(row.status) === "active");
-}
-
-export async function getDefaultRoleForUser(
-  env: Env,
-  userId: string,
-): Promise<WorkspaceRole> {
-  const row = await getWorkspaceUserById(env, userId);
-  if (!row || coerceAccountStatus(row.status) !== "active") return "guest";
-  if (Number(row.is_platform_admin) === 1) return "admin";
-  return parseWorkspaceRole(row.default_role);
 }
 
 export async function isPlatformAdminUser(
@@ -301,7 +274,6 @@ export type CreateWorkspaceUserInput = {
   avatarChar?: string;
   avatarClass?: string;
   avatarUrl?: string;
-  defaultRole?: WorkspaceRole;
   isPlatformAdmin?: boolean;
 };
 
@@ -326,21 +298,20 @@ export async function createWorkspaceUser(
   await env.DB.prepare(
     `INSERT INTO workspace_users (
       id, clerk_user_id, username, display_name, org_title, avatar_char, avatar_class,
-      avatar_url, default_role, is_platform_admin, status,
+      avatar_url, is_platform_admin, status,
       password_hash, password_salt, password_iters,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
   )
     .bind(
       id,
       clerkUserId,
       username,
       displayName,
-      (input.orgTitle ?? "").trim(),
+      stripOrgRoleLabel(input.orgTitle),
       avatarChar,
       (input.avatarClass ?? "").trim() || DEFAULT_AVATAR_CLASS,
       avatarUrl,
-      parseWorkspaceRole("guest"),
       input.isPlatformAdmin ? 1 : 0,
       input.passwordHash,
       input.passwordSalt,
@@ -362,7 +333,6 @@ export type UpdateWorkspaceUserInput = {
   avatarChar?: string;
   avatarClass?: string;
   avatarUrl?: string;
-  defaultRole?: WorkspaceRole;
   isPlatformAdmin?: boolean;
   status?: "active" | "disabled";
 };
@@ -387,10 +357,9 @@ export async function updateWorkspaceUser(
     input.displayName !== undefined
       ? input.displayName.trim() || existing.display_name
       : existing.display_name;
-  const orgTitle =
-    input.orgTitle !== undefined
-      ? input.orgTitle.trim()
-      : existing.org_title;
+  const orgTitle = stripOrgRoleLabel(
+    input.orgTitle !== undefined ? input.orgTitle : existing.org_title,
+  );
   const avatarChar =
     input.avatarChar !== undefined
       ? input.avatarChar.trim().slice(0, 1) || existing.avatar_char
@@ -403,7 +372,6 @@ export async function updateWorkspaceUser(
     input.avatarUrl,
     (existing.avatar_url ?? "").trim(),
   );
-  const defaultRole = "guest" as WorkspaceRole;
   const isAdmin =
     input.isPlatformAdmin !== undefined
       ? input.isPlatformAdmin
@@ -418,7 +386,7 @@ export async function updateWorkspaceUser(
     `UPDATE workspace_users SET
       username = ?, display_name = ?, org_title = ?,
       avatar_char = ?, avatar_class = ?, avatar_url = ?,
-      default_role = ?, is_platform_admin = ?, status = ?,
+      is_platform_admin = ?, status = ?,
       updated_at = ?
      WHERE id = ?`,
   )
@@ -429,7 +397,6 @@ export async function updateWorkspaceUser(
       avatarChar,
       avatarClass,
       avatarUrl,
-      defaultRole,
       isAdmin,
       status,
       t,

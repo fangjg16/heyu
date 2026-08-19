@@ -1,18 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { membershipsAllowPlazaDiscovery } from "./projects-auth";
+import { membershipsAllowPlazaDiscovery } from "./plaza-discovery";
 
 describe("membershipsAllowPlazaDiscovery", () => {
-  it("allows plaza when the user has no memberships yet", () => {
+  it("allows plaza for logged-in accounts regardless of project identity", () => {
     expect(membershipsAllowPlazaDiscovery([])).toBe(true);
-  });
-
-  it("allows plaza for investor roles", () => {
-    expect(membershipsAllowPlazaDiscovery(["admin"])).toBe(true);
-    expect(membershipsAllowPlazaDiscovery(["issuer", "core"])).toBe(true);
-  });
-
-  it("hides plaza when every membership is issuer", () => {
-    expect(membershipsAllowPlazaDiscovery(["issuer"])).toBe(false);
-    expect(membershipsAllowPlazaDiscovery(["issuer", "issuer"])).toBe(false);
+    expect(membershipsAllowPlazaDiscovery(["issuer"])).toBe(true);
   });
 });

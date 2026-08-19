@@ -28,8 +28,6 @@ export type WorkspaceUser = {
   avatarUrl?: string;
   /** 平台管理员（管理中枢 / 全项目） */
   isPlatformAdmin?: boolean;
-  /** 账号默认角色（用于 Guest 目录过滤等） */
-  defaultRole?: WorkspaceRole | string;
 };
 
 export const SESSION_KEY = "fo-workspace-session";
