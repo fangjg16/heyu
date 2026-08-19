@@ -97,7 +97,7 @@ export async function userSeesPlazaDiscovery(
 /**
  * 项目总览目录可见性：
  * 1. 平台管理员：全部
- * 2. 纯项目协作方（账号默认身份 issuer，或已加入项目全部是协作方且非投资档）：仅已加入项目
+ * 2. 账号默认身份为项目协作方：仅已加入项目（看不到广场）
  * 3. 投资团队 / 尚未入组：已加入，或全开放（partial/public）可发现
  * 4. 未登录：非 invite
  */
