@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { HeyuSelect } from "@/components/workspace/HeyuSelect";
 import { roleLabelForProject } from "@/workspace/workspace-users";
 import type { WorkspaceRole } from "@/workspace/types";
 
@@ -26,8 +27,23 @@ export function assignableRoleFromTrack(
 
 export const ISSUER_TYPE_LABEL = "被投方";
 
-const pairSelectClass =
-  "shrink-0 rounded border border-border/70 bg-white px-1.5 py-1 text-[10px] text-foreground outline-none disabled:cursor-not-allowed";
+function investorRoleOptions(current: WorkspaceRole): {
+  value: InvestorPermissionRole | "mid";
+  label: string;
+}[] {
+  const options: { value: InvestorPermissionRole | "mid"; label: string }[] =
+    INVESTOR_PERMISSION_ROLES.map((r) => ({
+      value: r,
+      label: roleLabelForProject(r),
+    }));
+  if (current === "mid") {
+    options.push({
+      value: "mid",
+      label: `${roleLabelForProject("mid")}（请改档）`,
+    });
+  }
+  return options;
+}
 
 /** 管理端「项目权限」：身份 + 等级/类型 两个下拉 */
 export function ProjectRoleSelects({
@@ -44,50 +60,36 @@ export function ProjectRoleSelects({
 
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-1">
-      <select
-        value={track}
-        disabled={disabled}
+      <HeyuSelect
+        size="sm"
         aria-label="身份"
-        onChange={(e) => {
-          const next = e.target.value === "issuer" ? "issuer" : "investor";
-          onChange(assignableRoleFromTrack(next, investorRole));
-        }}
-        className={cn(pairSelectClass, "w-[6.75rem]")}
-      >
-        <option value="investor">投资方</option>
-        <option value="issuer">项目协作方</option>
-      </select>
+        disabled={disabled}
+        value={track}
+        options={[
+          { value: "investor", label: "投资方" },
+          { value: "issuer", label: "项目协作方" },
+        ]}
+        onChange={(next) =>
+          onChange(assignableRoleFromTrack(next, investorRole))
+        }
+      />
       {track === "issuer" ? (
-        <select
-          value="issuer"
-          disabled={disabled}
-          aria-label="类型"
-          className={cn(pairSelectClass, "w-[5.25rem]")}
-        >
-          <option value="issuer">{ISSUER_TYPE_LABEL}</option>
-        </select>
+        <span className="inline-flex h-7 items-center rounded-lg border border-[rgba(78,66,57,0.14)] bg-white px-2 text-[12px] text-[hsl(var(--warm-charcoal))]">
+          {ISSUER_TYPE_LABEL}
+        </span>
       ) : (
-        <select
-          value={role === "mid" ? "mid" : investorRole}
-          disabled={disabled}
+        <HeyuSelect
+          size="sm"
           aria-label="等级"
-          onChange={(e) => {
-            const next = e.target.value;
+          disabled={disabled}
+          value={role === "mid" ? "mid" : investorRole}
+          options={investorRoleOptions(role)}
+          onChange={(next) => {
             if (next === "admin" || next === "core" || next === "low") {
               onChange(next);
             }
           }}
-          className={cn(pairSelectClass, "w-[8.75rem]")}
-        >
-          {INVESTOR_PERMISSION_ROLES.map((r) => (
-            <option key={r} value={r}>
-              {roleLabelForProject(r)}
-            </option>
-          ))}
-          {role === "mid" ? (
-            <option value="mid">{roleLabelForProject("mid")}（请改档）</option>
-          ) : null}
-        </select>
+        />
       )}
     </div>
   );
@@ -148,39 +150,21 @@ export function MemberRoleFields({
         </button>
       </div>
       {track === "investor" ? (
-        <label
-          className={cn(
-            "heyu-chip gap-1.5",
-            compact && "heyu-chip-sm",
-            disabled && "opacity-70",
-          )}
-        >
-          <span className="text-[11px] text-[hsl(var(--warm-charcoal-muted))]">
-            权限
-          </span>
-          <select
-            disabled={disabled}
-            value={role === "mid" ? "mid" : investorRole}
-            onChange={(e) => {
-              const next = e.target.value;
-              if (next === "admin" || next === "core" || next === "low") {
-                onChange(next);
-              }
-            }}
-            className="heyu-select text-[13px] text-[hsl(var(--warm-charcoal))] outline-none disabled:cursor-not-allowed"
-          >
-            {INVESTOR_PERMISSION_ROLES.map((r) => (
-              <option key={r} value={r}>
-                {roleLabelForProject(r)}
-              </option>
-            ))}
-            {role === "mid" ? (
-              <option value="mid">{roleLabelForProject("mid")}（请改档）</option>
-            ) : null}
-          </select>
-        </label>
+        <HeyuSelect
+          prefix="权限"
+          size={compact ? "sm" : "md"}
+          aria-label="权限"
+          disabled={disabled}
+          value={role === "mid" ? "mid" : investorRole}
+          options={investorRoleOptions(role)}
+          onChange={(next) => {
+            if (next === "admin" || next === "core" || next === "low") {
+              onChange(next);
+            }
+          }}
+        />
       ) : (
-        <label
+        <div
           className={cn(
             "heyu-chip gap-1.5",
             compact && "heyu-chip-sm",
@@ -190,14 +174,10 @@ export function MemberRoleFields({
           <span className="text-[11px] text-[hsl(var(--warm-charcoal-muted))]">
             类型
           </span>
-          <select
-            disabled={disabled}
-            value="issuer"
-            className="heyu-select text-[13px] text-[hsl(var(--warm-charcoal))] outline-none disabled:cursor-not-allowed"
-          >
-            <option value="issuer">{ISSUER_TYPE_LABEL}</option>
-          </select>
-        </label>
+          <span className="text-[13px] font-medium text-[hsl(var(--warm-charcoal))]">
+            {ISSUER_TYPE_LABEL}
+          </span>
+        </div>
       )}
     </div>
   );
