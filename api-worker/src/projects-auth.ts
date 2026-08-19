@@ -2,8 +2,12 @@ import type { AppDatabase } from "./app-database";
 import type { ProjectJson } from "./projects-db";
 import { listMemberRoleOverridesForUser } from "./project-member-roles-db";
 import {
+  getDefaultRoleForUser,
   isPlatformAdminUser,
 } from "./workspace-users-db";
+import { membershipsAllowPlazaDiscovery } from "./plaza-discovery";
+
+export { membershipsAllowPlazaDiscovery } from "./plaza-discovery";
 
 type Env = { DB: AppDatabase };
 
@@ -78,20 +82,6 @@ function isDirectoryDiscoverable(openness: string | null | undefined): boolean {
   return o === "partial" || o === "public" || o === "";
 }
 
-/**
- * 项目广场只给投资团队 / 尚未入组的内部账号。
- * 全部成员身份都是项目方时，只能看到被邀请加入的项目。
- */
-export function membershipsAllowPlazaDiscovery(
-  roles: Iterable<string>,
-): boolean {
-  const list = [...roles]
-    .map((r) => String(r).trim().toLowerCase())
-    .filter(Boolean);
-  if (list.length === 0) return true;
-  return list.some((r) => r !== "issuer");
-}
-
 export async function userSeesPlazaDiscovery(
   env: Env,
   userId: string | null | undefined,
@@ -99,14 +89,15 @@ export async function userSeesPlazaDiscovery(
   const uid = (userId ?? "").trim();
   if (!uid) return false;
   if (await isPlatformAdmin(env, uid)) return true;
+  const defaultRole = await getDefaultRoleForUser(env, uid);
   const roles = await listMemberRoleOverridesForUser(env, uid);
-  return membershipsAllowPlazaDiscovery(Object.values(roles));
+  return membershipsAllowPlazaDiscovery(Object.values(roles), defaultRole);
 }
 
 /**
  * 项目总览目录可见性：
  * 1. 平台管理员：全部
- * 2. 纯项目方：仅已加入/被邀请的项目（看不到广场）
+ * 2. 纯项目协作方（账号默认身份 issuer，或已加入项目全部是协作方且非投资档）：仅已加入项目
  * 3. 投资团队 / 尚未入组：已加入，或全开放（partial/public）可发现
  * 4. 未登录：非 invite
  */

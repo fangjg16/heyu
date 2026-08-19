@@ -134,12 +134,26 @@ export function canPublishToIssuer(role: WorkspaceRole): boolean {
   return role === "admin" || role === "core";
 }
 
-/** 当前账号在已加入项目里全部是项目协作方：不进广场、不新建项目 */
+/** 当前账号是纯项目协作方：不进广场、不新建项目 */
 export function isIssuerOnlyUser(userId: string | null | undefined): boolean {
   const uid = (userId ?? "").trim();
   if (!uid || isPlatformAdminUser(uid)) return false;
-  const roles = Object.values(readAllCachedProjectRoles());
-  return roles.length > 0 && roles.every((r) => isIssuerRole(r));
+  const defaultRole = String(getUserById(uid)?.defaultRole ?? "")
+    .trim()
+    .toLowerCase();
+  if (defaultRole === "issuer") return true;
+  if (
+    defaultRole === "admin" ||
+    defaultRole === "core" ||
+    defaultRole === "mid" ||
+    defaultRole === "low"
+  ) {
+    return false;
+  }
+  const joined = Object.values(readAllCachedProjectRoles()).filter(
+    (r) => r && r !== "guest",
+  );
+  return joined.length > 0 && joined.every((r) => isIssuerRole(r));
 }
 
 /** 侧栏对话：看项目成员角色，不用账号 defaultRole 一刀切未加入 */
