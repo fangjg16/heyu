@@ -84,6 +84,72 @@ async function enterWorkspace() {
   }
 }
 
+function clerkResetErrorToZh(
+  err: { code?: string; message?: string; longMessage?: string } | null | undefined,
+): string {
+  const code = (err?.code ?? "").trim();
+  if (
+    code === "form_identifier_not_found" ||
+    code === "form_param_nil" ||
+    code === "form_identifier_exists"
+  ) {
+    return "找不到该账号。请确认邮箱或用户名；内部账号请联系管理员重置密码。";
+  }
+  if (
+    code === "strategy_for_user_invalid" ||
+    code === "reset_password_email_code_not_allowed"
+  ) {
+    return "该账号无法通过邮箱找回密码，请联系平台管理员。";
+  }
+  return clerkErrorToZh(
+    err,
+    "无法发送重置验证码，请确认账号已绑定邮箱。",
+  );
+}
+
+type ClerkFieldErr = {
+  code?: string;
+  message?: string;
+  longMessage?: string;
+} | null;
+
+type ResetPasswordEmailCode = {
+  sendCode: () => Promise<{ error?: ClerkFieldErr }>;
+  verifyCode: (args: { code: string }) => Promise<{ error?: ClerkFieldErr }>;
+  submitPassword: (args: {
+    password: string;
+    signOutOfOtherSessions?: boolean;
+  }) => Promise<{ error?: ClerkFieldErr }>;
+};
+
+function getResetPasswordEmailCode(signIn: unknown): ResetPasswordEmailCode | null {
+  const api = (signIn as { resetPasswordEmailCode?: ResetPasswordEmailCode } | null)
+    ?.resetPasswordEmailCode;
+  return api ?? null;
+}
+
+async function clerkStartReset(
+  signIn: unknown,
+  identifier: string,
+): Promise<ClerkFieldErr | { message: string }> {
+  const create = (
+    signIn as {
+      create?: (args: { identifier: string }) => Promise<{ error?: ClerkFieldErr }>;
+    } | null
+  )?.create;
+  if (!create) {
+    return { message: "当前登录组件不支持找回密码，请联系管理员。" };
+  }
+  const { error: createError } = await create({ identifier });
+  if (createError) return createError;
+  const reset = getResetPasswordEmailCode(signIn);
+  if (!reset) {
+    return { message: "当前登录组件不支持找回密码，请联系管理员。" };
+  }
+  const { error: sendError } = await reset.sendCode();
+  return sendError ?? null;
+}
+
 function isLocalLoginHardStop(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : "";
   return (
@@ -198,6 +264,9 @@ function PasswordAuthForm() {
         <button type="submit" disabled={submitting} className={primaryBtnClass}>
           {submitting ? "登录中..." : "登录"}
         </button>
+        <p className="text-center text-[12.5px] text-[hsl(var(--warm-charcoal-muted))]">
+          忘记密码请联系平台管理员重置。
+        </p>
       </form>
     </>
   );
@@ -211,10 +280,10 @@ function ClerkAuthForm() {
   const { signIn, errors: signInErrors, fetchStatus: signInFetch } = useSignIn();
   const { signUp, errors: signUpErrors, fetchStatus: signUpFetch } = useSignUp();
 
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [pending, setPending] = useState<null | "signup-email" | "signin-trust">(
-    null,
-  );
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
+  const [pending, setPending] = useState<
+    null | "signup-email" | "signin-trust" | "reset-code" | "reset-password"
+  >(null);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -331,6 +400,99 @@ function ClerkAuthForm() {
       return;
     }
     setError("登录未完成，请稍后重试。");
+  };
+
+  const forgotIdentifier = () =>
+    (username.trim() || email.trim()).trim();
+
+  const onForgotSend = async () => {
+    const identifier = forgotIdentifier();
+    if (!identifier) {
+      setError("请填写账号或邮箱");
+      return;
+    }
+    const err = await clerkStartReset(signIn, identifier);
+    if (err) {
+      setError(clerkResetErrorToZh(err));
+      return;
+    }
+    setPending("reset-code");
+    setError(null);
+  };
+
+  const onForgotVerify = async () => {
+    const trimmed = code.trim();
+    if (!trimmed) {
+      setError("请填写验证码");
+      return;
+    }
+    const reset = getResetPasswordEmailCode(signIn);
+    if (!reset) {
+      setError("当前登录组件不支持找回密码，请联系管理员。");
+      return;
+    }
+    const { error: err } = await reset.verifyCode({ code: trimmed });
+    if (err) {
+      setError(
+        clerkErrorToZh(err, clerkErrorToZh(signInErrors.fields.code)),
+      );
+      return;
+    }
+    setPending("reset-password");
+    setPassword("");
+    setPassword2("");
+    setError(null);
+  };
+
+  const onForgotSetPassword = async () => {
+    if (!password) {
+      setError("请填写新密码");
+      return;
+    }
+    if (password !== password2) {
+      setError("两次输入的密码不一致");
+      return;
+    }
+    if (password.length < 8) {
+      setError("密码至少 8 位");
+      return;
+    }
+    const reset = getResetPasswordEmailCode(signIn);
+    if (!reset) {
+      setError("当前登录组件不支持找回密码，请联系管理员。");
+      return;
+    }
+    const { error: err } = await reset.submitPassword({
+      password,
+      signOutOfOtherSessions: true,
+    });
+    if (err) {
+      setError(
+        clerkErrorToZh(err, clerkErrorToZh(signInErrors.fields.password)),
+      );
+      return;
+    }
+    const status = String(signIn.status ?? "");
+    if (status === "complete") {
+      const { error: finErr } = await signIn.finalize(noNav);
+      if (finErr) {
+        setError(clerkErrorToZh(finErr));
+        return;
+      }
+      await finishClerkLogin();
+      return;
+    }
+    if (status === "needs_client_trust" || status === "needs_second_factor") {
+      const { error: sendErr } = await signIn.mfa.sendEmailCode();
+      if (sendErr) {
+        setError(clerkErrorToZh(sendErr));
+        return;
+      }
+      setPending("signin-trust");
+      setError(null);
+      return;
+    }
+    setError("密码已更新，请返回登录。");
   };
 
   const onSignUp = async () => {
@@ -456,7 +618,18 @@ function ClerkAuthForm() {
     if (fetching || !isLoaded) return;
     setError(null);
     setSubmitting(true);
-    const run = pending ? onVerify : mode === "signup" ? onSignUp : onSignIn;
+    const run =
+      pending === "reset-code"
+        ? onForgotVerify
+        : pending === "reset-password"
+          ? onForgotSetPassword
+          : pending
+            ? onVerify
+            : mode === "forgot"
+              ? onForgotSend
+              : mode === "signup"
+                ? onSignUp
+                : onSignIn;
     void run()
       .catch((err) => {
         setError(
@@ -468,16 +641,25 @@ function ClerkAuthForm() {
       .finally(() => setSubmitting(false));
   };
 
-  const title = pending
-    ? "验证邮箱"
-    : mode === "signup"
-      ? "注册账号"
-      : "登录工作台";
-  const subtitle = pending
-    ? "验证码已发送到你的邮箱，请填写后继续。"
-    : mode === "signup"
-      ? ""
-      : "请输入账号或邮箱与密码登录。";
+  const title = pending === "reset-password"
+    ? "设置新密码"
+    : pending
+      ? "验证邮箱"
+      : mode === "signup"
+        ? "注册账号"
+        : mode === "forgot"
+          ? "找回密码"
+          : "登录工作台";
+  const subtitle =
+    pending === "reset-password"
+      ? "验证通过，请设置新密码。"
+      : pending
+        ? "验证码已发送到你的邮箱，请填写后继续。"
+        : mode === "signup"
+          ? ""
+          : mode === "forgot"
+            ? "验证码将发到该账号绑定的邮箱。内部演示账号请联系管理员重置。"
+            : "请输入账号或邮箱与密码登录。";
 
   return (
     <>
@@ -491,7 +673,28 @@ function ClerkAuthForm() {
       {fromSwitch && !pending ? <SwitchNotice /> : null}
 
       <form onSubmit={onSubmitForm} className="mt-[30px] flex flex-col gap-3.5">
-        {pending ? (
+        {pending === "reset-password" ? (
+          <>
+            <LabeledInput
+              label="新密码"
+              type="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={setPassword}
+              disabled={fetching}
+              placeholder="至少 8 位"
+            />
+            <LabeledInput
+              label="确认新密码"
+              type="password"
+              autoComplete="new-password"
+              value={password2}
+              onChange={setPassword2}
+              disabled={fetching}
+              placeholder="再输入一次密码"
+            />
+          </>
+        ) : pending ? (
           <LabeledInput
             label="验证码"
             type="text"
@@ -515,7 +718,7 @@ function ClerkAuthForm() {
               />
             ) : null}
             <LabeledInput
-              label={mode === "signup" ? "邮箱" : "用户名"}
+              label={mode === "signup" ? "邮箱" : "账号或邮箱"}
               type={mode === "signup" ? "email" : "text"}
               autoComplete={mode === "signup" ? "email" : "username"}
               value={mode === "signup" ? email : username || email}
@@ -526,17 +729,37 @@ function ClerkAuthForm() {
               disabled={fetching}
               placeholder={mode === "signup" ? "name@example.com" : "账号或邮箱"}
             />
-            <LabeledInput
-              label="密码"
-              type="password"
-              autoComplete={
-                mode === "signup" ? "new-password" : "current-password"
-              }
-              value={password}
-              onChange={setPassword}
-              disabled={fetching}
-              placeholder={mode === "signup" ? "至少 8 位" : "请输入密码"}
-            />
+            {mode !== "forgot" ? (
+              <LabeledInput
+                label="密码"
+                type="password"
+                autoComplete={
+                  mode === "signup" ? "new-password" : "current-password"
+                }
+                value={password}
+                onChange={setPassword}
+                disabled={fetching}
+                placeholder={mode === "signup" ? "至少 8 位" : "请输入密码"}
+                action={
+                  mode === "signin" ? (
+                    <button
+                      type="button"
+                      className="text-[12.5px] text-[hsl(var(--wine))] hover:underline"
+                      onClick={() => {
+                        setMode("forgot");
+                        setPending(null);
+                        setPassword("");
+                        setPassword2("");
+                        setCode("");
+                        setError(null);
+                      }}
+                    >
+                      忘记密码？
+                    </button>
+                  ) : null
+                }
+              />
+            ) : null}
             {mode === "signup" ? (
               <LabeledInput
                 label="确认密码"
@@ -562,16 +785,26 @@ function ClerkAuthForm() {
           {!isLoaded
             ? "加载中..."
             : fetching
-              ? pending
-                ? "验证中..."
-                : mode === "signup"
-                  ? "注册中..."
-                  : "登录中..."
-              : pending
-                ? "验证并进入"
-                : mode === "signup"
-                  ? "注册"
-                  : "登录"}
+              ? pending === "reset-password"
+                ? "保存中..."
+                : pending
+                  ? "验证中..."
+                  : mode === "forgot"
+                    ? "发送中..."
+                    : mode === "signup"
+                      ? "注册中..."
+                      : "登录中..."
+              : pending === "reset-password"
+                ? "设置新密码并登录"
+                : pending === "reset-code"
+                  ? "验证"
+                  : pending
+                    ? "验证并进入"
+                    : mode === "forgot"
+                      ? "发送验证码"
+                      : mode === "signup"
+                        ? "注册"
+                        : "登录"}
         </button>
       </form>
 
@@ -580,6 +813,20 @@ function ClerkAuthForm() {
           {mode === "signup" ? (
             <>
               已有账号？
+              <button
+                type="button"
+                className="ml-1 text-[hsl(var(--wine))] hover:underline"
+                onClick={() => {
+                  setMode("signin");
+                  setError(null);
+                }}
+              >
+                去登录
+              </button>
+            </>
+          ) : mode === "forgot" ? (
+            <>
+              想起密码了？
               <button
                 type="button"
                 className="ml-1 text-[hsl(var(--wine))] hover:underline"
@@ -609,6 +856,23 @@ function ClerkAuthForm() {
         </p>
       ) : (
         <p className="mt-5 text-center text-[13px] text-[hsl(var(--warm-charcoal-muted))]">
+          {pending === "reset-code" ? (
+            <>
+              <button
+                type="button"
+                className="text-[hsl(var(--wine))] hover:underline"
+                disabled={fetching}
+                onClick={() => {
+                  setError(null);
+                  setSubmitting(true);
+                  void onForgotSend().finally(() => setSubmitting(false));
+                }}
+              >
+                重新发送
+              </button>
+              <span className="mx-2 text-[hsl(var(--warm-charcoal-muted))]">·</span>
+            </>
+          ) : null}
           <button
             type="button"
             className="text-[hsl(var(--wine))] hover:underline"
@@ -616,6 +880,11 @@ function ClerkAuthForm() {
               setPending(null);
               setCode("");
               setError(null);
+              if (pending === "reset-code" || pending === "reset-password") {
+                setMode("forgot");
+                setPassword("");
+                setPassword2("");
+              }
             }}
           >
             返回
@@ -661,6 +930,7 @@ function LabeledInput({
   onChange,
   disabled,
   placeholder,
+  action,
 }: {
   label: string;
   type: string;
@@ -669,11 +939,15 @@ function LabeledInput({
   onChange: (v: string) => void;
   disabled: boolean;
   placeholder: string;
+  action?: ReactNode;
 }) {
   return (
     <div>
-      <div className="mb-1.5 text-[12.5px] text-[hsl(var(--warm-charcoal-muted))]">
-        {label}
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <div className="text-[12.5px] text-[hsl(var(--warm-charcoal-muted))]">
+          {label}
+        </div>
+        {action}
       </div>
       <input
         type={type}
