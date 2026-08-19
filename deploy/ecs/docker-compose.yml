@@ -176,6 +176,8 @@ services:
       MODEL_DEFAULT: ${LLM_MODEL:-qwen-plus}
       LLM_MODEL: ${LLM_MODEL:-qwen-plus}
       HERMES_YOLO_MODE: "1"
+      HERMES_ALLOW_ROOT_GATEWAY: "1"
+      API_SERVER_PORT: "8642"
       JFO_API_PUBLIC_BASE: http://jfo-api:8787
       JFO_INTERNAL_KEY: ${JFO_INTERNAL_KEY}
       JFO_DEFAULT_USER_ID: ${JFO_DEFAULT_USER_ID:-CandiceGuo}

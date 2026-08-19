@@ -7,7 +7,7 @@ services:
     image: nousresearch/hermes-agent:latest
     container_name: jfo-hermes-local
     restart: unless-stopped
-    command: gateway run
+    command: ["hermes", "gateway", "run"]
     ports:
       - "8642:8642"
     extra_hosts:

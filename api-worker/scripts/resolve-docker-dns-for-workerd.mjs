@@ -55,7 +55,7 @@ export function dockerHostnameCandidates(hostname) {
   const host = String(hostname || "").trim().toLowerCase();
   if (!host) return [];
   const project = (process.env.COMPOSE_PROJECT_NAME || "heyu-jfo").trim() || "heyu-jfo";
-  return [...new Set([host, `${host}-agent`, `${project}-${host}-1`, `${project}-${host}`])];
+  return [...new Set([host, `${project}-${host}-1`])];
 }
 
 async function resolve4ViaDockerDns(hostname) {
