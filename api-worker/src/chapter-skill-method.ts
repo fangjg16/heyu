@@ -75,13 +75,28 @@ async function readSkillMarkdown(
     const fs = await import("node:fs");
     const path = await import("node:path");
     const { fileURLToPath } = await import("node:url");
-    const here = path.dirname(fileURLToPath(import.meta.url));
-    const candidates = [
-      path.resolve(here, "../../hermes-railway/skills", skill, "SKILL.md"),
-      path.resolve(process.cwd(), "hermes-railway/skills", skill, "SKILL.md"),
-      path.resolve(process.cwd(), "../hermes-railway/skills", skill, "SKILL.md"),
-      path.join("/opt/data/skills", skill, "SKILL.md"),
-    ];
+    const metaUrl = (import.meta as { url?: string }).url;
+    const cwd = (
+      globalThis as { process?: { cwd?: () => string } }
+    ).process?.cwd?.();
+    const candidates: string[] = [];
+    if (metaUrl) {
+      candidates.push(
+        path.resolve(
+          path.dirname(fileURLToPath(metaUrl)),
+          "../../hermes-railway/skills",
+          skill,
+          "SKILL.md",
+        ),
+      );
+    }
+    if (cwd) {
+      candidates.push(
+        path.resolve(cwd, "hermes-railway/skills", skill, "SKILL.md"),
+        path.resolve(cwd, "../hermes-railway/skills", skill, "SKILL.md"),
+      );
+    }
+    candidates.push(path.join("/opt/data/skills", skill, "SKILL.md"));
     for (const file of candidates) {
       if (fs.existsSync(file)) {
         const text = fs.readFileSync(file, "utf8");
