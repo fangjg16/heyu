@@ -12,7 +12,6 @@ export type SessionUserProfile = {
   avatarClass?: string;
   avatarUrl?: string;
   isPlatformAdmin?: boolean;
-  defaultRole?: string;
 };
 
 type SessionPayload = {

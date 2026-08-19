@@ -1,7 +1,6 @@
 import type { AppDatabase } from "./app-database";
 import type { WorkspaceRole } from "./workspace-roles";
 import {
-  getDefaultRoleForUser,
   isKnownWorkspaceUser,
   listActiveWorkspaceUsers,
 } from "./workspace-users-db";
@@ -240,19 +239,11 @@ export async function seedProjectMemberRoles(
 
 export async function listKnownWorkspaceUsers(
   env: Env,
-): Promise<{ userId: string; defaultRole: WorkspaceRole; displayName: string; isPlatformAdmin: boolean }[]> {
+): Promise<{ userId: string; displayName: string; isPlatformAdmin: boolean }[]> {
   const users = await listActiveWorkspaceUsers(env);
   return users.map((u) => ({
     userId: u.id,
-    defaultRole: u.defaultRole,
     displayName: u.displayName,
     isPlatformAdmin: u.isPlatformAdmin,
   }));
-}
-
-export async function resolveDefaultRole(
-  env: Env,
-  userId: string,
-): Promise<WorkspaceRole> {
-  return getDefaultRoleForUser(env, userId);
 }

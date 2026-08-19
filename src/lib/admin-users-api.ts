@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api-auth";
 import { isUserAccountDisabled } from "@/lib/account-status";
+import { stripOrgRoleLabel } from "@/lib/org-title";
 import type { WorkspaceRole } from "@/workspace/types";
 
 export type AdminWorkspaceUser = {
@@ -10,7 +11,6 @@ export type AdminWorkspaceUser = {
   avatarChar: string;
   avatarClass: string;
   avatarUrl?: string;
-  defaultRole: WorkspaceRole;
   isPlatformAdmin: boolean;
   status: string;
   isDisabled?: boolean;
@@ -28,6 +28,7 @@ function normalizeAdminUser(user: AdminWorkspaceUser): AdminWorkspaceUser {
   const disabled = isUserAccountDisabled(user);
   return {
     ...user,
+    orgTitle: stripOrgRoleLabel(user.orgTitle),
     status: disabled ? "disabled" : "active",
     isDisabled: disabled,
   };
@@ -47,7 +48,6 @@ export async function createAdminWorkspaceUser(input: {
   orgTitle?: string;
   avatarChar?: string;
   avatarUrl?: string;
-  defaultRole?: WorkspaceRole;
   isPlatformAdmin?: boolean;
 }): Promise<AdminWorkspaceUser> {
   const res = await apiFetch("/api/admin/workspace-users", {
@@ -68,7 +68,6 @@ export async function patchAdminWorkspaceUser(
     orgTitle?: string;
     avatarChar?: string;
     avatarUrl?: string;
-    defaultRole?: WorkspaceRole;
     isPlatformAdmin?: boolean;
     status?: "active" | "disabled";
   },

@@ -67,7 +67,7 @@ export function ProjectPermissionsSection({
       const next: Record<string, WorkspaceRole> = {};
       for (const m of data.members) {
         if (m.isPlatformAdmin) continue;
-        next[m.userId] = m.overrideRole ?? m.defaultRole;
+        next[m.userId] = m.role ?? m.effectiveRole;
         if (m.isCreator) {
           next[m.userId] = "admin";
         }
@@ -91,7 +91,7 @@ export function ProjectPermissionsSection({
     const nextDraft: Record<string, WorkspaceRole> = {};
     for (const m of next) {
       if (m.isPlatformAdmin) continue;
-      nextDraft[m.userId] = m.overrideRole ?? m.defaultRole;
+      nextDraft[m.userId] = m.role ?? m.effectiveRole;
       if (m.isCreator) nextDraft[m.userId] = "admin";
     }
     setDraft(nextDraft);
@@ -113,7 +113,7 @@ export function ProjectPermissionsSection({
           userId: m.userId,
           role: m.isCreator
             ? ("admin" as const)
-            : (draft[m.userId] ?? m.defaultRole),
+            : (draft[m.userId] ?? m.effectiveRole),
         }));
       const next = await updateProjectPermissions(project.id, userId, updates);
       applyMembers(next);
@@ -178,8 +178,8 @@ export function ProjectPermissionsSection({
   const dirty =
     members?.some((m) => {
       if (m.isPlatformAdmin || m.isCreator) return false;
-      const picked = draft[m.userId] ?? m.defaultRole;
-      const current = m.overrideRole ?? m.defaultRole;
+      const picked = draft[m.userId] ?? m.effectiveRole;
+      const current = m.role ?? m.effectiveRole;
       return picked !== current;
     }) ?? false;
 
@@ -363,7 +363,7 @@ export function ProjectPermissionsSection({
                   ? "admin"
                   : m.isPlatformAdmin
                     ? "admin"
-                    : (draft[m.userId] ?? m.defaultRole);
+                    : (draft[m.userId] ?? m.effectiveRole);
                 return (
                   <li
                     key={m.userId}

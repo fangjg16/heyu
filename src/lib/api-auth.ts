@@ -3,13 +3,13 @@ import {
   loadSessionToken,
   loadSessionUserId,
   saveSessionAuth,
-  type SessionUserProfile,
 } from "@/workspace/session";
 import {
   cacheWorkspaceUsers,
   setCachedUserProfile,
   type WorkspaceUser,
 } from "@/workspace/workspace-users";
+import { stripOrgRoleLabel } from "@/lib/org-title";
 
 function apiBaseFromChatEndpoint(chatEndpoint: string): string {
   const trimmed = chatEndpoint.trim().replace(/\/+$/u, "");
@@ -28,7 +28,6 @@ const AI_CHAT_ENDPOINT =
   "";
 
 export type AuthUserProfile = WorkspaceUser & {
-  defaultRole?: string;
   isPlatformAdmin: boolean;
 };
 
@@ -58,8 +57,15 @@ export async function apiFetch(
   });
 }
 
+function normalizeAuthUser(user: AuthUserProfile): AuthUserProfile {
+  return {
+    ...user,
+    orgTitle: stripOrgRoleLabel(user.orgTitle),
+  };
+}
+
 function applyProfile(user: AuthUserProfile): void {
-  setCachedUserProfile(user);
+  setCachedUserProfile(normalizeAuthUser(user));
 }
 
 export async function loginWithPassword(
@@ -91,9 +97,10 @@ export async function loginWithPassword(
     }
     throw new Error(data.error || `登录失败（${res.status}）`);
   }
-  saveSessionAuth(data.token, data.user.id, data.user as SessionUserProfile);
-  applyProfile(data.user);
-  return data.user;
+  const user = normalizeAuthUser(data.user);
+  saveSessionAuth(data.token, user.id, user);
+  applyProfile(user);
+  return user;
 }
 
 export async function loginWithClerkToken(
@@ -121,9 +128,10 @@ export async function loginWithClerkToken(
     }
     throw new Error(data.error || `登录失败（${res.status}）`);
   }
-  saveSessionAuth(data.token, data.user.id, data.user as SessionUserProfile);
-  applyProfile(data.user);
-  return data.user;
+  const user = normalizeAuthUser(data.user);
+  saveSessionAuth(data.token, user.id, user);
+  applyProfile(user);
+  return user;
 }
 
 export async function fetchAuthMe(): Promise<AuthUserProfile | null> {
@@ -137,9 +145,10 @@ export async function fetchAuthMe(): Promise<AuthUserProfile | null> {
   if (!res.ok) throw new Error(`会话校验失败（${res.status}）`);
   const data = (await res.json()) as { user?: AuthUserProfile };
   if (!data.user) return null;
-  applyProfile(data.user);
-  saveSessionAuth(token, data.user.id, data.user as SessionUserProfile);
-  return data.user;
+  const user = normalizeAuthUser(data.user);
+  applyProfile(user);
+  saveSessionAuth(token, user.id, user);
+  return user;
 }
 
 export async function logoutRemote(): Promise<void> {
@@ -181,18 +190,16 @@ export async function fetchWorkspaceUsersDirectory(): Promise<WorkspaceUser[]> {
       avatarClass: string;
       avatarUrl?: string;
       isPlatformAdmin?: boolean;
-      defaultRole?: string;
     }>;
   };
   const users = (data.users ?? []).map((u) => ({
     id: u.id,
     displayName: u.displayName,
-    orgTitle: u.orgTitle,
+    orgTitle: stripOrgRoleLabel(u.orgTitle),
     avatarChar: u.avatarChar,
     avatarClass: u.avatarClass,
     avatarUrl: u.avatarUrl ?? "",
     isPlatformAdmin: Boolean(u.isPlatformAdmin),
-    defaultRole: u.defaultRole,
   }));
   cacheWorkspaceUsers(users);
   return users;

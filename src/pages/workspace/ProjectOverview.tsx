@@ -45,7 +45,6 @@ import {
   getProjectRole,
   isJoinedProjectRole,
   getUserById,
-  isAccountGuestUser,
   isIssuerOnlyUser,
   isIssuerRole,
   listCachedWorkspaceUsers,
@@ -807,9 +806,7 @@ export default function ProjectOverview() {
                   ? issuerOnly
                     ? "投资团队把你加为项目协作方之后，协作项目会出现在这里。"
                     : "切换到项目广场浏览全开放协作机会，或新建项目。"
-                  : isAccountGuestUser(userId)
-                    ? "暂无可见项目。请联系管理员将您加入成员。"
-                    : "将项目开放程度设为「全开放」后会出现在此；内部邀请项目仅成员可见。"}
+                  : "全开放项目会出现在这里；内部邀请项目仅成员可见。"}
             </p>
           </div>
         )}

@@ -1,7 +1,7 @@
 /**
  * 种子：工作区演示账号（一人一登录名）
  * 用法：cd api-worker && npm run seed:workspace-users
- * Guest 可见项目请在项目「权限管理」中加入成员。
+ * 未加入的项目请在项目成员里勾选。
  */
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -17,11 +17,10 @@ const USERS = [
     id: "candice-guo",
     username: "candiceguo",
     displayName: "CandiceGuo",
-    orgTitle: "合域 · Admin",
+    orgTitle: "合域",
     avatarChar: "C",
     avatarClass:
       "bg-gradient-to-br from-violet-600 to-indigo-700 text-white shadow-sm",
-    defaultRole: "guest",
     isPlatformAdmin: 1,
     password: "jfo2026",
   },
@@ -29,10 +28,9 @@ const USERS = [
     id: "jimmy-huang",
     username: "jimmyhuang",
     displayName: "JimmyHuang",
-    orgTitle: "家族办公室 · Core 核心级",
+    orgTitle: "家族办公室",
     avatarChar: "J",
     avatarClass: "bg-primary text-primary-foreground shadow-sm",
-    defaultRole: "core",
     isPlatformAdmin: 0,
     password: "jfo2026",
   },
@@ -40,10 +38,9 @@ const USERS = [
     id: "jessica-hu",
     username: "jessicahu",
     displayName: "JessicaHu",
-    orgTitle: "投资顾问 · Advanced 进阶级",
+    orgTitle: "投资顾问",
     avatarChar: "S",
     avatarClass: "bg-[hsl(24,32%,44%)] text-[hsl(40,45%,98%)] shadow-sm",
-    defaultRole: "mid",
     isPlatformAdmin: 0,
     password: "jfo2026",
   },
@@ -51,10 +48,9 @@ const USERS = [
     id: "jensen-fang",
     username: "jensenfang",
     displayName: "JensenFang",
-    orgTitle: "研究部 · Basic 基础级",
+    orgTitle: "研究部",
     avatarChar: "N",
     avatarClass: "bg-stone-400 text-stone-900 shadow-sm",
-    defaultRole: "low",
     isPlatformAdmin: 0,
     password: "jfo2026",
   },
@@ -62,10 +58,9 @@ const USERS = [
     id: "binghe-su",
     username: "binghesu",
     displayName: "BingheSu",
-    orgTitle: "研究部 · Basic 基础级",
+    orgTitle: "研究部",
     avatarChar: "B",
     avatarClass: "bg-stone-400 text-stone-900 shadow-sm",
-    defaultRole: "low",
     isPlatformAdmin: 0,
     password: "jfo2026",
   },
@@ -73,10 +68,9 @@ const USERS = [
     id: "janice-hi",
     username: "janicehi",
     displayName: "JaniceHi",
-    orgTitle: "访客 · Guest",
+    orgTitle: "访客",
     avatarChar: "J",
     avatarClass: "bg-slate-300 text-slate-800 shadow-sm",
-    defaultRole: "guest",
     isPlatformAdmin: 0,
     password: "jfo2026",
   },
@@ -87,7 +81,6 @@ const USERS = [
     orgTitle: "访客 · 多肽项目",
     avatarChar: "P",
     avatarClass: "bg-slate-300 text-slate-800 shadow-sm",
-    defaultRole: "guest",
     isPlatformAdmin: 0,
     password: "peptide2026",
   },
@@ -98,7 +91,6 @@ const USERS = [
     orgTitle: "访客 · AI短剧项目",
     avatarChar: "A",
     avatarClass: "bg-slate-300 text-slate-800 shadow-sm",
-    defaultRole: "guest",
     isPlatformAdmin: 0,
     password: "aidj2026",
   },
@@ -145,17 +137,16 @@ async function upsertUser(conn, user, t) {
   await conn.execute(
     `INSERT INTO workspace_users (
       id, username, display_name, org_title, avatar_char, avatar_class,
-      default_role, is_platform_admin, status,
+      is_platform_admin, status,
       password_hash, password_salt, password_iters,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)
     ON DUPLICATE KEY UPDATE
       username = VALUES(username),
       display_name = VALUES(display_name),
       org_title = VALUES(org_title),
       avatar_char = VALUES(avatar_char),
       avatar_class = VALUES(avatar_class),
-      default_role = VALUES(default_role),
       is_platform_admin = VALUES(is_platform_admin),
       status = 'active',
       password_hash = VALUES(password_hash),
@@ -169,7 +160,6 @@ async function upsertUser(conn, user, t) {
       user.orgTitle,
       user.avatarChar,
       user.avatarClass,
-      user.defaultRole,
       user.isPlatformAdmin,
       hash,
       salt,
@@ -198,7 +188,7 @@ try {
     await upsertUser(conn, user, t);
   }
   console.log(
-    "[seed:workspace-users] done（Guest 可见项目请在项目权限管理中加入成员）",
+    "[seed:workspace-users] done（未加入项目请在项目成员里勾选）",
   );
 } finally {
   await conn.end();

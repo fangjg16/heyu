@@ -29,7 +29,6 @@ export function getUserById(id: string | null): WorkspaceUser | undefined {
       avatarClass: session.avatarClass ?? "bg-slate-300 text-slate-800 shadow-sm",
       avatarUrl: session.avatarUrl ?? "",
       isPlatformAdmin: session.isPlatformAdmin,
-      defaultRole: session.defaultRole,
     };
   }
   return undefined;
@@ -48,15 +47,14 @@ export function isPlatformAdminUser(userId: string | null | undefined): boolean 
   return Boolean(session?.id === uid && session.isPlatformAdmin);
 }
 
-/** 账号默认角色是否为 Guest（侧栏对话入口等；平台管理员除外） */
+/** 尚未加入任何项目（侧栏「未加入项目」） */
 export function isAccountGuestUser(userId: string | null | undefined): boolean {
   const uid = (userId ?? "").trim();
-  if (!uid) return false;
-  if (isPlatformAdminUser(uid)) return false;
-  const role = String(getUserById(uid)?.defaultRole ?? "guest")
-    .trim()
-    .toLowerCase();
-  return role === "guest" || role === "";
+  if (!uid || isPlatformAdminUser(uid)) return false;
+  const joined = Object.values(readAllCachedProjectRoles()).filter(
+    (r) => r && r !== "guest",
+  );
+  return joined.length === 0;
 }
 
 export function getProjectRole(
@@ -76,7 +74,7 @@ export function getProjectRole(
   const cached = readCachedProjectRole(projectId);
   if (cached) return cached;
 
-  // 无服务端角色缓存时，非成员按 guest；勿用账号 defaultRole 误当成已入组
+  // 无项目成员记录时按未加入；勿用账号字段误当成已入组
   return "guest";
 }
 
@@ -134,17 +132,12 @@ export function canPublishToIssuer(role: WorkspaceRole): boolean {
   return role === "admin" || role === "core";
 }
 
-/** 账号默认身份是项目协作方：不进广场、不新建项目 */
-export function isIssuerOnlyUser(userId: string | null | undefined): boolean {
-  const uid = (userId ?? "").trim();
-  if (!uid || isPlatformAdminUser(uid)) return false;
-  const defaultRole = String(getUserById(uid)?.defaultRole ?? "")
-    .trim()
-    .toLowerCase();
-  return defaultRole === "issuer";
+/** 项目协作方是项目内身份，不是账号级开关；广场对已登录账号开放 */
+export function isIssuerOnlyUser(_userId: string | null | undefined): boolean {
+  return false;
 }
 
-/** 侧栏对话：看项目成员角色，不用账号 defaultRole 一刀切未加入 */
+/** 侧栏对话：看项目成员角色，未加入投资档则不能进对话 */
 export function canOpenWorkspaceChat(userId: string | null | undefined): boolean {
   const uid = (userId ?? "").trim();
   if (!uid) return false;
@@ -153,7 +146,7 @@ export function canOpenWorkspaceChat(userId: string | null | undefined): boolean
   const roles = Object.values(readAllCachedProjectRoles());
   if (roles.some((r) => isInvestorRole(r))) return true;
   if (roles.length > 0) return false;
-  return !isAccountGuestUser(uid);
+  return false;
 }
 
 export function canEnterChat(role: WorkspaceRole): boolean {

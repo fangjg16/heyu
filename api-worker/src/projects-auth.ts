@@ -2,7 +2,6 @@ import type { AppDatabase } from "./app-database";
 import type { ProjectJson } from "./projects-db";
 import { listMemberRoleOverridesForUser } from "./project-member-roles-db";
 import {
-  getDefaultRoleForUser,
   isPlatformAdminUser,
 } from "./workspace-users-db";
 import { membershipsAllowPlazaDiscovery } from "./plaza-discovery";
@@ -89,17 +88,15 @@ export async function userSeesPlazaDiscovery(
   const uid = (userId ?? "").trim();
   if (!uid) return false;
   if (await isPlatformAdmin(env, uid)) return true;
-  const defaultRole = await getDefaultRoleForUser(env, uid);
   const roles = await listMemberRoleOverridesForUser(env, uid);
-  return membershipsAllowPlazaDiscovery(Object.values(roles), defaultRole);
+  return membershipsAllowPlazaDiscovery(Object.values(roles));
 }
 
 /**
  * 项目总览目录可见性：
  * 1. 平台管理员：全部
- * 2. 账号默认身份为项目协作方：仅已加入项目（看不到广场）
- * 3. 投资团队 / 尚未入组：已加入，或全开放（partial/public）可发现
- * 4. 未登录：非 invite
+ * 2. 已登录：已加入项目，以及全开放可发现
+ * 3. 未登录：非 invite
  */
 export async function filterProjectsForDirectory(
   env: Env,

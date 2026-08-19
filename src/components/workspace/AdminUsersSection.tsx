@@ -25,6 +25,7 @@ import { PROJECT_ASSIGNABLE_ROLES } from "@/workspace/types";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { ProjectRoleSelects } from "@/components/workspace/MemberRoleFields";
 import { UserAvatar } from "@/components/workspace/UserAvatar";
+import { stripOrgRoleLabel } from "@/lib/org-title";
 
 const ASSIGNABLE: WorkspaceRole[] = [...PROJECT_ASSIGNABLE_ROLES];
 
@@ -96,7 +97,9 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
   const [avatarBusy, setAvatarBusy] = useState(false);
 
   const orgSuggestions = useMemo(() => {
-    const fromUsers = users.map((u) => u.orgTitle.trim()).filter(Boolean);
+    const fromUsers = users
+      .map((u) => stripOrgRoleLabel(u.orgTitle))
+      .filter(Boolean);
     return Array.from(new Set([...PRESET_ORGS, ...fromUsers])).sort((a, b) =>
       a.localeCompare(b, "zh"),
     );
@@ -172,7 +175,7 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
     setForm({
       username: u.username,
       displayName: u.displayName,
-      orgTitle: u.orgTitle,
+      orgTitle: stripOrgRoleLabel(u.orgTitle),
       avatarUrl: u.avatarUrl ?? "",
       isPlatformAdmin: u.isPlatformAdmin,
       status: isUserAccountDisabled(u) ? "disabled" : "active",
@@ -249,7 +252,7 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
         await patchAdminWorkspaceUser(editing.id, {
           username: form.username,
           displayName: form.displayName,
-          orgTitle: form.orgTitle,
+          orgTitle: stripOrgRoleLabel(form.orgTitle),
           avatarUrl: form.avatarUrl,
           isPlatformAdmin: form.isPlatformAdmin,
           status: form.status,
@@ -265,7 +268,7 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
           username: form.username,
           password: form.password,
           displayName: form.displayName,
-          orgTitle: form.orgTitle,
+          orgTitle: stripOrgRoleLabel(form.orgTitle),
           avatarUrl: form.avatarUrl,
           isPlatformAdmin: form.isPlatformAdmin,
         });

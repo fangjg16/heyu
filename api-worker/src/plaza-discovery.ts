@@ -1,11 +1,9 @@
 /**
- * 项目广场：已登录内部账号默认可发现全开放项目。
- * 仅账号默认身份为「项目协作方」时不逛广场（只做被邀请的协作项目）。
+ * 项目广场：已登录账号可发现全开放项目。
+ * 在某个项目里是投资方还是项目协作方，只影响该项目，不挡广场。
  */
 export function membershipsAllowPlazaDiscovery(
-  _roles: Iterable<string>,
-  accountDefaultRole?: string | null,
+  _roles?: Iterable<string>,
 ): boolean {
-  const def = String(accountDefaultRole ?? "").trim().toLowerCase();
-  return def !== "issuer";
+  return true;
 }

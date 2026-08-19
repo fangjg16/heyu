@@ -13,7 +13,6 @@ import {
   getWorkspaceUserById,
   listAllWorkspaceUsers,
   normalizeUsername,
-  parseWorkspaceRole,
   rowToAdminPublic,
   updateWorkspaceUser,
   updateWorkspaceUserPassword,
@@ -75,7 +74,6 @@ export async function handleAdminCreateWorkspaceUser(
     avatarChar?: string;
     avatarClass?: string;
     avatarUrl?: string;
-    defaultRole?: string;
     isPlatformAdmin?: boolean;
   };
   try {
@@ -104,7 +102,6 @@ export async function handleAdminCreateWorkspaceUser(
       avatarChar: body.avatarChar,
       avatarClass: body.avatarClass,
       avatarUrl: body.avatarUrl,
-      defaultRole: parseWorkspaceRole(body.defaultRole),
       isPlatformAdmin: Boolean(body.isPlatformAdmin),
     });
     await recordOperationLog(env.DB, {
@@ -143,7 +140,6 @@ export async function handleAdminPatchWorkspaceUser(
     avatarChar?: string;
     avatarClass?: string;
     avatarUrl?: string;
-    defaultRole?: string;
     isPlatformAdmin?: boolean;
     status?: string;
   };
@@ -178,10 +174,6 @@ export async function handleAdminPatchWorkspaceUser(
       avatarChar: body.avatarChar,
       avatarClass: body.avatarClass,
       avatarUrl: body.avatarUrl,
-      defaultRole:
-        body.defaultRole !== undefined
-          ? parseWorkspaceRole(body.defaultRole)
-          : undefined,
       isPlatformAdmin: body.isPlatformAdmin,
       status,
     });

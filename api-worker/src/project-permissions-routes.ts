@@ -30,8 +30,7 @@ function normalizeUserId(raw: string | null | undefined): string | null {
 export type ProjectPermissionMember = {
   userId: string;
   displayName: string;
-  defaultRole: WorkspaceRole;
-  overrideRole: WorkspaceRole | null;
+  role: WorkspaceRole | null;
   effectiveRole: WorkspaceRole;
   isCreator: boolean;
   isPlatformAdmin: boolean;
@@ -54,15 +53,14 @@ async function buildPermissionMembers(
   const members: ProjectPermissionMember[] = [];
   for (const userId of memberIds) {
     const knownUser = byId.get(userId);
-    const defaultRole = knownUser?.defaultRole ?? "guest";
     const displayName = knownUser?.displayName ?? userId;
     const platformAdmin = Boolean(knownUser?.isPlatformAdmin);
-    const overrideRole = overrides[userId] ?? null;
+    const memberRole = overrides[userId] ?? null;
     const isCreator = Boolean(creator && creator === userId);
     let effectiveRole: WorkspaceRole = roleWithCreatorFloor(
       userId,
       creator,
-      overrideRole,
+      memberRole,
     );
     if (platformAdmin) {
       effectiveRole = "admin";
@@ -70,8 +68,7 @@ async function buildPermissionMembers(
     members.push({
       userId,
       displayName,
-      defaultRole,
-      overrideRole,
+      role: memberRole,
       effectiveRole,
       isCreator,
       isPlatformAdmin: platformAdmin,
