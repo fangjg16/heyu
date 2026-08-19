@@ -4,6 +4,10 @@ import {
   getPromptSetting,
   KN_PROMPT_SETTING_GENERATE_SYSTEM,
 } from "./kn-chapter-templates-db";
+import {
+  buildChapterSkillMethodBlock,
+  GENERATE_SYSTEM_SKILL_LOCK,
+} from "./chapter-skill-method";
 import { callLlm, type LlmClientEnv } from "./llm-client";
 import {
   countPopulatedProjectKnowledgeChapters,
@@ -190,7 +194,8 @@ const GENERATE_SYSTEM = `你是投研知识网络章节撰写助手。根据「�
 6. 表格表头须可单行完整显示（勿把长表头拆成多行文字）。
 7. 若模板已含带 style 的 HTML 骨架：必须保留这些 style，只替换「待补」内容。
 8. 事实必须来自附件摘录；缺依据写「待补」，禁止编造。
-9. 标记外禁止任何说明文字。关系图禁止输出 SVG/HTML，只输出 JSON。`;
+9. 标记外禁止任何说明文字。关系图禁止输出 SVG/HTML，只输出 JSON。
+${GENERATE_SYSTEM_SKILL_LOCK}`;
 
 const SECTION_FORMAT_HINT: Record<string, string> = {
   snapshot:
@@ -649,6 +654,13 @@ export async function handleGenerateProjectKnowledgeChapter(
   }
 
   const isOverview = sectionId === "project-overview";
+  const skillMethod = await buildChapterSkillMethodBlock(sectionId, env.DB);
+  if (
+    skillMethod &&
+    !generateSystem.includes("若用户消息含「分析方法」")
+  ) {
+    generateSystem = `${generateSystem.trim()}\n${GENERATE_SYSTEM_SKILL_LOCK}`;
+  }
   const userPrompt = [
     `章节：${template!.title}`,
     template!.kicker ? `副标：${template!.kicker}` : "",
@@ -662,6 +674,7 @@ export async function handleGenerateProjectKnowledgeChapter(
     "【章节 Markdown 模板】",
     template!.markdown,
     "",
+    skillMethod,
     listExistingMetaDigest({
       sourcesHtml: existingSources?.html,
       glossaryHtml: existingGlossary?.html,
