@@ -51,6 +51,49 @@ export async function lookupIpv4(hostname, lookup = dns.lookup, attempts = 20, d
   throw lastErr ?? new Error(`DNS lookup failed: ${hostname}`);
 }
 
+export function dockerHostnameCandidates(hostname) {
+  const host = String(hostname || "").trim().toLowerCase();
+  if (!host) return [];
+  const project = (process.env.COMPOSE_PROJECT_NAME || "heyu-jfo").trim() || "heyu-jfo";
+  return [...new Set([host, `${host}-agent`, `${project}-${host}-1`, `${project}-${host}`])];
+}
+
+async function resolve4ViaDockerDns(hostname) {
+  const resolver = new dns.Resolver({ timeout: 1500, tries: 2 });
+  try {
+    resolver.setServers(["127.0.0.11"]);
+  } catch {
+    /* 非 Docker 环境没有 127.0.0.11 */
+  }
+  const addrs = await resolver.resolve4(hostname);
+  const ip = addrs?.[0];
+  if (!ip) throw new Error(`empty resolve4: ${hostname}`);
+  return ip;
+}
+
+export async function lookupDockerIpv4(hostname, lookup = dns.lookup) {
+  const names = dockerHostnameCandidates(hostname);
+  const useResolver = lookup === dns.lookup;
+  let lastErr;
+  if (useResolver) {
+    for (const name of names) {
+      try {
+        return await resolve4ViaDockerDns(name);
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+  }
+  for (const name of names) {
+    try {
+      return await lookupIpv4(name, lookup, useResolver ? 6 : 8, useResolver ? 300 : 0);
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr ?? new Error(`DNS lookup failed: ${hostname}`);
+}
+
 const hostnameCache = new Map();
 const HOST_TTL_MS = 15_000;
 
@@ -58,7 +101,7 @@ export function clearDockerHostnameCache() {
   hostnameCache.clear();
 }
 
-/** Node fetch 直接查 hermes 常 EAI_AGAIN；请求时用 family:4 解析再打 IP。 */
+/** Node fetch 直接查 hermes 常 EAI_AGAIN；请求时用 Docker DNS / family:4 解析再打 IP。 */
 export async function resolveDockerServiceUrl(rawUrl, lookup = dns.lookup) {
   const raw = String(rawUrl || "").trim();
   if (!raw) return raw;
@@ -74,7 +117,7 @@ export async function resolveDockerServiceUrl(rawUrl, lookup = dns.lookup) {
   const hit = hostnameCache.get(host);
   let ip = hit && now - hit.at < HOST_TTL_MS ? hit.ip : "";
   if (!ip) {
-    ip = await lookupIpv4(host, lookup, 8, 250);
+    ip = await lookupDockerIpv4(host, lookup);
     hostnameCache.set(host, { ip, at: Date.now() });
     console.log(`[jfo-api] Docker DNS ${host} -> ${ip}`);
   }

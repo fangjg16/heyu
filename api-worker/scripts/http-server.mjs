@@ -3,6 +3,8 @@
  * 依赖：DB_DRIVER=mysql、FILE_DRIVER=minio、MYSQL_*、MINIO_* 等
  */
 import { createServer } from "node:http";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import dns from "node:dns";
 import fs from "node:fs";
 import path from "node:path";
@@ -50,6 +52,25 @@ if ((process.env.HERMES_BASE_URL || "").trim() && !(process.env.HERMES_UPSTREAM_
 
 // workerd 无法稳定使用 Docker 内置 DNS；MySQL/MinIO 仍由 Node 把服务名解析成 IP
 await resolveUrlEnvForWorkerd(process.env);
+
+const execFileAsync = promisify(execFile);
+try {
+  const { stdout } = await execFileAsync("getent", ["hosts", "hermes", "mysql-bridge", "minio"], {
+    timeout: 4000,
+  });
+  console.log(`[jfo-api] getent hosts:\n${String(stdout).trim()}`);
+} catch (e) {
+  console.warn(`[jfo-api] getent hosts 失败:`, e?.message ?? e);
+}
+try {
+  const upstream = (process.env.HERMES_UPSTREAM_URL || "").trim();
+  if (upstream) {
+    const resolved = await resolveDockerServiceUrl(upstream);
+    console.log(`[jfo-api] Hermes 上游已解析: ${upstream} -> ${resolved}`);
+  }
+} catch (e) {
+  console.warn(`[jfo-api] 启动时无法解析 Hermes:`, e?.message ?? e);
+}
 
 const bundledWorker = path.join(root, "dist", "worker.mjs");
 const useBundledWorker = fs.existsSync(bundledWorker);

@@ -1,6 +1,7 @@
 import {
   applyResolvedHostname,
   clearDockerHostnameCache,
+  dockerHostnameCandidates,
   isDockerServiceHostname,
   resolveDockerServiceUrl,
   resolveUrlEnvForWorkerd,
@@ -16,9 +17,15 @@ assert(isDockerServiceHostname("minio") === true, "minio");
 assert(isDockerServiceHostname("localhost") === false, "localhost");
 assert(isDockerServiceHostname("127.0.0.1") === false, "loopback");
 assert(isDockerServiceHostname("172.18.0.5") === false, "ipv4");
+assert(isDockerServiceHostname("hermes-agent.up.railway.app") === false, "public host");
+
 assert(
-  isDockerServiceHostname("hermes-agent.up.railway.app") === false,
-  "public host",
+  dockerHostnameCandidates("hermes").includes("hermes"),
+  "candidate hermes",
+);
+assert(
+  dockerHostnameCandidates("hermes").includes("heyu-jfo-hermes-1"),
+  "candidate container",
 );
 
 assert(
