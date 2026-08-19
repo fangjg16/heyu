@@ -129,7 +129,7 @@ curl -sS "$JFO_API_PUBLIC_BASE/api/health"
 | Pages 能开但登录/对话失败 | 检查 `VITE_AI_CHAT_ENDPOINT`、Tunnel 是否仍有效、CORS `ALLOWED_ORIGIN` |
 | `/api/health` 里 db 失败 | `migrate.sh`；看 `mysql-bridge` 日志 |
 | 上传失败 | `minio-init` 是否成功；`MINIO_*` 与 bucket 名 |
-| jfo-api 日志 `internal error; reference = …` 或 `DNS lookup failed; params.host = hermes` | workerd 不能直连 Compose 里的 Hermes。`git pull` 后 `up -d --build jfo-api`；启动日志应有 `Hermes 出站走 Node 反代: Worker http://127.0.0.1:8791/__jfo/internal/hermes -> http://hermes:8642`。`/api/health` 里 `hermesViaNodeProxy` 应为 true，`hermesAuthOk` / `hermesRunsOk` 应为 true |
+| jfo-api 日志 `Hermes 上游不可达：fetch failed (getaddrinfo EAI_AGAIN hermes)` | Node `fetch` 直接查 `hermes` 会偶发解析失败。拉最新 `cursor/hermes-node-proxy-9b8c` 后 `up -d --build jfo-api`；日志应先有 `Docker DNS hermes -> 172.x`，再无 EAI_AGAIN |
 | Hermes 401 / Missing Authentication header | 深度任务：确认 `LLM_API_KEY` 有效；`docker compose ... up -d --force-recreate hermes`，看日志是否有 `provider=custom`；新版 Hermes 需 `config.yaml`（由 `scripts/hermes-entrypoint.sh` 写入） |
 | Hermes 401（调用 Gateway） | `HERMES_API_KEY` 与容器 `API_SERVER_KEY` 一致 |
 | Tunnel URL 变了 | 更新 `.env` 的 `JFO_API_PUBLIC_BASE` + GitHub Secret 并重新部署 Pages |

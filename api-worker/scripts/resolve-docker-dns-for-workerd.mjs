@@ -32,8 +32,9 @@ export function applyResolvedHostname(raw, ip) {
   return href;
 }
 
-export async function lookupIpv4(hostname, lookup = dns.lookup, attempts = 20) {
+export async function lookupIpv4(hostname, lookup = dns.lookup, attempts = 20, delayMs = 1000) {
   let lastErr;
+  const wait = Number.isFinite(delayMs) && delayMs >= 0 ? delayMs : 1000;
   for (let i = 0; i < attempts; i++) {
     try {
       const result = await lookup(hostname, { family: 4 });
@@ -42,10 +43,42 @@ export async function lookupIpv4(hostname, lookup = dns.lookup, attempts = 20) {
       throw new Error("empty address");
     } catch (e) {
       lastErr = e;
-      await new Promise((r) => setTimeout(r, 1000));
+      if (i < attempts - 1 && wait > 0) {
+        await new Promise((r) => setTimeout(r, wait));
+      }
     }
   }
   throw lastErr ?? new Error(`DNS lookup failed: ${hostname}`);
+}
+
+const hostnameCache = new Map();
+const HOST_TTL_MS = 15_000;
+
+export function clearDockerHostnameCache() {
+  hostnameCache.clear();
+}
+
+/** Node fetch 直接查 hermes 常 EAI_AGAIN；请求时用 family:4 解析再打 IP。 */
+export async function resolveDockerServiceUrl(rawUrl, lookup = dns.lookup) {
+  const raw = String(rawUrl || "").trim();
+  if (!raw) return raw;
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return raw;
+  }
+  if (!isDockerServiceHostname(parsed.hostname)) return raw;
+  const host = parsed.hostname;
+  const now = Date.now();
+  const hit = hostnameCache.get(host);
+  let ip = hit && now - hit.at < HOST_TTL_MS ? hit.ip : "";
+  if (!ip) {
+    ip = await lookupIpv4(host, lookup, 8, 250);
+    hostnameCache.set(host, { ip, at: Date.now() });
+    console.log(`[jfo-api] Docker DNS ${host} -> ${ip}`);
+  }
+  return applyResolvedHostname(raw, ip);
 }
 
 export async function resolveUrlEnvForWorkerd(env = process.env, lookup = dns.lookup) {

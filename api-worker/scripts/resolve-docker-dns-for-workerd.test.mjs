@@ -1,6 +1,8 @@
 import {
   applyResolvedHostname,
+  clearDockerHostnameCache,
   isDockerServiceHostname,
+  resolveDockerServiceUrl,
   resolveUrlEnvForWorkerd,
 } from "./resolve-docker-dns-for-workerd.mjs";
 
@@ -55,6 +57,27 @@ await resolveUrlEnvForWorkerd(publicEnv, lookup);
 assert(
   publicEnv.HERMES_BASE_URL === "https://hermes-agent.up.railway.app",
   "leave public url",
+);
+
+clearDockerHostnameCache();
+const resolved = await resolveDockerServiceUrl(
+  "http://hermes:8642/v1/models",
+  async () => ({ address: "172.19.0.8" }),
+);
+assert(resolved === "http://172.19.0.8:8642/v1/models", `resolve hermes ${resolved}`);
+const cached = await resolveDockerServiceUrl(
+  "http://hermes:8642/v1/runs",
+  async () => {
+    throw new Error("should use cache");
+  },
+);
+assert(cached === "http://172.19.0.8:8642/v1/runs", `cache ${cached}`);
+const publicUrl = await resolveDockerServiceUrl(
+  "https://dashscope.aliyuncs.com/compatible-mode/v1",
+);
+assert(
+  publicUrl === "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "leave public fetch url",
 );
 
 console.log("resolve-docker-dns-for-workerd: ok");

@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { Miniflare } from "miniflare";
 import { restartHermesGatewayFromNode } from "./hermes-k8s-restart-node.mjs";
 import { apiWorkerRoot, loadApiWorkerEnv } from "./load-env.mjs";
-import { resolveUrlEnvForWorkerd } from "./resolve-docker-dns-for-workerd.mjs";
+import { resolveUrlEnvForWorkerd, resolveDockerServiceUrl } from "./resolve-docker-dns-for-workerd.mjs";
 import {
   HERMES_NODE_PROXY_PREFIX,
   buildHermesUpstreamUrl,
@@ -78,8 +78,14 @@ async function dispatchWorkerOutbound(request) {
   if (viaProxy) {
     headers.delete("host");
     headers.delete("content-length");
+    try {
+      headers.set("host", new URL(upstream).host);
+    } catch {
+      /* ignore */
+    }
   }
   try {
+    target = await resolveDockerServiceUrl(target);
     return await fetch(target, {
       method,
       headers,
@@ -306,16 +312,23 @@ async function proxyHermesFromNode(req, res) {
   const hasBody = method !== "GET" && method !== "HEAD";
   const body = hasBody ? await readRequestBody(req) : undefined;
   const headers = copyRequestHeaders(req.headers);
+  try {
+    headers.set("host", new URL(upstreamBase).host);
+  } catch {
+    /* ignore */
+  }
+  let fetchUrl = target;
   let upstream;
   try {
-    upstream = await fetch(target, {
+    fetchUrl = await resolveDockerServiceUrl(target);
+    upstream = await fetch(fetchUrl, {
       method,
       headers,
       body: body?.length ? body : undefined,
     });
   } catch (e) {
     const msg = formatHermesProxyConnectError(e);
-    console.error(`[jfo-api] Hermes 反代失败 ${method} ${target}:`, msg);
+    console.error(`[jfo-api] Hermes 反代失败 ${method} ${fetchUrl}:`, msg);
     sendJson(res, 502, { error: { message: msg } });
     return;
   }
