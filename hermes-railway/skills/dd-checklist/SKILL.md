@@ -134,12 +134,8 @@ Maintain a running list of red flags:
 ## Output Format
 
 - **Chat**: Markdown — workstream progress summary + P0 outstanding items + red flags
-- **KB update**: writes to the following Project Knowledge Base section(s) of `[AI] <项目名>_知识网络.html`:
-  - 十 待确认问题清单
-- **Section details**:
-  - 十: 按工作流 (法律/财务/税务/商业/技术/环境/监管) 组织的 open-question 表；每项标注紧迫度、责任方、阻塞性
-- All KB writes go through `knowledge-base-generation` (single source of truth — no separate layer/section HTML files).
-- All output conforms to `../knowledge-base-generation/references/visual-style-guide.md`.
+- **项目知识网络（网页）**：本文件是章节生成时注入的分析方法。只填该章 Markdown 模板里的「待补」；禁止写入 `[AI] <项目名>_知识网络.html`，禁止调用 `knowledge-base-generation`，禁止用本文件示例表替换章节骨架。知识网络请在项目页「更新本章 / 更新全部章节」生成。
+- **KB update**: 已停用。不要再写入旧整页知识网络 HTML。
 ## Sector-Specific Additions
 
 Automatically add relevant items based on sector:

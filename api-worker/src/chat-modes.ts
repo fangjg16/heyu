@@ -89,7 +89,7 @@ export function websitePlatformIdentityLines(): string[] {
     "【表达禁令】禁止提及 Hermes、投资智库、skill 名、JSON Schema、导出到某系统、带产品名的「标准模板」。",
     "【元叙述禁令】禁止用整段开场白解释工作方式（如「我们以机会型投资视角」「全文仅使用报告」）——直接写交付正文。",
     "【收尾禁令】禁止结尾推销「如需生成 Hermes xxx」；下一步用人话，如「需要尽调清单或 IC 备忘录，直接说即可」。",
-    "本页可完成全部深度交付：入驻评估、尽调清单、风险矩阵、回报测算、知识网络 HTML、IC 备忘录等，均在对话内完成。",
+    "本页可完成深度分析交付：入驻评估、尽调清单、风险矩阵、回报测算、IC 备忘录等。项目知识网络请在项目页生成，不要在对话里产出整页 HTML。",
     "对人话命名：项目入驻评估、尽调清单、风险矩阵、投资委员会备忘录、项目知识网络、公开资料检索（「查外部资料：…」）。",
   ];
 }
@@ -107,8 +107,8 @@ const SKILL_PROMPTS: Record<Exclude<SkillIntent, "standard">, string[]> = {
     "新建 KB 时须写入 KB-CONFIG（display-order、project-type、rendering-mode、multi-asset、config-version、display-order-history）。输出结构化分析：核心定位、资产、法律结构、财务要点、主要风险、建议。",
   ],
   knowledge_network: [
-    "【项目知识网络 HTML】读取 KB-CONFIG 驱动展示顺序；canonical slot 锚点固定。在本条回复末尾附完整单文件 HTML（米色 Portable）于 ```html 代码块（含 <!DOCTYPE>）；前面可写简短摘要。",
-    "重排请求：仅更新 KB-CONFIG + nav + 章节编号，不重写内容面板。禁止只写磁盘路径、禁止让用户再发一条消息补 HTML。",
+    "【项目知识网络】已改为仅在网页生成。不要输出整页 HTML、不要 ```html 代码块、不要写入 [AI]_知识网络.html。",
+    "请用户打开本项目「知识网络」，使用「更新全部章节」或「更新本章」；概览用顶栏「更新概览」。",
   ],
   ic_memo: [
     "【投资委员会备忘录（草稿）】输出 Markdown：投资概要、标的与交易、投资逻辑、主要风险与缓释、关键条款/交割条件、表决建议（通过/有条件/否决及条件）。",
@@ -168,11 +168,10 @@ export function skillIntentSystemLines(
   projectNameHint?: string,
 ): string[] {
   if (intent === "standard") return [];
-  const name = projectNameHint?.trim() || "本项目";
   const lines = [...sharedCorpusLines(), ...SKILL_PROMPTS[intent]];
   if (intent === "knowledge_network") {
     lines.push(
-      `逻辑文件名：[AI] ${name}_知识网络.html；**同一条回复**末尾必须有 \\\`\\\`\\\`html 整页代码块（平台预览与入库依赖此块，一次交付完毕）。`,
+      "禁止交付整页知识网络 HTML；引导用户到项目页「知识网络」生成章节。",
     );
   }
   return lines;
@@ -189,6 +188,10 @@ export function icMemoSystemLines(): string[] {
 export function knowledgeNetworkSystemLines(projectNameHint?: string): string[] {
   return skillIntentSystemLines("knowledge_network", projectNameHint);
 }
+
+/** 对话命中「生成知识网络」时的固定回复：不再跑 Hermes 整页 HTML */
+export const KNOWLEDGE_NETWORK_USE_WEB_ANSWER =
+  "项目知识网络请在网页生成：打开本项目「知识网络」，用「更新全部章节」或「更新本章」（概览用顶栏「更新概览」）。对话不再生成整页 HTML。";
 
 export function extractKnowledgeNetworkHtml(answer: string): string | null {
   const fence = answer.match(/```html\s*([\s\S]*?)```/i);
@@ -228,6 +231,5 @@ export const USER_QUICK_PROMPTS: { label: string; message: string }[] = [
   { label: "尽调清单", message: "生成尽调清单，标出已有和还缺的材料" },
   { label: "风险矩阵", message: "做一版风险矩阵，列主要风险和缓释建议" },
   { label: "IC 备忘录", message: "写一版投资委员会备忘录草稿" },
-  { label: "知识网络", message: "请生成项目知识网络" },
   { label: "查外部资料", message: "查外部资料：补充这个项目公开信息并与现有材料对照" },
 ];

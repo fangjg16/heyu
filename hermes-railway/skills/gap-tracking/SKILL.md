@@ -83,12 +83,8 @@ Generate a concise weekly status update:
 ## Output Format
 
 - **Chat**: Markdown — summary counts + top blocking gaps
-- **KB update**: writes to the following Project Knowledge Base section(s) of `[AI] <项目名>_知识网络.html`:
-  - 十 待确认问题清单
-- **Section details**:
-  - 十: Active gaps 表 (按紧迫度排序)、已解决 gaps 审计轨迹、责任人/截止日期、blocker 标记
-- All KB writes go through `knowledge-base-generation` (single source of truth — no separate layer/section HTML files).
-- All output conforms to `../knowledge-base-generation/references/visual-style-guide.md`.
+- **项目知识网络（网页）**：本文件是章节生成时注入的分析方法。只填该章 Markdown 模板里的「待补」；禁止写入 `[AI] <项目名>_知识网络.html`，禁止调用 `knowledge-base-generation`，禁止用本文件示例表替换章节骨架。知识网络请在项目页「更新本章 / 更新全部章节」生成。
+- **KB update**: 已停用。不要再写入旧整页知识网络 HTML。
 ## Important Notes
 
 - Gaps are a **living registry** — they grow as analysis deepens and shrink as information arrives.

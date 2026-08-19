@@ -265,9 +265,8 @@ If multiple files were uploaded, also invoke `document-reorganize` in parallel d
 ## Output Format
 
 - **Chat**: Markdown — intake diagnosis with two-factor scorecard, section heatmap, source breakdown, next steps
-- **KB update**: Section 一 (项目快照) populated; all 10 other sections rendered (data or 缺乏资料 callout); header carries maturity scores; changelog v1.0 entry added
-- **No standalone "intake report"** — the intake diagnosis lives in chat; the KB is the persistent artifact
-- All output conforms to `../knowledge-base-generation/references/visual-style-guide.md`
+- **项目知识网络（网页）**：本文件是章节生成时注入的分析方法（项目概览 / 快照）。只填该章 Markdown 模板里的「待补」；禁止创建或写入 `[AI] <项目名>_知识网络.html`，禁止调用 `knowledge-base-generation`。知识网络请在项目页「更新本章 / 更新全部章节 / 更新概览」生成。
+- **KB update**: 已停用。不要再把 intake 交接给旧整页 HTML 管线。
 
 ## Important Notes
 

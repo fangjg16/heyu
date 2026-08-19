@@ -109,10 +109,11 @@ Report section contents:
 ## Output Format
 
 - **Chat**: Markdown — critical risks list + overall risk profile
+- **项目知识网络（网页）**：本文件是章节生成时注入的分析方法。只填该章 Markdown 模板里的「待补」；禁止写入 `[AI] <项目名>_知识网络.html`，禁止调用 `knowledge-base-generation`，禁止用本文件示例表或 KB Handoff 替换章节骨架。知识网络请在项目页「更新本章 / 更新全部章节」生成。
 
-## KB Handoff (mandatory — do not skip)
+## KB Handoff (legacy — skip when filling a web chapter template)
 
-This skill does **not** write HTML or edit the KB file directly. After Step 5, output the following Handoff Block in the chat response, then invoke `knowledge-base-generation` to render it.
+对话里若仍输出 Handoff，**不要** invoke `knowledge-base-generation`、不要 PUT 整页 HTML。网页章节生成时直接忽略本块。
 
 **Target slots**: `risks`, `open-questions`
 

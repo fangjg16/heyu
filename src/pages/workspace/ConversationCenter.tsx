@@ -2968,8 +2968,7 @@ export default function ConversationCenter() {
                           m.content,
                         ) ? (
                         <p className="mt-3 rounded-lg border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-sm leading-relaxed text-amber-950">
-                          本次未生成可预览的知识网络（回复末尾缺少完整{" "}
-                          <span className="font-medium">```html</span> 整页）。请点击「生成知识网络」重试；系统已要求<strong>一次回复</strong>即含整页 HTML，无需再发第二条消息。
+                          知识网络请在项目页生成：打开「知识网络」，用「更新全部章节」或「更新本章」。对话不再产出整页 HTML。
                         </p>
                       ) : null}
                       <ChatAgentStatusLine>

@@ -103,14 +103,8 @@ Flag any of the following:
 ## Output Format
 
 - **Chat**: Markdown — flagged red flags + key entity/individual summary
-- **KB update**: writes to the following Project Knowledge Base section(s) of `[AI] <项目名>_知识网络.html`:
-  - 三 法律结构与关键关系网
-  - 九 关键风险与缓释 (only if background-check surfaces critical risks)
-- **Section details**:
-  - 三: 持股架构图 (HTML/SVG)、实控人识别、关联方网络、律师/会计师/估值师名单
-  - 九: 任何 critical/high 风险 (司法记录、声誉风险、关联交易疑点) 同步到风险矩阵章节
-- All KB writes go through `knowledge-base-generation` (single source of truth — no separate layer/section HTML files).
-- All output conforms to `../knowledge-base-generation/references/visual-style-guide.md`.
+- **项目知识网络（网页）**：本文件是章节生成时注入的分析方法。只填该章 Markdown 模板里的「待补」；禁止写入 `[AI] <项目名>_知识网络.html`，禁止调用 `knowledge-base-generation`，禁止用本文件示例表替换章节骨架。知识网络请在项目页「更新本章 / 更新全部章节」生成。
+- **KB update**: 已停用。不要再写入旧整页知识网络 HTML。
 ## Important Notes
 
 - Background checks must respect privacy laws — use only publicly available information and lawful inquiry methods.

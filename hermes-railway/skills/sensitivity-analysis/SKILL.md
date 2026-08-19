@@ -106,13 +106,8 @@ Report section contents:
 ## Output Format
 
 - **Chat**: Markdown — top 3 sensitivities + break-even summary
-- **KB update**: writes to the following Project Knowledge Base section(s) of `[AI] <项目名>_知识网络.html`:
-  - 七 投资回报与敏感性分析
-- **Section details**:
-  - 七: Tornado chart、双变量敏感性矩阵、break-even 关键阈值、对决策影响最大的 3-5 个变量
-  - 如发现某变量对项目可行性极度敏感 → 同步到 九 关键风险与缓释
-- All KB writes go through `knowledge-base-generation` (single source of truth — no separate layer/section HTML files).
-- All output conforms to `../knowledge-base-generation/references/visual-style-guide.md`.
+- **项目知识网络（网页）**：本文件是章节生成时注入的分析方法。只填该章 Markdown 模板里的「待补」；禁止写入 `[AI] <项目名>_知识网络.html`，禁止调用 `knowledge-base-generation`，禁止用本文件示例表替换章节骨架。知识网络请在项目页「更新本章 / 更新全部章节」生成。
+- **KB update**: 已停用。不要再写入旧整页知识网络 HTML。
 ## Important Notes
 
 - Sensitivity analysis is only as good as the range definitions — garbage ranges produce garbage insights.

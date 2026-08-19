@@ -101,9 +101,13 @@ For each item found, assess:
 ## Output Format
 
 - **Chat**: Markdown — key findings summary by category + top gaps
-- **KB update**: writes to Project Knowledge Base section(s) of `[AI] <项目名>_知识网络.html` via `knowledge-base-generation` handoff (this skill does **not** edit HTML directly):
-  - 一 项目快照 · 二 资产构成 · 三 法律结构 · 四 业务模式 · 五 融资结构 · **八 项目时间轴（仅 eligible 项目事件）**
-- **Section routing** (default — **not** “everything with a date → timeline”):
+- **项目知识网络（网页）**：本文件是章节生成时注入的分析方法。只填该章 Markdown 模板里的「待补」；禁止写入 `[AI] <项目名>_知识网络.html`，禁止调用 `knowledge-base-generation`，禁止用本文件示例表或 KB Handoff 替换章节骨架。知识网络请在项目页「更新本章 / 更新全部章节」生成。
+- **KB update**: 已停用。不要再写入旧整页知识网络 HTML。
+## KB Handoff (legacy — skip when filling a web chapter template)
+
+对话里若仍输出 Handoff，**不要** invoke `knowledge-base-generation`、不要 PUT 整页 HTML。网页章节生成时直接忽略本块。
+
+This skill does **not** write HTML or edit the KB file directly. After Step 4, output the following Handoff Block in the chat response if needed for chat-only notes. Omit any slot key that has no new findings.
 
 | Finding type | Target slot(s) | timeline? |
 |---|---|---|
@@ -117,9 +121,9 @@ For each item found, assess:
 
 - **宏观背景**（行业大盘、技术趋势、口岸概况、区域政策环境）**不得**写入 `timeline`。处理：① 支撑 `business-model` / `comps` 表格内联引用；② 投资论点层面 → `decision-framework`；③ 监管/宏观风险 → `risks`；④ 仅备查 → Appendix A `new-sources`。
 - **不写 七 投资回报**: 投资人 IRR / MOIC 是 returns-analysis 的产物, 不是公开信息搜集的结果。
-## KB Handoff (mandatory — do not skip)
+## KB Handoff (legacy — skip when filling a web chapter template)
 
-This skill does **not** write HTML or edit the KB file directly. After Step 4, output the following Handoff Block in the chat response, then invoke `knowledge-base-generation` to render it. Omit any slot key that has no new findings.
+This skill does **not** write HTML. After Step 4, chat may still output a Handoff Block for notes. **Do not** invoke `knowledge-base-generation` or PUT whole-page HTML. Omit any slot key that has no new findings.
 
 **Target slots** (subset, based on what was found): `snapshot`, `assets`, `legal-relationships`, `business-model`, `capital-structure`, `comps`, `risks`, `decision-framework`, `timeline` (**only when ≥1 handoff item has `timelineEligible: true`**)
 

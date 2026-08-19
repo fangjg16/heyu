@@ -100,12 +100,8 @@ Report section contents:
 ## Output Format
 
 - **Chat**: Markdown — top 3 comps + valuation range conclusion
-- **KB update**: writes to the following Project Knowledge Base section(s) of `[AI] <项目名>_知识网络.html`:
-  - 六 市场对标与可比交易
-- **Section details**:
-  - 六: 可比交易表 (日期/规模/对价/倍数)、行业基准数据、估值参照区间、项目差异化定位
-- All KB writes go through `knowledge-base-generation` (single source of truth — no separate layer/section HTML files).
-- All output conforms to `../knowledge-base-generation/references/visual-style-guide.md`.
+- **项目知识网络（网页）**：本文件是章节生成时注入的分析方法。只填该章 Markdown 模板里的「待补」；禁止写入 `[AI] <项目名>_知识网络.html`，禁止调用 `knowledge-base-generation`，禁止用本文件示例表替换章节骨架。知识网络请在项目页「更新本章 / 更新全部章节」生成。
+- **KB update**: 已停用。不要再写入旧整页知识网络 HTML。
 ## Important Notes
 
 - Perfect comps rarely exist for non-standard investments. Acknowledge imperfections explicitly.

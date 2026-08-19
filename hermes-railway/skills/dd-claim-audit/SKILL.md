@@ -100,16 +100,8 @@ Feed sensitivity flags into `sensitivity-analysis` skill for detailed modeling.
 ## Output Format
 
 - **Chat**: Markdown — top contradictions and re-rated claims
-- **KB update**: writes to the following Project Knowledge Base section(s) of `[AI] <项目名>_知识网络.html`:
-  - 相关 section 的 certainty 标签 (一~八 全部可能)
-  - 九 关键风险与缓释
-  - 十 待确认问题清单
-- **Section details**:
-  - 全 KB: 每条被审计声明的 certainty 标签 (✅/🟡/🔵/⚪) 重新打标
-  - 九: 由审计发现的新增风险 (虚报、矛盾、关键假设错误)
-  - 十: 待补证的具体声明列表
-- All KB writes go through `knowledge-base-generation` (single source of truth — no separate layer/section HTML files).
-- All output conforms to `../knowledge-base-generation/references/visual-style-guide.md`.
+- **项目知识网络（网页）**：本文件是章节生成时注入的分析方法。只填该章 Markdown 模板里的「待补」；禁止写入 `[AI] <项目名>_知识网络.html`，禁止调用 `knowledge-base-generation`，禁止用本文件示例表替换章节骨架。知识网络请在项目页「更新本章 / 更新全部章节」生成。
+- **KB update**: 已停用。不要再写入旧整页知识网络 HTML。
 ## Important Notes
 
 - This skill is the **intellectual core** of the analysis framework. It's where analyst judgment matters most.

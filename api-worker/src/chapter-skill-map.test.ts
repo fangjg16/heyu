@@ -43,7 +43,7 @@ describe("chapter-skill-map", () => {
 });
 
 describe("condenseSkillMarkdown", () => {
-  it("strips yaml frontmatter and keeps a short excerpt", () => {
+  it("strips yaml frontmatter and keeps the full method body", () => {
     const md = `---
 name: dd-checklist
 ---
@@ -56,21 +56,21 @@ name: dd-checklist
 
 ${"x".repeat(4000)}
 `;
-    const out = condenseSkillMarkdown(md, 200);
+    const out = condenseSkillMarkdown(md);
     expect(out).not.toContain("name: dd-checklist");
     expect(out).toContain("尽调清单");
-    expect(out).toContain("方法已截断");
-    expect(out.length).toBeLessThan(280);
+    expect(out).toContain("x".repeat(4000));
+    expect(out).not.toContain("方法已截断");
   });
 });
 
 describe("buildChapterSkillMethodBlock", () => {
-  it("reads condensed SKILL.md from the repo and wraps a fill-only lock", async () => {
+  it("reads SKILL.md from the repo and wraps a fill-only lock", async () => {
     const block = await buildChapterSkillMethodBlock("diligence");
     expect(block).toContain("【分析方法 · 只用于填写模板中的「待补」】");
     expect(block).toContain("dd-checklist");
     expect(block).toContain("禁止增加模板外的章节或表格列");
-    expect(block.length).toBeLessThanOrEqual(3_600 + 400);
+    expect(block).toContain("Due Diligence Checklist");
   });
 
   it("returns empty when the chapter has no mapped skill", async () => {

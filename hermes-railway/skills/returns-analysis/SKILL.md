@@ -88,17 +88,11 @@ Report section contents:
 ## Output Format
 
 - **Chat**: Markdown — headline returns (IRR/multiple/payback for 3 scenarios)
-- **KB update**: writes to the following Project Knowledge Base section(s) of `[AI] <项目名>_知识网络.html`:
-  - 七 投资回报与敏感性分析 (主要)
-  - 五 融资结构与资本结构 (仅补充投资人侧的资金需求与退出路径)
-- **Section details**:
-  - 七: 三档情景回报表 (base/upside/downside)、关键假设清单、退出方式与时点
-  - 五: 仅在与投资人资金安排相关的部分补充 (e.g. 自有资金占比、债务杠杆假设)
-  - **不写 四**: 目标公司的收入模型、客户、定价属于 public-info-search 的范畴，本 skill 只消费这些假设、不写入它们
-  - 每条假设 trace 回 KB 中对应 section + 来源 + certainty。🟡/⚪ 假设须显式高亮
-## KB Handoff (mandatory — do not skip)
+- **项目知识网络（网页）**：本文件是章节生成时注入的分析方法。只填该章 Markdown 模板里的「待补」；禁止写入 `[AI] <项目名>_知识网络.html`，禁止调用 `knowledge-base-generation`，禁止用本文件示例表或 KB Handoff 替换章节骨架。知识网络请在项目页「更新本章 / 更新全部章节」生成。
+- **KB update**: 已停用。不要再写入旧整页知识网络 HTML。
+## KB Handoff (legacy — skip when filling a web chapter template)
 
-This skill does **not** write HTML or edit the KB file directly. After Step 6, output the following Handoff Block in the chat response, then invoke `knowledge-base-generation` to render it.
+对话里若仍输出 Handoff，**不要** invoke `knowledge-base-generation`、不要 PUT 整页 HTML。网页章节生成时直接忽略本块。
 
 **Target slots**: `returns` (primary), `capital-structure` (supplementary, only if new capital-structure facts arise from modeling)
 

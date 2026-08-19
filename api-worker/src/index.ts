@@ -24,6 +24,7 @@ import { buildKnowledgeNetworkReadingPlan } from "./knowledge-network-reading-pl
 import { resolveKnowledgeNetworkSlotsFromMessage } from "./knowledge-network-slot-aliases";
 import {
   detectSkillIntent,
+  KNOWLEDGE_NETWORK_USE_WEB_ANSWER,
   shouldRouteToHermes,
   usesFullPackageCorpus,
   type SkillIntent,
@@ -965,21 +966,15 @@ async function handleChatViaHermes(
   },
 ): Promise<Response> {
   if (params.chatMode === "knowledge_network") {
-    const gate = checkKnowledgeNetworkPipelineReady(env);
-    if (!gate.ok) {
-      return json(
-        {
-          error: gate.error,
-          answer: gate.error,
-          citationMap: params.citationMap,
-          projectId: params.projectId,
-          async: false,
-          chatMode: params.chatMode,
-          skillIntent: params.chatMode,
-        },
-        503,
-      );
-    }
+    return json({
+      answer: KNOWLEDGE_NETWORK_USE_WEB_ANSWER,
+      citationMap: params.citationMap,
+      projectId: params.projectId,
+      async: false,
+      chatMode: "knowledge_network",
+      skillIntent: "knowledge_network",
+      knowledgeNetworkWebOnly: true,
+    });
   }
 
   const jobId = crypto.randomUUID();
@@ -1604,6 +1599,17 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
   const slots = getCitationSlots(projectId);
   const citationMap = citationMapFromSlots(slots);
   const chatMode: SkillIntent = detectSkillIntent(message);
+  if (chatMode === "knowledge_network") {
+    return json({
+      answer: KNOWLEDGE_NETWORK_USE_WEB_ANSWER,
+      citationMap,
+      projectId,
+      async: false,
+      chatMode: "knowledge_network",
+      skillIntent: "knowledge_network",
+      knowledgeNetworkWebOnly: true,
+    });
+  }
   let projectTitleHint = projectId;
   let dbProjectSummary = "";
   try {
