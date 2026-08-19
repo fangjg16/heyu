@@ -1,5 +1,10 @@
 /** 按 Unicode 码点截断（中文按字计） */
-export function truncateSummary(text: string, max = 100): string {
+export const PARSE_SUMMARY_MAX_CHARS = 280;
+
+export function truncateSummary(
+  text: string,
+  max = PARSE_SUMMARY_MAX_CHARS,
+): string {
   const chars = Array.from(text.trim());
   if (chars.length <= max) return chars.join("");
   return chars.slice(0, max).join("");
@@ -16,11 +21,32 @@ function unescapeJsonString(raw: string): string {
   }
 }
 
-/** 从残缺 JSON 里抽出 summary 字段，避免把整段 `{"summary":...` 展示给用户 */
+/** 下一个 JSON 字段：`","documentType` 或残缺的 `","do` */
+const NEXT_JSON_FIELD = /"\s*,\s*"[A-Za-z_][A-Za-z0-9_]*/u;
+
+/**
+ * 从残缺 JSON 里抽出 summary 字段。
+ * 模型常在中文里写未转义的 `"前九稿红利"`，不能按第一个 `"` 截断。
+ */
 export function extractSummaryField(raw: string): string {
-  const m = /"summary"\s*:\s*"((?:\\.|[^"\\])*)"/u.exec(raw);
-  if (!m?.[1]) return "";
-  return unescapeJsonString(m[1]).trim();
+  const key = /"summary"\s*:/iu.exec(raw);
+  if (!key) return "";
+  const afterKey = raw.slice(key.index + key[0].length);
+  const quote = afterKey.search(/"/u);
+  if (quote < 0) return "";
+  const rest = afterKey.slice(quote + 1);
+
+  const next = NEXT_JSON_FIELD.exec(rest);
+  if (next) {
+    return unescapeJsonString(rest.slice(0, next.index)).trim();
+  }
+
+  const closed = /^((?:\\.|[^"\\])*)"/u.exec(rest);
+  if (closed?.[1] != null) {
+    return unescapeJsonString(closed[1]).trim();
+  }
+
+  return unescapeJsonString(rest.replace(/\s*"\s*$/u, "").trim()).trim();
 }
 
 export function looksLikeRawParseJson(text: string): boolean {
