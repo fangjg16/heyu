@@ -10,11 +10,16 @@ import { decodePathProjectId } from "./projects-resolve";
 import { chunkPlainText } from "./search";
 import { extractSpreadsheetPlainText } from "./spreadsheet-text";
 import { canDownloadProjectFile } from "./workspace-roles";
+import {
+  extractSummaryField,
+  looksLikeRawParseJson,
+  normalizeParseSummaryText,
+  truncateSummary,
+} from "./parse-summary-text";
 
 type Env = { DB: AppDatabase; FILES: AppObjectStorage } & LlmClientEnv;
 
 const SOURCE_MAX = 12_000;
-const SUMMARY_MAX_CHARS = 100;
 const DIRECTORY_MIME = "application/x-directory";
 
 const PARSE_SYSTEM = `你是投研工作台的源文件解析助手。根据给定文件正文摘录，输出 JSON（不要 markdown 围栏，不要其它说明）。
@@ -67,13 +72,6 @@ function truncateSource(text: string, max = SOURCE_MAX): string {
   const t = text.trim();
   if (t.length <= max) return t;
   return `${t.slice(0, max)}\n\n…（正文已截断）`;
-}
-
-/** 按 Unicode 码点截断（中文按字计） */
-function truncateSummary(text: string, max = SUMMARY_MAX_CHARS): string {
-  const chars = Array.from(text.trim());
-  if (chars.length <= max) return chars.join("");
-  return `${chars.slice(0, max).join("")}`;
 }
 
 function looksLikeNoisyLabel(s: string): boolean {
@@ -149,6 +147,27 @@ function parseLlmDocumentJson(answer: string): {
   } catch {
     /* fall through */
   }
+  const extracted = extractSummaryField(cleaned);
+  if (extracted) {
+    return {
+      summary: /https?:\/\//i.test(extracted)
+        ? "未能生成可用摘要，请直接预览原文。"
+        : truncateSummary(extracted),
+      documentType: "",
+      keyPoints: [],
+      refs: [],
+      usedFor: [],
+    };
+  }
+  if (looksLikeRawParseJson(cleaned)) {
+    return {
+      summary: "未能生成可用摘要，请直接预览原文。",
+      documentType: "",
+      keyPoints: [],
+      refs: [],
+      usedFor: [],
+    };
+  }
   const fallback = /https?:\/\//i.test(cleaned)
     ? "未能生成可用摘要，请直接预览原文。"
     : cleaned || "模型未返回有效摘要。";
@@ -163,7 +182,7 @@ function parseLlmDocumentJson(answer: string): {
 
 function rowToPayload(row: ParseResultRow): DocumentParsePayload {
   return {
-    summary: truncateSummary(row.summary || "—"),
+    summary: normalizeParseSummaryText(row.summary || "—"),
     documentType: (row.document_type ?? "").trim(),
     keyPoints: parseJsonStringArray(row.key_points_json),
     refs: parseJsonStringArray(row.refs_json),
@@ -223,7 +242,7 @@ async function upsertParseResult(
   )
     .bind(
       docId,
-      truncateSummary(payload.summary),
+      truncateSummary(normalizeParseSummaryText(payload.summary)),
       payload.documentType || null,
       JSON.stringify(payload.keyPoints ?? []),
       JSON.stringify(payload.refs ?? []),
