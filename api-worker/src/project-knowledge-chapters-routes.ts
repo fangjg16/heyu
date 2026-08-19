@@ -4,6 +4,7 @@ import {
   getPromptSetting,
   KN_PROMPT_SETTING_GENERATE_SYSTEM,
 } from "./kn-chapter-templates-db";
+import { skillsForChapter } from "./chapter-skill-map";
 import {
   buildChapterSkillMethodBlock,
   GENERATE_SYSTEM_SKILL_LOCK,
@@ -654,7 +655,16 @@ export async function handleGenerateProjectKnowledgeChapter(
   }
 
   const isOverview = sectionId === "project-overview";
+  const mappedSkills = [...skillsForChapter(sectionId)];
   const skillMethod = await buildChapterSkillMethodBlock(sectionId, env.DB);
+  const skillMeta = {
+    skills: mappedSkills,
+    skillMethodInjected: Boolean(skillMethod),
+    skillMethodChars: skillMethod.length,
+  };
+  console.log(
+    `[kn-generate] ${sectionId} skills=${mappedSkills.join(",") || "-"} injected=${skillMeta.skillMethodInjected ? skillMeta.skillMethodChars : 0}`,
+  );
   if (
     skillMethod &&
     !generateSystem.includes("若用户消息含「分析方法」")
@@ -844,6 +854,7 @@ export async function handleGenerateProjectKnowledgeChapter(
         glossaryHtml,
         llmBackend,
         run,
+        ...skillMeta,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -972,6 +983,7 @@ export async function handleGenerateProjectKnowledgeChapter(
     llmBackend: saved.llmBackend,
     updatedAt: saved.updatedAt,
     updatedBy: saved.updatedBy,
+    ...skillMeta,
   });
 }
 

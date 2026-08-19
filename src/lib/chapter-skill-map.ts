@@ -1,6 +1,6 @@
 /**
- * 网页知识网络章节 → Hermes skill 方法来源。
- * 生成时只把方法拼进 callLlm 提示词；MD 模板仍是版式硬锁。
+ * 与 api-worker/src/chapter-skill-map.ts 保持一致。
+ * 管理端展示「生成时会注入哪些分析方法」；MD 骨架本身不含 skill。
  */
 export const CHAPTER_SKILL_MAP: Readonly<Record<string, readonly string[]>> = {
   "project-overview": ["project-intake"],
@@ -19,13 +19,7 @@ export const CHAPTER_SKILL_MAP: Readonly<Record<string, readonly string[]>> = {
   framework: ["risk-matrix", "returns-analysis"],
 };
 
-export function skillsForChapter(sectionId: string): readonly string[] {
+export function skillsForChapter(sectionId: string): string[] {
   const id = (sectionId ?? "").trim();
-  return CHAPTER_SKILL_MAP[id] ?? [];
-}
-
-export function attachChapterSkills<T extends { id: string }>(
-  row: T,
-): T & { skills: string[] } {
-  return { ...row, skills: [...skillsForChapter(row.id)] };
+  return [...(CHAPTER_SKILL_MAP[id] ?? [])];
 }

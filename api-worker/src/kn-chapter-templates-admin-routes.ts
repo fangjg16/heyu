@@ -1,4 +1,5 @@
 import type { AppDatabase } from "./app-database";
+import { attachChapterSkills } from "./chapter-skill-map";
 import { callLlm, type LlmClientEnv } from "./llm-client";
 import { isPlatformAdmin } from "./projects-auth";
 import {
@@ -106,7 +107,9 @@ export async function handleAdminListKnChapterTemplates(
   const denied = await requirePlatformAdmin(env, authUserId);
   if (denied) return denied;
   try {
-    const templates = await listKnChapterTemplates(env.DB);
+    const templates = (await listKnChapterTemplates(env.DB)).map(
+      attachChapterSkills,
+    );
     return json({ templates });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -129,7 +132,7 @@ export async function handleAdminGetKnChapterTemplate(
   try {
     const template = await getKnChapterTemplate(env.DB, tid);
     if (!template) return json({ error: "章节模板不存在" }, 404);
-    return json({ template });
+    return json({ template: attachChapterSkills(template) });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const missing = tableMissingResponse(msg);
@@ -196,7 +199,7 @@ export async function handleAdminPutKnChapterTemplate(
       { markdown, formatHint },
       authUserId,
     );
-    return json({ ok: true, template });
+    return json({ ok: true, template: attachChapterSkills(template) });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return (
@@ -337,7 +340,7 @@ export async function handleAdminReviseKnChapterTemplate(
       revisedMarkdown,
       authUserId,
     );
-    return json({ ok: true, template, llmBackend });
+    return json({ ok: true, template: attachChapterSkills(template), llmBackend });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return (

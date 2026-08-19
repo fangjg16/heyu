@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHAPTER_SKILL_MAP, skillsForChapter } from "./chapter-skill-map";
+import { CHAPTER_SKILL_MAP, attachChapterSkills, skillsForChapter } from "./chapter-skill-map";
 import {
   buildChapterSkillMethodBlock,
   condenseSkillMarkdown,
@@ -30,6 +30,14 @@ describe("chapter-skill-map", () => {
 
   it("maps diligence to dd-checklist", () => {
     expect(CHAPTER_SKILL_MAP.diligence).toEqual(["dd-checklist"]);
+  });
+
+  it("attaches mapped skills onto a template row", () => {
+    expect(attachChapterSkills({ id: "diligence", title: "尽职调查" })).toEqual({
+      id: "diligence",
+      title: "尽职调查",
+      skills: ["dd-checklist"],
+    });
   });
 
   it("maps ownership to background-check", () => {

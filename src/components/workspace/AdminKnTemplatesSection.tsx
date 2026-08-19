@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { ChevronDown, ChevronRight, FileText, Loader2, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -261,8 +262,8 @@ export function AdminKnTemplatesSection() {
               知识网络章节 MD 与提示词
             </h2>
             <p className="mt-0.5 text-[12.5px] text-[#59625F]">
-              编辑全局 System、每章专用提示词与 MD
-              骨架。保存后立即作用于「更新本章」，无版本。
+              这里只编版式：全局 System、每章 formatHint 与 MD
+              骨架。分析方法（Hermes Skills）在生成时由后端按章节注入，不会出现在下方 MD 里。
             </p>
           </div>
         </div>
@@ -383,6 +384,9 @@ export function AdminKnTemplatesSection() {
                           </span>
                           <span className="w-full truncate text-[11px] font-normal text-[#969E9A]">
                             {t.id}
+                            {t.skills.length > 0
+                              ? ` · ${t.skills.join("、")}`
+                              : ""}
                           </span>
                         </button>
                       </li>
@@ -459,6 +463,33 @@ export function AdminKnTemplatesSection() {
                 </div>
 
                 <div className="space-y-4 p-4">
+                  <div>
+                    <div className="mb-1.5 text-[12px] font-semibold text-[#59625F]">
+                      生成时注入的分析方法
+                    </div>
+                    {selected.skills.length > 0 ? (
+                      <>
+                        <p className="text-[12.5px] leading-relaxed text-[#59625F]">
+                          点项目里的「更新本章」或草案生成时，会把下列 skill 的缩写方法拼进提示词，只填「待补」，不改 MD 骨架。
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {selected.skills.map((name) => (
+                            <Link
+                              key={name}
+                              to="/app/admin/skills"
+                              className="inline-flex h-7 items-center rounded-md border border-[rgba(78,66,57,0.16)] bg-white px-2.5 font-mono text-[12px] text-[#1F2423] hover:border-[rgba(160,99,88,0.35)] hover:text-[#A06358]"
+                            >
+                              {name}
+                            </Link>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-[12.5px] text-[#969E9A]">
+                        本章没有映射 skill，生成时只走 MD 模板。
+                      </p>
+                    )}
+                  </div>
                   <div>
                     <div className="mb-1.5 text-[12px] font-semibold text-[#59625F]">
                       章节专用提示词（formatHint）

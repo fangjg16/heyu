@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api-auth";
+import { skillsForChapter } from "@/lib/chapter-skill-map";
 
 export type KnChapterTemplate = {
   id: string;
@@ -12,6 +13,8 @@ export type KnChapterTemplate = {
   sortOrder: number;
   updatedAt: string;
   updatedBy: string | null;
+  /** 生成时注入的 Hermes skill，不写入 MD */
+  skills: string[];
 };
 
 export type GenerateSystemPrompt = {
@@ -45,6 +48,9 @@ function mapTemplate(raw: Record<string, unknown>): KnChapterTemplate {
     sortOrder: Number(raw.sortOrder) || 0,
     updatedAt: String(raw.updatedAt ?? ""),
     updatedBy: typeof raw.updatedBy === "string" ? raw.updatedBy : null,
+    skills: Array.isArray(raw.skills)
+      ? raw.skills.filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+      : skillsForChapter(String(raw.id ?? "")),
   };
 }
 
