@@ -30,23 +30,24 @@ canonicalHint: network
   </div>
 </div>
 
-<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 公开检索档案</h3>
-
+<!-- kn:begin acquire -->
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">接手节奏</h3>
 <div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
   <thead>
-    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">#</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">类别</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">发现</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">来源</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">日期</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">可信度</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">相关度</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">备注</th></tr>
+    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">时点</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">必须保住什么</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">谁来做</th></tr>
   </thead>
   <tbody>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">1</td><td style="padding:13px 14px">主体股权</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">Direct</td><td style="padding:13px 14px">待补</td></tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">2</td><td style="padding:13px 14px">新闻舆情</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">3</td><td style="padding:13px 14px">监管审批</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">4</td><td style="padding:13px 14px">市场数据</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">Day 1</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">30 天</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">100 天</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">首年</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
   </tbody>
 </table>
 </div>
+<!-- kn:end -->
 
-<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">2. 关系与对手方</h3>
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 关系与对手方</h3>
 
 <div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">

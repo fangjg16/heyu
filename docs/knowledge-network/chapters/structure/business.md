@@ -12,6 +12,62 @@ canonicalHint: business-model
   <p style="margin:0;font-size:13.5px;line-height:1.7;color:#1F2423">待补（客户、定价与单位经济一句话；不要写 IRR）</p>
 </aside>
 
+<!-- kn:begin early -->
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. Lean Canvas</h3>
+<div style="display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:auto auto auto;gap:1px;background:rgba(163,38,44,.18);border:1px solid rgba(163,38,44,.18);margin:1.25rem 0">
+  <div style="grid-column:1/2;grid-row:1/2;background:rgba(255,252,248,.95);padding:.85rem .9rem;min-height:6rem">
+    <div style="font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#A3262C;margin-bottom:.4rem">Problem 问题</div>
+    <ul style="margin:0;padding-left:1rem;font-size:12.5px;line-height:1.5;color:#59625F"><li>待补</li><li>待补</li></ul>
+  </div>
+  <div style="grid-column:2/3;grid-row:1/2;background:rgba(255,252,248,.95);padding:.85rem .9rem;min-height:6rem">
+    <div style="font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#A3262C;margin-bottom:.4rem">Solution 方案</div>
+    <ul style="margin:0;padding-left:1rem;font-size:12.5px;line-height:1.5;color:#59625F"><li>待补</li><li>待补</li></ul>
+  </div>
+  <div style="grid-column:3/4;grid-row:1/3;background:rgba(163,38,44,.06);padding:.85rem .9rem;min-height:12rem">
+    <div style="font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#A3262C;margin-bottom:.4rem">Unique Value 价值主张</div>
+    <ul style="margin:0;padding-left:1rem;font-size:12.5px;line-height:1.5;color:#1F2423"><li>待补</li><li>待补</li></ul>
+  </div>
+  <div style="grid-column:4/5;grid-row:1/2;background:rgba(255,252,248,.95);padding:.85rem .9rem;min-height:6rem">
+    <div style="font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#A3262C;margin-bottom:.4rem">Unfair Advantage 不公平优势</div>
+    <ul style="margin:0;padding-left:1rem;font-size:12.5px;line-height:1.5;color:#59625F"><li>待补</li></ul>
+  </div>
+  <div style="grid-column:5/6;grid-row:1/3;background:rgba(255,252,248,.95);padding:.85rem .9rem;min-height:12rem">
+    <div style="font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#A3262C;margin-bottom:.4rem">Customer Segments 客群</div>
+    <ul style="margin:0;padding-left:1rem;font-size:12.5px;line-height:1.5;color:#59625F"><li>待补</li><li>待补</li></ul>
+  </div>
+  <div style="grid-column:2/3;grid-row:2/3;background:rgba(255,252,248,.95);padding:.85rem .9rem;min-height:6rem">
+    <div style="font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#A3262C;margin-bottom:.4rem">Key Metrics 关键指标</div>
+    <ul style="margin:0;padding-left:1rem;font-size:12.5px;line-height:1.5;color:#59625F"><li>待补</li></ul>
+  </div>
+  <div style="grid-column:4/5;grid-row:2/3;background:rgba(255,252,248,.95);padding:.85rem .9rem;min-height:6rem">
+    <div style="font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#A3262C;margin-bottom:.4rem">Channels 渠道</div>
+    <ul style="margin:0;padding-left:1rem;font-size:12.5px;line-height:1.5;color:#59625F"><li>待补</li></ul>
+  </div>
+  <div style="grid-column:1/4;grid-row:3/4;background:rgba(255,252,248,.95);padding:.85rem .9rem;min-height:5rem">
+    <div style="font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#A3262C;margin-bottom:.4rem">Cost Structure 成本</div>
+    <ul style="margin:0;padding-left:1rem;font-size:12.5px;line-height:1.5;color:#59625F"><li>待补</li></ul>
+  </div>
+  <div style="grid-column:4/6;grid-row:3/4;background:rgba(255,252,248,.95);padding:.85rem .9rem;min-height:5rem">
+    <div style="font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#A3262C;margin-bottom:.4rem">Revenue Streams 收入</div>
+    <ul style="margin:0;padding-left:1rem;font-size:12.5px;line-height:1.5;color:#59625F"><li>待补</li></ul>
+  </div>
+</div>
+
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">2. 已有交付路径</h3>
+<div style="font-size:12px;color:#59625F;margin:-.25rem 0 .75rem">尚无真实交付则各格写待补，不要再画一张九宫格</div>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(6.5rem,1fr));gap:.45rem;margin:1.25rem 0">
+  <div style="text-align:center;font-size:11px;font-weight:700;letter-spacing:.06em;color:#A3262C;padding:.45rem .3rem;border-bottom:2px solid #A3262C">① 触达</div>
+  <div style="text-align:center;font-size:11px;font-weight:700;letter-spacing:.06em;color:#A3262C;padding:.45rem .3rem;border-bottom:2px solid #A3262C">② 交付</div>
+  <div style="text-align:center;font-size:11px;font-weight:700;letter-spacing:.06em;color:#A3262C;padding:.45rem .3rem;border-bottom:2px solid #A3262C">③ 收款</div>
+  <div style="text-align:center;font-size:11px;font-weight:700;letter-spacing:.06em;color:#A3262C;padding:.45rem .3rem;border-bottom:2px solid #A3262C">④ 复购</div>
+  <div style="background:rgba(255,252,248,.9);border:1px solid rgba(163,38,44,.2);border-radius:5px;padding:.55rem .6rem;font-size:12.5px;color:#59625F">待补</div>
+  <div style="background:rgba(255,252,248,.9);border:1px solid rgba(163,38,44,.2);border-radius:5px;padding:.55rem .6rem;font-size:12.5px;color:#59625F">待补</div>
+  <div style="background:rgba(255,252,248,.9);border:1px solid rgba(163,38,44,.2);border-radius:5px;padding:.55rem .6rem;font-size:12.5px;color:#59625F">待补</div>
+  <div style="background:rgba(255,252,248,.9);border:1px solid #A3262C;border-radius:5px;padding:.55rem .6rem;font-size:12.5px;color:#1F2423">待补</div>
+</div>
+<!-- kn:end -->
+
+<!-- kn:begin mature,acquire -->
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 变现路径（Journey Map）</h3>
 <div style="font-size:12px;color:#59625F;margin:-.25rem 0 .75rem">多路径用此图；若只有一条线性供应链，可改成流程增值图，但仍须保留本节</div>
 <div style="display:grid;grid-template-columns:7.5rem repeat(4,minmax(6.5rem,1fr));column-gap:.3rem;row-gap:.45rem;margin:1.25rem 0;overflow-x:auto;min-width:42rem">
@@ -71,6 +127,7 @@ canonicalHint: business-model
     <ul style="margin:0;padding-left:1rem;font-size:12.5px;line-height:1.5;color:#59625F"><li>待补</li><li>待补</li></ul>
   </div>
 </div>
+<!-- kn:end -->
 
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">3. 客户与付费方</h3>
 <div style="overflow-x:auto">

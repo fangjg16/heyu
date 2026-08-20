@@ -10,6 +10,7 @@ canonicalHint: returns
 <aside style="border-left:4px solid #A3262C;background:rgba(163,38,44,.05);padding:1rem 1.25rem;margin:8px 0 1.25rem">
   <p style="font-size:12px;font-weight:700;color:#A3262C;margin:0 0 .4rem">投资人回报摘要</p>
   <p style="margin:0;font-size:13.5px;line-height:1.7;color:#1F2423">待补（缺关键参数则各格写待补，禁止编造 IRR）</p>
+  <p style="margin:.65rem 0 0;font-size:12px;color:#59625F">模型状态：待补（假设模型 / 已校准）</p>
 </aside>
 
 <div style="background:rgba(255,252,248,.95);padding:1.35rem 1.5rem;border-top:2px solid #A3262C;margin:1rem 0">
@@ -107,3 +108,20 @@ canonicalHint: returns
   </tbody>
 </table>
 </div>
+
+<!-- kn:begin acquire -->
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">7. 收购经济性</h3>
+<div style="overflow-x:auto">
+<table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
+  <thead>
+    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">项目</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">判断</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">证据/来源</th></tr>
+  </thead>
+  <tbody>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">买价与资金来源</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">[A-1]</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">偿债与流动性</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">[A-1]</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">下行能否活下来</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">[A-1]</td></tr>
+    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">买方薪酬与可承受价格</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">[A-1]</td></tr>
+  </tbody>
+</table>
+</div>
+<!-- kn:end -->

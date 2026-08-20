@@ -1,10 +1,17 @@
 import type { AppDatabase } from "./app-database";
-import { skillsForChapter } from "./chapter-skill-map";
-import { getSkillMdContent } from "./skills-db";
+import type { AnalysisKind } from "./analysis-kind";
+import { DEFAULT_ANALYSIS_KIND } from "./analysis-kind";
+import {
+  SKILL_REFERENCE_FILES,
+  skillsForChapter,
+} from "./chapter-skill-map";
+import { getSkillFileText, getSkillMdContent } from "./skills-db";
 
 /** 拼进 generate_system：有分析方法时只填待补，不得改 HTML 版式 */
 export const GENERATE_SYSTEM_SKILL_LOCK =
   "10. 若用户消息含「分析方法」：只用来填模板中的「待补」；禁止改表头、禁止用分析方法里的示例表替换骨架、禁止改成散文。允许按资料增删数据行。版式以章节 Markdown 模板为准。";
+
+const MAX_SKILL_CHARS = 9000;
 
 export function stripSkillFrontmatter(raw: string): string {
   const t = String(raw ?? "").replace(/^\uFEFF/, "");
@@ -46,6 +53,12 @@ function stripPublicSourceTables(md: string): string {
   );
 }
 
+function clipMethod(text: string): string {
+  const t = text.trim();
+  if (t.length <= MAX_SKILL_CHARS) return t;
+  return `${t.slice(0, MAX_SKILL_CHARS).trim()}\n\n（方法已截断，以上足够填写本章。）`;
+}
+
 /** 去掉 YAML / Handoff / 公开检索目录；只留 Workflow 等方法步骤。 */
 export function condenseSkillMarkdown(raw: string): string {
   let t = stripSkillFrontmatter(raw)
@@ -55,6 +68,10 @@ export function condenseSkillMarkdown(raw: string): string {
   t = t.replace(/```[\s\S]*?---KB-HANDOFF---[\s\S]*?---END-HANDOFF---[\s\S]*?```/gu, "");
   t = t.replace(/---KB-HANDOFF---[\s\S]*?---END-HANDOFF---/gu, "");
   t = t.replace(/^> \*\*v2\.\d[\s\S]*?(?=\n## |\n# |\n*$)/mu, "");
+  t = t.replace(
+    /Read `?\.\.\/\.\.\/references\/[^`\s]+`?/giu,
+    "（说明书已由服务端附在本块中，不要再打开相对路径。）",
+  );
 
   const kept = splitMarkdownH2(t).filter((section) => {
     if (!section.title) return true;
@@ -69,7 +86,7 @@ export function condenseSkillMarkdown(raw: string): string {
     )
     .join("\n\n");
   t = stripPublicSourceTables(t);
-  return t.replace(/\n{3,}/gu, "\n\n").trim();
+  return clipMethod(t.replace(/\n{3,}/gu, "\n\n").trim());
 }
 
 function wrapMethodBlock(
@@ -90,14 +107,21 @@ function wrapMethodBlock(
         : sectionId === "questions"
           ? "待确认问题必须用 P1/P2/P3 三组 <details> 折叠卡片，组内 <ol><li>；禁止改成缺口登记大表。"
           : sectionId === "business"
-            ? "写目标公司怎么赚钱（客户/定价/单位经济）；禁止 IRR/MOIC/投资人回报。"
-            : sectionId === "framework"
-              ? "写建议、论点、法律路径、增值杠杆与路线图；禁止 Top5 风险表和三情景 IRR 摘要。"
-              : "";
+            ? "写目标公司怎么赚钱（客户/定价/单位经济）；禁止 IRR/MOIC/投资人回报。模板里只有一张画布，禁止再叠一套九格。"
+            : sectionId === "objectives"
+              ? "用结论/已核实/假设/缺口四段封面，不要已核实/存疑/矛盾三个计数大卡。"
+              : sectionId === "industry"
+                ? "写市场切法、政策、与标的咬合、红黄旗；禁止对战卡和出价区间。"
+                : sectionId === "benchmarks"
+                  ? "只填模板里出现的对标主格式；禁止行业章内容、禁止同时做完整对战卡和完整出价表。"
+                  : sectionId === "framework"
+                    ? "写建议、论点、法律路径、增值杠杆与路线图；禁止 Top5 风险表和三情景 IRR 摘要。"
+                    : "";
   const lines = [
     "【分析方法 · 只用于填写模板中的「待补」】",
     `本章 ${sectionId} 对应 skill：${parts.map((p) => p.skill).join("、")}。`,
     "禁止改表头或替换【章节 Markdown 模板】，禁止改成 Markdown 散文，禁止用下列方法里的示例表或旧 KB Handoff 替换骨架，禁止改内联 style。允许按资料增删数据行。",
+    "网页生成不上网检索；方法里的搜索步骤改为组织已有附件中的事实。",
   ];
   if (extraLock) lines.push(extraLock);
   lines.push(
@@ -109,13 +133,18 @@ function wrapMethodBlock(
   return lines.join("\n");
 }
 
-async function readSkillMarkdown(
+async function readSkillFile(
   db: AppDatabase | undefined,
   skill: string,
+  relPath: string,
 ): Promise<string | null> {
+  const rel = relPath.replace(/^\/+/u, "");
   if (db) {
     try {
-      const fromDb = await getSkillMdContent(db, skill);
+      const fromDb =
+        rel === "SKILL.md"
+          ? await getSkillMdContent(db, skill)
+          : await getSkillFileText(db, skill, rel);
       if (fromDb?.trim()) return fromDb;
     } catch {
       /* 表未迁移或未种子时走仓库文件 */
@@ -136,17 +165,17 @@ async function readSkillMarkdown(
           path.dirname(fileURLToPath(metaUrl)),
           "../../hermes-railway/skills",
           skill,
-          "SKILL.md",
+          rel,
         ),
       );
     }
     if (cwd) {
       candidates.push(
-        path.resolve(cwd, "hermes-railway/skills", skill, "SKILL.md"),
-        path.resolve(cwd, "../hermes-railway/skills", skill, "SKILL.md"),
+        path.resolve(cwd, "hermes-railway/skills", skill, rel),
+        path.resolve(cwd, "../hermes-railway/skills", skill, rel),
       );
     }
-    candidates.push(path.join("/opt/data/skills", skill, "SKILL.md"));
+    candidates.push(path.join("/opt/data/skills", skill, rel));
     for (const file of candidates) {
       if (fs.existsSync(file)) {
         const text = fs.readFileSync(file, "utf8");
@@ -163,15 +192,22 @@ async function readSkillMarkdown(
 export async function buildChapterSkillMethodBlock(
   sectionId: string,
   db?: AppDatabase,
+  kind: AnalysisKind = DEFAULT_ANALYSIS_KIND,
 ): Promise<string> {
-  const skills = skillsForChapter(sectionId);
+  const skills = skillsForChapter(sectionId, kind);
   if (skills.length === 0) return "";
   const parts: Array<{ skill: string; text: string }> = [];
   for (const skill of skills) {
-    const raw = await readSkillMarkdown(db, skill);
-    if (!raw?.trim()) continue;
-    const text = condenseSkillMarkdown(raw);
-    if (text) parts.push({ skill, text });
+    const chunks: string[] = [];
+    const main = await readSkillFile(db, skill, "SKILL.md");
+    if (main?.trim()) chunks.push(condenseSkillMarkdown(main));
+    for (const extra of SKILL_REFERENCE_FILES[skill] ?? []) {
+      const raw = await readSkillFile(db, skill, extra);
+      if (!raw?.trim()) continue;
+      chunks.push(condenseSkillMarkdown(raw));
+    }
+    const text = chunks.filter(Boolean).join("\n\n").trim();
+    if (text) parts.push({ skill, text: clipMethod(text) });
   }
   return wrapMethodBlock(sectionId, parts);
 }

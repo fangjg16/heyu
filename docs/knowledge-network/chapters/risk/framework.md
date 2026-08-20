@@ -9,13 +9,14 @@ canonicalHint: decision-framework
 
 <aside style="border-left:4px solid #A3262C;background:rgba(163,38,44,.05);padding:1rem 1.25rem;margin:8px 0 1.25rem">
   <p style="font-size:12px;font-weight:700;color:#A3262C;margin:0 0 .4rem">决策建议</p>
-  <p style="margin:0;font-size:13.5px;line-height:1.7;color:#1F2423">待补（推进 / 有条件推进 / 暂缓 / 否决 · 条件一句话）</p>
+  <p style="margin:0;font-size:13.5px;line-height:1.7;color:#1F2423">待补（一句话结论与条件）</p>
 </aside>
 
+<!-- kn:begin mature -->
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 推进 vs 暂缓</h3>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0">
   <div style="background:#f0f7f1;padding:1rem;border-radius:6px">
-    <div style="font-family:'Noto Serif SC',serif;color:#A3262C;margin-bottom:.5rem;font-size:15px">推进条件</div>
+    <div style="font-family:'Noto Serif SC',serif;color:#A3262C;margin-bottom:.5rem;font-size:15px">推进 / 有条件推进</div>
     <ul style="margin:0;padding-left:1.25rem;font-size:13.5px;line-height:1.7;color:#1F2423">
       <li>待补</li>
       <li>待补</li>
@@ -23,7 +24,7 @@ canonicalHint: decision-framework
     </ul>
   </div>
   <div style="background:#fdf5f4;padding:1rem;border-radius:6px">
-    <div style="font-family:'Noto Serif SC',serif;color:#A3262C;margin-bottom:.5rem;font-size:15px">暂缓 / 否决条件</div>
+    <div style="font-family:'Noto Serif SC',serif;color:#A3262C;margin-bottom:.5rem;font-size:15px">暂缓 / 否决 / 重谈</div>
     <ul style="margin:0;padding-left:1.25rem;font-size:13.5px;line-height:1.7;color:#1F2423">
       <li>待补</li>
       <li>待补</li>
@@ -31,6 +32,51 @@ canonicalHint: decision-framework
     </ul>
   </div>
 </div>
+<!-- kn:end -->
+
+<!-- kn:begin acquire -->
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 收购闸门</h3>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0">
+  <div style="background:#f0f7f1;padding:1rem;border-radius:6px">
+    <div style="font-family:'Noto Serif SC',serif;color:#A3262C;margin-bottom:.5rem;font-size:15px">买 / 附条件买</div>
+    <ul style="margin:0;padding-left:1.25rem;font-size:13.5px;line-height:1.7;color:#1F2423">
+      <li>待补</li>
+      <li>待补</li>
+      <li>待补</li>
+    </ul>
+  </div>
+  <div style="background:#fdf5f4;padding:1rem;border-radius:6px">
+    <div style="font-family:'Noto Serif SC',serif;color:#A3262C;margin-bottom:.5rem;font-size:15px">重谈 / 暂缓 / 不买</div>
+    <ul style="margin:0;padding-left:1.25rem;font-size:13.5px;line-height:1.7;color:#1F2423">
+      <li>待补</li>
+      <li>待补</li>
+      <li>待补</li>
+    </ul>
+  </div>
+</div>
+<!-- kn:end -->
+
+<!-- kn:begin early -->
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 出资 vs 不追投</h3>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0">
+  <div style="background:#f0f7f1;padding:1rem;border-radius:6px">
+    <div style="font-family:'Noto Serif SC',serif;color:#A3262C;margin-bottom:.5rem;font-size:15px">出资 / 有条件出资</div>
+    <ul style="margin:0;padding-left:1.25rem;font-size:13.5px;line-height:1.7;color:#1F2423">
+      <li>待补</li>
+      <li>待补</li>
+      <li>待补</li>
+    </ul>
+  </div>
+  <div style="background:#fdf5f4;padding:1rem;border-radius:6px">
+    <div style="font-family:'Noto Serif SC',serif;color:#A3262C;margin-bottom:.5rem;font-size:15px">不投 / 不追投（该停条件）</div>
+    <ul style="margin:0;padding-left:1.25rem;font-size:13.5px;line-height:1.7;color:#1F2423">
+      <li>待补</li>
+      <li>待补</li>
+      <li>待补</li>
+    </ul>
+  </div>
+</div>
+<!-- kn:end -->
 
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">2. 投资论点</h3>
 <div style="overflow-x:auto">

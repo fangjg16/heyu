@@ -252,12 +252,22 @@ export async function getSkillMdContent(
   db: AppDatabase,
   name: string,
 ): Promise<string | null> {
+  return getSkillFileText(db, name, "SKILL.md");
+}
+
+export async function getSkillFileText(
+  db: AppDatabase,
+  name: string,
+  relPath: string,
+): Promise<string | null> {
+  const rel = String(relPath ?? "").replace(/^\/+/u, "").trim();
+  if (!rel || rel.includes("..")) return null;
   const row = await db
     .prepare(
       `SELECT content_b64 FROM hermes_skill_files
-       WHERE skill_name = ? AND rel_path = 'SKILL.md'`,
+       WHERE skill_name = ? AND rel_path = ?`,
     )
-    .bind(name)
+    .bind(name, rel)
     .first<{ content_b64: string }>();
   if (!row?.content_b64) return null;
   return b64ToUtf8(row.content_b64);

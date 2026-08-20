@@ -55,21 +55,23 @@ npm run seed:kn-chapter-templates -- --force
 
 模板正文即期望生成的 HTML 结构，**不要**再写「填写指引」等说明文字（易导致模型跳出版式）。
 
-| 章节 | 版式（网页格子为准；skill 视觉组件抽进模板） |
+| 章节 | 版式（网页格子为准；按项目形态筛块） |
 |------|------|
 | `snapshot` | 类型/辖区/阶段三色事实卡 + 范围表 + 交易要点；不要 Factor A/B 十一段或综合成熟度表 |
-| `objectives` | 审计摘要 callout + 已核实/存疑/矛盾三卡 + 检索档案 + dd-claim-audit 四表 |
-| `industry` | 行业要点 callout + 市场/政策/可比三卡 + 检索档案 |
+| `objectives` | 底稿头（结论/已核实/假设/缺口）+ 声明审计四表；不要三计数卡、不要检索总表 |
+| `industry` | TAM/SAM/SOM 三色卡 + 政策 + 咬合 + 红黄旗；不对战、不出价 |
 | `legal` | 合规要点 callout + dd-claim-audit 审计四表 |
-| `benchmarks` | 出价区间大数字框 + 筛选标准 + 可比表 + 溢价/折价锚 + 估值区间 |
-| `business` | Journey Map + 九宫格 BMC + 客户/单位经济表（不要 IRR） |
-| `returns` | 估值框 + Downside/Base/Upside 情景卡 + 看板/现金流/杠杆/Tornado/盈亏平衡 |
-| `capabilities` | 对手方/顾问/关键个人三卡 + 检索档案 + 关系表 |
+| `benchmarks` | 早期：矩阵/定价/对战卡；成熟/收购：出价区间 + 可比（含经营差异列） |
+| `business` | 早期 Lean Canvas；成熟/收购 Journey + BMC；客户/单位经济表（不要 IRR） |
+| `returns` | 假设/已校准标 + 估值框 + 三情景卡；收购另加买价/融资/下行存活 |
+| `capabilities` | 对手方/顾问/关键个人三卡 + 关系表；收购另加接手节奏 |
 | `ownership` | HTML 控制结构卡片链 + 主体/个人/诉讼/关联交易/红旗表（禁止 SVG） |
 | `diligence` | dd-checklist：工作流进度 + 检查项跟踪 + 红旗 |
 | `risks` | 带底色 4×4 热力图 + 级别徽章登记表 + 高风险明细 + 缓释行动 |
 | `questions` | gap-tracking 方法，版式为 P1/P2/P3 `<details>` 折叠卡片 |
-| `framework` | 决策 callout + 推进/暂缓双列 + 论点/法律路径/杠杆/路线图 |
+| `framework` | 按形态换双列闸门用语 + 论点/法律路径/杠杆/路线图 |
+
+项目形态 `early` / `mature` / `acquire` **由生成时根据资料判断并写入 `projects.analysis_kind`**，用户不用选。模板里用 `<!-- kn:begin early -->` … `<!-- kn:end -->` 圈块，服务端生成前剥掉不适用块。
 
 待填处统一写「待补」，由「更新本章」据项目上传附件填充。行数可按资料增减，表头不可改。
 

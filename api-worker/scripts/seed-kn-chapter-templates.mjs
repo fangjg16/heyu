@@ -63,29 +63,29 @@ const DEFAULT_FORMAT_HINTS = {
   snapshot:
     "===CHAPTER=== 按模板：一句话范围 + 类型/辖区/阶段三色事实卡 + 项目范围表 + 交易要点表。不要输出 Factor A/B 十一段表或综合成熟度三卡；成熟度只在项目概览右上角。保留表头、卡片与内联 style；证据/来源列只写 [A-1]。禁止散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   objectives:
-    "===CHAPTER=== 按模板：审计摘要 callout + 已核实/存疑/矛盾三卡 + 公开检索档案表 + 声明审计表 + 矛盾登记表 + 假设敏感性表 + 待核项表。保留表头、卡片与内联 style；允许增删数据行；禁止改成门槛卡片或散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：结论/已核实事实/假设与估计/证据缺口四段封面（底稿头）+ 声明审计表 + 矛盾登记表 + 假设敏感性表 + 待核项表。不要已核实/存疑/矛盾三个计数大卡，不要公开检索总表。保留卡片与表头；允许增删数据行。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   risks:
     "===CHAPTER=== 按模板：总体风险画像 callout + 带底色的 4×4 热力图 + 带级别徽章的风险登记表 + 高风险明细 + 缓释行动表。热力图格必须保留背景色，禁止 SVG。允许增删数据行，禁止改表头。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   questions:
     "===CHAPTER=== 按模板：P1/P2/P3 三组 <details> 折叠卡片。P1 默认 open。每组 summary 含标题与「N 项」；组内用 <ol><li>，每条含问题、说明、下一步。紧急度：P1=阻断 Blocking，P2=精度 Precision，P3=增强 Enhancement。允许增删 <li>；禁止改成大表或散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   industry:
-    "===CHAPTER=== 按模板：行业要点 callout + 市场/政策/可比三卡 + 公开检索档案 + 信息质量表。保留卡片与表头；允许增删行；禁止四宫格散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：行业要点 callout + TAM/SAM/SOM 三色卡 + 政策卡 + 与标的咬合 + 红黄旗 + 信息质量表。禁止对战卡、出价区间和公开检索总表。保留卡片与表头；允许增删行。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   legal:
     "===CHAPTER=== 按模板：合规要点 callout + 声明审计表 + 矛盾登记表 + 假设敏感性 + 待核项（聚焦合规/审批/权属声明）。允许增删行；禁止路径卡片散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   benchmarks:
-    "===CHAPTER=== 按模板：建议出价区间大数字框 + 筛选标准表 + 可比交易表 + 溢价/折价锚点表 + 估值区间表。允许增删可比行（约 3–8 条）；禁止改表头。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 只填模板里出现的块（服务端已按项目形态去掉另一套）。早期：功能矩阵 + 定价 + 3–5 张对战卡，无成交则不要出价大数字。成熟/收购：出价区间 + 可比交易（含经营差异列）+ 溢价/折价。禁止两套并排。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   business:
-    "===CHAPTER=== 按模板：怎么赚钱 callout + Journey Map 路径图 + 九宫格商业模式画布 + 客户表 + 单位经济表 + 待验证经营假设。写目标公司怎么赚钱，禁止 IRR/MOIC/投资人回报。保留内联 grid style。允许增删行。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 只填模板里出现的那一张画布。早期：Lean Canvas 宫格；有交付才填短 Journey。成熟/收购：Journey + BMC。再填客户表、单位经济、待验证假设。禁止 IRR/MOIC。保留内联 grid style。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   returns:
-    "===CHAPTER=== 按模板：回报摘要 callout + 估值区间大数字框 + Downside/Base/Upside 三列情景卡 + 指标看板表 + 年度现金流 + 杠杆敏感性 + Tornado 表 + 盈亏平衡表。情景卡必须保留，图表用 HTML，禁止 SVG。缺数字写待补。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：文首标明假设模型或已校准 + 回报摘要 + 估值大数字 + 三情景卡 + 看板/现金流/敏感性。收购形态另有买价/融资/下行存活块（若模板中出现）。情景卡必须保留，禁止 SVG。缺数字写待补。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   capabilities:
-    "===CHAPTER=== 按模板：关系摘要 callout + 对手方/顾问/关键个人三卡 + 公开检索档案 + 关系与对手方表。允许增删行。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：关系摘要 + 对手方/顾问/关键个人三卡 + 关系表。收购形态另有接手节奏表（若模板中出现）。不要公开检索总表。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   ownership:
     "===CHAPTER=== 按模板：调查结论 + HTML 控制结构卡片链（非 SVG）+ 调查对象表 + 股权链表 + 主体档案 + 个人档案 + 诉讼登记 + 关联交易 + 红旗表。允许增删行。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   diligence:
     "===CHAPTER=== 按模板：工作流进度表 + 检查项跟踪表（事项｜工作流｜优先级｜状态｜负责人｜截止日期｜备注）+ 红旗表。状态用 Not Started / Requested / Received / In Review / Complete / Red Flag。允许增删行。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   framework:
-    "===CHAPTER=== 按模板：决策建议 callout + 推进/暂缓双列卡片 + 投资论点表 + 法律/交易结构路径 + 增值杠杆 + 执行路线图 + 下一步。不要 Top5 风险表和三情景 IRR 摘要。允许增删行。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：决策建议 callout + 双列条件卡（投资：推进/暂缓；收购：买/不买；早期：出资/不追投）+ 论点 + 法律路径 + 杠杆 + 路线图 + 下一步。不要 Top5 风险表和三情景 IRR 摘要。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "project-overview":
     "===CHAPTER=== 保留模板既有概览：标题、简介、右上角综合成熟度（只填这一个数或状态词，不要 Factor A/B 分卡和十一段表）、当前判断/下一步/核心风险三卡、BP披露/待验证假设/红线风险/优先资料四卡、项目时间轴、#project-graph-slot 占位（不要在槽内画 SVG）。时间轴只写与本项目直接相关的带日期节点。禁止 SVG。随后 ===GRAPH=== 输出关系图 JSON；再 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
 };
