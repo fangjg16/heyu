@@ -21,6 +21,7 @@ import {
   listDraftItems,
   listResearchSectionIdsForRun,
   publishDraftRunToLive,
+  refreshDraftRunProgress,
   setDraftRunStatus,
   upsertDraftItem,
   deleteDraftItem,
@@ -359,21 +360,32 @@ export async function handleGetChapterDraftRun(
   let items = await listDraftItems(env.DB, runId);
   // 改写超时/中断：超过 10 分钟仍 revising 则回落为 ok，保留原 HTML
   const STALE_REVISE_MS = 10 * 60 * 1000;
+  const STALE_GENERATE_MS = 15 * 60 * 1000;
   const now = Date.now();
   for (const item of items) {
-    if (item.status !== "revising") continue;
     const updatedMs = Date.parse(item.updatedAt);
-    if (!Number.isFinite(updatedMs) || now - updatedMs < STALE_REVISE_MS) {
+    if (!Number.isFinite(updatedMs)) continue;
+    if (item.status === "revising" && now - updatedMs >= STALE_REVISE_MS) {
+      await upsertDraftItem(env.DB, {
+        runId,
+        sectionId: item.sectionId,
+        status: "ok",
+        html: item.html,
+        error: "改写超时或中断，请重试",
+        llmBackend: item.llmBackend,
+      });
       continue;
     }
-    await upsertDraftItem(env.DB, {
-      runId,
-      sectionId: item.sectionId,
-      status: "ok",
-      html: item.html,
-      error: "改写超时或中断，请重试",
-      llmBackend: item.llmBackend,
-    });
+    if (item.status === "pending" && now - updatedMs >= STALE_GENERATE_MS) {
+      await upsertDraftItem(env.DB, {
+        runId,
+        sectionId: item.sectionId,
+        status: "failed",
+        html: item.html,
+        error: "生成超时或中断，请重试",
+        llmBackend: item.llmBackend,
+      });
+    }
   }
   items = await listDraftItems(env.DB, runId);
 
@@ -394,20 +406,93 @@ export async function handleGetChapterDraftRun(
   });
 }
 
-/** POST .../chapter-draft-runs/:runId/sections/:sectionId/generate */
+/** POST .../chapter-draft-runs/:runId/sections/:sectionId/generate
+ *  立刻 202 后台生成，避免 Cloudflare 隧道 ~100s 掐断长 LLM 请求。
+ */
 export async function handleGenerateChapterDraftSection(
   env: Env,
+  ctx: ExecutionContext,
   projectId: string,
   runId: string,
-  sectionId: string,
+  sectionIdRaw: string,
   userIdRaw: string | null,
 ): Promise<Response> {
-  return handleGenerateProjectKnowledgeChapter(
-    env,
-    projectId,
+  const userId = normalizeUserId(userIdRaw);
+  if (!userId) return json({ error: "缺少 userId" }, 400);
+
+  const sectionId = decodeURIComponent(sectionIdRaw || "").trim();
+  if (!sectionId) return json({ error: "无效的章节 id" }, 400);
+
+  const gate = await assertDraftRunEditable(env, projectId, runId, userId);
+  if (!gate.ok) return gate.response;
+
+  const existing = await getDraftItem(env.DB, runId, sectionId);
+  await upsertDraftItem(env.DB, {
+    runId,
     sectionId,
-    userIdRaw,
-    { target: "draft", runId },
+    status: "pending",
+    html: existing?.html ?? null,
+    error: null,
+    llmBackend: existing?.llmBackend ?? null,
+  });
+  await refreshDraftRunProgress(env.DB, runId);
+
+  ctx.waitUntil(
+    (async () => {
+      try {
+        const res = await handleGenerateProjectKnowledgeChapter(
+          env,
+          projectId,
+          sectionId,
+          userId,
+          { target: "draft", runId },
+        );
+        if (res.ok) return;
+        let msg = `生成失败（${res.status}）`;
+        try {
+          const body = (await res.json()) as { error?: string };
+          if (body?.error) msg = String(body.error);
+        } catch {
+          /* ignore */
+        }
+        await upsertDraftItem(env.DB, {
+          runId,
+          sectionId,
+          status: "failed",
+          html: existing?.html ?? null,
+          error: msg,
+          llmBackend: existing?.llmBackend ?? null,
+        });
+        await refreshDraftRunProgress(env.DB, runId);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        try {
+          await upsertDraftItem(env.DB, {
+            runId,
+            sectionId,
+            status: "failed",
+            html: existing?.html ?? null,
+            error: msg,
+            llmBackend: existing?.llmBackend ?? null,
+          });
+          await refreshDraftRunProgress(env.DB, runId);
+        } catch {
+          /* ignore */
+        }
+      }
+    })(),
+  );
+
+  return json(
+    {
+      ok: true,
+      accepted: true,
+      projectId,
+      runId,
+      sectionId,
+      status: "pending",
+    },
+    202,
   );
 }
 

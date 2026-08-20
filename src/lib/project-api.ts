@@ -1243,18 +1243,58 @@ export async function generateChapterDraftSection(
   );
   const data = (await res.json().catch(() => ({}))) as {
     ok?: boolean;
+    accepted?: boolean;
+    status?: string;
     sectionId?: string;
     html?: string;
     run?: ChapterDraftRun;
     error?: string;
   };
-  if (!res.ok) throw new Error(data.error || `草案章节生成失败（${res.status}）`);
+  if (!res.ok && res.status !== 202) {
+    throw new Error(data.error || `草案章节生成失败（${res.status}）`);
+  }
+  if (data.accepted || data.status === "pending" || res.status === 202) {
+    return waitForDraftSectionSettled(projectId, runId, sectionId, userId);
+  }
   return {
     ok: true,
     sectionId: data.sectionId ?? sectionId,
     html: data.html,
     run: data.run,
   };
+}
+
+const DRAFT_GENERATE_POLL_MS = 2000;
+const DRAFT_GENERATE_TIMEOUT_MS = 15 * 60 * 1000;
+
+async function waitForDraftSectionSettled(
+  projectId: string,
+  runId: string,
+  sectionId: string,
+  userId: string,
+): Promise<{ ok: true; sectionId: string; html?: string; run?: ChapterDraftRun }> {
+  const deadline = Date.now() + DRAFT_GENERATE_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    await new Promise((r) => window.setTimeout(r, DRAFT_GENERATE_POLL_MS));
+    const snap = await fetchChapterDraftRun(projectId, runId, userId).catch(
+      () => null,
+    );
+    if (!snap) continue;
+    const item = snap.items.find((i) => i.sectionId === sectionId);
+    if (!item || item.status === "pending" || item.status === "revising") {
+      continue;
+    }
+    if (item.status === "failed") {
+      throw new Error(item.error?.trim() || "草案章节生成失败");
+    }
+    return {
+      ok: true,
+      sectionId,
+      html: item.html ?? undefined,
+      run: snap.run,
+    };
+  }
+  throw new Error("生成超时，请稍后打开审核查看是否已完成");
 }
 
 export async function saveChapterDraftSection(

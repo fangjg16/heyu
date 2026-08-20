@@ -277,6 +277,7 @@ export async function routeAuthedApi(
     const sectionId = parts[7] ?? "";
     return handleGenerateChapterDraftSection(
       env,
+      ctx,
       projectId,
       runId,
       sectionId,
