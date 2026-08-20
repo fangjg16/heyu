@@ -248,6 +248,27 @@ export async function listSkillFileMeta(
   }));
 }
 
+export async function listSkillFilePathsBySkill(
+  db: AppDatabase,
+): Promise<Map<string, string[]>> {
+  const { results } = await db
+    .prepare(
+      `SELECT skill_name, rel_path FROM hermes_skill_files
+       ORDER BY skill_name ASC, rel_path ASC`,
+    )
+    .all<{ skill_name: string; rel_path: string }>();
+  const map = new Map<string, string[]>();
+  for (const row of results ?? []) {
+    const name = String(row.skill_name ?? "");
+    const path = String(row.rel_path ?? "");
+    if (!name || !path) continue;
+    const list = map.get(name);
+    if (list) list.push(path);
+    else map.set(name, [path]);
+  }
+  return map;
+}
+
 export async function getSkillMdContent(
   db: AppDatabase,
   name: string,
@@ -360,49 +381,68 @@ export async function upsertSkillWithFiles(
   return { created: !existing };
 }
 
-export async function updateSkillMdOnly(
+export async function updateSkillTextFiles(
   db: AppDatabase,
   name: string,
-  content: string,
+  files: Array<{ path: string; content: string }>,
   opts?: { description?: string },
 ): Promise<void> {
   const meta = await getSkillMeta(db, name);
   if (!meta) {
     throw Object.assign(new Error(`找不到 skill：${name}`), { status: 404 });
   }
-  const content_b64 = utf8ToB64(content);
-  const byte_size = byteLengthB64(content_b64);
-  if (byte_size > MAX_FILE_BYTES) {
-    throw Object.assign(new Error("SKILL.md 过大"), { status: 400 });
+  if ((!files || files.length === 0) && opts?.description === undefined) {
+    throw Object.assign(new Error("没有要保存的内容"), { status: 400 });
   }
+
   const ts = nowIso();
-  const title = titleFromSkillMd(content, name);
-  const existing = await db
-    .prepare(
-      `SELECT rel_path FROM hermes_skill_files
-       WHERE skill_name = ? AND rel_path = 'SKILL.md'`,
-    )
-    .bind(name)
-    .first();
-  if (existing) {
-    await db
+  let title = meta.title || name;
+  for (const file of files ?? []) {
+    const rel = assertRelPath(file.path);
+    if (!isTextPath(rel)) {
+      throw Object.assign(new Error(`不能编辑二进制文件：${rel}`), {
+        status: 400,
+      });
+    }
+    const content = String(file.content ?? "");
+    const content_b64 = utf8ToB64(content);
+    const byte_size = byteLengthB64(content_b64);
+    if (byte_size > MAX_FILE_BYTES) {
+      throw Object.assign(new Error(`${rel} 过大`), { status: 400 });
+    }
+    const existing = await db
       .prepare(
-        `UPDATE hermes_skill_files
-         SET content_b64 = ?, is_text = 1, byte_size = ?, updated_at = ?
-         WHERE skill_name = ? AND rel_path = 'SKILL.md'`,
+        `SELECT rel_path FROM hermes_skill_files
+         WHERE skill_name = ? AND rel_path = ?`,
       )
-      .bind(content_b64, byte_size, ts, name)
-      .run();
-  } else {
-    await db
-      .prepare(
-        `INSERT INTO hermes_skill_files
-          (skill_name, rel_path, content_b64, is_text, byte_size, updated_at)
-         VALUES (?, 'SKILL.md', ?, 1, ?, ?)`,
-      )
-      .bind(name, content_b64, byte_size, ts)
-      .run();
+      .bind(name, rel)
+      .first();
+    if (existing) {
+      await db
+        .prepare(
+          `UPDATE hermes_skill_files
+           SET content_b64 = ?, is_text = 1, byte_size = ?, updated_at = ?
+           WHERE skill_name = ? AND rel_path = ?`,
+        )
+        .bind(content_b64, byte_size, ts, name, rel)
+        .run();
+    } else if (rel === "SKILL.md") {
+      await db
+        .prepare(
+          `INSERT INTO hermes_skill_files
+            (skill_name, rel_path, content_b64, is_text, byte_size, updated_at)
+           VALUES (?, 'SKILL.md', ?, 1, ?, ?)`,
+        )
+        .bind(name, content_b64, byte_size, ts)
+        .run();
+    } else {
+      throw Object.assign(new Error(`找不到文件：${rel}`), { status: 404 });
+    }
+    if (rel === "SKILL.md") {
+      title = titleFromSkillMd(content, name);
+    }
   }
+
   if (opts?.description !== undefined) {
     const description = normalizeDescription(opts.description);
     await db
@@ -423,6 +463,15 @@ export async function updateSkillMdOnly(
       .bind(title, ts, name)
       .run();
   }
+}
+
+export async function updateSkillMdOnly(
+  db: AppDatabase,
+  name: string,
+  content: string,
+  opts?: { description?: string },
+): Promise<void> {
+  await updateSkillTextFiles(db, name, [{ path: "SKILL.md", content }], opts);
 }
 
 export async function deleteSkillFromDb(

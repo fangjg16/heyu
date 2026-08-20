@@ -8,6 +8,7 @@ export type AdminSkillRow = {
   /** 作用简述（管理展示） */
   description: string;
   fileCount: number;
+  filePaths: string[];
   syncStatus: SkillSyncStatus;
   syncError: string | null;
   syncedAt: string | null;
@@ -59,6 +60,7 @@ export async function fetchAdminSkills(): Promise<AdminSkillsList> {
       title?: string;
       description?: string;
       fileCount?: number;
+      filePaths?: string[];
       syncStatus?: string;
       syncError?: string | null;
       syncedAt?: string | null;
@@ -88,6 +90,9 @@ export async function fetchAdminSkills(): Promise<AdminSkillsList> {
         title: String(s.title ?? s.name ?? ""),
         description: String(s.description ?? ""),
         fileCount: Number(s.fileCount ?? 0),
+        filePaths: Array.isArray(s.filePaths)
+          ? s.filePaths.map((p) => String(p)).filter(Boolean)
+          : [],
         syncStatus: (s.syncStatus as SkillSyncStatus) || "pending",
         syncError: s.syncError ?? null,
         syncedAt: s.syncedAt ?? null,
@@ -163,12 +168,19 @@ export async function importSkillsFromVolume(): Promise<{
   };
 }
 
+export type AdminSkillFile = {
+  path: string;
+  byteSize: number;
+  isText: boolean;
+  content: string | null;
+};
+
 export type AdminSkillContent = {
   name: string;
   title: string;
   description: string;
   content: string;
-  files: Array<{ path: string; byteSize: number; isText: boolean }>;
+  files: AdminSkillFile[];
   syncStatus: SkillSyncStatus;
   syncError: string | null;
   syncedAt: string | null;
@@ -182,7 +194,12 @@ export async function fetchAdminSkillContent(
   );
   if (!res.ok) throw new Error(await readError(res));
   const data = (await res.json()) as Partial<AdminSkillContent> & {
-    files?: Array<{ path?: string; byteSize?: number; isText?: boolean }>;
+    files?: Array<{
+      path?: string;
+      byteSize?: number;
+      isText?: boolean;
+      content?: string | null;
+    }>;
   };
   return {
     name: String(data.name ?? skillName),
@@ -193,6 +210,7 @@ export async function fetchAdminSkillContent(
       path: String(f.path ?? ""),
       byteSize: Number(f.byteSize ?? 0),
       isText: Boolean(f.isText),
+      content: typeof f.content === "string" ? f.content : null,
     })),
     syncStatus: (data.syncStatus as SkillSyncStatus) || "pending",
     syncError: data.syncError ?? null,
@@ -202,8 +220,11 @@ export async function fetchAdminSkillContent(
 
 export async function saveAdminSkillContent(
   skillName: string,
-  content: string,
-  description?: string,
+  input: {
+    description?: string;
+    content?: string;
+    files?: Array<{ path: string; content: string }>;
+  },
 ): Promise<{
   name: string;
   title: string;
@@ -215,7 +236,7 @@ export async function saveAdminSkillContent(
     `/api/admin/skills/${encodeURIComponent(skillName)}`,
     {
       method: "PUT",
-      body: JSON.stringify({ content, description }),
+      body: JSON.stringify(input),
     },
   );
   if (!res.ok) throw new Error(await readError(res));

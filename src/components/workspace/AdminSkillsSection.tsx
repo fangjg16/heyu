@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Download,
+  FileText,
+  Folder,
   Loader2,
   Pencil,
   Plus,
@@ -21,12 +23,47 @@ import {
   saveAdminSkillContent,
   syncAllAdminSkills,
   syncOneAdminSkill,
+  type AdminSkillFile,
   type AdminSkillRow,
   type AdminSkillsList,
 } from "@/lib/admin-skills-api";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 
 const SKILL_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/u;
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  return `${(n / 1024).toFixed(1)} KB`;
+}
+
+function groupSkillFiles(
+  files: AdminSkillFile[],
+): Array<{ dir: string | null; files: AdminSkillFile[] }> {
+  const sorted = [...files].sort((a, b) => {
+    if (a.path === "SKILL.md") return -1;
+    if (b.path === "SKILL.md") return 1;
+    return a.path.localeCompare(b.path);
+  });
+  const roots: AdminSkillFile[] = [];
+  const byDir = new Map<string, AdminSkillFile[]>();
+  for (const file of sorted) {
+    const i = file.path.lastIndexOf("/");
+    if (i === -1) {
+      roots.push(file);
+      continue;
+    }
+    const dir = file.path.slice(0, i);
+    const list = byDir.get(dir) ?? [];
+    list.push(file);
+    byDir.set(dir, list);
+  }
+  const groups: Array<{ dir: string | null; files: AdminSkillFile[] }> = [];
+  if (roots.length > 0) groups.push({ dir: null, files: roots });
+  for (const dir of [...byDir.keys()].sort()) {
+    groups.push({ dir, files: byDir.get(dir) ?? [] });
+  }
+  return groups;
+}
 
 function syncBadge(status: AdminSkillRow["syncStatus"]) {
   if (status === "ok") {
@@ -60,7 +97,10 @@ export function AdminSkillsSection() {
   const [editName, setEditName] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
-  const [editContent, setEditContent] = useState("");
+  const [editOriginalDescription, setEditOriginalDescription] = useState("");
+  const [editFiles, setEditFiles] = useState<AdminSkillFile[]>([]);
+  const [editDrafts, setEditDrafts] = useState<Record<string, string>>({});
+  const [editActivePath, setEditActivePath] = useState("SKILL.md");
   const [editMeta, setEditMeta] = useState<string | null>(null);
   const [editLoading, setEditLoading] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
@@ -175,18 +215,48 @@ export function AdminSkillsSection() {
     setEditName(name);
     setEditTitle(name);
     setEditDescription("");
-    setEditContent("");
+    setEditOriginalDescription("");
+    setEditFiles([]);
+    setEditDrafts({});
+    setEditActivePath("SKILL.md");
     setEditMeta(null);
     setEditError(null);
     setEditLoading(true);
     try {
       const data = await fetchAdminSkillContent(name);
+      const files =
+        data.files.length > 0
+          ? data.files
+          : [
+              {
+                path: "SKILL.md",
+                byteSize: data.content.length,
+                isText: true,
+                content: data.content,
+              },
+            ];
+      const drafts: Record<string, string> = {};
+      for (const file of files) {
+        if (file.isText && typeof file.content === "string") {
+          drafts[file.path] = file.content;
+        }
+      }
+      if (!drafts["SKILL.md"] && data.content) {
+        drafts["SKILL.md"] = data.content;
+      }
       setEditTitle(data.title);
       setEditDescription(data.description);
-      setEditContent(data.content);
+      setEditOriginalDescription(data.description);
+      setEditFiles(files);
+      setEditDrafts(drafts);
+      setEditActivePath(
+        files.some((f) => f.path === "SKILL.md")
+          ? "SKILL.md"
+          : (files[0]?.path ?? "SKILL.md"),
+      );
       setEditMeta(
         [
-          `${data.files.length} 个文件`,
+          `${files.length} 个文件`,
           data.syncStatus === "error" && data.syncError
             ? `同步失败：${data.syncError}`
             : syncLabel(data.syncStatus),
@@ -201,16 +271,41 @@ export function AdminSkillsSection() {
     }
   };
 
+  const closeEdit = () => {
+    const descDirty = editDescription !== editOriginalDescription;
+    const fileDirty = editFiles.some(
+      (file) =>
+        file.isText &&
+        (editDrafts[file.path] ?? "") !== (file.content ?? ""),
+    );
+    if (
+      (descDirty || fileDirty) &&
+      !window.confirm("有未保存修改，确定关闭？")
+    ) {
+      return;
+    }
+    setEditName(null);
+  };
+
   const onSaveEdit = async () => {
     if (!editName) return;
     setEditSaving(true);
     setEditError(null);
     try {
-      const result = await saveAdminSkillContent(
-        editName,
-        editContent,
-        editDescription,
-      );
+      const dirtyFiles = editFiles
+        .filter((file) => file.isText)
+        .map((file) => ({
+          path: file.path,
+          content: editDrafts[file.path] ?? file.content ?? "",
+        }))
+        .filter((file) => {
+          const orig = editFiles.find((f) => f.path === file.path);
+          return file.content !== (orig?.content ?? "");
+        });
+      const result = await saveAdminSkillContent(editName, {
+        description: editDescription,
+        files: dirtyFiles,
+      });
       if (result.syncWarning) {
         setWarn(result.syncWarning);
         setHint(result.hint || `已保存 ${result.name}（卷同步失败）`);
@@ -465,6 +560,11 @@ export function AdminSkillsSection() {
                     ? ` · 路由：${s.intents.join(", ")}`
                     : ""}
                 </p>
+                {s.filePaths.length > 0 ? (
+                  <p className="mt-0.5 line-clamp-2 font-mono text-[10px] leading-relaxed text-muted-foreground/85">
+                    {s.filePaths.join("  ·  ")}
+                  </p>
+                ) : null}
               </div>
               <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
                 <span
@@ -870,16 +970,16 @@ export function AdminSkillsSection() {
               aria-modal
               aria-labelledby="admin-skill-editor-title"
               onClick={(e) => {
-                if (e.target === e.currentTarget && !editSaving) setEditName(null);
+                if (e.target === e.currentTarget && !editSaving) closeEdit();
               }}
             >
-              <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-border/80 bg-white shadow-2xl">
+              <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-border/80 bg-white shadow-2xl">
                 <div className="shrink-0 border-b border-border/60 px-5 py-4">
                   <h3
                     id="admin-skill-editor-title"
                     className="font-display text-lg font-semibold text-foreground"
                   >
-                    编辑 SKILL.md
+                    编辑 Skill
                   </h3>
                   <p className="mt-1 text-[11px] text-muted-foreground">
                     {editTitle}（{editName}）
@@ -890,9 +990,9 @@ export function AdminSkillsSection() {
                     </p>
                   ) : null}
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
+                <div className="flex min-h-0 flex-1 flex-col md:flex-row">
                   {editLoading ? (
-                    <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <p className="flex items-center gap-2 px-5 py-4 text-[11px] text-muted-foreground">
                       <Loader2
                         className="h-3.5 w-3.5 animate-spin"
                         aria-hidden
@@ -900,44 +1000,147 @@ export function AdminSkillsSection() {
                       加载内容…
                     </p>
                   ) : (
-                    <div className="space-y-3">
-                      <label className="block">
-                        <span className="text-[11px] font-semibold text-foreground">
-                          作用描述
-                        </span>
-                        <textarea
-                          value={editDescription}
-                          onChange={(e) => setEditDescription(e.target.value)}
-                          placeholder="一句话说明这个 skill 做什么（列表展示，与 SKILL.md 分离）"
-                          rows={2}
-                          maxLength={512}
-                          className="mt-1 w-full resize-y rounded-lg border border-[hsl(var(--sand))] bg-[hsl(var(--linen)/0.35)] px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-[hsl(var(--wine-deep)/0.35)]"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="text-[11px] font-semibold text-foreground">
-                          SKILL.md
-                        </span>
-                        <textarea
-                          value={editContent}
-                          onChange={(e) => setEditContent(e.target.value)}
-                          spellCheck={false}
-                          className="mt-1 min-h-[42vh] w-full resize-y rounded-lg border border-[hsl(var(--sand))] bg-[hsl(var(--linen)/0.35)] px-3 py-2 font-mono text-[12px] leading-relaxed text-foreground outline-none focus-visible:ring-1 focus-visible:ring-[hsl(var(--wine-deep)/0.35)]"
-                        />
-                      </label>
-                    </div>
+                    <>
+                      <aside className="max-h-[28vh] shrink-0 overflow-y-auto border-b border-border/60 bg-[hsl(var(--linen)/0.35)] md:max-h-none md:w-56 md:border-b-0 md:border-r">
+                        <p className="px-3 pt-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          文件
+                        </p>
+                        <div className="space-y-2 px-2 py-2">
+                          {groupSkillFiles(editFiles).map((group) => (
+                            <div key={group.dir ?? "__root"}>
+                              {group.dir ? (
+                                <p className="flex items-center gap-1 px-2 pb-1 text-[10px] font-medium text-muted-foreground">
+                                  <Folder
+                                    className="h-3 w-3 shrink-0"
+                                    aria-hidden
+                                  />
+                                  <span className="truncate">{group.dir}</span>
+                                </p>
+                              ) : null}
+                              <ul className="space-y-0.5">
+                                {group.files.map((file) => {
+                                  const dirty =
+                                    file.isText &&
+                                    (editDrafts[file.path] ?? "") !==
+                                      (file.content ?? "");
+                                  const active =
+                                    editActivePath === file.path;
+                                  const label = file.path.includes("/")
+                                    ? file.path.slice(
+                                        file.path.lastIndexOf("/") + 1,
+                                      )
+                                    : file.path;
+                                  return (
+                                    <li key={file.path}>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setEditActivePath(file.path)
+                                        }
+                                        className={cn(
+                                          "flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-[11px] transition-colors",
+                                          active
+                                            ? "bg-white text-foreground shadow-sm"
+                                            : "text-foreground/80 hover:bg-white/70",
+                                        )}
+                                      >
+                                        <FileText
+                                          className="h-3 w-3 shrink-0 text-muted-foreground"
+                                          aria-hidden
+                                        />
+                                        <span className="min-w-0 flex-1 truncate font-mono">
+                                          {label}
+                                        </span>
+                                        {dirty ? (
+                                          <span
+                                            className="h-1.5 w-1.5 shrink-0 rounded-full bg-[hsl(var(--wine-deep))]"
+                                            title="未保存"
+                                          />
+                                        ) : null}
+                                      </button>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            </div>
+                          ))}
+                        </div>
+                      </aside>
+                      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-3">
+                        <div className="space-y-3">
+                          <label className="block">
+                            <span className="text-[11px] font-semibold text-foreground">
+                              作用描述
+                            </span>
+                            <textarea
+                              value={editDescription}
+                              onChange={(e) =>
+                                setEditDescription(e.target.value)
+                              }
+                              placeholder="一句话说明这个 skill 做什么（列表展示，与文件内容分离）"
+                              rows={2}
+                              maxLength={512}
+                              className="mt-1 w-full resize-y rounded-lg border border-[hsl(var(--sand))] bg-[hsl(var(--linen)/0.35)] px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-[hsl(var(--wine-deep)/0.35)]"
+                            />
+                          </label>
+                          {(() => {
+                            const active = editFiles.find(
+                              (f) => f.path === editActivePath,
+                            );
+                            if (!active) {
+                              return (
+                                <p className="text-[11px] text-muted-foreground">
+                                  选择左侧文件查看内容。
+                                </p>
+                              );
+                            }
+                            if (!active.isText) {
+                              return (
+                                <p className="rounded-lg border border-border/70 bg-muted/30 px-3 py-3 text-[12px] text-muted-foreground">
+                                  {active.path}（{formatBytes(active.byteSize)}
+                                  ）是二进制文件，不能在网页中预览。
+                                </p>
+                              );
+                            }
+                            return (
+                              <label className="block">
+                                <span className="flex items-center justify-between gap-2 text-[11px] font-semibold text-foreground">
+                                  <span className="truncate font-mono">
+                                    {active.path}
+                                  </span>
+                                  <span className="shrink-0 font-normal text-muted-foreground">
+                                    {formatBytes(active.byteSize)}
+                                  </span>
+                                </span>
+                                <textarea
+                                  value={editDrafts[active.path] ?? ""}
+                                  onChange={(e) =>
+                                    setEditDrafts((prev) => ({
+                                      ...prev,
+                                      [active.path]: e.target.value,
+                                    }))
+                                  }
+                                  spellCheck={false}
+                                  className="mt-1 min-h-[42vh] w-full resize-y rounded-lg border border-[hsl(var(--sand))] bg-[hsl(var(--linen)/0.35)] px-3 py-2 font-mono text-[12px] leading-relaxed text-foreground outline-none focus-visible:ring-1 focus-visible:ring-[hsl(var(--wine-deep)/0.35)]"
+                                />
+                              </label>
+                            );
+                          })()}
+                        </div>
+                        {editError ? (
+                          <p className="mt-3 rounded-lg border border-rose-200/80 bg-rose-50/80 px-3 py-2 text-[11px] text-rose-700">
+                            {editError}
+                          </p>
+                        ) : null}
+                      </div>
+                    </>
                   )}
-                  {editError ? (
-                    <p className="mt-3 rounded-lg border border-rose-200/80 bg-rose-50/80 px-3 py-2 text-[11px] text-rose-700">
-                      {editError}
-                    </p>
-                  ) : null}
                 </div>
                 <div className="flex shrink-0 justify-end gap-2 border-t border-border/60 px-5 py-3">
                   <button
                     type="button"
                     disabled={editSaving}
-                    onClick={() => setEditName(null)}
+                    onClick={closeEdit}
                     className="rounded-full border border-border/80 px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted/40"
                   >
                     取消

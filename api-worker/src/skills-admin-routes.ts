@@ -9,14 +9,15 @@ import {
   deleteSkillFromDb,
   getSkillMdContent,
   getSkillMeta,
-  listSkillFileMeta,
+  listSkillFilePathsBySkill,
+  listSkillFiles,
   listSkillsFromDb,
   normalizeDescription,
   normalizeIncomingFiles,
   setSkillSyncResult,
   titleFromSkillMd,
   utf8ToB64,
-  updateSkillMdOnly,
+  updateSkillTextFiles,
   upsertSkillWithFiles,
 } from "./skills-db";
 import {
@@ -84,6 +85,7 @@ export async function handleAdminListSkills(
     // 意图 ↔ skill 由代码 INTENT_TO_SKILL 固定（1 skill ↔ 路由意图），列表只读展示
     const intentBySkill = skillToIntentsMap();
     const rows = await listSkillsFromDb(env.DB);
+    const filePathsBySkill = await listSkillFilePathsBySkill(env.DB);
     const byName = new Map(
       rows.map((r) => {
         const intents = intentBySkill[r.name] ?? [];
@@ -94,6 +96,7 @@ export async function handleAdminListSkills(
             title: r.title || r.name,
             description: String(r.description ?? ""),
             fileCount: Number(r.file_count ?? 0),
+            filePaths: filePathsBySkill.get(r.name) ?? [],
             syncStatus: r.sync_status as string,
             syncError: r.sync_error,
             syncedAt: r.synced_at,
@@ -125,6 +128,7 @@ export async function handleAdminListSkills(
             title: vs.title || vs.name,
             description: "",
             fileCount: 0,
+            filePaths: [],
             syncStatus: "not_in_db",
             syncError: null,
             syncedAt: null,
@@ -273,7 +277,16 @@ export async function handleAdminGetSkill(
     }
   }
   const content = (await getSkillMdContent(env.DB, name)) ?? "";
-  const files = await listSkillFileMeta(env.DB, name);
+  const fileRows = await listSkillFiles(env.DB, name);
+  const files = fileRows.map((row) => {
+    const isText = Boolean(row.is_text);
+    return {
+      path: row.rel_path,
+      byteSize: Number(row.byte_size ?? 0),
+      isText,
+      content: isText ? b64ToUtf8(row.content_b64) : null,
+    };
+  });
   return json({
     ok: true,
     name,
@@ -303,18 +316,34 @@ export async function handleAdminPutSkill(
     return json({ error: String((e as Error).message) }, statusOf(e));
   }
 
-  let body: { content?: string; description?: string };
+  let body: {
+    content?: string;
+    description?: string;
+    files?: Array<{ path?: string; content?: string }>;
+  };
   try {
     body = (await request.json()) as typeof body;
   } catch {
     return json({ error: "Invalid JSON" }, 400);
   }
-  if (typeof body.content !== "string") {
-    return json({ error: "请提供 content 字符串" }, 400);
+
+  const fileUpdates = Array.isArray(body.files)
+    ? body.files
+        .filter(
+          (f) =>
+            typeof f?.path === "string" && typeof f?.content === "string",
+        )
+        .map((f) => ({ path: String(f.path), content: String(f.content) }))
+    : [];
+  if (fileUpdates.length === 0 && typeof body.content === "string") {
+    fileUpdates.push({ path: "SKILL.md", content: body.content });
+  }
+  if (fileUpdates.length === 0 && typeof body.description !== "string") {
+    return json({ error: "请提供要保存的文件或描述" }, 400);
   }
 
   try {
-    await updateSkillMdOnly(env.DB, name, body.content, {
+    await updateSkillTextFiles(env.DB, name, fileUpdates, {
       description:
         typeof body.description === "string" ? body.description : undefined,
     });
