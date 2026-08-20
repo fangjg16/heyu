@@ -138,6 +138,9 @@ services:
       CLERK_JWKS_URL: ${CLERK_JWKS_URL:-}
       CLERK_JWT_KEY: ${CLERK_JWT_KEY:-}
       CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES:-}
+      HERMES_RESTART_MODE: docker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       mysql-bridge:
         condition: service_healthy

@@ -250,7 +250,7 @@ export async function saveAdminSkillContent(
   return {
     name: String(data.name ?? skillName),
     title: String(data.title ?? skillName),
-    description: String(data.description ?? description ?? ""),
+    description: String(data.description ?? input.description ?? ""),
     syncWarning: data.syncWarning ?? null,
     hint: data.hint ?? null,
   };
