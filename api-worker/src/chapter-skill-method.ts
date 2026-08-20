@@ -32,15 +32,31 @@ function wrapMethodBlock(
     .join("\n\n")
     .trim();
   if (!body) return "";
-  return [
+  const extraLock =
+    sectionId === "project-overview"
+      ? "综合成熟度只填右上角那一个数或状态词；禁止输出 Factor A/B 分卡、十一段完整度表。"
+      : sectionId === "snapshot"
+        ? "只填项目范围与交易要点；禁止输出 Factor A/B 分卡、十一段完整度表或综合成熟度表。"
+        : sectionId === "questions"
+          ? "待确认问题必须用 P1/P2/P3 三组 <details> 折叠卡片，组内 <ol><li>；禁止改成缺口登记大表。"
+          : sectionId === "business"
+            ? "写目标公司怎么赚钱（客户/定价/单位经济）；禁止 IRR/MOIC/投资人回报。"
+            : sectionId === "framework"
+              ? "写建议、论点、法律路径、增值杠杆与路线图；禁止 Top5 风险表和三情景 IRR 摘要。"
+              : "";
+  const lines = [
     "【分析方法 · 只用于填写模板中的「待补」】",
     `本章 ${sectionId} 对应 skill：${parts.map((p) => p.skill).join("、")}。`,
     "禁止改表头或替换【章节 Markdown 模板】，禁止改成 Markdown 散文，禁止用下列方法里的示例表或旧 KB Handoff 替换骨架，禁止改内联 style。允许按资料增删数据行。",
+  ];
+  if (extraLock) lines.push(extraLock);
+  lines.push(
     "缺证据仍写「待补」。版式以【章节 Markdown 模板】和「版式锁定」为准。",
     "知识网络只在网页章节生成；不要写入 [AI]_知识网络.html，不要调用 knowledge-base-generation。",
     "",
     body,
-  ].join("\n");
+  );
+  return lines.join("\n");
 }
 
 async function readSkillMarkdown(

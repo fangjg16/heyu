@@ -36,6 +36,21 @@ describe("chapter-skill-map", () => {
     expect(CHAPTER_SKILL_MAP.ownership).toEqual(["background-check"]);
   });
 
+  it("maps business to public-info-search, not returns", () => {
+    expect(CHAPTER_SKILL_MAP.business).toEqual(["public-info-search"]);
+  });
+
+  it("maps framework to value-creation-plan", () => {
+    expect(CHAPTER_SKILL_MAP.framework).toEqual(["value-creation-plan"]);
+  });
+
+  it("maps project-overview to intake and node-monitoring", () => {
+    expect(CHAPTER_SKILL_MAP["project-overview"]).toEqual([
+      "project-intake",
+      "node-monitoring",
+    ]);
+  });
+
   it("returns no skills for meta pages", () => {
     expect(skillsForChapter("sources")).toEqual([]);
     expect(skillsForChapter("glossary")).toEqual([]);
@@ -75,5 +90,12 @@ describe("buildChapterSkillMethodBlock", () => {
 
   it("returns empty when the chapter has no mapped skill", async () => {
     expect(await buildChapterSkillMethodBlock("sources")).toBe("");
+  });
+
+  it("loads public-info-search for business and value-creation-plan for framework", async () => {
+    const business = await buildChapterSkillMethodBlock("business");
+    expect(business).toContain("本章 business 对应 skill：public-info-search");
+    const framework = await buildChapterSkillMethodBlock("framework");
+    expect(framework).toContain("本章 framework 对应 skill：value-creation-plan");
   });
 });

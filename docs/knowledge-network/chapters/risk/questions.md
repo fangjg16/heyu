@@ -7,35 +7,37 @@ kicker: 风险与决策 · D.2
 canonicalHint: open-questions
 ---
 
-<div style="margin:8px 0 18px;font-size:13.5px;line-height:1.75;color:#59625F">待补（缺口总数：阻断 / 精度 / 增强）</div>
+<div style="margin:8px 0 18px;font-size:13.5px;line-height:1.75;color:#59625F">待补（P1 阻断 / P2 精度 / P3 增强）</div>
 
-<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 缺口登记</h3>
+<details open style="border:1px solid rgba(114,47,55,.16);border-radius:6px;background:rgba(255,255,255,.72);margin:1rem 0;overflow:hidden">
+  <summary style="cursor:pointer;padding:.95rem 1.1rem;display:flex;align-items:center;gap:.75rem;color:#A3262C">
+    <span style="font-family:'Noto Serif SC',serif;font-size:16px;font-style:italic;flex:1">P1 紧急 — 待补</span>
+    <span style="font-size:11px;font-weight:700;color:#888;white-space:nowrap">2 项</span>
+  </summary>
+  <ol style="padding:0 1.25rem 1.1rem 1.75rem;margin:0">
+    <li style="list-style:none;margin:.7rem 0;color:#1F2423;line-height:1.75"><strong>待补</strong><br><span style="color:#59625F">待补</span><br><span style="color:#59625F">→ 待补</span></li>
+    <li style="list-style:none;margin:.7rem 0;color:#1F2423;line-height:1.75"><strong>待补</strong><br><span style="color:#59625F">待补</span><br><span style="color:#59625F">→ 待补</span></li>
+  </ol>
+</details>
 
-<div style="overflow-x:auto">
-<table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
-  <thead>
-    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">缺口编号</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">缺口描述</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">来源</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">紧急度</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">影响层级</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">状态</th></tr>
-  </thead>
-  <tbody>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">G-001</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">Blocking</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">Not Started</td></tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">G-002</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">Precision</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">Not Started</td></tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">G-003</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">Enhancement</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">Not Started</td></tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">G-004</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">Blocking</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">Not Started</td></tr>
-  </tbody>
-</table>
-</div>
+<details style="border:1px solid rgba(114,47,55,.16);border-radius:6px;background:rgba(255,255,255,.72);margin:1rem 0;overflow:hidden">
+  <summary style="cursor:pointer;padding:.95rem 1.1rem;display:flex;align-items:center;gap:.75rem;color:#A3262C">
+    <span style="font-family:'Noto Serif SC',serif;font-size:16px;font-style:italic;flex:1">P2 重要 — 待补</span>
+    <span style="font-size:11px;font-weight:700;color:#888;white-space:nowrap">2 项</span>
+  </summary>
+  <ol style="padding:0 1.25rem 1.1rem 1.75rem;margin:0">
+    <li style="list-style:none;margin:.7rem 0;color:#1F2423;line-height:1.75"><strong>待补</strong><br><span style="color:#59625F">待补</span><br><span style="color:#59625F">→ 待补</span></li>
+    <li style="list-style:none;margin:.7rem 0;color:#1F2423;line-height:1.75"><strong>待补</strong><br><span style="color:#59625F">待补</span><br><span style="color:#59625F">→ 待补</span></li>
+  </ol>
+</details>
 
-<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">2. 优先处理</h3>
-
-<div style="overflow-x:auto">
-<table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
-  <thead>
-    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">排序</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">缺口编号</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">下一步</th></tr>
-  </thead>
-  <tbody>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">1</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">2</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">3</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
-  </tbody>
-</table>
-</div>
+<details style="border:1px solid rgba(114,47,55,.16);border-radius:6px;background:rgba(255,255,255,.72);margin:1rem 0;overflow:hidden">
+  <summary style="cursor:pointer;padding:.95rem 1.1rem;display:flex;align-items:center;gap:.75rem;color:#A3262C">
+    <span style="font-family:'Noto Serif SC',serif;font-size:16px;font-style:italic;flex:1">P3 跟进 — 待补</span>
+    <span style="font-size:11px;font-weight:700;color:#888;white-space:nowrap">2 项</span>
+  </summary>
+  <ol style="padding:0 1.25rem 1.1rem 1.75rem;margin:0">
+    <li style="list-style:none;margin:.7rem 0;color:#1F2423;line-height:1.75"><strong>待补</strong><br><span style="color:#59625F">待补</span><br><span style="color:#59625F">→ 待补</span></li>
+    <li style="list-style:none;margin:.7rem 0;color:#1F2423;line-height:1.75"><strong>待补</strong><br><span style="color:#59625F">待补</span><br><span style="color:#59625F">→ 待补</span></li>
+  </ol>
+</details>

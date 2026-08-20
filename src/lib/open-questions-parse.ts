@@ -58,7 +58,20 @@ function isPlaceholderQuestion(text: string): boolean {
   if (t === "待补" || /^待补[.。…]*$/u.test(t)) return true;
   if (t.length < 4) return true;
   if (/^（?待补）?$/u.test(t)) return true;
+  const cleaned = t.replace(/[→\-–—|/]/gu, " ").replace(/\s+/gu, " ").trim();
+  if (/^(待补[\s]*)+$/u.test(cleaned)) return true;
   return false;
+}
+
+function extractListItems(blockHtml: string): string[] {
+  const out: string[] = [];
+  const re = /<li\b[^>]*>([\s\S]*?)<\/li>/giu;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(blockHtml))) {
+    const text = stripLeadingMarker(stripTags(m[1] ?? ""));
+    if (!isPlaceholderQuestion(text)) out.push(text);
+  }
+  return out;
 }
 
 function extractParagraphs(blockHtml: string): string[] {
@@ -154,8 +167,14 @@ export function parseOpenQuestionsFromHtml(html: string): ParsedOpenQuestion[] {
     const summaryMatch = block.match(/<summary\b[^>]*>([\s\S]*?)<\/summary>/iu);
     const priority = detectPriority(stripTags(summaryMatch?.[1] ?? ""));
     const body = block.replace(/<summary\b[^>]*>[\s\S]*?<\/summary>/iu, "");
+    const lis = extractListItems(body);
     const paras = extractParagraphs(body);
-    const texts = paras.length > 0 ? paras : extractTableCells(body);
+    const texts =
+      lis.length > 0
+        ? lis
+        : paras.length > 0
+          ? paras
+          : extractTableCells(body);
     for (const text of texts) {
       items.push({ text, priority });
     }
@@ -164,8 +183,14 @@ export function parseOpenQuestionsFromHtml(html: string): ParsedOpenQuestion[] {
   if (!foundDetails) {
     const fromGap = extractGapRegistry(raw);
     if (fromGap.length > 0) return fromGap;
+    const lis = extractListItems(raw);
     const paras = extractParagraphs(raw);
-    const texts = paras.length > 0 ? paras : extractTableCells(raw);
+    const texts =
+      lis.length > 0
+        ? lis
+        : paras.length > 0
+          ? paras
+          : extractTableCells(raw);
     for (const text of texts) {
       items.push({ text, priority: "P2" });
     }

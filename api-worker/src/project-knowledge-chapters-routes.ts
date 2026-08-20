@@ -199,13 +199,13 @@ ${GENERATE_SYSTEM_SKILL_LOCK}`;
 
 const SECTION_FORMAT_HINT: Record<string, string> = {
   snapshot:
-    "===CHAPTER=== 按模板：项目范围表 + Factor A 十一段完整度表 + Factor B 来源多样性表 + 综合成熟度/入驻状态表。保留表头与内联 style；允许增删数据行；证据/来源列只写 [A-1]。禁止散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：一句话范围 + 项目范围表 + 交易要点表。不要输出 Factor A/B 十一段表或综合成熟度三卡；成熟度只在项目概览右上角。保留表头与内联 style；证据/来源列只写 [A-1]。禁止散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   objectives:
     "===CHAPTER=== 按模板：公开检索档案表 + 声明审计表 + 矛盾登记表 + 假设敏感性表 + 待核项表。保留表头与内联 style；允许增删数据行；禁止改成门槛卡片或散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   risks:
     "===CHAPTER=== 按模板：总体风险画像 + 4×4 热力图表格 + 风险登记表 + 高风险明细 + 缓释行动表。热力图用 HTML 表，禁止 SVG。允许增删数据行，禁止改表头。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   questions:
-    "===CHAPTER=== 按模板：缺口汇总 + 缺口登记表（缺口编号｜缺口描述｜来源｜紧急度｜影响层级｜状态）+ 下周优先三项。紧急度用 Blocking / Precision / Enhancement。允许增删数据行；禁止改成 P1/P2/P3 散文分组。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：P1/P2/P3 三组 <details> 折叠卡片。P1 默认 open。每组 summary 含标题与「N 项」；组内用 <ol><li>，每条含问题、说明、下一步。紧急度：P1=阻断 Blocking，P2=精度 Precision，P3=增强 Enhancement。允许增删 <li>；禁止改成大表或散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   industry:
     "===CHAPTER=== 按模板：公开检索档案（类别含监管审批/土地权属/市场数据/可比交易/政策/新闻）。保留表头；允许增删行；禁止四宫格散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   legal:
@@ -213,7 +213,7 @@ const SECTION_FORMAT_HINT: Record<string, string> = {
   benchmarks:
     "===CHAPTER=== 按模板：筛选标准表 + 可比交易表 + 溢价/折价锚点表 + 估值区间表。允许增删可比行（约 3–8 条）；禁止改表头。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   business:
-    "===CHAPTER=== 按模板：回报模型类型表 + 收入/成本驱动表 + 三情景假设表。允许增删行；缺数字写待补，禁止编造。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：客户与付费方 + 收入与定价 + 成本与单位经济 + 履约/经营KPI + 待验证经营假设。写目标公司怎么赚钱，禁止 IRR/MOIC/投资人回报。允许增删行。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   returns:
     "===CHAPTER=== 按模板：三情景指标看板 + 年度现金流表 + 杠杆敏感性表 + 假设登记 + 单变量敏感性表 + 双变量表 + 情景矩阵 + 盈亏平衡表。图表用 HTML 表，禁止 SVG。缺数字写待补。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   capabilities:
@@ -223,9 +223,9 @@ const SECTION_FORMAT_HINT: Record<string, string> = {
   diligence:
     "===CHAPTER=== 按模板：工作流进度表 + 检查项跟踪表（事项｜工作流｜优先级｜状态｜负责人｜截止日期｜备注）+ 红旗表。状态用 Not Started / Requested / Received / In Review / Complete / Red Flag。允许增删行。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   framework:
-    "===CHAPTER=== 按模板：总体风险画像 + Top5 风险表 + 三情景回报摘要 + 决策建议表。允许增删行；禁止改成路径卡片散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 按模板：决策建议 + 投资论点 + 法律/交易结构路径 + 增值杠杆 + 执行路线图 + 下一步。不要 Top5 风险表和三情景 IRR 摘要。允许增删行。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "project-overview":
-    "===CHAPTER=== 保留模板既有概览卡片与时间轴，并填写其后的 Factor A/B 成熟度表。时间轴只写与本项目直接相关的带日期节点。禁止 SVG。随后 ===GRAPH=== 输出关系图 JSON；再 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 保留模板既有概览：标题、简介、右上角综合成熟度（只填这一个数或状态词，不要 Factor A/B 分卡和十一段表）、当前判断/下一步/核心风险三卡、BP披露/待验证假设/红线风险/优先资料四卡、项目时间轴。时间轴只写与本项目直接相关的带日期节点。禁止 SVG。随后 ===GRAPH=== 输出关系图 JSON；再 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
 };
 
 /** 保留模板多表结构；只做表头/单元格抛光，不再抽成单表或旧版式 */

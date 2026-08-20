@@ -32,6 +32,31 @@ describe("parseOpenQuestionsFromHtml", () => {
     ]);
   });
 
+  it("extracts list items from P1/P2 accordion cards", () => {
+    const html = `
+<details open>
+  <summary>P1 紧急 — 标的确认 <span>2 项</span></summary>
+  <ol>
+    <li><strong>具体目标公司是谁？</strong><br>当前仅有行业分析。<br>→ 需要 BP</li>
+    <li><strong>待补</strong><br>待补<br>→ 待补</li>
+  </ol>
+</details>
+<details>
+  <summary>P2 重要 — 财务</summary>
+  <ol>
+    <li>已上线作品的播放量与收入数据是否齐备？</li>
+  </ol>
+</details>`;
+    const items = parseOpenQuestionsFromHtml(html);
+    expect(items).toEqual([
+      {
+        text: "具体目标公司是谁？ 当前仅有行业分析。 → 需要 BP",
+        priority: "P1",
+      },
+      { text: "已上线作品的播放量与收入数据是否齐备？", priority: "P2" },
+    ]);
+  });
+
   it("extracts gap-tracking description column and maps urgency", () => {
     const html = `
 <table>
