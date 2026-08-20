@@ -9,6 +9,7 @@ export type DraftGeneratingProgress = {
   lastLabel?: string;
   elapsedMs: number;
   phase: "creating" | "generating" | "done";
+  failedDetails?: string[];
 };
 
 type KnowledgeDraftGeneratingDialogProps = {
@@ -102,7 +103,7 @@ export function KnowledgeDraftGeneratingDialog({
               </>
             ) : (
               <>
-                正在并行生成 13 个研究章节的待审核草案。
+                正在按队列生成 13 个研究章节的待审核草案（同时最多 2 章，避免模型限流）。
                 <span className="font-medium text-[#1F2423]">
                   当前正式版本不会被覆盖
                 </span>
@@ -130,7 +131,7 @@ export function KnowledgeDraftGeneratingDialog({
                     ? "已完成"
                     : mode === "section"
                       ? "生成中"
-                      : "并行生成中"}
+                      : "排队生成中"}
                 </span>
               )}
             </div>
@@ -145,10 +146,17 @@ export function KnowledgeDraftGeneratingDialog({
             </div>
           </div>
 
-          {error ? (
-            <p className="mt-3 rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
-              {error}
-            </p>
+          {error || (progress?.failedDetails && progress.failedDetails.length > 0) ? (
+            <div className="mt-3 rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
+              {error ? <p>{error}</p> : null}
+              {progress?.failedDetails && progress.failedDetails.length > 0 ? (
+                <ul className={error ? "mt-1.5 list-disc space-y-0.5 pl-4" : "list-disc space-y-0.5 pl-4"}>
+                  {progress.failedDetails.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
           ) : null}
 
           <div className="mt-5 flex flex-wrap justify-end gap-2.5">

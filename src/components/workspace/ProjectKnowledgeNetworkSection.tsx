@@ -13,10 +13,10 @@ import {
   createChapterDraftRun,
   fetchKnowledgeChapterVersion,
   fetchProjectKnowledgeChapter,
-  generateChapterDraftSection,
   listKnowledgeChapterVersions,
   listProjectKnowledgeChapters,
   reviseProjectKnowledgeChapter,
+  waitForDraftRunSettled,
   type KnowledgeChapterVersionMeta,
 } from "@/lib/project-api";
 import {
@@ -576,21 +576,40 @@ export function ProjectKnowledgeNetworkSection({
 
       if (needGenerate) {
         try {
-          await generateChapterDraftSection(
-            projectId,
-            runId,
-            targetSectionId,
-            userId,
-          );
+          const snap = await waitForDraftRunSettled(projectId, runId, userId, {
+            sectionIds: [targetSectionId],
+            onProgress: (summary) => {
+              setDraftProgress({
+                done: summary.done,
+                total: 1,
+                failed: summary.failed,
+                elapsedMs: Date.now() - startedAt,
+                phase: summary.settled ? "done" : "generating",
+                lastLabel: targetLabel,
+                failedDetails: summary.failedDetails,
+              });
+            },
+          });
+          const latest = snap.items.find((i) => i.sectionId === targetSectionId);
+          const ok = latest?.status === "ok";
           setDraftProgress({
             done: 1,
             total: 1,
-            failed: 0,
+            failed: ok ? 0 : 1,
             elapsedMs: Date.now() - startedAt,
             phase: "done",
             lastLabel: targetLabel,
+            failedDetails:
+              !ok && latest?.error
+                ? [`${targetLabel}：${latest.error}`]
+                : undefined,
           });
-          onChapterGenerateSucceededRef.current?.(targetSectionId);
+          if (!ok) {
+            setDraftDialogError(latest?.error?.trim() || "生成草案失败");
+            onChapterGenerateFailedRef.current?.(targetSectionId);
+          } else {
+            onChapterGenerateSucceededRef.current?.(targetSectionId);
+          }
         } catch (e) {
           const msg = e instanceof Error ? e.message : "生成草案失败";
           setDraftProgress({

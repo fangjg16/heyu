@@ -1,5 +1,16 @@
 import type { AppDatabase } from "./app-database";
 import {
+  CHAPTER_GENERATE_CONCURRENCY,
+  DRAFT_RUN_IDLE_STALE_MS,
+  draftGenerateJobKey,
+  isDraftGenerateInFlight,
+  releaseDraftGenerateJob,
+  shouldFailStalePendingItems,
+  startDraftRunProcessor,
+  tryClaimDraftGenerateJob,
+  withChapterGenerateGate,
+} from "./chapter-draft-generate-queue";
+import {
   completeReviseInstructionLog,
   insertReviseInstructionLog,
 } from "./chapter-revise-logs-db";
@@ -125,6 +136,179 @@ function mapRunItems(
   }));
 }
 
+function isDraftGenerateableSection(sectionId: string): boolean {
+  return (
+    SECTION_DRAFT_SET.has(sectionId) && !META_DRAFT_SECTION_IDS.has(sectionId)
+  );
+}
+
+function kickDraftRunGeneration(
+  env: Env,
+  ctx: ExecutionContext,
+  projectId: string,
+  runId: string,
+  userId: string,
+): void {
+  ctx.waitUntil(
+    startDraftRunProcessor(runId, () =>
+      processPendingDraftRun(env, projectId, runId, userId),
+    ).catch((e) => {
+      console.error(
+        `[draft-generate] run ${runId} processor`,
+        e instanceof Error ? e.message : e,
+      );
+    }),
+  );
+}
+
+async function requeueFailedDraftSections(
+  env: Env,
+  runId: string,
+  items: Awaited<ReturnType<typeof listDraftItems>>,
+): Promise<void> {
+  for (const item of items) {
+    if (item.status !== "failed") continue;
+    if (!isDraftGenerateableSection(item.sectionId)) continue;
+    await upsertDraftItem(env.DB, {
+      runId,
+      sectionId: item.sectionId,
+      status: "pending",
+      html: item.html,
+      error: null,
+      llmBackend: item.llmBackend,
+    });
+  }
+  await refreshDraftRunProgress(env.DB, runId);
+}
+
+/** 同一草案内排队生成，最多 CHAPTER_GENERATE_CONCURRENCY 路过模型。 */
+async function processPendingDraftRun(
+  env: Env,
+  projectId: string,
+  runId: string,
+  userId: string,
+): Promise<void> {
+  const working = new Set<Promise<void>>();
+  for (;;) {
+    const run = await getDraftRun(env.DB, runId);
+    if (!run || run.status === "published" || run.status === "discarded") {
+      if (working.size > 0) await Promise.all([...working]);
+      return;
+    }
+    const items = await listDraftItems(env.DB, runId);
+    const pending = items.filter(
+      (i) =>
+        i.status === "pending" &&
+        isDraftGenerateableSection(i.sectionId) &&
+        !isDraftGenerateInFlight(draftGenerateJobKey(runId, i.sectionId)),
+    );
+    while (working.size < CHAPTER_GENERATE_CONCURRENCY && pending.length > 0) {
+      const item = pending.shift();
+      if (!item) break;
+      let job!: Promise<void>;
+      job = runOneDraftSectionGenerate(
+        env,
+        projectId,
+        runId,
+        item.sectionId,
+        userId,
+      ).finally(() => {
+        working.delete(job);
+      });
+      working.add(job);
+    }
+    if (working.size === 0) {
+      const waitingOnClaim = items.some(
+        (i) =>
+          i.status === "pending" &&
+          isDraftGenerateInFlight(draftGenerateJobKey(runId, i.sectionId)),
+      );
+      if (waitingOnClaim) {
+        await new Promise((r) => setTimeout(r, 1000));
+        continue;
+      }
+      return;
+    }
+    await Promise.race([...working]);
+  }
+}
+
+async function runOneDraftSectionGenerate(
+  env: Env,
+  projectId: string,
+  runId: string,
+  sectionId: string,
+  userId: string,
+): Promise<void> {
+  const key = draftGenerateJobKey(runId, sectionId);
+  if (!tryClaimDraftGenerateJob(key)) return;
+  try {
+    const existing = await getDraftItem(env.DB, runId, sectionId);
+    await upsertDraftItem(env.DB, {
+      runId,
+      sectionId,
+      status: "pending",
+      html: existing?.html ?? null,
+      error: null,
+      llmBackend: existing?.llmBackend ?? null,
+    });
+    await refreshDraftRunProgress(env.DB, runId);
+    console.log(`[draft-generate] start ${runId} ${sectionId}`);
+    const res = await withChapterGenerateGate(() =>
+      handleGenerateProjectKnowledgeChapter(
+        env,
+        projectId,
+        sectionId,
+        userId,
+        { target: "draft", runId },
+      ),
+    );
+    if (res.ok) {
+      console.log(`[draft-generate] ok ${runId} ${sectionId}`);
+      return;
+    }
+    let msg = `生成失败（${res.status}）`;
+    try {
+      const body = (await res.json()) as { error?: string };
+      if (body?.error) msg = String(body.error);
+    } catch {
+      /* ignore */
+    }
+    console.warn(`[draft-generate] fail ${runId} ${sectionId}: ${msg}`);
+    const latest = await getDraftItem(env.DB, runId, sectionId);
+    if (latest?.status === "pending") {
+      await upsertDraftItem(env.DB, {
+        runId,
+        sectionId,
+        status: "failed",
+        html: latest.html,
+        error: msg,
+        llmBackend: latest.llmBackend,
+      });
+      await refreshDraftRunProgress(env.DB, runId);
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn(`[draft-generate] throw ${runId} ${sectionId}: ${msg}`);
+    try {
+      const existing = await getDraftItem(env.DB, runId, sectionId);
+      await upsertDraftItem(env.DB, {
+        runId,
+        sectionId,
+        status: "failed",
+        html: existing?.html ?? null,
+        error: msg,
+        llmBackend: existing?.llmBackend ?? null,
+      });
+      await refreshDraftRunProgress(env.DB, runId);
+    } catch {
+      /* ignore */
+    }
+  } finally {
+    releaseDraftGenerateJob(key);
+  }
+}
+
 /** GET /api/me/chapter-draft-runs — 可见项目下 generating/ready 草案 */
 export async function handleListMyChapterDraftRuns(
   env: Env,
@@ -171,10 +355,12 @@ export async function handleListMyChapterDraftRuns(
 
 /** POST /api/projects/:id/chapter-draft-runs
  *  body 可选：{ scope?: 'full'|'section', sectionId?: string }
+ *  创建后由服务端排队生成，前端只轮询 run，不要并行 POST 13 次 generate。
  */
 export async function handleCreateChapterDraftRun(
   request: Request,
   env: Env,
+  ctx: ExecutionContext,
   projectId: string,
   userIdRaw: string | null,
 ): Promise<Response> {
@@ -241,12 +427,21 @@ export async function handleCreateChapterDraftRun(
         : primaryIds.length === 1 && primaryIds[0] === sectionId);
 
     if (sameScope) {
+      if (active.status === "generating" || active.status === "failed") {
+        await requeueFailedDraftSections(env, active.id, items);
+        kickDraftRunGeneration(env, ctx, projectId, active.id, userId);
+      }
+      const latest = await listDraftItems(env.DB, active.id);
+      const latestRun = (await getDraftRun(env.DB, active.id)) ?? active;
+      const latestIds = latest
+        .map((i) => i.sectionId)
+        .filter((id) => !META_DRAFT_SECTION_IDS.has(id));
       return json({
         ok: true,
         reused: true,
-        run: active,
-        items: mapRunItems(items),
-        sectionIds: primaryIds.length > 0 ? primaryIds : wantedIds,
+        run: latestRun,
+        items: mapRunItems(latest),
+        sectionIds: latestIds.length > 0 ? latestIds : wantedIds,
       });
     }
 
@@ -273,6 +468,7 @@ export async function handleCreateChapterDraftRun(
     scope,
     sectionIds: wantedIds,
   });
+  kickDraftRunGeneration(env, ctx, projectId, run.id, userId);
   const items = await listDraftItems(env.DB, run.id);
   return json({
     ok: true,
@@ -360,7 +556,6 @@ export async function handleGetChapterDraftRun(
   let items = await listDraftItems(env.DB, runId);
   // 改写超时/中断：超过 10 分钟仍 revising 则回落为 ok，保留原 HTML
   const STALE_REVISE_MS = 10 * 60 * 1000;
-  const STALE_GENERATE_MS = 15 * 60 * 1000;
   const now = Date.now();
   for (const item of items) {
     const updatedMs = Date.parse(item.updatedAt);
@@ -374,9 +569,18 @@ export async function handleGetChapterDraftRun(
         error: "改写超时或中断，请重试",
         llmBackend: item.llmBackend,
       });
-      continue;
     }
-    if (item.status === "pending" && now - updatedMs >= STALE_GENERATE_MS) {
+  }
+  items = await listDraftItems(env.DB, runId);
+  // 排队中的 pending 不能按单章 updatedAt 判超时；整次草案都闲置才失败
+  if (shouldFailStalePendingItems(items, now, DRAFT_RUN_IDLE_STALE_MS)) {
+    let marked = false;
+    for (const item of items) {
+      if (item.status !== "pending") continue;
+      if (isDraftGenerateInFlight(draftGenerateJobKey(runId, item.sectionId))) {
+        continue;
+      }
+      marked = true;
       await upsertDraftItem(env.DB, {
         runId,
         sectionId: item.sectionId,
@@ -386,14 +590,16 @@ export async function handleGetChapterDraftRun(
         llmBackend: item.llmBackend,
       });
     }
+    if (marked) await refreshDraftRunProgress(env.DB, runId);
   }
   items = await listDraftItems(env.DB, runId);
+  const latestRun = (await getDraftRun(env.DB, runId)) ?? run;
 
   return json({
     ok: true,
     projectId,
     currentVersion: bundle.version,
-    run,
+    run: latestRun,
     items: items.map((i) => ({
       sectionId: i.sectionId,
       status: i.status,
@@ -438,49 +644,14 @@ export async function handleGenerateChapterDraftSection(
   await refreshDraftRunProgress(env.DB, runId);
 
   ctx.waitUntil(
-    (async () => {
-      try {
-        const res = await handleGenerateProjectKnowledgeChapter(
-          env,
-          projectId,
-          sectionId,
-          userId,
-          { target: "draft", runId },
+    runOneDraftSectionGenerate(env, projectId, runId, sectionId, userId).catch(
+      (e) => {
+        console.error(
+          `[draft-generate] ${runId} ${sectionId}`,
+          e instanceof Error ? e.message : e,
         );
-        if (res.ok) return;
-        let msg = `生成失败（${res.status}）`;
-        try {
-          const body = (await res.json()) as { error?: string };
-          if (body?.error) msg = String(body.error);
-        } catch {
-          /* ignore */
-        }
-        await upsertDraftItem(env.DB, {
-          runId,
-          sectionId,
-          status: "failed",
-          html: existing?.html ?? null,
-          error: msg,
-          llmBackend: existing?.llmBackend ?? null,
-        });
-        await refreshDraftRunProgress(env.DB, runId);
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        try {
-          await upsertDraftItem(env.DB, {
-            runId,
-            sectionId,
-            status: "failed",
-            html: existing?.html ?? null,
-            error: msg,
-            llmBackend: existing?.llmBackend ?? null,
-          });
-          await refreshDraftRunProgress(env.DB, runId);
-        } catch {
-          /* ignore */
-        }
-      }
-    })(),
+      },
+    ),
   );
 
   return json(

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { humanizeUpstreamLlmError, shouldFallbackToDashscope } from "./llm-client";
+import {
+  humanizeUpstreamLlmError,
+  isRetryableLlmError,
+  shouldFallbackToDashscope,
+} from "./llm-client";
 
 describe("shouldFallbackToDashscope", () => {
   it("does not treat workerd Hermes connectivity failures as a reason to skip to Qwen", () => {
@@ -27,5 +31,19 @@ describe("humanizeUpstreamLlmError", () => {
     expect(
       humanizeUpstreamLlmError("internal error; reference = abc"),
     ).toMatch(/Hermes/);
+  });
+});
+
+describe("isRetryableLlmError", () => {
+  it("retries rate limits and transient network failures", () => {
+    expect(isRetryableLlmError("Rate limit exceeded, 429")).toBe(true);
+    expect(isRetryableLlmError("模型请求过于频繁，请稍后重试。")).toBe(true);
+    expect(isRetryableLlmError("fetch failed")).toBe(true);
+    expect(isRetryableLlmError("千问 HTTP 502")).toBe(true);
+  });
+
+  it("does not retry missing credentials", () => {
+    expect(isRetryableLlmError("未配置 DASHSCOPE_API_KEY")).toBe(false);
+    expect(isRetryableLlmError("Unauthorized")).toBe(false);
   });
 });

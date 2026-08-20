@@ -1214,6 +1214,71 @@ export type GetChapterDraftRunResponse = {
   items: ChapterDraftItem[];
 };
 
+export const RESEARCH_CHAPTER_LABELS: Record<string, string> = {
+  snapshot: "项目快照",
+  objectives: "标的概况",
+  industry: "行业分析",
+  legal: "合规分析",
+  benchmarks: "对标分析",
+  business: "业务模式",
+  returns: "财务与回报",
+  capabilities: "资源网络",
+  ownership: "背景调查",
+  diligence: "尽职调查",
+  risks: "风险矩阵",
+  questions: "待确认问题",
+  framework: "决策路径与法律结构",
+  "project-overview": "项目概览",
+};
+
+export type DraftRunProgressSummary = {
+  done: number;
+  total: number;
+  failed: number;
+  lastLabel?: string;
+  failedDetails: string[];
+  settled: boolean;
+};
+
+export function summarizeDraftRunProgress(
+  items: ChapterDraftItem[],
+  sectionIds: string[],
+): DraftRunProgressSummary {
+  const byId = new Map(items.map((i) => [i.sectionId, i] as const));
+  const rows = sectionIds.map((id) => byId.get(id));
+  const failedRows = rows.filter(
+    (i): i is ChapterDraftItem => i?.status === "failed",
+  );
+  const done = rows.filter(
+    (i) => i && (i.status === "ok" || i.status === "failed"),
+  ).length;
+  const inFlightId = sectionIds.find((id) => {
+    const i = byId.get(id);
+    return !i || i.status === "pending" || i.status === "revising";
+  });
+  const completed = rows
+    .filter(
+      (i): i is ChapterDraftItem =>
+        Boolean(i && (i.status === "ok" || i.status === "failed")),
+    )
+    .sort(
+      (a, b) => Date.parse(b.updatedAt || "") - Date.parse(a.updatedAt || ""),
+    );
+  const lastId = inFlightId ?? completed[0]?.sectionId;
+  return {
+    done,
+    total: sectionIds.length,
+    failed: failedRows.length,
+    lastLabel: lastId ? (RESEARCH_CHAPTER_LABELS[lastId] ?? lastId) : undefined,
+    failedDetails: failedRows.map((i) => {
+      const name = RESEARCH_CHAPTER_LABELS[i.sectionId] ?? i.sectionId;
+      const err = (i.error ?? "").trim() || "生成失败";
+      return `${name}：${err}`;
+    }),
+    settled: sectionIds.length > 0 && done >= sectionIds.length,
+  };
+}
+
 export async function fetchChapterDraftRun(
   projectId: string,
   runId: string,
@@ -1265,7 +1330,46 @@ export async function generateChapterDraftSection(
 }
 
 const DRAFT_GENERATE_POLL_MS = 2000;
-const DRAFT_GENERATE_TIMEOUT_MS = 15 * 60 * 1000;
+const DRAFT_SECTION_TIMEOUT_MS = 20 * 60 * 1000;
+const DRAFT_RUN_TIMEOUT_MS = 40 * 60 * 1000;
+
+export async function waitForDraftRunSettled(
+  projectId: string,
+  runId: string,
+  userId: string,
+  options?: {
+    sectionIds?: string[];
+    timeoutMs?: number;
+    onProgress?: (
+      summary: DraftRunProgressSummary,
+      snap: GetChapterDraftRunResponse,
+    ) => void;
+  },
+): Promise<GetChapterDraftRunResponse> {
+  const deadline = Date.now() + (options?.timeoutMs ?? DRAFT_RUN_TIMEOUT_MS);
+  while (Date.now() < deadline) {
+    const snap = await fetchChapterDraftRun(projectId, runId, userId).catch(
+      () => null,
+    );
+    if (snap) {
+      const ids =
+        options?.sectionIds ??
+        snap.items
+          .map((i) => i.sectionId)
+          .filter(
+            (id) =>
+              id !== "sources" &&
+              id !== "glossary" &&
+              id !== "project-graph",
+          );
+      const summary = summarizeDraftRunProgress(snap.items, ids);
+      options?.onProgress?.(summary, snap);
+      if (summary.settled) return snap;
+    }
+    await new Promise((r) => window.setTimeout(r, DRAFT_GENERATE_POLL_MS));
+  }
+  throw new Error("生成超时，请稍后打开审核查看是否已完成");
+}
 
 async function waitForDraftSectionSettled(
   projectId: string,
@@ -1273,28 +1377,23 @@ async function waitForDraftSectionSettled(
   sectionId: string,
   userId: string,
 ): Promise<{ ok: true; sectionId: string; html?: string; run?: ChapterDraftRun }> {
-  const deadline = Date.now() + DRAFT_GENERATE_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    await new Promise((r) => window.setTimeout(r, DRAFT_GENERATE_POLL_MS));
-    const snap = await fetchChapterDraftRun(projectId, runId, userId).catch(
-      () => null,
-    );
-    if (!snap) continue;
-    const item = snap.items.find((i) => i.sectionId === sectionId);
-    if (!item || item.status === "pending" || item.status === "revising") {
-      continue;
-    }
-    if (item.status === "failed") {
-      throw new Error(item.error?.trim() || "草案章节生成失败");
-    }
-    return {
-      ok: true,
-      sectionId,
-      html: item.html ?? undefined,
-      run: snap.run,
-    };
+  const snap = await waitForDraftRunSettled(projectId, runId, userId, {
+    sectionIds: [sectionId],
+    timeoutMs: DRAFT_SECTION_TIMEOUT_MS,
+  });
+  const item = snap.items.find((i) => i.sectionId === sectionId);
+  if (!item || item.status === "pending" || item.status === "revising") {
+    throw new Error("生成超时，请稍后打开审核查看是否已完成");
   }
-  throw new Error("生成超时，请稍后打开审核查看是否已完成");
+  if (item.status === "failed") {
+    throw new Error(item.error?.trim() || "草案章节生成失败");
+  }
+  return {
+    ok: true,
+    sectionId,
+    html: item.html ?? undefined,
+    run: snap.run,
+  };
 }
 
 export async function saveChapterDraftSection(

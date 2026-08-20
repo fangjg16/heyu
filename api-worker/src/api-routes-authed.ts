@@ -399,6 +399,7 @@ export async function routeAuthedApi(
       return handleCreateChapterDraftRun(
         request,
         env,
+        ctx,
         projectId,
         authUserId,
       );

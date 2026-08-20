@@ -169,7 +169,29 @@ export function humanizeUpstreamLlmError(raw: string): string {
   return msg;
 }
 
-export async function callLlm(
+/** 限流、网关、瞬时断连可退避；鉴权/缺配置立即失败。 */
+export function isRetryableLlmError(raw: string): boolean {
+  const msg = (raw ?? "").trim();
+  if (!msg) return false;
+  if (
+    /未配置|invalid api key|unauthorized|authentication|缺少 userId/i.test(msg)
+  ) {
+    return false;
+  }
+  if (/\b401\b|\b403\b/.test(msg) && !/429/.test(msg)) return false;
+  return /429|rate limit|too many requests|throttl|过于频繁|限流|fetch failed|network|econnreset|etimedout|socket|502|503|504|overloaded|capacity|timeout|timed out|unavailable|temporarily|bad gateway|gateway timeout/i.test(
+    msg,
+  );
+}
+
+const LLM_RETRY_ATTEMPTS = 4;
+
+export function llmRetryDelayMs(attempt: number): number {
+  const n = Math.max(1, attempt);
+  return Math.min(16_000, 1000 * 2 ** n);
+}
+
+async function callLlmOnce(
   env: LlmClientEnv,
   messages: LlmMessage[],
 ): Promise<{ answer: string; raw: unknown; llmBackend: string }> {
@@ -198,4 +220,26 @@ export async function callLlm(
   throw new Error(
     "未配置 HERMES_BASE_URL/HERMES_API_KEY，也未配置 DASHSCOPE_API_KEY（或管理台 API Key）",
   );
+}
+
+export async function callLlm(
+  env: LlmClientEnv,
+  messages: LlmMessage[],
+): Promise<{ answer: string; raw: unknown; llmBackend: string }> {
+  let last: unknown;
+  for (let attempt = 1; attempt <= LLM_RETRY_ATTEMPTS; attempt++) {
+    try {
+      return await callLlmOnce(env, messages);
+    } catch (e) {
+      last = e;
+      const msg = e instanceof Error ? e.message : String(e);
+      if (attempt >= LLM_RETRY_ATTEMPTS || !isRetryableLlmError(msg)) {
+        throw e;
+      }
+      const delay =
+        llmRetryDelayMs(attempt) + Math.floor(Math.random() * 400);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw last instanceof Error ? last : new Error(String(last));
 }

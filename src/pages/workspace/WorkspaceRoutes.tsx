@@ -33,7 +33,8 @@ import {
   ENABLE_LIVE_CHAT,
   fetchActiveChapterDraftRun,
   fetchProjectsFromApi,
-  generateChapterDraftSection,
+  summarizeDraftRunProgress,
+  waitForDraftRunSettled,
 } from "@/lib/project-api";
 import {
   getMergedProjects,
@@ -471,21 +472,48 @@ function ProjectWorkspaceLayout() {
 
       if (needGenerate) {
         try {
-          await generateChapterDraftSection(
+          const snap = await waitForDraftRunSettled(
             project.id,
             runId,
-            "project-overview",
             userId,
+            {
+              sectionIds: ["project-overview"],
+              onProgress: (summary) => {
+                setAllChaptersProgress({
+                  done: summary.done,
+                  total: 1,
+                  failed: summary.failed,
+                  elapsedMs: Date.now() - startedAt,
+                  phase: summary.settled ? "done" : "generating",
+                  lastLabel: label,
+                  failedDetails: summary.failedDetails,
+                });
+              },
+            },
           );
+          const latest = snap.items.find(
+            (i) => i.sectionId === "project-overview",
+          );
+          const ok = latest?.status === "ok";
           setAllChaptersProgress({
             done: 1,
             total: 1,
-            failed: 0,
+            failed: ok ? 0 : 1,
             elapsedMs: Date.now() - startedAt,
             phase: "done",
             lastLabel: label,
+            failedDetails:
+              !ok && latest?.error
+                ? [`${label}：${latest.error}`]
+                : undefined,
           });
-          setAllChaptersNotice("项目概览草案已就绪，可进入审核。");
+          if (!ok) {
+            setDraftDialogError(
+              latest?.error?.trim() || "项目概览草案生成失败",
+            );
+          } else {
+            setAllChaptersNotice("项目概览草案已就绪，可进入审核。");
+          }
         } catch (e) {
           const message = normalizeGenerateError(e);
           setAllChaptersProgress({
@@ -576,6 +604,7 @@ function ProjectWorkspaceLayout() {
         return;
       }
 
+      const sectionIds = ALL_RESEARCH_CHAPTERS.map((ch) => ch.id);
       const pendingChapters = ALL_RESEARCH_CHAPTERS.filter((ch) => {
         if (!created.reused) return true;
         const item = created.items.find((i) => i.sectionId === ch.id);
@@ -588,78 +617,55 @@ function ProjectWorkspaceLayout() {
         total,
         failed: 0,
         elapsedMs: Date.now() - startedAt,
-        phase: "generating",
+        phase: pendingChapters.length > 0 ? "generating" : "done",
       });
 
-      // 并行写入草案，不触碰正式章节
-      const results = await Promise.allSettled(
-        pendingChapters.map(async (ch) => {
-          try {
-            await generateChapterDraftSection(
-              project.id,
-              runId!,
-              ch.id,
-              userId,
-            );
-            setAllChaptersProgress((prev) => ({
-              done: (prev?.done ?? 0) + 1,
-              total: prev?.total ?? total,
-              lastLabel: ch.label,
-              failed: prev?.failed ?? 0,
+      if (pendingChapters.length > 0) {
+        const snap = await waitForDraftRunSettled(project.id, runId, userId, {
+          sectionIds,
+          onProgress: (summary) => {
+            setAllChaptersProgress({
+              done: summary.done,
+              total: summary.total,
+              failed: summary.failed,
+              lastLabel: summary.lastLabel,
               elapsedMs: Date.now() - startedAt,
-              phase: "generating",
-            }));
-            return { id: ch.id, label: ch.label };
-          } catch (e) {
-            const message = normalizeGenerateError(e);
-            setAllChaptersProgress((prev) => ({
-              done: (prev?.done ?? 0) + 1,
-              total: prev?.total ?? total,
-              lastLabel: ch.label,
-              failed: (prev?.failed ?? 0) + 1,
-              elapsedMs: Date.now() - startedAt,
-              phase: "generating",
-            }));
-            throw Object.assign(new Error(`${ch.label}：${message}`), {
-              sectionId: ch.id,
+              phase: summary.settled ? "done" : "generating",
+              failedDetails: summary.failedDetails,
             });
-          }
-        }),
-      );
-
-      const failedIds = results.flatMap((r, i) =>
-        r.status === "rejected" ? [pendingChapters[i]!.id] : [],
-      );
-      persistFailedChapterIds(failedIds);
-
-      const successCount = total - failedIds.length;
-      const elapsedLabel = formatElapsedMs(Date.now() - startedAt);
-      setAllChaptersProgress((prev) =>
-        prev
-          ? {
-              ...prev,
-              done: total,
-              failed: failedIds.length,
-              elapsedMs: Date.now() - startedAt,
-              phase: "done",
-            }
-          : prev,
-      );
-
-      if (pendingChapters.length === 0) {
-        setAllChaptersNotice("更新草案已就绪，可进入审核。");
-      } else if (failedIds.length === pendingChapters.length && successCount === 0) {
-        setDraftDialogError(
-          `全部章节草案生成失败，耗时 ${elapsedLabel}。可关闭后重试。`,
+          },
+        });
+        const summary = summarizeDraftRunProgress(snap.items, sectionIds);
+        persistFailedChapterIds(
+          sectionIds.filter((id) =>
+            snap.items.some((i) => i.sectionId === id && i.status === "failed"),
+          ),
         );
-      } else if (failedIds.length > 0) {
-        setDraftDialogError(
-          `草案完成：成功 ${successCount}/${total}，失败 ${failedIds.length}，耗时 ${elapsedLabel}。可前往审核（失败章将跳过）。`,
-        );
+        const successCount = total - summary.failed;
+        const elapsedLabel = formatElapsedMs(Date.now() - startedAt);
+        setAllChaptersProgress({
+          done: total,
+          total,
+          failed: summary.failed,
+          elapsedMs: Date.now() - startedAt,
+          phase: "done",
+          failedDetails: summary.failedDetails,
+        });
+        if (summary.failed === pendingChapters.length && successCount === 0) {
+          setDraftDialogError(
+            `全部章节草案生成失败，耗时 ${elapsedLabel}。可关闭后重试。`,
+          );
+        } else if (summary.failed > 0) {
+          setDraftDialogError(
+            `草案完成：成功 ${successCount}/${total}，失败 ${summary.failed}，耗时 ${elapsedLabel}。可前往审核（失败章将跳过）。`,
+          );
+        } else {
+          setAllChaptersNotice(
+            `更新草案已就绪：${successCount}/${total}，耗时 ${elapsedLabel}。可进入审核。`,
+          );
+        }
       } else {
-        setAllChaptersNotice(
-          `更新草案已就绪：${successCount}/${total}，耗时 ${elapsedLabel}。可进入审核。`,
-        );
+        setAllChaptersNotice("更新草案已就绪，可进入审核。");
       }
     } catch (e) {
       if (e instanceof ActiveDraftExistsError) {
