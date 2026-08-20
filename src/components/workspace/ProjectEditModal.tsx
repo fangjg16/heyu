@@ -9,7 +9,12 @@ import {
   parseIndustryCategory,
   UNCATEGORIZED_LABEL,
 } from "@/workspace/industry-taxonomy";
-import type { ProjectOpenness, ProjectPhase, WorkspaceProject } from "@/workspace/projects";
+import {
+  projectPhaseLabel,
+  type ProjectOpenness,
+  type ProjectPhase,
+  type WorkspaceProject,
+} from "@/workspace/projects";
 
 const PHASE_OPTIONS: ProjectPhase[] = [
   "Active（资源筹备中）",
@@ -201,7 +206,7 @@ export function ProjectEditModal({
             >
               {PHASE_OPTIONS.map((p) => (
                 <option key={p} value={p}>
-                  {p}
+                  {projectPhaseLabel(p)}
                 </option>
               ))}
             </select>

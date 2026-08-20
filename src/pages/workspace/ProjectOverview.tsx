@@ -9,9 +9,11 @@ import { IndustryCategoryFields, RequiredMark } from "@/components/workspace/Ind
 import { cn } from "@/lib/utils";
 import {
   formatIndustryCategory,
+  displayIndustryCategory,
 } from "@/workspace/industry-taxonomy";
 import {
   normalizeProjectPhase,
+  projectPhaseLabel,
   type ProjectPhase,
   type WorkspaceProject,
 } from "@/workspace/projects";
@@ -95,10 +97,7 @@ const PHASE_BADGE_CLASS: Record<ProjectPhase, string> = {
 };
 
 function phaseChipText(phase: ProjectPhase | undefined): string {
-  const safe = normalizeProjectPhase(phase);
-  const english = safe.match(/^[A-Za-z]+/)?.[0]?.toUpperCase() ?? "ACTIVE";
-  const cn = safe.match(/（(.+?)）/)?.[1] ?? "";
-  return `${english} ${cn}`.trim();
+  return projectPhaseLabel(phase);
 }
 
 function phaseBadgeClass(phase: ProjectPhase | undefined): string {
@@ -227,7 +226,7 @@ function ProjectCard({
             </span>
           </div>
           <p className="mt-[3px] text-[12.5px] text-[hsl(var(--warm-charcoal-muted))]">
-            {project.category || "投研项目"}
+            {displayIndustryCategory(project.category) || "投研项目"}
           </p>
         </div>
         {canManage ? (
@@ -679,7 +678,7 @@ export default function ProjectOverview() {
                 <option value="all">全部项目状态</option>
                 {phaseOptions.map((phase) => (
                   <option key={phase} value={phase}>
-                    {phase}
+                    {projectPhaseLabel(phase)}
                   </option>
                 ))}
               </select>

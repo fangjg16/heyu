@@ -687,7 +687,7 @@ export default function HomeDashboard() {
             className="font-display"
             style={{ fontSize: 21, fontWeight: 600, color: C.ink }}
           >
-            内部待确认问题
+            待协作确认
           </div>
           <span style={{ fontSize: 14, color: C.muted }}>
             {todosLoading
@@ -753,7 +753,7 @@ export default function HomeDashboard() {
                 color: C.muted,
               }}
             >
-              暂无内部待确认问题。生成知识网络该章节后会汇总在此。
+              暂无待协作确认。生成知识网络「待确认问题」章节后会汇总在此，可发送给项目协作方。
             </p>
           ) : (
             displayTodos.map((t) => (
