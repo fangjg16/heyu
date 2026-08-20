@@ -12,14 +12,64 @@ export function stripSkillFrontmatter(raw: string): string {
   return (m?.[1] ?? t).trim();
 }
 
-/** 去掉 YAML 头与触发词行；保留完整方法正文，不再按字数截断 */
+const DROP_SKILL_H2 =
+  /^(output format|kb handoff|handoff|边界案例提醒|auto-trigger conditions)(\b|\s|$|\()/iu;
+
+function splitMarkdownH2(
+  md: string,
+): Array<{ title: string; body: string }> {
+  const parts = md.split(/^(?=## )/mu);
+  return parts
+    .map((part) => {
+      const trimmed = part.trim();
+      if (!trimmed) return null;
+      const m = /^## ([^\n]+)\r?\n?([\s\S]*)$/u.exec(trimmed);
+      if (!m) return { title: "", body: trimmed };
+      return { title: (m[1] ?? "").trim(), body: (m[2] ?? "").trim() };
+    })
+    .filter((s): s is { title: string; body: string } => Boolean(s));
+}
+
+/** 网页生成不会去网上搜；去掉「去哪个网站查」的目录表，保留分析方法表。 */
+function stripPublicSourceTables(md: string): string {
+  return md.replace(
+    /(^|\n)(\|[^\n]+\|\r?\n\|[-:| ]+\|\r?\n(?:\|[^\n]+\|\r?\n)*)/gu,
+    (full, lead: string, table: string) => {
+      const header = (table.split(/\r?\n/u)[0] ?? "").replace(/\|/gu, " ");
+      const isCatalog =
+        /\bSources\b/u.test(header) &&
+        /Jurisdiction|China Sources|Overseas Sources|Sources \(China\)|Sources \(Overseas\)|\bSector\b/iu.test(
+          header,
+        );
+      return isCatalog ? lead : full;
+    },
+  );
+}
+
+/** 去掉 YAML / Handoff / 公开检索目录；只留 Workflow 等方法步骤。 */
 export function condenseSkillMarkdown(raw: string): string {
-  return stripSkillFrontmatter(raw)
+  let t = stripSkillFrontmatter(raw)
     .replace(/^description:\s*".*?"\s*$/gimu, "")
     .replace(/^Triggers on[^\n]*$/gimu, "")
-    .replace(/Use when[^\n]*$/gimu, "")
-    .replace(/\n{3,}/gu, "\n\n")
-    .trim();
+    .replace(/^Use when[^\n]*$/gimu, "");
+  t = t.replace(/```[\s\S]*?---KB-HANDOFF---[\s\S]*?---END-HANDOFF---[\s\S]*?```/gu, "");
+  t = t.replace(/---KB-HANDOFF---[\s\S]*?---END-HANDOFF---/gu, "");
+  t = t.replace(/^> \*\*v2\.\d[\s\S]*?(?=\n## |\n# |\n*$)/mu, "");
+
+  const kept = splitMarkdownH2(t).filter((section) => {
+    if (!section.title) return true;
+    const heading = section.title.replace(/\(legacy[^)]*\)/giu, "").trim();
+    return !DROP_SKILL_H2.test(heading);
+  });
+  t = kept
+    .map((section) =>
+      section.title
+        ? `## ${section.title}\n${section.body}`.trim()
+        : section.body,
+    )
+    .join("\n\n");
+  t = stripPublicSourceTables(t);
+  return t.replace(/\n{3,}/gu, "\n\n").trim();
 }
 
 function wrapMethodBlock(

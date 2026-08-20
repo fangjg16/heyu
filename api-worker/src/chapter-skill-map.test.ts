@@ -58,7 +58,7 @@ describe("chapter-skill-map", () => {
 });
 
 describe("condenseSkillMarkdown", () => {
-  it("strips yaml frontmatter and keeps the full method body", () => {
+  it("strips yaml frontmatter and keeps the method body", () => {
     const md = `---
 name: dd-checklist
 ---
@@ -67,15 +67,55 @@ name: dd-checklist
 
 按优先级列出缺口。
 
-## 长附录
+## Workflow
 
-${"x".repeat(4000)}
+### Step 1
+
+列出缺口。
 `;
     const out = condenseSkillMarkdown(md);
     expect(out).not.toContain("name: dd-checklist");
     expect(out).toContain("尽调清单");
-    expect(out).toContain("x".repeat(4000));
+    expect(out).toContain("列出缺口");
     expect(out).not.toContain("方法已截断");
+  });
+
+  it("drops Handoff blocks and public source catalog tables", () => {
+    const md = `# Public Information Search
+
+## Workflow
+
+### Step 2
+
+**Category 1: Regulatory & Approvals**
+
+| Jurisdiction | Sources | Priority Fields |
+|-------------|---------|-----------------|
+| China | 天眼查, 住建局 | 规划许可 |
+
+### Step 3: Build Comp Table
+
+| Field | Description |
+|-------|-------------|
+| Transaction name | Project name |
+
+## KB Handoff (legacy — skip)
+
+---KB-HANDOFF---
+from-skill: public-info-search
+---END-HANDOFF---
+
+## Output Format
+
+- Chat: Markdown
+`;
+    const out = condenseSkillMarkdown(md);
+    expect(out).toContain("Step 3: Build Comp Table");
+    expect(out).toContain("Transaction name");
+    expect(out).not.toContain("天眼查");
+    expect(out).not.toContain("KB-HANDOFF");
+    expect(out).not.toContain("Output Format");
+    expect(out).not.toContain("from-skill");
   });
 });
 
@@ -95,6 +135,10 @@ describe("buildChapterSkillMethodBlock", () => {
   it("loads public-info-search for business and value-creation-plan for framework", async () => {
     const business = await buildChapterSkillMethodBlock("business");
     expect(business).toContain("本章 business 对应 skill：public-info-search");
+    expect(business).toContain("Define Search Scope");
+    expect(business).not.toContain("Council DA tracker");
+    expect(business).not.toContain("---KB-HANDOFF---");
+    expect(business).not.toContain("边界案例提醒");
     const framework = await buildChapterSkillMethodBlock("framework");
     expect(framework).toContain("本章 framework 对应 skill：value-creation-plan");
   });
