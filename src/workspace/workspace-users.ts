@@ -95,13 +95,13 @@ export function workspaceRoleToUiTier(role: WorkspaceRole): UiTier {
 export function roleLabelForProject(role: WorkspaceRole): string {
   switch (role) {
     case "admin":
-      return "Admin 项目管理员";
+      return "Admin";
     case "core":
-      return "Core 核心级";
+      return "Core";
     case "mid":
-      return "Advanced 进阶级";
+      return "Advanced";
     case "low":
-      return "Basic 基础级";
+      return "Basic";
     case "issuer":
       return "项目协作方";
     case "guest":

@@ -156,6 +156,20 @@ export function formatIndustryCategory(theme: string, sector: string): string {
   return `${t} / ${s}`;
 }
 
+/** 卡片展示：一级 - 二级（二级内部的 / 仍保留） */
+export function displayIndustryCategory(raw: string | null | undefined): string {
+  const parsed = parseIndustryCategory(raw);
+  if (parsed.theme && parsed.sector) return `${parsed.theme} - ${parsed.sector}`;
+  if (parsed.theme) return parsed.theme;
+  const value = String(raw ?? "").trim();
+  if (!value || value === UNCATEGORIZED_LABEL) return value;
+  const idx = value.indexOf(" / ");
+  if (idx > 0) {
+    return `${value.slice(0, idx).trim()} - ${value.slice(idx + 3).trim()}`;
+  }
+  return value;
+}
+
 export function parseIndustryCategory(raw: string | null | undefined): {
   theme: string;
   sector: string;

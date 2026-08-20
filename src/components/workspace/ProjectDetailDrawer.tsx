@@ -4,7 +4,8 @@ import { MessageSquare, Pencil, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { deleteProjectViaApi } from "@/lib/project-api";
 import { ProjectEditModal } from "@/components/workspace/ProjectEditModal";
-import type { WorkspaceProject } from "@/workspace/projects";
+import { projectPhaseLabel, type WorkspaceProject } from "@/workspace/projects";
+import { displayIndustryCategory } from "@/workspace/industry-taxonomy";
 import type { ProjectDetailTier } from "@/workspace/project-details";
 import { ProjectMaterialsSection } from "@/components/workspace/ProjectMaterialsSection";
 import { ProjectKnowledgeNetworkSection } from "@/components/workspace/ProjectKnowledgeNetworkSection";
@@ -139,7 +140,7 @@ export function ProjectDetailDrawer({
         <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border/60 px-5 py-4 md:px-6">
           <div>
             <p className="font-mono text-[0.6rem] font-medium uppercase tracking-[0.14em] text-primary">
-              {project.category}
+              {displayIndustryCategory(project.category)}
             </p>
             <h2
               id="project-detail-title"
@@ -208,13 +209,13 @@ export function ProjectDetailDrawer({
                 <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                   状态
                 </dt>
-                <dd className="text-sm font-medium text-foreground">{project.phase}</dd>
+                <dd className="text-sm font-medium text-foreground">{projectPhaseLabel(project.phase)}</dd>
               </div>
               <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
                 <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                   分类
                 </dt>
-                <dd className="text-sm font-medium text-foreground">{project.category}</dd>
+                <dd className="text-sm font-medium text-foreground">{displayIndustryCategory(project.category)}</dd>
               </div>
               <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
                 <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">

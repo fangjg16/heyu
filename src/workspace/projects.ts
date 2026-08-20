@@ -40,3 +40,9 @@ export function normalizeProjectPhase(raw: string | undefined | null): ProjectPh
   const p = (raw ?? "").trim() as ProjectPhase;
   return phases.includes(p) ? p : DEFAULT_PROJECT_PHASE;
 }
+
+/** 界面展示用中文阶段名；库内仍存 Active（资源筹备中）等原值 */
+export function projectPhaseLabel(phase: ProjectPhase | undefined | null): string {
+  const safe = normalizeProjectPhase(phase);
+  return safe.match(/（(.+?)）/)?.[1] ?? safe;
+}
