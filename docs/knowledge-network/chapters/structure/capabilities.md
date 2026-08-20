@@ -7,7 +7,28 @@ kicker: 方案与回报 · C.3
 canonicalHint: network
 ---
 
-<div style="margin:8px 0 18px;font-size:13.5px;line-height:1.75;color:#59625F">待补（关系与主体公开信息摘要）</div>
+<aside style="border-left:4px solid #A3262C;background:rgba(163,38,44,.05);padding:1rem 1.25rem;margin:8px 0 1.25rem">
+  <p style="font-size:12px;font-weight:700;color:#A3262C;margin:0 0 .4rem">关系摘要</p>
+  <p style="margin:0;font-size:13.5px;line-height:1.7;color:#1F2423">待补（关系与主体公开信息摘要）</p>
+</aside>
+
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 1.5rem">
+  <div style="background:rgba(255,252,248,.78);border:1px solid rgba(78,66,57,0.1);border-radius:14px;padding:16px 18px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#888">对手方</div>
+    <div style="font-size:15px;font-weight:600;color:#A3262C;margin-top:8px">待补</div>
+    <div style="font-size:12.5px;color:#59625F;margin-top:6px;line-height:1.6">待补</div>
+  </div>
+  <div style="background:rgba(255,252,248,.78);border:1px solid rgba(78,66,57,0.1);border-radius:14px;padding:16px 18px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#888">顾问 / 中介</div>
+    <div style="font-size:15px;font-weight:600;color:#A3262C;margin-top:8px">待补</div>
+    <div style="font-size:12.5px;color:#59625F;margin-top:6px;line-height:1.6">待补</div>
+  </div>
+  <div style="background:rgba(255,252,248,.78);border:1px solid rgba(78,66,57,0.1);border-radius:14px;padding:16px 18px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#888">关键个人</div>
+    <div style="font-size:15px;font-weight:600;color:#A3262C;margin-top:8px">待补</div>
+    <div style="font-size:12.5px;color:#59625F;margin-top:6px;line-height:1.6">待补</div>
+  </div>
+</div>
 
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 公开检索档案</h3>
 

@@ -20,8 +20,10 @@ type KnowledgeDraftGeneratingDialogProps = {
   /** full = 全部章节；section = 单章 */
   mode?: "full" | "section";
   sectionLabel?: string;
+  stopping?: boolean;
   onClose: () => void;
   onGoReview: () => void;
+  onStop?: () => void;
 };
 
 function formatElapsedMs(ms: number): string {
@@ -41,8 +43,10 @@ export function KnowledgeDraftGeneratingDialog({
   error,
   mode = "full",
   sectionLabel,
+  stopping = false,
   onClose,
   onGoReview,
+  onStop,
 }: KnowledgeDraftGeneratingDialogProps) {
   const [mounted, setMounted] = useState(open);
 
@@ -99,15 +103,15 @@ export function KnowledgeDraftGeneratingDialog({
                 <span className="font-medium text-[#1F2423]">
                   当前正式版本不会被覆盖
                 </span>
-                ；完成后可进入审核页对照差异，确认后再发布。关闭本窗口不会取消已发出的生成请求。
+                ；完成后可进入审核页对照差异，确认后再发布。点「后台继续」可关闭本窗口，生成仍会继续。
               </>
             ) : (
               <>
-                正在按队列生成 13 个研究章节的待审核草案（同时最多 2 章，避免模型限流）。
+                正在生成 13 个研究章节的待审核草案。
                 <span className="font-medium text-[#1F2423]">
                   当前正式版本不会被覆盖
                 </span>
-                ；全部完成后可进入审核页对照差异并发布为新版本。关闭本窗口不会取消已发出的生成请求。
+                ；全部完成后可进入审核页对照差异并发布为新版本。点「后台继续」可关闭本窗口，生成仍会继续。
               </>
             )}
           </p>
@@ -129,9 +133,7 @@ export function KnowledgeDraftGeneratingDialog({
                 <span className="text-[#59625F]">
                   {finished
                     ? "已完成"
-                    : mode === "section"
-                      ? "生成中"
-                      : "排队生成中"}
+                    : "生成中"}
                 </span>
               )}
             </div>
@@ -160,6 +162,16 @@ export function KnowledgeDraftGeneratingDialog({
           ) : null}
 
           <div className="mt-5 flex flex-wrap justify-end gap-2.5">
+            {!finished && onStop ? (
+              <button
+                type="button"
+                onClick={onStop}
+                disabled={stopping || !runId}
+                className="inline-flex h-10 items-center rounded-[11px] border border-[rgba(160,99,88,0.28)] bg-transparent px-4 text-[13.5px] font-medium text-[#A06358] hover:bg-[rgba(160,99,88,0.06)] disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {stopping ? "正在停止…" : "停止生成"}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={onClose}

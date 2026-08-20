@@ -9,6 +9,12 @@ canonicalHint: comps
 
 <div style="margin:8px 0 18px;font-size:13.5px;line-height:1.75;color:#59625F">待补（可比筛选方法与行业关键指标）</div>
 
+<div style="background:rgba(255,252,248,.95);padding:1.35rem 1.5rem;border-top:2px solid #A3262C;margin:1rem 0 1.5rem">
+  <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#888">建议出价区间</div>
+  <div style="font-family:'Noto Serif SC',serif;font-size:32px;font-weight:700;color:#A3262C;line-height:1.15;margin-top:6px">待补</div>
+  <div style="font-size:12.5px;color:#59625F;margin-top:8px">Floor 待补 · Mid 待补 · Ceiling 待补</div>
+</div>
+
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 筛选标准</h3>
 
 <div style="overflow-x:auto">

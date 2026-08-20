@@ -55,21 +55,21 @@ npm run seed:kn-chapter-templates -- --force
 
 模板正文即期望生成的 HTML 结构，**不要**再写「填写指引」等说明文字（易导致模型跳出版式）。
 
-| 章节 | 版式（网页格子为准；skill 只提供填法） |
+| 章节 | 版式（网页格子为准；skill 视觉组件抽进模板） |
 |------|------|
-| `snapshot` | 范围表 + 交易要点；不要 Factor A/B 十一段或综合成熟度表 |
-| `objectives` | public-info-search 检索档案 + dd-claim-audit 审计/矛盾/敏感性/待核 |
-| `industry` | public-info-search 七类检索档案 + 信息质量 |
-| `legal` | dd-claim-audit 合规声明审计四表 |
-| `benchmarks` | comp-analysis：筛选标准 + 可比表 + 溢价/折价锚 + 估值区间 |
-| `business` | public-info-search：客户/定价/单位经济/经营 KPI（不要 IRR） |
-| `returns` | returns-analysis + sensitivity-analysis：看板/现金流/杠杆/Tornado 表/双变量/情景/盈亏平衡 |
-| `capabilities` | public-info-search 检索档案 + 关系对手方 |
-| `ownership` | background-check：对象/股权链/主体/个人/诉讼/关联交易/红旗 |
+| `snapshot` | 类型/辖区/阶段三色事实卡 + 范围表 + 交易要点；不要 Factor A/B 十一段或综合成熟度表 |
+| `objectives` | 审计摘要 callout + 已核实/存疑/矛盾三卡 + 检索档案 + dd-claim-audit 四表 |
+| `industry` | 行业要点 callout + 市场/政策/可比三卡 + 检索档案 |
+| `legal` | 合规要点 callout + dd-claim-audit 审计四表 |
+| `benchmarks` | 出价区间大数字框 + 筛选标准 + 可比表 + 溢价/折价锚 + 估值区间 |
+| `business` | Journey Map + 九宫格 BMC + 客户/单位经济表（不要 IRR） |
+| `returns` | 估值框 + Downside/Base/Upside 情景卡 + 看板/现金流/杠杆/Tornado/盈亏平衡 |
+| `capabilities` | 对手方/顾问/关键个人三卡 + 检索档案 + 关系表 |
+| `ownership` | HTML 控制结构卡片链 + 主体/个人/诉讼/关联交易/红旗表（禁止 SVG） |
 | `diligence` | dd-checklist：工作流进度 + 检查项跟踪 + 红旗 |
-| `risks` | risk-matrix：HTML 热力图 + 风险登记 + 高风险明细 + 缓释行动 |
+| `risks` | 带底色 4×4 热力图 + 级别徽章登记表 + 高风险明细 + 缓释行动 |
 | `questions` | gap-tracking 方法，版式为 P1/P2/P3 `<details>` 折叠卡片 |
-| `framework` | value-creation-plan：建议/论点/法律路径/增值杠杆/路线图/下一步 |
+| `framework` | 决策 callout + 推进/暂缓双列 + 论点/法律路径/杠杆/路线图 |
 
 待填处统一写「待补」，由「更新本章」据项目上传附件填充。行数可按资料增减，表头不可改。
 
@@ -78,4 +78,4 @@ npm run seed:kn-chapter-templates -- --force
 - 种子源在本目录；改 MD 后执行 `npm run seed:kn-chapter-templates -- --force` 写入数据库（`--force` 才会覆盖已有 format_hint）。
 - 前端「更新本章」读库中 markdown + 项目资料生成 HTML。
 - 不包含顶层 Tab「引用来源 / 名词解释 / 版本记录」的模板。
-- 工作台「项目概览」模板见上级 [`project-overview.md`](../project-overview.md)（`id: project-overview`，不计入 13 章进度）。框架含标题/简介、右上角综合成熟度、判断三卡、四卡、时间轴；关系图由 `===GRAPH===` 挂载。
+- 工作台「项目概览」模板见上级 [`project-overview.md`](../project-overview.md)（`id: project-overview`，不计入 13 章进度）。框架含标题/简介、右上角综合成熟度、判断三卡、四卡、时间轴、`#project-graph-slot` 占位；交互关系图由 `===GRAPH===` JSON 在页面挂载。

@@ -7,25 +7,32 @@ kicker: 风险与决策 · D.3
 canonicalHint: decision-framework
 ---
 
-<div style="margin:8px 0 18px;font-size:13.5px;line-height:1.75;color:#59625F">待补（建议、论点与增值路径一句话）</div>
+<aside style="border-left:4px solid #A3262C;background:rgba(163,38,44,.05);padding:1rem 1.25rem;margin:8px 0 1.25rem">
+  <p style="font-size:12px;font-weight:700;color:#A3262C;margin:0 0 .4rem">决策建议</p>
+  <p style="margin:0;font-size:13.5px;line-height:1.7;color:#1F2423">待补（推进 / 有条件推进 / 暂缓 / 否决 · 条件一句话）</p>
+</aside>
 
-<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 决策建议</h3>
-
-<div style="overflow-x:auto">
-<table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
-  <thead>
-    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F"><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">选项</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">条件</th><th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">建议</th></tr>
-  </thead>
-  <tbody>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">推进 / 有条件推进 / 暂缓 / 否决</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">需先关闭的缺口</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)"><td style="padding:13px 14px">条款保护</td><td style="padding:13px 14px">待补</td><td style="padding:13px 14px">待补</td></tr>
-  </tbody>
-</table>
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 推进 vs 暂缓</h3>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0">
+  <div style="background:#f0f7f1;padding:1rem;border-radius:6px">
+    <div style="font-family:'Noto Serif SC',serif;color:#A3262C;margin-bottom:.5rem;font-size:15px">推进条件</div>
+    <ul style="margin:0;padding-left:1.25rem;font-size:13.5px;line-height:1.7;color:#1F2423">
+      <li>待补</li>
+      <li>待补</li>
+      <li>待补</li>
+    </ul>
+  </div>
+  <div style="background:#fdf5f4;padding:1rem;border-radius:6px">
+    <div style="font-family:'Noto Serif SC',serif;color:#A3262C;margin-bottom:.5rem;font-size:15px">暂缓 / 否决条件</div>
+    <ul style="margin:0;padding-left:1.25rem;font-size:13.5px;line-height:1.7;color:#1F2423">
+      <li>待补</li>
+      <li>待补</li>
+      <li>待补</li>
+    </ul>
+  </div>
 </div>
 
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">2. 投资论点</h3>
-
 <div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
   <thead>
@@ -40,7 +47,6 @@ canonicalHint: decision-framework
 </div>
 
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">3. 法律与交易结构路径</h3>
-
 <div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
   <thead>
@@ -54,7 +60,6 @@ canonicalHint: decision-framework
 </div>
 
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">4. 增值杠杆</h3>
-
 <div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
   <thead>
@@ -69,7 +74,6 @@ canonicalHint: decision-framework
 </div>
 
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">5. 执行路线图</h3>
-
 <div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
   <thead>
@@ -84,7 +88,6 @@ canonicalHint: decision-framework
 </div>
 
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">6. 下一步</h3>
-
 <div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
   <thead>

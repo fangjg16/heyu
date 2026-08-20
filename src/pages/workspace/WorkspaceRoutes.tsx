@@ -29,7 +29,9 @@ import {
 } from "@/workspace/project-manage";
 import {
   ActiveDraftExistsError,
+  DraftRunDiscardedError,
   createChapterDraftRun,
+  discardChapterDraftRun,
   ENABLE_LIVE_CHAT,
   fetchActiveChapterDraftRun,
   fetchProjectsFromApi,
@@ -227,6 +229,7 @@ function ProjectWorkspaceLayout() {
   const [draftSectionLabel, setDraftSectionLabel] = useState("");
   const [draftRunId, setDraftRunId] = useState<string | null>(null);
   const [draftDialogError, setDraftDialogError] = useState<string | null>(null);
+  const [draftStopping, setDraftStopping] = useState(false);
   const [knowledgeRefreshKey, setKnowledgeRefreshKey] = useState(0);
   const [allChaptersNotice, setAllChaptersNotice] = useState<string | null>(
     null,
@@ -515,6 +518,7 @@ function ProjectWorkspaceLayout() {
             setAllChaptersNotice("项目概览草案已就绪，可进入审核。");
           }
         } catch (e) {
+          if (e instanceof DraftRunDiscardedError) throw e;
           const message = normalizeGenerateError(e);
           setAllChaptersProgress({
             done: 1,
@@ -528,7 +532,11 @@ function ProjectWorkspaceLayout() {
         }
       }
     } catch (e) {
-      if (e instanceof ActiveDraftExistsError) {
+      if (e instanceof DraftRunDiscardedError) {
+        setDraftDialogOpen(false);
+        setAllChaptersProgress(null);
+        setDraftDialogError(null);
+      } else if (e instanceof ActiveDraftExistsError) {
         setDraftRunId(e.activeRunId);
         setPersistedActiveRunId(e.activeRunId);
         setDraftDialogOpen(false);
@@ -668,7 +676,14 @@ function ProjectWorkspaceLayout() {
         setAllChaptersNotice("更新草案已就绪，可进入审核。");
       }
     } catch (e) {
-      if (e instanceof ActiveDraftExistsError) {
+      if (e instanceof DraftRunDiscardedError) {
+        setDraftDialogOpen(false);
+        setAllChaptersProgress(null);
+        setDraftDialogError(null);
+        setAllChaptersNotice(null);
+        setDraftRunId(null);
+        setPersistedActiveRunId(null);
+      } else if (e instanceof ActiveDraftExistsError) {
         setDraftRunId(e.activeRunId);
         setPersistedActiveRunId(e.activeRunId);
         setDraftDialogOpen(false);
@@ -701,6 +716,24 @@ function ProjectWorkspaceLayout() {
     if (!id || !project) return;
     setDraftDialogOpen(false);
     navigate(`/app/projects/${project.id}/knowledge/review/${id}`);
+  };
+
+  const onStopDraft = async () => {
+    if (!draftRunId || !project || draftStopping) return;
+    setDraftStopping(true);
+    setDraftDialogError(null);
+    try {
+      await discardChapterDraftRun(project.id, draftRunId, userId);
+      setDraftDialogOpen(false);
+      setAllChaptersProgress(null);
+      setDraftRunId(null);
+      setPersistedActiveRunId(null);
+      setAllChaptersNotice(null);
+    } catch (e) {
+      setDraftDialogError(e instanceof Error ? e.message : "停止生成失败");
+    } finally {
+      setDraftStopping(false);
+    }
   };
 
   return (
@@ -801,6 +834,8 @@ function ProjectWorkspaceLayout() {
         sectionLabel={draftSectionLabel}
         onClose={() => setDraftDialogOpen(false)}
         onGoReview={goDraftReview}
+        stopping={draftStopping}
+        onStop={() => void onStopDraft()}
       />
     </WorkspaceShell>
   );

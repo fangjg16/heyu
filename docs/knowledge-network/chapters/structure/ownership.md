@@ -9,7 +9,31 @@ canonicalHint: ownership
 
 <div style="margin:8px 0 18px;font-size:13.5px;line-height:1.75;color:#59625F">待补（Clean / Flags identified / Significant concerns）</div>
 
-<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 调查对象</h3>
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 控制结构</h3>
+<div style="background:rgba(255,252,248,.78);border:1px solid rgba(163,38,44,.12);padding:1.5rem 1.25rem;margin:1.25rem 0;text-align:center">
+  <div style="display:inline-block;min-width:11rem;margin:.25rem;padding:.85rem;border:2px solid #A3262C;background:#fff;font-size:13.5px">
+    <small style="display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#888;margin-bottom:.25rem">最终受益人</small>
+    <strong style="font-family:'Noto Serif SC',serif;color:#A3262C">待补</strong>
+  </div>
+  <div style="width:2px;height:1.5rem;background:#A3262C;margin:0 auto"></div>
+  <div style="display:inline-block;min-width:11rem;margin:.25rem;padding:.85rem;border:2px solid #A3262C;background:rgba(163,38,44,.08);font-size:13.5px">
+    <small style="display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#888;margin-bottom:.25rem">出售 / 控股主体</small>
+    <strong style="font-family:'Noto Serif SC',serif;color:#A3262C">待补</strong>
+  </div>
+  <div style="width:2px;height:1.5rem;background:#A3262C;margin:0 auto"></div>
+  <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:.5rem">
+    <div style="display:inline-block;min-width:11rem;padding:.85rem;border:2px solid #A3262C;background:#fff;font-size:13.5px">
+      <small style="display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#888;margin-bottom:.25rem">项目 / SPV</small>
+      <strong style="font-family:'Noto Serif SC',serif;color:#A3262C">待补</strong>
+    </div>
+    <div style="display:inline-block;min-width:11rem;padding:.85rem;border:2px solid #A3262C;background:#fff;font-size:13.5px">
+      <small style="display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#888;margin-bottom:.25rem">关联主体</small>
+      <strong style="font-family:'Noto Serif SC',serif;color:#A3262C">待补</strong>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">2. 调查对象</h3>
 
 <div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
@@ -26,7 +50,7 @@ canonicalHint: ownership
 </table>
 </div>
 
-<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">2. 股权链</h3>
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">3. 股权链</h3>
 
 <div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
@@ -42,7 +66,7 @@ canonicalHint: ownership
 </table>
 </div>
 
-<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">3. 主体档案</h3>
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">4. 主体档案</h3>
 
 <div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
@@ -57,7 +81,7 @@ canonicalHint: ownership
 </table>
 </div>
 
-<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">4. 个人档案</h3>
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">5. 个人档案</h3>
 
 <div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
@@ -72,7 +96,7 @@ canonicalHint: ownership
 </table>
 </div>
 
-<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">5. 诉讼与争议</h3>
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">6. 诉讼与争议</h3>
 
 <div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
@@ -87,7 +111,7 @@ canonicalHint: ownership
 </table>
 </div>
 
-<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">6. 关联交易</h3>
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">7. 关联交易</h3>
 
 <div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
@@ -102,7 +126,7 @@ canonicalHint: ownership
 </table>
 </div>
 
-<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">7. 红旗</h3>
+<h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">8. 红旗</h3>
 
 <div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">

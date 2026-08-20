@@ -7,7 +7,25 @@ kicker: 基础研究 · B.1
 canonicalHint: industry
 ---
 
-<div style="margin:8px 0 18px;font-size:13.5px;line-height:1.75;color:#59625F">待补（检索范围：辖区、行业、广搜/补缺）</div>
+<aside style="border-left:4px solid #A3262C;background:rgba(163,38,44,.05);padding:1rem 1.25rem;margin:8px 0 1.25rem">
+  <p style="font-size:12px;font-weight:700;color:#A3262C;margin:0 0 .4rem">行业要点</p>
+  <p style="margin:0;font-size:13.5px;line-height:1.7;color:#1F2423">待补（检索范围：辖区、行业、广搜/补缺）</p>
+</aside>
+
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 1.5rem">
+  <div style="background:rgba(255,252,248,.78);border-left:3px solid #A3262C;padding:16px 18px">
+    <div style="font-size:12px;color:#59625F">市场</div>
+    <div style="font-size:13.5px;line-height:1.7;color:#1F2423;margin-top:8px">待补</div>
+  </div>
+  <div style="background:rgba(255,252,248,.78);border-left:3px solid #A3262C;padding:16px 18px">
+    <div style="font-size:12px;color:#59625F">政策 / 监管</div>
+    <div style="font-size:13.5px;line-height:1.7;color:#1F2423;margin-top:8px">待补</div>
+  </div>
+  <div style="background:rgba(255,252,248,.78);border-left:3px solid #A3262C;padding:16px 18px">
+    <div style="font-size:12px;color:#59625F">可比信号</div>
+    <div style="font-size:13.5px;line-height:1.7;color:#1F2423;margin-top:8px">待补</div>
+  </div>
+</div>
 
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 公开检索档案</h3>
 

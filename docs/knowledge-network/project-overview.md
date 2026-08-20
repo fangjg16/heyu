@@ -127,4 +127,10 @@ canonicalHint: project-overview
       </div>
     </div>
   </div>
+
+  <div id="project-graph-slot" style="margin-top:34px;padding-top:26px;border-top:1px solid rgba(78,66,57,0.12)">
+    <div style="font-family:'Noto Serif SC',serif;font-size:20px;font-weight:600;color:#1F2423">项目关系图</div>
+    <div style="font-size:12px;color:#59625F;margin-top:5px">主体、资产与关键对手方关系；生成后由页面挂载交互图</div>
+    <div style="margin-top:16px;min-height:220px;border:1px dashed rgba(163,38,44,.28);border-radius:16px;background:rgba(255,252,248,.78);display:flex;align-items:center;justify-content:center;color:#969E9A;font-size:13px">待生成关系图</div>
+  </div>
 </div>

@@ -10,7 +10,9 @@ import {
 } from "@/components/workspace/KnowledgeDraftGeneratingDialog";
 import {
   ActiveDraftExistsError,
+  DraftRunDiscardedError,
   createChapterDraftRun,
+  discardChapterDraftRun,
   fetchKnowledgeChapterVersion,
   fetchProjectKnowledgeChapter,
   listKnowledgeChapterVersions,
@@ -148,6 +150,7 @@ export function ProjectKnowledgeNetworkSection({
   const [draftDialogOpen, setDraftDialogOpen] = useState(false);
   const [draftRunId, setDraftRunId] = useState<string | null>(null);
   const [draftDialogError, setDraftDialogError] = useState<string | null>(null);
+  const [draftStopping, setDraftStopping] = useState(false);
   const [draftProgress, setDraftProgress] =
     useState<DraftGeneratingProgress | null>(null);
   const [draftSectionLabel, setDraftSectionLabel] = useState("");
@@ -611,6 +614,7 @@ export function ProjectKnowledgeNetworkSection({
             onChapterGenerateSucceededRef.current?.(targetSectionId);
           }
         } catch (e) {
+          if (e instanceof DraftRunDiscardedError) throw e;
           const msg = e instanceof Error ? e.message : "生成草案失败";
           setDraftProgress({
             done: 1,
@@ -625,7 +629,12 @@ export function ProjectKnowledgeNetworkSection({
         }
       }
     } catch (e) {
-      if (e instanceof ActiveDraftExistsError) {
+      if (e instanceof DraftRunDiscardedError) {
+        setDraftDialogOpen(false);
+        setDraftProgress(null);
+        setDraftDialogError(null);
+        setDraftRunId(null);
+      } else if (e instanceof ActiveDraftExistsError) {
         setDraftRunId(e.activeRunId);
         setDraftDialogOpen(false);
         setError(
@@ -656,6 +665,22 @@ export function ProjectKnowledgeNetworkSection({
     if (!draftRunId) return;
     setDraftDialogOpen(false);
     navigate(`/app/projects/${projectId}/knowledge/review/${draftRunId}`);
+  };
+
+  const onStopDraft = async () => {
+    if (!draftRunId || draftStopping) return;
+    setDraftStopping(true);
+    setDraftDialogError(null);
+    try {
+      await discardChapterDraftRun(projectId, draftRunId, userId);
+      setDraftDialogOpen(false);
+      setDraftProgress(null);
+      setDraftRunId(null);
+    } catch (e) {
+      setDraftDialogError(e instanceof Error ? e.message : "停止生成失败");
+    } finally {
+      setDraftStopping(false);
+    }
   };
 
   const onRevise = async () => {
@@ -1246,6 +1271,8 @@ export function ProjectKnowledgeNetworkSection({
         sectionLabel={draftSectionLabel}
         onClose={() => setDraftDialogOpen(false)}
         onGoReview={goDraftReview}
+        stopping={draftStopping}
+        onStop={() => void onStopDraft()}
       />
 
       {allChaptersConfirm && typeof document !== "undefined"
@@ -1268,7 +1295,7 @@ export function ProjectKnowledgeNetworkSection({
                     确认更新全部章节
                   </h3>
                   <p className="mt-2 text-[12.5px] leading-relaxed text-[#59625F]">
-                    将并行生成全部知识网络章节的更新草案。正式版本不会被覆盖，生成完成后可进入审核页对照差异再发布。耗时可能较长。确定开始？
+                    将生成全部知识网络章节的更新草案。正式版本不会被覆盖，生成完成后可进入审核页对照差异再发布。耗时可能较长。确定开始？
                   </p>
                 </div>
                 <div className="flex justify-end gap-2 px-5 py-3">

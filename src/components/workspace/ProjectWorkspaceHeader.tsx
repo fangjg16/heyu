@@ -304,7 +304,7 @@ export function ProjectWorkspaceHeader({
                 失败 {allChaptersProgress.failed}
               </span>
             ) : (
-              <span className="text-[#59625F]">并行生成中</span>
+              <span className="text-[#59625F]">生成中</span>
             )}
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[rgba(78,66,57,0.1)]">

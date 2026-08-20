@@ -1071,6 +1071,13 @@ export class ActiveDraftExistsError extends Error {
   }
 }
 
+export class DraftRunDiscardedError extends Error {
+  constructor() {
+    super("已停止生成");
+    this.name = "DraftRunDiscardedError";
+  }
+}
+
 export async function createChapterDraftRun(
   projectId: string,
   userId: string,
@@ -1362,6 +1369,9 @@ export async function waitForDraftRunSettled(
               id !== "glossary" &&
               id !== "project-graph",
           );
+      if (snap.run.status === "discarded") {
+        throw new DraftRunDiscardedError();
+      }
       const summary = summarizeDraftRunProgress(snap.items, ids);
       options?.onProgress?.(summary, snap);
       if (summary.settled) return snap;

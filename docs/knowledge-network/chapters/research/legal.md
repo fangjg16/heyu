@@ -7,7 +7,10 @@ kicker: 基础研究 · B.2
 canonicalHint: legal
 ---
 
-<div style="margin:8px 0 18px;font-size:13.5px;line-height:1.75;color:#59625F">待补（合规声明审计摘要）</div>
+<aside style="border-left:4px solid #A3262C;background:rgba(163,38,44,.05);padding:1rem 1.25rem;margin:8px 0 1.25rem">
+  <p style="font-size:12px;font-weight:700;color:#A3262C;margin:0 0 .4rem">合规要点</p>
+  <p style="margin:0;font-size:13.5px;line-height:1.7;color:#1F2423">待补（合规声明审计摘要）</p>
+</aside>
 
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 声明审计（审批/权属/合规）</h3>
 
