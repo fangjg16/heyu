@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import {
   formatIndustryCategory,
   displayIndustryCategory,
+  parseIndustryCategory,
 } from "@/workspace/industry-taxonomy";
 import {
   normalizeProjectPhase,
@@ -104,64 +105,33 @@ function phaseBadgeClass(phase: ProjectPhase | undefined): string {
   return PHASE_BADGE_CLASS[normalizeProjectPhase(phase)];
 }
 
-const PHASE_TRACK_STEPS = ["筹备", "研究", "签约"] as const;
+const COVER_TONES = [
+  {
+    wash: "linear-gradient(135deg, rgba(160,99,88,0.18) 0%, rgba(255,250,244,0.55) 72%)",
+    mark: "rgba(160,99,88,0.14)",
+  },
+  {
+    wash: "linear-gradient(135deg, rgba(63,111,99,0.16) 0%, rgba(255,250,244,0.55) 72%)",
+    mark: "rgba(63,111,99,0.14)",
+  },
+  {
+    wash: "linear-gradient(135deg, rgba(176,125,31,0.16) 0%, rgba(255,250,244,0.55) 72%)",
+    mark: "rgba(176,125,31,0.14)",
+  },
+  {
+    wash: "linear-gradient(135deg, rgba(94,122,155,0.16) 0%, rgba(255,250,244,0.55) 72%)",
+    mark: "rgba(94,122,155,0.14)",
+  },
+] as const;
 
-function phaseTrackState(phase: ProjectPhase | undefined): {
-  filledThrough: number;
-  current: number;
-  fillClass: string;
-} {
-  const p = normalizeProjectPhase(phase);
-  if (p.startsWith("Cancelled")) {
-    return { filledThrough: -1, current: -1, fillClass: "bg-[rgba(78,66,57,0.18)]" };
-  }
-  if (p.startsWith("Paused")) {
-    return { filledThrough: 0, current: 0, fillClass: "bg-[#C4B4A6]" };
-  }
-  if (p.startsWith("Completed")) {
-    return { filledThrough: 2, current: 2, fillClass: "bg-[#5E9B75]" };
-  }
-  return { filledThrough: 0, current: 0, fillClass: "bg-[#A06358]" };
-}
-
-function ProjectPhaseTrack({ phase }: { phase: ProjectPhase }) {
-  const { filledThrough, current, fillClass } = phaseTrackState(phase);
-  return (
-    <div className="mt-4" aria-label={`项目阶段：${projectPhaseLabel(phase)}`}>
-      <div className="mb-1.5 flex items-baseline justify-between gap-2 text-[11.5px] text-[#59625F]">
-        <span>项目阶段</span>
-        <span className="font-medium text-[hsl(var(--warm-charcoal))]">
-          {projectPhaseLabel(phase)}
-        </span>
-      </div>
-      <div className="flex gap-1">
-        {PHASE_TRACK_STEPS.map((label, i) => (
-          <div
-            key={label}
-            className={cn(
-              "h-[7px] flex-1 rounded-[3px]",
-              i <= filledThrough ? fillClass : "bg-[rgba(78,66,57,0.14)]",
-            )}
-          />
-        ))}
-      </div>
-      <div className="mt-1.5 flex justify-between">
-        {PHASE_TRACK_STEPS.map((label, i) => (
-          <span
-            key={label}
-            className={cn(
-              "text-[10px] leading-none",
-              i === current
-                ? "font-medium text-[#1F2423]"
-                : "text-[#969E9A]",
-            )}
-          >
-            {label}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
+function coverToneFor(project: WorkspaceProject) {
+  const key =
+    parseIndustryCategory(project.category).theme ||
+    project.category ||
+    project.id;
+  let n = 0;
+  for (let i = 0; i < key.length; i++) n = (n * 31 + key.charCodeAt(i)) >>> 0;
+  return COVER_TONES[n % COVER_TONES.length]!;
 }
 
 /** 卡片脚注用短标签 */
@@ -215,9 +185,7 @@ function ProjectCard({
       ? project.guestSummary || "请进入协作工作台查看待确认事项与可上传资料。"
       : project.summary;
   const owner = ownerDisplayName(project.createdBy);
-  // 红线 / 待补资料暂无结构化 API：诚实占位
-  const redlinesDisplay = "—";
-  const gapsDisplay = "—";
+  const cover = coverToneFor(project);
   const mark = (() => {
     const t = project.name.trim();
     if (!t) return "项";
@@ -248,89 +216,82 @@ function ProjectCard({
   return (
     <article
       className={cn(
-        "flex flex-col rounded-[20px] border border-[rgba(255,255,255,0.6)] bg-[rgba(255,252,248,0.76)] p-[22px] shadow-[0_10px_30px_rgba(102,80,60,0.08)] backdrop-blur-[18px] transition-shadow hover:shadow-[0_14px_36px_rgba(102,80,60,0.14)]"
+        "relative flex flex-col overflow-hidden rounded-[20px] border border-[rgba(255,255,255,0.6)] bg-[rgba(255,252,248,0.76)] shadow-[0_10px_30px_rgba(102,80,60,0.08)] backdrop-blur-[18px] transition-shadow hover:shadow-[0_14px_36px_rgba(102,80,60,0.14)]"
       )}
     >
-      <div className="flex items-start gap-3.5">
-        <div className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--wine-muted))] font-display text-[15px] font-bold text-[hsl(var(--wine))]">
+      <div
+        className="relative overflow-hidden px-[22px] pb-4 pt-[18px]"
+        style={{ background: cover.wash }}
+      >
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -bottom-4 -right-1 select-none font-display text-[76px] font-semibold leading-none"
+          style={{ color: cover.mark }}
+        >
           {mark}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-display text-[19px] font-semibold leading-snug text-[hsl(var(--warm-charcoal))]">
-              {project.name}
-            </h2>
-            <span
-              className={cn(
-                "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
-                phaseBadgeClass(project.phase)
-              )}
-            >
-              {phaseChipText(project.phase)}
-            </span>
-            <span
-              className={cn(
-                "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
-                isMember
-                  ? "bg-[rgba(94,155,117,0.13)] text-[#3F6F63]"
-                  : "bg-[rgba(78,66,57,0.08)] text-[hsl(var(--warm-charcoal-muted))]"
-              )}
-            >
-              {roleLabel}
-            </span>
+        </span>
+        <div className="relative flex items-start gap-3">
+          <div className="min-w-0 flex-1 pr-10">
+            <p className="text-[11px] tracking-[0.12em] text-[hsl(var(--wine))]">
+              {displayIndustryCategory(project.category) || "投研项目"}
+            </p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <h2 className="font-display text-[19px] font-semibold leading-snug text-[hsl(var(--warm-charcoal))]">
+                {project.name}
+              </h2>
+              <span
+                className={cn(
+                  "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+                  phaseBadgeClass(project.phase)
+                )}
+              >
+                {phaseChipText(project.phase)}
+              </span>
+              <span
+                className={cn(
+                  "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+                  isMember
+                    ? "bg-[rgba(94,155,117,0.13)] text-[#3F6F63]"
+                    : "bg-[rgba(78,66,57,0.08)] text-[hsl(var(--warm-charcoal-muted))]"
+                )}
+              >
+                {roleLabel}
+              </span>
+            </div>
           </div>
-          <p className="mt-[3px] text-[12.5px] text-[hsl(var(--warm-charcoal-muted))]">
-            {displayIndustryCategory(project.category) || "投研项目"}
-          </p>
+          {canManage ? (
+            <div className="relative z-[1] flex shrink-0 gap-1">
+              <button
+                type="button"
+                title="编辑项目"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit?.();
+                }}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[hsl(var(--warm-charcoal-muted))] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                title="删除项目"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete?.();
+                }}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[hsl(var(--warm-charcoal-muted))] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : null}
         </div>
-        {canManage ? (
-          <div className="flex shrink-0 gap-1">
-            <button
-              type="button"
-              title="编辑项目"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit?.();
-              }}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[hsl(var(--warm-charcoal-muted))] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              title="删除项目"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete?.();
-              }}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[hsl(var(--warm-charcoal-muted))] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        ) : null}
       </div>
-      <p className="mt-4 line-clamp-3 flex-1 text-[13.5px] leading-[1.75] text-[hsl(var(--warm-charcoal-muted))]">
+      <div className="flex flex-1 flex-col px-[22px] pb-[22px] pt-4">
+      <p className="line-clamp-3 flex-1 text-[13.5px] leading-[1.75] text-[hsl(var(--warm-charcoal-muted))]">
         {previewText}
       </p>
-      <ProjectPhaseTrack phase={project.phase} />
       <div className="mt-4 flex gap-[22px] border-t border-[rgba(78,66,57,0.1)] pt-3.5">
-        {!isIssuerRole(role) ? (
-          <>
-            <div>
-              <div className="text-[11px] text-[#59625F]">红线风险</div>
-              <div className="mt-0.5 text-[15px] font-semibold text-[#59625F]">
-                {redlinesDisplay}
-              </div>
-            </div>
-            <div>
-              <div className="text-[11px] text-[#59625F]">待补资料</div>
-              <div className="mt-0.5 text-[15px] font-semibold text-[hsl(var(--warm-charcoal))]">
-                {gapsDisplay}
-              </div>
-            </div>
-          </>
-        ) : null}
         <div className="min-w-0">
           <div className="text-[11px] text-[#59625F]">负责人</div>
           <div className="mt-1 truncate text-[13px] font-medium text-[hsl(var(--warm-charcoal))]">
@@ -356,6 +317,7 @@ function ProjectCard({
             <ArrowRight className="h-3.5 w-3.5" />
           ) : null}
         </button>
+      </div>
       </div>
     </article>
   );
