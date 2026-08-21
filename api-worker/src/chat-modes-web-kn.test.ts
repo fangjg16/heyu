@@ -22,3 +22,22 @@ describe("knowledge network chat is web-only", () => {
     ).toBe(false);
   });
 });
+
+describe("due-diligence chat intents", () => {
+  it("routes 商业模式尽调 to business-due-diligence, not project-intake", () => {
+    expect(
+      detectSkillIntent("列一个针对他们商业模式的尽调问题清单"),
+    ).toBe("business_due_diligence");
+    expect(detectSkillIntent("做一份商业尽调")).toBe("business_due_diligence");
+  });
+
+  it("keeps generic 尽调清单 on dd-checklist", () => {
+    expect(detectSkillIntent("生成尽调清单，标出已有和还缺的材料")).toBe(
+      "dd_checklist",
+    );
+  });
+
+  it("keeps bare 尽调 on project-intake", () => {
+    expect(detectSkillIntent("帮我做个尽调")).toBe("project_intake");
+  });
+});

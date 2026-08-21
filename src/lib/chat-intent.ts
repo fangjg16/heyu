@@ -6,6 +6,10 @@ import { isKnowledgeNetworkDeliveryIntent } from "@/lib/knowledge-network-intent
  */
 const DEEP_SKILL_PATTERNS: RegExp[] = [
   /投资委员会|ic\s*memo|ic备忘录|投资决策备忘录|立项备忘录|表决建议|条款清单|投委会|decision memo|prepare for ic|总结一下这个项目|write up the deal/u,
+  /商业尽调|业务尽调|商业尽职|业务尽职|商业模式.{0,12}尽调|尽调.{0,12}商业模式|business[-\s]?due[-\s]?diligence|\bbusiness\s*dd\b/iu,
+  /行业尽调|产业尽调|行业尽职|industry[-\s]?due[-\s]?diligence|\bindustry\s*dd\b/iu,
+  /财务尽调|财务尽职|financial[-\s]?due[-\s]?diligence|\bfinancial\s*dd\b|\bfdd\b/iu,
+  /收购尽调|并购尽调|收购尽职|acquisition[-\s]?due[-\s]?diligence/iu,
   /dd\s*checklist|尽调清单|diligence request|data room review|尽调跟踪|还要查什么|what do we still need to check|工作流清单/u,
   /声明审计|claim audit|verify claims|cross check|信息审计|矛盾|contradiction|审计.*声明|可信度|is this true|audit this/u,
   /风险矩阵|risk matrix|风险评估|what could go wrong|what are the risks|风险登记/u,

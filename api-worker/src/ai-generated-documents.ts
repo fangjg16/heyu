@@ -20,6 +20,10 @@ type Env = { DB: AppDatabase; FILES: AppObjectStorage };
 const INTENT_TITLE: Record<string, string> = {
   project_intake: "项目分析",
   ic_memo: "IC备忘录",
+  business_due_diligence: "商业尽调",
+  industry_due_diligence: "行业尽调",
+  financial_due_diligence: "财务尽调",
+  acquisition_due_diligence: "收购尽调",
   dd_checklist: "尽调清单",
   dd_claim_audit: "声明审计",
   document_reorganize: "文件整理",

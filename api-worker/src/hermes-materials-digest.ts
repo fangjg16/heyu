@@ -34,6 +34,10 @@ export function resolveMaterialsDigestIntensity(
   if (intent === "public_info_search") return "light";
   if (
     intent === "dd_checklist" ||
+    intent === "business_due_diligence" ||
+    intent === "industry_due_diligence" ||
+    intent === "financial_due_diligence" ||
+    intent === "acquisition_due_diligence" ||
     intent === "dd_claim_audit" ||
     intent === "risk_matrix" ||
     intent === "returns_analysis" ||

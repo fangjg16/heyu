@@ -1,7 +1,7 @@
 import { isKnowledgeNetworkDeliveryIntent } from "./knowledge-network-intent";
 
 /**
- * 网站对话 ↔ Hermes 16 skills 意图映射（内部用，用户不可见 skill 名）
+ * 网站对话 ↔ Hermes skills 意图映射（内部用，用户不可见 skill 名）
  *
  * jfo-r2-materials：Hermes 版项目资料读取层（manifest + 按需 textUrl）；Worker 可预注入任务相关摘录。
  * public-info-search：与 Tavily 联网配合（index 里强制触发外部检索）。
@@ -12,6 +12,10 @@ export type SkillIntent =
   | "project_intake"
   | "knowledge_network"
   | "ic_memo"
+  | "business_due_diligence"
+  | "industry_due_diligence"
+  | "financial_due_diligence"
+  | "acquisition_due_diligence"
   | "dd_checklist"
   | "dd_claim_audit"
   | "document_reorganize"
@@ -39,6 +43,22 @@ const INTENT_RULES: IntentRule[] = [
     re: /测试\s*skill|skill\s*验证|验证新\s*skill|VERIFY-SKILL|jfo-skill-verify|jfo\s*skill\s*verify/iu,
   },
   { intent: "ic_memo", re: /投资委员会|ic\s*memo|ic备忘录|投资决策备忘录|立项备忘录|表决建议|条款清单|投委会|decision memo|prepare for ic|总结一下这个项目|write up the deal/u },
+  {
+    intent: "business_due_diligence",
+    re: /商业尽调|业务尽调|商业尽职|业务尽职|商业模式.{0,12}尽调|尽调.{0,12}商业模式|business[-\s]?due[-\s]?diligence|\bbusiness\s*dd\b/iu,
+  },
+  {
+    intent: "industry_due_diligence",
+    re: /行业尽调|产业尽调|行业尽职|industry[-\s]?due[-\s]?diligence|\bindustry\s*dd\b/iu,
+  },
+  {
+    intent: "financial_due_diligence",
+    re: /财务尽调|财务尽职|financial[-\s]?due[-\s]?diligence|\bfinancial\s*dd\b|\bfdd\b/iu,
+  },
+  {
+    intent: "acquisition_due_diligence",
+    re: /收购尽调|并购尽调|收购尽职|acquisition[-\s]?due[-\s]?diligence/iu,
+  },
   { intent: "dd_checklist", re: /dd\s*checklist|尽调清单|diligence request|data room review|尽调跟踪|还要查什么|what do we still need to check|工作流清单/u },
   { intent: "dd_claim_audit", re: /声明审计|claim audit|verify claims|cross check|信息审计|矛盾|contradiction|审计.*声明|可信度|is this true|audit this/u },
   { intent: "risk_matrix", re: /风险矩阵|risk matrix|风险评估|what could go wrong|what are the risks|风险登记/u },
@@ -114,6 +134,23 @@ const SKILL_PROMPTS: Record<Exclude<SkillIntent, "standard">, string[]> = {
     "【投资委员会备忘录（草稿）】输出 Markdown：投资概要、标的与交易、投资逻辑、主要风险与缓释、关键条款/交割条件、表决建议（通过/有条件/否决及条件）。",
     "优先基于当前项目知识网络 KB；仅当 KB 缺关键事实时再按需读取相关原始资料。",
     "禁止声称已生成 Word/.docx 文件——本平台当前仅交付 Markdown 草稿（非 Cowork 本地 .docx 产物）。",
+  ],
+  business_due_diligence: [
+    "【商业尽调】写标的怎么赚钱：卖什么、卖给谁、获客/交付/回款如何串起来，核心能力是否支撑增长。",
+    "用合同、订单、流程样本，不要只听管理层叙事。不要写成投资人 IRR 或尽调工作流总清单。",
+    "资料不足标缺口。财务质量交给财务尽调；市场定义交给行业尽调。",
+  ],
+  industry_due_diligence: [
+    "【行业尽调】判断所处市场是否可投：市场定义、需求、规模口径、价值链、竞争与监管方向。",
+    "经营对标写在这里；估值倍数和 IRR 不要写在这里。证据不足就写缺口。",
+  ],
+  financial_due_diligence: [
+    "【财务尽调】核验历史与预测：收入质量、利润、现金、营运资本、债务与盈利质量。",
+    "不判断市场好不好；估值倍数和 IRR 交给回报分析。",
+  ],
+  acquisition_due_diligence: [
+    "【收购尽调】覆盖业务/行业/财务要点，并必须测：离开老板能否转、隐藏资本开支、控制权变更与接手风险。",
+    "不要合成一份空泛总报告。",
   ],
   dd_checklist: [
     "【尽调清单】按行业与交易类型生成多工作流 checklist 表格，列：工作流 | 检查项 | 状态 | 优先级 | 备注。",
