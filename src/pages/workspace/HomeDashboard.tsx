@@ -329,7 +329,6 @@ export default function HomeDashboard() {
   const displayTodos = todos.slice(0, 3);
   const showInvestorTodos = hasInvestorProject;
   const showIssuerTodos = hasIssuerProject;
-  const unpublishedCount = todos.filter((t) => !t.published).length;
 
   const canPublishForProject = (projectId: string) => {
     const project = projects.find((p) => p.id === projectId);
@@ -495,19 +494,6 @@ export default function HomeDashboard() {
             >
               {focusTodo.title}
             </div>
-            {focusTodo.detail ? (
-              <div
-                style={{
-                  marginTop: 8,
-                  fontSize: 14,
-                  color: "rgba(255,255,255,0.68)",
-                  lineHeight: 1.55,
-                  maxWidth: 720,
-                }}
-              >
-                {focusTodo.detail}
-              </div>
-            ) : null}
             <div
               style={{
                 marginTop: 14,
@@ -646,7 +632,7 @@ export default function HomeDashboard() {
                 : loading
                   ? "正在加载项目…"
                   : hasIssuerProject && !hasInvestorProject
-                    ? "投资团队发布事项后，会显示在这里。内部研究缺口不会自动同步给你。"
+                    ? "发给你的事项会显示在这里。"
                     : memberProjects.length > 0
                     ? "暂无紧急待办。"
                     : "暂无已加入项目。"}
@@ -678,7 +664,7 @@ export default function HomeDashboard() {
           style={{
             marginTop: 44,
             display: "flex",
-            alignItems: "baseline",
+            alignItems: "center",
             justifyContent: "space-between",
             gap: 16,
           }}
@@ -689,38 +675,28 @@ export default function HomeDashboard() {
           >
             待协作确认
           </div>
-          <span style={{ fontSize: 14, color: C.muted }}>
-            {todosLoading
-              ? "…"
-              : displayTodos.length > 0
-                ? `${displayTodos.length} 项 · ${unpublishedCount} 条未发`
-                : "—"}
-          </span>
+          {canSendUnpublished ? (
+            <button
+              type="button"
+              disabled={Boolean(sendingId)}
+              onClick={() => void sendAllUnpublished()}
+              style={{
+                ...btnCenter,
+                height: 36,
+                padding: "0 14px",
+                borderRadius: 10,
+                border: `1px solid ${C.line}`,
+                background: C.paper,
+                color: C.wine,
+                fontSize: 13.5,
+                fontWeight: 600,
+                cursor: sendingId ? "wait" : "pointer",
+              }}
+            >
+              {sendingId === "all" ? "发送中…" : "全部发送"}
+            </button>
+          ) : null}
         </div>
-        {canSendUnpublished ? (
-          <button
-            type="button"
-            disabled={Boolean(sendingId)}
-            onClick={() => void sendAllUnpublished()}
-            style={{
-              marginTop: 12,
-              ...btnCenter,
-              height: 36,
-              padding: "0 14px",
-              borderRadius: 10,
-              border: `1px solid ${C.line}`,
-              background: C.paper,
-              color: C.wine,
-              fontSize: 13.5,
-              fontWeight: 600,
-              cursor: sendingId ? "wait" : "pointer",
-            }}
-          >
-            {sendingId === "all"
-              ? "发送中…"
-              : `一键发送（${unpublishedCount}）`}
-          </button>
-        ) : null}
         {sendError ? (
           <p style={{ marginTop: 8, fontSize: 13.5, color: C.wine }}>{sendError}</p>
         ) : null}
@@ -753,7 +729,7 @@ export default function HomeDashboard() {
                 color: C.muted,
               }}
             >
-              暂无待协作确认。生成知识网络「待确认问题」章节后会汇总在此，可发送给项目协作方。
+              暂无待协作确认。
             </p>
           ) : (
             displayTodos.map((t) => (
@@ -789,22 +765,6 @@ export default function HomeDashboard() {
                   >
                     {t.title}
                   </div>
-                  {t.detail ? (
-                    <div
-                      style={{
-                        marginTop: 4,
-                        fontSize: 13.5,
-                        color: C.muted,
-                        lineHeight: 1.55,
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {t.detail}
-                    </div>
-                  ) : null}
                   <div
                     style={{
                       marginTop: 4,
@@ -929,7 +889,7 @@ export default function HomeDashboard() {
                 lineHeight: 1.6,
               }}
             >
-              只显示投资团队已经发布给你的事项，不会自动带出他们内部的研究缺口。
+              投资团队发给你的事项会列在这里。
             </p>
             <div style={{ marginTop: 14 }}>
               {collabInbox.length === 0 ? (
@@ -971,21 +931,6 @@ export default function HomeDashboard() {
                     >
                       {preview.title}
                     </div>
-                    {!isFocus && preview.detail ? (
-                    <div
-                      style={{
-                        marginTop: 3,
-                        fontSize: 12.5,
-                        color: C.muted,
-                        lineHeight: 1.45,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {preview.detail}
-                    </div>
-                    ) : null}
                     <div
                       style={{
                         marginTop: 3,

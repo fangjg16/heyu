@@ -50,7 +50,7 @@ export function KnowledgeNetworkPreview({
       <div className="mt-3 flex flex-wrap gap-2">
         <Button type="button" size="sm" variant="secondary" onClick={() => setOpen(true)}>
           <Eye className="mr-1.5 h-3.5 w-3.5" />
-          预览知识网络 HTML
+          预览知识网络
         </Button>
         <Button type="button" size="sm" variant="outline" onClick={openInNewTab}>
           <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
@@ -114,7 +114,7 @@ export function extractKnowledgeNetworkHtmlFromMarkdown(text: string): string | 
 }
 
 const KN_HTML_FALLBACK_SUMMARY =
-  "知识网络 HTML 已生成，请使用下方按钮预览或在新标签页打开。";
+  "知识网络已生成，可用下方按钮预览或在新标签页打开。";
 
 /** 展示用：去掉 ```html 大块源码，保留摘要与预览按钮 */
 export function stripKnowledgeNetworkHtmlBlock(text: string): string {

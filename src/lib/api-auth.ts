@@ -92,7 +92,7 @@ export async function loginWithPassword(
   if (!res.ok || !data.token || !data.user) {
     if (res.status === 404) {
       throw new Error(
-        "登录接口不存在（404）。请在 api-worker 执行 npm run build:production 后重启 npm run dev:local，并确认已 mysql:migrate:local + seed:workspace-users。",
+        "登录服务暂不可用，请稍后重试。",
       );
     }
     throw new Error(data.error || `登录失败（${res.status}）`);

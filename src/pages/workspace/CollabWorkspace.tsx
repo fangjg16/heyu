@@ -147,7 +147,7 @@ function CollabHeader({
             {project.name}
           </h1>
           <p className="mt-1 text-[12.5px] text-[#59625F]">
-            补充资料、回复投资团队已发布的待确认事项。不包含投资判断与内部知识网络。
+            补充资料、回复已发给你的待确认事项。
           </p>
         </div>
         <nav className="flex gap-1 rounded-xl bg-[rgba(78,66,57,0.06)] p-1">
@@ -258,7 +258,7 @@ export function CollabOverviewPage() {
           <p className="text-[13px] text-[#969E9A]">加载协作概览…</p>
         ) : data.itemCount === 0 ? (
           <div className="rounded-2xl border border-[rgba(78,66,57,0.1)] bg-white/80 px-6 py-10 text-[14px] leading-relaxed text-[#59625F]">
-            投资团队暂未向你发布待确认事项。他们可在首页一键把内部问题发给你；发出前你看不到。你仍可在「源文件」中上传补充资料。
+            投资团队暂未向你发布待确认事项。你仍可在「源文件」中上传补充资料。
           </div>
         ) : (
           <>
@@ -341,7 +341,7 @@ export function CollabItemsPage() {
         {error ? <p className="text-[13px] text-[#A06358]">{error}</p> : null}
         {items.length === 0 && !error ? (
           <div className="rounded-2xl border border-[rgba(78,66,57,0.1)] bg-white/80 px-6 py-10 text-[14px] leading-relaxed text-[#59625F]">
-            投资团队暂未向你发布待确认事项。他们首页上的内部问题不会自动出现；一键发给你之后才会列在这里。
+            投资团队暂未向你发布待确认事项。
           </div>
         ) : (
           <ul className="space-y-2">
@@ -733,7 +733,7 @@ export function CollabFilesPage() {
         <section className="mb-6 rounded-2xl border border-[rgba(78,66,57,0.1)] bg-white/80 p-5">
           <h2 className="text-[14px] font-semibold text-[#1F2423]">上传补充资料</h2>
           <p className="mt-1 text-[12.5px] text-[#59625F]">
-            未挂到具体事项的资料也会出现在「我方上传」。投资团队可在内部资料包中看到。
+            未挂到具体事项的资料也会出现在「我方上传」，投资团队可以看到。
           </p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <input

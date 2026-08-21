@@ -1,3 +1,5 @@
+import { stripAuthoringHintsFromText } from "@/lib/strip-authoring-hints";
+
 /**
  * 知识网络引用标记：
  * [A-1] [A-100] [S-100] [U-7] [A-10b] [S12]
@@ -88,28 +90,49 @@ export function previewCollabQuestion(input: {
   return { title: cleanedTitle || cleanedBody, detail: "" };
 }
 
+function clipQuestionTitle(s: string): string {
+  const t = s.replace(/\s+/gu, " ").trim();
+  if (t.length <= 36) return t;
+  const cut = t.slice(0, 36);
+  const punct = Math.max(
+    cut.lastIndexOf("、"),
+    cut.lastIndexOf("，"),
+    cut.lastIndexOf(" "),
+  );
+  const base = punct > 14 ? cut.slice(0, punct) : cut;
+  return `${base.replace(/[，、·.\s]+$/u, "")}…`;
+}
+
 /**
- * 从待确认问题长句提取列表小标题（冒号前 / 首个分句）。
+ * 从待确认问题长句提取列表小标题（Q1 · 短句 / 冒号前 / 首个分句）。
  */
 export function extractOpenQuestionTitle(raw: string): {
   title: string;
   detail: string;
 } {
-  const text = stripCitationMarkers(raw).replace(/\s+/gu, " ").trim();
+  const text = stripAuthoringHintsFromText(
+    stripCitationMarkers(raw).replace(/\s+/gu, " "),
+  );
   if (!text) return { title: "", detail: "" };
 
-  const colon = text.match(/^(.{4,48}?)[：:]\s*(.+)$/u);
+  const tagged = text.match(/^(Q\d+|P\d+)\s*[·.•]\s*(.+)$/iu);
+  const prefix = tagged ? `${tagged[1]!.toUpperCase()} · ` : "";
+  const body = tagged ? tagged[2]!.trim() : text;
+
+  const colon = body.match(/^(.{4,36}?)[：:]\s+(.+)$/u);
   if (colon) {
-    return { title: colon[1]!.trim(), detail: colon[2]!.trim() };
+    return {
+      title: clipQuestionTitle(`${prefix}${colon[1]!.trim()}`),
+      detail: colon[2]!.trim(),
+    };
   }
 
-  const clause = text.match(/^(.{6,40}?)([，。；]|$)/u);
-  if (clause && clause[1] && (clause[2] || text.length > clause[1].length)) {
-    const title = clause[1].trim();
-    const detail = text.slice(title.length).replace(/^[，。；]\s*/u, "").trim();
-    if (detail) return { title, detail };
-  }
-
-  if (text.length <= 42) return { title: text, detail: "" };
-  return { title: `${text.slice(0, 40)}…`, detail: text };
+  const breakAt = body.search(/[。；]|(?:\s+附件)|(?:\s+资料仅)|(?:\s+仅称)/u);
+  const headline = breakAt >= 8 ? body.slice(0, breakAt).trim() : body;
+  const title = clipQuestionTitle(`${prefix}${headline}`);
+  const remainder = breakAt >= 8 ? body.slice(breakAt).trim() : body;
+  return {
+    title,
+    detail: remainder && remainder !== headline ? remainder : text === title ? "" : text,
+  };
 }

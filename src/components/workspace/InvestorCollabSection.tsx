@@ -506,11 +506,6 @@ export function InvestorCollabSection({
                     ) : null}
                     {preview.title}
                   </div>
-                  {preview.detail ? (
-                    <div className="mt-1 text-[12.5px] text-[#59625F] line-clamp-2">
-                      {preview.detail}
-                    </div>
-                  ) : null}
                 </div>
                 {canFollowUp ? (
                   <div className="flex shrink-0 items-center gap-2">
@@ -681,11 +676,6 @@ export function InvestorCollabSection({
                           {q.priority}
                         </span>
                         {preview.title}
-                        {preview.detail ? (
-                          <div className="mt-1 text-[12px] text-[#59625F] line-clamp-2">
-                            {preview.detail}
-                          </div>
-                        ) : null}
                       </div>
                       {canManage ? (
                         <div className="flex shrink-0 items-center gap-2">

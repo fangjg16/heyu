@@ -25,3 +25,16 @@ export function stripAuthoringHintsFromHtml(html: string): string {
   }
   return root.innerHTML.replace(PAREN_HINT_RE, "");
 }
+
+export function stripAuthoringHintsFromText(text: string): string {
+  return String(text ?? "")
+    .replace(PAREN_HINT_RE, "")
+    .split(/\n+/)
+    .filter((line) => {
+      const t = line.trim();
+      return !(t && t.length < 180 && HINT_RE.test(t));
+    })
+    .join("\n")
+    .replace(/\s{2,}/gu, " ")
+    .trim();
+}

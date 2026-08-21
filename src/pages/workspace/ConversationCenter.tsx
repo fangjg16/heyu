@@ -526,16 +526,6 @@ async function pollAgentJobUntilDone(params: {
   });
 }
 
-function ragflowChatLooksLikeDirectService(url: string): boolean {
-  try {
-    const u = new URL(url.trim());
-    if (u.port === "9380") return true;
-    return /ragflow/i.test(u.hostname);
-  } catch {
-    return false;
-  }
-}
-
 const STREAM_TRUNCATED_FOOTER =
   "\n\n---\n\n*（生成过程中连接中断，以上为已返回内容。可缩短问题后重试，或刷新页面再发。）*";
 
@@ -550,29 +540,8 @@ function isStreamDisconnectError(message: string): boolean {
   );
 }
 
-function formatRagflowRequestError(message: string, endpoint: string): string {
-  const base = `请求失败：${message}`;
-  if (!message.toLowerCase().includes("failed to fetch")) return base;
-  const ep = endpoint.trim();
-  const extra: string[] = [];
-  if (ep) {
-    extra.push(`当前接口：${ep}`);
-  }
-  if (typeof window !== "undefined" && window.location.protocol === "https:" && ep.startsWith("http:")) {
-    extra.push("页面为 HTTPS，而接口为 HTTP，浏览器会拦截混合内容。请改用 https 代理，或本地用 http 访问前端。");
-  }
-  if (ep && ragflowChatLooksLikeDirectService(ep)) {
-    extra.push(
-      "浏览器通常无法直接访问 RAGFlow（跨域/CORS）。请在 `family-office-platform/proxy/` 启动本地代理，并在 `.env.local` 中将 `VITE_RAGFLOW_CHAT_ENDPOINT` 指向 `http://localhost:8787/api/ragflow/chat`，然后重启 `npm run dev`。",
-    );
-  } else if (ep.includes("8787") || ep.includes("/api/ragflow/chat")) {
-    extra.push(
-      "请确认已在本机运行代理：`cd family-office-platform/proxy` → `npm install` → `npm run dev`，并在浏览器打开 `http://localhost:8787/api/ragflow/health` 应返回 JSON。随后重启前端开发服务器以加载 `.env.local`。",
-    );
-  } else {
-    extra.push("请确认该地址在本机可访问、未被防火墙拦截，且与前端同源策略不冲突。");
-  }
-  return [base, ...extra].join(" ");
+function formatRagflowRequestError(_message: string, _endpoint: string): string {
+  return "对话暂时连不上，请稍后重试。";
 }
 
 /**
@@ -2080,7 +2049,7 @@ export default function ConversationCenter() {
 
     if (!AI_CHAT_ENDPOINT) {
       const msg =
-        "尚未配置 AI 接口。请在 `.env.local` 中设置 VITE_AI_CHAT_ENDPOINT（JFO API /api/chat）。";
+        "对话服务尚未就绪，请稍后重试。";
       setLiveError(msg);
       appendLiveMessage(effectiveConversationId, {
         id: `assistant-${Date.now()}`,
@@ -2968,13 +2937,12 @@ export default function ConversationCenter() {
                           m.content,
                         ) ? (
                         <p className="mt-3 rounded-lg border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-sm leading-relaxed text-amber-950">
-                          知识网络请在项目页生成：打开「知识网络」，用「更新全部章节」或「更新本章」。对话不再产出整页 HTML。
+                          请到项目知识网络页更新章节。
                         </p>
                       ) : null}
                       <ChatAgentStatusLine>
                         ● Master Agent · AI {m.isStreaming ? "处理中" : "返回"}
                         {m.pendingJobId ? " · 生成中" : ""}
-                        {knPrepared?.html ? " · 含知识网络 HTML" : ""}
                       </ChatAgentStatusLine>
                     </AiShell>
                   );

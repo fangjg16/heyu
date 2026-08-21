@@ -93,7 +93,7 @@ function clerkResetErrorToZh(
     code === "form_param_nil" ||
     code === "form_identifier_exists"
   ) {
-    return "找不到该账号。请确认邮箱或用户名；内部账号请联系管理员重置密码。";
+    return "找不到该账号。请确认邮箱或用户名，或联系管理员重置密码。";
   }
   if (
     code === "strategy_for_user_invalid" ||
@@ -238,7 +238,7 @@ function PasswordAuthForm() {
       <MobileBrand />
       <h1 className="font-display text-[28px] font-semibold">登录工作台</h1>
       <p className="mt-2 text-[13.5px] text-[hsl(var(--warm-charcoal-muted))]">
-        请输入内部账号与密码登录。
+        请输入账号与密码登录。
       </p>
       {fromSwitch ? <SwitchNotice /> : null}
       <form onSubmit={onSubmitForm} className="mt-[30px] flex flex-col gap-3.5">
@@ -658,7 +658,7 @@ function ClerkAuthForm() {
         : mode === "signup"
           ? ""
           : mode === "forgot"
-            ? "验证码将发到该账号绑定的邮箱。内部演示账号请联系管理员重置。"
+            ? "验证码将发到该账号绑定的邮箱。如收不到邮件，请联系管理员。"
             : "请输入账号或邮箱与密码登录。";
 
   return (

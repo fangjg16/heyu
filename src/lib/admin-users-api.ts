@@ -18,7 +18,7 @@ export type AdminWorkspaceUser = {
 
 async function readError(res: Response): Promise<string> {
   if (res.status === 404) {
-    return "用户管理接口不存在（404）。请关闭占用 8787 的旧 API 窗口，在 api-worker 执行 npm run build:production 后重新 npm run dev:local。";
+    return "用户管理暂不可用，请稍后重试。";
   }
   const data = (await res.json().catch(() => ({}))) as { error?: string };
   return data.error || `请求失败（${res.status}）`;
