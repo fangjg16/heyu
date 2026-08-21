@@ -111,17 +111,31 @@ function legendColorForKind(kind: string): string {
 
 function displayLegend(
   legend: { label: string; color: string }[] | undefined,
+  nodes: ProjectGraphNode[],
 ): { label: string; color: string }[] {
+  const used = new Set<string>();
+  for (const n of nodes) {
+    const guessed = guessKindFromLabel(n.label, n.type);
+    if (guessed) used.add(guessed);
+    const cat = canonicalKind(n.kind);
+    if (cat) used.add(cat);
+    if (n.kind.trim()) used.add(n.kind.trim());
+  }
   const items = legend?.length
     ? legend
     : KIND_SWATCHES.map(({ label, color }) => ({ label, color }));
-  return items.map((item) => {
-    const cat = canonicalKind(item.label);
-    const swatch = cat
-      ? KIND_SWATCHES.find((c) => c.label === cat)
-      : undefined;
-    return { label: item.label, color: swatch?.color ?? item.color };
-  });
+  return items
+    .filter((item) => {
+      const cat = canonicalKind(item.label);
+      return used.has(item.label) || (cat ? used.has(cat) : false);
+    })
+    .map((item) => {
+      const cat = canonicalKind(item.label);
+      const swatch = cat
+        ? KIND_SWATCHES.find((c) => c.label === cat)
+        : undefined;
+      return { label: item.label, color: swatch?.color ?? item.color };
+    });
 }
 
 function nodeKindDot(
@@ -144,36 +158,17 @@ function polarPos(r: number, angle: number): { x: number; y: number } {
   };
 }
 
-function spreadAngles(count: number, start: number, end: number): number[] {
-  if (count <= 0) return [];
-  if (count === 1) return [(start + end) / 2];
-  const pad = count === 2 ? 0.16 : 0.07;
-  const a0 = start + (end - start) * pad;
-  const a1 = end - (end - start) * pad;
-  return Array.from(
-    { length: count },
-    (_, i) => a0 + (i / (count - 1)) * (a1 - a0),
-  );
+function hashAngle(seed: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 360) * (Math.PI / 180);
 }
 
-function spokeLabel(
-  nodeId: string,
-  hubId: string | undefined,
-  edges: ProjectGraphEdge[],
-): string {
-  if (!hubId) return "";
-  return edges
-    .filter(
-      (e) =>
-        (e.from === nodeId && e.to === hubId) ||
-        (e.to === nodeId && e.from === hubId),
-    )
-    .map((e) => e.label)
-    .join(" ");
-}
-
-function looksLikePlatform(node: ProjectGraphNode, spoke: string): boolean {
-  return /OS|平台|底层|架构|引擎/iu.test(`${node.label} ${spoke}`);
+function looksLikePlatform(node: ProjectGraphNode): boolean {
+  return /OS|平台|底层|架构|引擎/iu.test(node.label);
 }
 
 function inferHierarchyPair(
@@ -182,8 +177,8 @@ function inferHierarchyPair(
   label: string,
 ): { parent: string; child: string } | null {
   const blob = label || "";
-  const platA = looksLikePlatform(a, "");
-  const platB = looksLikePlatform(b, "");
+  const platA = looksLikePlatform(a);
+  const platB = looksLikePlatform(b);
   const run = /运行于|基于|依赖于|搭建在|建立在/u.exec(blob);
   if (run) {
     const before = blob.slice(0, run.index);
@@ -195,10 +190,7 @@ function inferHierarchyPair(
     if (aBefore && bAfter) return { child: a.id, parent: b.id };
     if (bBefore && aAfter) return { child: b.id, parent: a.id };
   }
-  if (
-    platA !== platB &&
-    /运行|基于|底层|架构|之上|承载/u.test(blob)
-  ) {
+  if (platA !== platB && /运行|基于|底层|架构|之上|承载/u.test(blob)) {
     return platA
       ? { parent: a.id, child: b.id }
       : { parent: b.id, child: a.id };
@@ -206,111 +198,166 @@ function inferHierarchyPair(
   return null;
 }
 
-function childToParentMap(
-  products: ProjectGraphNode[],
+function hierarchyMap(
+  nodes: ProjectGraphNode[],
   edges: ProjectGraphEdge[],
 ): Map<string, string> {
   const parentOf = new Map<string, string>();
-  const ids = new Set(products.map((p) => p.id));
-  const byId = Object.fromEntries(products.map((p) => [p.id, p]));
+  const byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
   for (const e of edges) {
-    if (!ids.has(e.from) || !ids.has(e.to)) continue;
+    const a = byId[e.from];
+    const b = byId[e.to];
+    if (!a || !b) continue;
     if ((e as { type?: string }).type === "hierarchy") {
       parentOf.set(e.to, e.from);
       continue;
     }
-    const pair = inferHierarchyPair(byId[e.from]!, byId[e.to]!, e.label);
+    const pair = inferHierarchyPair(a, b, e.label);
     if (pair) parentOf.set(pair.child, pair.parent);
   }
   return parentOf;
 }
 
-/** 按类型扇区集结；产品树沿同一径向内外层排。不使用模型给的 x/y。 */
-function layoutClusteredGraph(
+function pickLayoutHub(
+  nodes: ProjectGraphNode[],
+  edges: ProjectGraphEdge[],
+): ProjectGraphNode | null {
+  const typed = nodes.find((n) => n.type === "project");
+  if (typed) return typed;
+  if (nodes.length < 3) return null;
+  const degree = (id: string) =>
+    edges.filter((e) => e.from === id || e.to === id).length;
+  const ranked = [...nodes].sort((a, b) => degree(b.id) - degree(a.id));
+  const top = ranked[0];
+  const second = ranked[1];
+  if (
+    top &&
+    second &&
+    degree(top.id) >= 2 &&
+    degree(top.id) >= degree(second.id) + 2
+  ) {
+    return top;
+  }
+  return null;
+}
+
+function satelliteComponents(
+  satellites: ProjectGraphNode[],
+  edges: ProjectGraphEdge[],
+  hubId: string | undefined,
+): ProjectGraphNode[][] {
+  const ids = new Set(satellites.map((s) => s.id));
+  const adj = new Map<string, string[]>();
+  for (const s of satellites) adj.set(s.id, []);
+  for (const e of edges) {
+    if (hubId && (e.from === hubId || e.to === hubId)) continue;
+    if (!ids.has(e.from) || !ids.has(e.to)) continue;
+    adj.get(e.from)?.push(e.to);
+    adj.get(e.to)?.push(e.from);
+  }
+  const seen = new Set<string>();
+  const byId = Object.fromEntries(satellites.map((s) => [s.id, s]));
+  const comps: ProjectGraphNode[][] = [];
+  for (const s of satellites) {
+    if (seen.has(s.id)) continue;
+    const stack = [s.id];
+    const group: ProjectGraphNode[] = [];
+    seen.add(s.id);
+    while (stack.length) {
+      const id = stack.pop()!;
+      group.push(byId[id]!);
+      for (const nb of adj.get(id) ?? []) {
+        if (!seen.has(nb)) {
+          seen.add(nb);
+          stack.push(nb);
+        }
+      }
+    }
+    comps.push(group);
+  }
+  comps.sort((a, b) => b.length - a.length);
+  return comps;
+}
+
+function anglesInSlice(count: number, start: number, end: number): number[] {
+  if (count <= 0) return [];
+  if (count === 1) return [(start + end) / 2];
+  const pad = count === 2 ? 0.18 : 0.1;
+  const a0 = start + (end - start) * pad;
+  const a1 = end - (end - start) * pad;
+  return Array.from(
+    { length: count },
+    (_, i) => a0 + (i / (count - 1)) * (a1 - a0),
+  );
+}
+
+/** 按这张图自己的边排：连通块挨在一起，层次沿径向内外。不用固定扇区。 */
+function layoutGraphByStructure(
   nodes: ProjectGraphNode[],
   edges: ProjectGraphEdge[],
 ): ProjectGraphNode[] {
   if (nodes.length === 0) return nodes;
-  const hub =
-    nodes.find((n) => n.type === "project") ||
-    nodes.find((n) => isGraphHub(n, nodes, edges)) ||
-    nodes.find((n) => resolveNodeKind(n, nodes, edges) === "主体") ||
-    nodes[0]!;
-  const others = nodes.filter((n) => n.id !== hub.id);
-  const kindOf = (n: ProjectGraphNode) => resolveNodeKind(n, nodes, edges);
-  const groups = new Map<string, ProjectGraphNode[]>();
-  for (const node of others) {
-    const k = kindOf(node);
-    const list = groups.get(k) ?? [];
-    list.push(node);
-    groups.set(k, list);
+  if (nodes.length === 1) {
+    return [{ ...nodes[0]!, x: 50, y: 47 }];
   }
 
-  const arcs: { kind: string; start: number; end: number; radius: number }[] = [
-    { kind: "人物", start: (-120 * Math.PI) / 180, end: (-58 * Math.PI) / 180, radius: 29 },
-    { kind: "资本", start: (-28 * Math.PI) / 180, end: (102 * Math.PI) / 180, radius: 35 },
-    { kind: "技术/产品", start: (128 * Math.PI) / 180, end: (228 * Math.PI) / 180, radius: 27 },
-  ];
-
+  const hub = pickLayoutHub(nodes, edges);
+  const parentOf = hierarchyMap(nodes, edges);
   const placed = new Map<string, { x: number; y: number }>();
-  placed.set(hub.id, { x: 50, y: 47 });
+  if (hub) placed.set(hub.id, { x: 50, y: 47 });
 
-  const placeSpread = (
-    list: ProjectGraphNode[],
-    start: number,
-    end: number,
-    radius: number,
+  const satellites = hub ? nodes.filter((n) => n.id !== hub.id) : nodes;
+  const comps = satelliteComponents(satellites, edges, hub?.id);
+  const tau = Math.PI * 2;
+  const start = hashAngle(
+    (hub?.id ?? nodes.map((n) => n.id).join("|")) || "g",
+  );
+  const gap = comps.length > 1 ? 0.22 : 0;
+  const usable = tau - gap * comps.length;
+  const total = Math.max(satellites.length, 1);
+  let cursor = start;
+
+  const placeGroup = (
+    group: ProjectGraphNode[],
+    sliceStart: number,
+    sliceEnd: number,
   ) => {
-    const angles = spreadAngles(list.length, start, end);
-    list.forEach((node, i) => {
-      placed.set(node.id, polarPos(radius, angles[i]!));
-    });
-  };
-
-  for (const arc of arcs) {
-    const list = groups.get(arc.kind) ?? [];
-    if (list.length === 0) continue;
-    if (arc.kind !== "技术/产品") {
-      placeSpread(list, arc.start, arc.end, arc.radius);
-      continue;
-    }
-
-    const parentOf = childToParentMap(list, edges);
-    const roots = list.filter((n) => !parentOf.has(n.id));
-    const trees = (roots.length ? roots : list).map((root) => ({
-      root,
-      children: list.filter((n) => parentOf.get(n.id) === root.id),
-    }));
-    const rootAngles = spreadAngles(trees.length, arc.start, arc.end);
-    trees.forEach((tree, i) => {
-      const mid = rootAngles[i]!;
-      const spoke = spokeLabel(tree.root.id, hub.id, edges);
-      const inner =
-        looksLikePlatform(tree.root, spoke) || tree.children.length > 0
-          ? 24
-          : /路线图/u.test(spoke)
-            ? 36
-            : 30;
-      placed.set(tree.root.id, polarPos(inner, mid));
-      if (tree.children.length === 1) {
-        placed.set(tree.children[0]!.id, polarPos(40, mid));
-      } else if (tree.children.length > 1) {
-        const span = ((arc.end - arc.start) / Math.max(trees.length, 1)) * 0.65;
-        const childAngles = spreadAngles(
-          tree.children.length,
-          mid - span / 2,
-          mid + span / 2,
-        );
-        tree.children.forEach((child, j) => {
-          placed.set(child.id, polarPos(40, childAngles[j]!));
+    const children = group.filter((n) => parentOf.has(n.id));
+    const roots = group.filter((n) => !parentOf.has(n.id));
+    const heads = roots.length ? roots : group;
+    const headAngles = anglesInSlice(heads.length, sliceStart, sliceEnd);
+    heads.forEach((root, i) => {
+      const mid = headAngles[i]!;
+      const kids = group.filter((n) => parentOf.get(n.id) === root.id);
+      const inner = kids.length > 0 || looksLikePlatform(root) ? 24 : 33;
+      placed.set(root.id, polarPos(inner, mid));
+      if (kids.length === 1) {
+        placed.set(kids[0]!.id, polarPos(40, mid));
+      } else if (kids.length > 1) {
+        const span = ((sliceEnd - sliceStart) / Math.max(heads.length, 1)) * 0.7;
+        const kidAngles = anglesInSlice(kids.length, mid - span / 2, mid + span / 2);
+        kids.forEach((kid, j) => {
+          placed.set(kid.id, polarPos(40, kidAngles[j]!));
         });
       }
     });
-  }
+    for (const node of children) {
+      if (placed.has(node.id)) continue;
+      const parent = parentOf.get(node.id);
+      const p = parent ? placed.get(parent) : undefined;
+      if (p && hub) {
+        const ang = Math.atan2(p.y - 47, p.x - 50);
+        placed.set(node.id, polarPos(40, ang));
+      } else {
+        placed.set(node.id, polarPos(36, (sliceStart + sliceEnd) / 2));
+      }
+    }
+  };
 
-  const leftover = others.filter((n) => !placed.has(n.id));
-  if (leftover.length) {
-    placeSpread(leftover, (70 * Math.PI) / 180, (110 * Math.PI) / 180, 33);
+  for (const comp of comps) {
+    const slice = usable * (comp.length / total);
+    placeGroup(comp, cursor, cursor + slice);
+    cursor += slice + gap;
   }
 
   return nodes.map((n) => {
@@ -505,8 +552,8 @@ export function ProjectRelationGraph({
     [data.filters],
   );
   const legendItems = useMemo(
-    () => displayLegend(data.legend),
-    [data.legend],
+    () => displayLegend(data.legend, data.nodes),
+    [data.legend, data.nodes],
   );
 
   const { visibleNodes, visibleEdges, nodeById } = useMemo(() => {
@@ -538,7 +585,7 @@ export function ProjectRelationGraph({
     const subsetEdges = data.edges.filter(
       (e) => ids.has(e.from) && ids.has(e.to),
     );
-    const visibleNodes = layoutClusteredGraph(subset, subsetEdges);
+    const visibleNodes = layoutGraphByStructure(subset, subsetEdges);
     const nodeById = Object.fromEntries(visibleNodes.map((n) => [n.id, n]));
     return { visibleNodes, visibleEdges: subsetEdges, nodeById };
   }, [data, filter, query]);

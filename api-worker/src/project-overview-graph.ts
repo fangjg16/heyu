@@ -145,9 +145,20 @@ function canonicalLegendLabel(label: string): string | null {
 
 function stabilizeGraphLegend(
   raw: { label: string; color: string }[],
+  nodes: ProjectGraphNode[],
 ): { label: string; color: string }[] {
-  const extras = raw.filter((item) => !canonicalLegendLabel(item.label));
-  return [...DEFAULT_LEGEND, ...extras];
+  const used = new Set(
+    nodes
+      .map((n) => canonicalLegendLabel(n.kind) || n.kind.trim())
+      .filter(Boolean),
+  );
+  const fromDefault = DEFAULT_LEGEND.filter((d) => used.has(d.label));
+  const extras = raw.filter((item) => {
+    if (canonicalLegendLabel(item.label)) return false;
+    return used.has(item.label);
+  });
+  const legend = [...fromDefault, ...extras];
+  return legend.length ? legend : fromDefault;
 }
 
 function guessKindFromLabel(label: string, type?: string): string | null {
@@ -196,16 +207,13 @@ function polarPos(r: number, angle: number): { x: number; y: number } {
   };
 }
 
-function spreadAngles(count: number, start: number, end: number): number[] {
-  if (count <= 0) return [];
-  if (count === 1) return [(start + end) / 2];
-  const pad = count === 2 ? 0.16 : 0.07;
-  const a0 = start + (end - start) * pad;
-  const a1 = end - (end - start) * pad;
-  return Array.from(
-    { length: count },
-    (_, i) => a0 + (i / (count - 1)) * (a1 - a0),
-  );
+function hashAngle(seed: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 360) * (Math.PI / 180);
 }
 
 function looksLikePlatform(node: ProjectGraphNode): boolean {
@@ -231,10 +239,7 @@ function inferHierarchyPair(
       return { child: b.id, parent: a.id };
     }
   }
-  if (
-    platA !== platB &&
-    /运行|基于|底层|架构|之上|承载/u.test(blob)
-  ) {
+  if (platA !== platB && /运行|基于|底层|架构|之上|承载/u.test(blob)) {
     return platA
       ? { parent: a.id, child: b.id }
       : { parent: b.id, child: a.id };
@@ -242,107 +247,167 @@ function inferHierarchyPair(
   return null;
 }
 
-/** 按类型扇区集结；层次关系沿径向内外层排。忽略模型给的 x/y。 */
+function hierarchyMap(
+  nodes: ProjectGraphNode[],
+  edges: ProjectGraphEdge[],
+): Map<string, string> {
+  const parentOf = new Map<string, string>();
+  const byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
+  for (const e of edges) {
+    const a = byId[e.from];
+    const b = byId[e.to];
+    if (!a || !b) continue;
+    if (e.type === "hierarchy") {
+      parentOf.set(e.to, e.from);
+      continue;
+    }
+    const pair = inferHierarchyPair(a, b, e.label);
+    if (pair) parentOf.set(pair.child, pair.parent);
+  }
+  return parentOf;
+}
+
+function pickLayoutHub(
+  nodes: ProjectGraphNode[],
+  edges: ProjectGraphEdge[],
+): ProjectGraphNode | null {
+  const typed = nodes.find((n) => n.type === "project");
+  if (typed) return typed;
+  if (nodes.length < 3) return null;
+  const degree = (id: string) =>
+    edges.filter((e) => e.from === id || e.to === id).length;
+  const ranked = [...nodes].sort((a, b) => degree(b.id) - degree(a.id));
+  const top = ranked[0];
+  const second = ranked[1];
+  if (
+    top &&
+    second &&
+    degree(top.id) >= 2 &&
+    degree(top.id) >= degree(second.id) + 2
+  ) {
+    return top;
+  }
+  return null;
+}
+
+function satelliteComponents(
+  satellites: ProjectGraphNode[],
+  edges: ProjectGraphEdge[],
+  hubId: string | undefined,
+): ProjectGraphNode[][] {
+  const ids = new Set(satellites.map((s) => s.id));
+  const adj = new Map<string, string[]>();
+  for (const s of satellites) adj.set(s.id, []);
+  for (const e of edges) {
+    if (hubId && (e.from === hubId || e.to === hubId)) continue;
+    if (!ids.has(e.from) || !ids.has(e.to)) continue;
+    adj.get(e.from)?.push(e.to);
+    adj.get(e.to)?.push(e.from);
+  }
+  const seen = new Set<string>();
+  const byId = Object.fromEntries(satellites.map((s) => [s.id, s]));
+  const comps: ProjectGraphNode[][] = [];
+  for (const s of satellites) {
+    if (seen.has(s.id)) continue;
+    const stack = [s.id];
+    const group: ProjectGraphNode[] = [];
+    seen.add(s.id);
+    while (stack.length) {
+      const id = stack.pop()!;
+      group.push(byId[id]!);
+      for (const nb of adj.get(id) ?? []) {
+        if (!seen.has(nb)) {
+          seen.add(nb);
+          stack.push(nb);
+        }
+      }
+    }
+    comps.push(group);
+  }
+  comps.sort((a, b) => b.length - a.length);
+  return comps;
+}
+
+function anglesInSlice(count: number, start: number, end: number): number[] {
+  if (count <= 0) return [];
+  if (count === 1) return [(start + end) / 2];
+  const pad = count === 2 ? 0.18 : 0.1;
+  const a0 = start + (end - start) * pad;
+  const a1 = end - (end - start) * pad;
+  return Array.from(
+    { length: count },
+    (_, i) => a0 + (i / (count - 1)) * (a1 - a0),
+  );
+}
+
+/** 按该图的边排位置：连通块相邻，层次径向。不套固定类型扇区。 */
 function layoutProjectGraphNodes(
   nodes: ProjectGraphNode[],
   edges: ProjectGraphEdge[],
 ): ProjectGraphNode[] {
   if (nodes.length === 0) return nodes;
-  const hub =
-    nodes.find((n) => n.type === "project") ||
-    nodes.find((n) => n.kind === "主体") ||
-    nodes[0]!;
-  const others = nodes.filter((n) => n.id !== hub.id);
-  const groups = new Map<string, ProjectGraphNode[]>();
-  for (const node of others) {
-    const k = canonicalLegendLabel(node.kind) || node.kind || "主体";
-    const list = groups.get(k) ?? [];
-    list.push(node);
-    groups.set(k, list);
-  }
+  if (nodes.length === 1) return [{ ...nodes[0]!, x: 50, y: 47 }];
 
-  const arcs: { kind: string; start: number; end: number; radius: number }[] = [
-    { kind: "人物", start: (-120 * Math.PI) / 180, end: (-58 * Math.PI) / 180, radius: 29 },
-    { kind: "资本", start: (-28 * Math.PI) / 180, end: (102 * Math.PI) / 180, radius: 35 },
-    { kind: "技术/产品", start: (128 * Math.PI) / 180, end: (228 * Math.PI) / 180, radius: 27 },
-  ];
-
+  const hub = pickLayoutHub(nodes, edges);
+  const parentOf = hierarchyMap(nodes, edges);
   const placed = new Map<string, { x: number; y: number }>();
-  placed.set(hub.id, { x: 50, y: 47 });
+  if (hub) placed.set(hub.id, { x: 50, y: 47 });
 
-  const placeSpread = (
-    list: ProjectGraphNode[],
-    start: number,
-    end: number,
-    radius: number,
+  const satellites = hub ? nodes.filter((n) => n.id !== hub.id) : nodes;
+  const comps = satelliteComponents(satellites, edges, hub?.id);
+  const tau = Math.PI * 2;
+  const start = hashAngle(
+    (hub?.id ?? nodes.map((n) => n.id).join("|")) || "g",
+  );
+  const gap = comps.length > 1 ? 0.22 : 0;
+  const usable = tau - gap * comps.length;
+  const total = Math.max(satellites.length, 1);
+  let cursor = start;
+
+  const placeGroup = (
+    group: ProjectGraphNode[],
+    sliceStart: number,
+    sliceEnd: number,
   ) => {
-    const angles = spreadAngles(list.length, start, end);
-    list.forEach((node, i) => {
-      placed.set(node.id, polarPos(radius, angles[i]!));
-    });
-  };
-
-  for (const arc of arcs) {
-    const list = groups.get(arc.kind) ?? [];
-    if (list.length === 0) continue;
-    if (arc.kind !== "技术/产品") {
-      placeSpread(list, arc.start, arc.end, arc.radius);
-      continue;
-    }
-    const parentOf = new Map<string, string>();
-    const ids = new Set(list.map((p) => p.id));
-    const byId = Object.fromEntries(list.map((p) => [p.id, p]));
-    for (const e of edges) {
-      if (!ids.has(e.from) || !ids.has(e.to)) continue;
-      if (e.type === "hierarchy") {
-        parentOf.set(e.to, e.from);
-        continue;
-      }
-      const pair = inferHierarchyPair(byId[e.from]!, byId[e.to]!, e.label);
-      if (pair) parentOf.set(pair.child, pair.parent);
-    }
-    const roots = list.filter((n) => !parentOf.has(n.id));
-    const trees = (roots.length ? roots : list).map((root) => ({
-      root,
-      children: list.filter((n) => parentOf.get(n.id) === root.id),
-    }));
-    const rootAngles = spreadAngles(trees.length, arc.start, arc.end);
-    trees.forEach((tree, i) => {
-      const mid = rootAngles[i]!;
-      const spoke = edges
-        .filter(
-          (e) =>
-            (e.from === tree.root.id && e.to === hub.id) ||
-            (e.to === tree.root.id && e.from === hub.id),
-        )
-        .map((e) => e.label)
-        .join(" ");
-      const inner =
-        looksLikePlatform(tree.root) || tree.children.length > 0
-          ? 24
-          : /路线图/u.test(spoke)
-            ? 36
-            : 30;
-      placed.set(tree.root.id, polarPos(inner, mid));
-      if (tree.children.length === 1) {
-        placed.set(tree.children[0]!.id, polarPos(40, mid));
-      } else if (tree.children.length > 1) {
-        const span = ((arc.end - arc.start) / Math.max(trees.length, 1)) * 0.65;
-        const childAngles = spreadAngles(
-          tree.children.length,
+    const roots = group.filter((n) => !parentOf.has(n.id));
+    const heads = roots.length ? roots : group;
+    const headAngles = anglesInSlice(heads.length, sliceStart, sliceEnd);
+    heads.forEach((root, i) => {
+      const mid = headAngles[i]!;
+      const kids = group.filter((n) => parentOf.get(n.id) === root.id);
+      const inner = kids.length > 0 || looksLikePlatform(root) ? 24 : 33;
+      placed.set(root.id, polarPos(inner, mid));
+      if (kids.length === 1) {
+        placed.set(kids[0]!.id, polarPos(40, mid));
+      } else if (kids.length > 1) {
+        const span = ((sliceEnd - sliceStart) / Math.max(heads.length, 1)) * 0.7;
+        const kidAngles = anglesInSlice(
+          kids.length,
           mid - span / 2,
           mid + span / 2,
         );
-        tree.children.forEach((child, j) => {
-          placed.set(child.id, polarPos(40, childAngles[j]!));
+        kids.forEach((kid, j) => {
+          placed.set(kid.id, polarPos(40, kidAngles[j]!));
         });
       }
     });
-  }
+    for (const node of group) {
+      if (placed.has(node.id)) continue;
+      const parent = parentOf.get(node.id);
+      const p = parent ? placed.get(parent) : undefined;
+      if (p && hub) {
+        const ang = Math.atan2(p.y - 47, p.x - 50);
+        placed.set(node.id, polarPos(40, ang));
+      } else {
+        placed.set(node.id, polarPos(36, (sliceStart + sliceEnd) / 2));
+      }
+    }
+  };
 
-  const leftover = others.filter((n) => !placed.has(n.id));
-  if (leftover.length) {
-    placeSpread(leftover, (70 * Math.PI) / 180, (110 * Math.PI) / 180, 33);
+  for (const comp of comps) {
+    const slice = usable * (comp.length / total);
+    placeGroup(comp, cursor, cursor + slice);
+    cursor += slice + gap;
   }
 
   return nodes.map((n) => {
@@ -431,11 +496,9 @@ export function normalizeProjectGraphData(
     hub && n.id === hub.id ? { ...n, type: "project", kind: "主体" } : n,
   );
 
-  const filters = Array.isArray(o.filters)
-    ? o.filters
-        .map((x) => canonicalLegendLabel(String(x).trim()) || String(x).trim())
-        .filter(Boolean)
-    : [...new Set(typedNodes.map((n) => n.kind).filter(Boolean))];
+  const filters = [
+    ...new Set(typedNodes.map((n) => n.kind).filter(Boolean)),
+  ];
 
   const parsedLegend = Array.isArray(o.legend)
     ? (o.legend
@@ -448,7 +511,7 @@ export function normalizeProjectGraphData(
         })
         .filter(Boolean) as { label: string; color: string }[])
     : [];
-  const legend = stabilizeGraphLegend(parsedLegend);
+  const legend = stabilizeGraphLegend(parsedLegend, typedNodes);
 
   const candidates = Array.isArray(o.candidates)
     ? o.candidates
@@ -503,25 +566,15 @@ export const PROJECT_GRAPH_JSON_HINT = `输出一个 JSON 对象（可放在 jso
 {
   "coverageTitle": "短标题",
   "coverageText": "覆盖说明一句",
-  "filters": ["主体","技术/产品","资本","人物"],
-  "legend": [
-    {"label":"主体","color":"#A3262C"},
-    {"label":"技术/产品","color":"#3F6F63"},
-    {"label":"资本","color":"#D59A2F"},
-    {"label":"人物","color":"#2F3D34"}
-  ],
-  "nodes": [{"id":"k0","label":"…","kind":"主体","type":"project","status":"claimed","summary":"…","section":"snapshot","evidenceRefs":["A-1"]}],
+  "filters": ["按本项目实际类别"],
+  "legend": [{"label":"类别名","color":"#3F6F63"}],
+  "nodes": [{"id":"k0","label":"…","kind":"本项目里的类别","type":"project","status":"claimed","summary":"…","section":"snapshot","evidenceRefs":["A-1"]}],
   "edges": [{"id":"e1","from":"k0","to":"k1","label":"…","status":"claimed","evidenceRefs":["A-1"]}],
   "candidates": [{"text":"待核验：…","src":"…","section":"questions"}]
 }
-规则：5–10 个节点；必须有一个项目/主体中心节点，type 必须是 "project"，kind 必须是 "主体"。
-每个 node.kind 必须且只能是 legend 里的某一个 label：主体、技术/产品、资本、人物。
-- 公司/项目本体 → 主体
-- 产品、平台、技术栈 → 技术/产品
-- 投资机构、基金、股东 → 资本
-- 创始人、CEO、联创、董事 → 人物
-不要把产品和投资机构都标成主体，也不要把人物标成技术/产品。
-中心辐射可以有；若资料明确写出两个非中心节点之间的关系（联合创始、产品基于某平台、同轮投资、任职于），必须再画一条边，不要只连中心。没有依据不要编横向关系。
-层次关系（产品运行于平台、底层架构支撑某产品）必须单独画边，label 写成「A 运行于 B 之上」这种方向清楚的句子，并设 "type":"hierarchy"、from=平台/底层、to=上层产品。
-不要输出 x/y：位置由系统按类型扇区 + 层次径向排列，模型排坐标会被忽略。
+规则：节点数量按资料来，不要凑数；有项目本体时设一个 type="project" 的中心节点。
+node.kind 按这个项目真实出现的实体分类（常见如 主体、技术/产品、资本、人物、客户、供应商，但不要硬套这几类）。
+只画资料里站得住的边。两个非中心节点之间若有明确关系（联合创始、产品运行于平台、同轮投资、任职于、上下游），必须画边；没有依据不要编。
+层次关系（A 运行于 B、B 是 A 的底层）单独画边，label 写清方向，并设 "type":"hierarchy"、from=下层/平台、to=上层。
+不要输出 x/y，也不要按「人物在上 / 资本在右」这类固定版式来想图：每张图的结构不同，位置由系统根据该图的边和层次计算。
 禁止输出 SVG/HTML。`;
