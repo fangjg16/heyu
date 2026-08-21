@@ -27,6 +27,7 @@ import {
 } from "@/lib/chapter-maturity";
 import { stripAuthoringHintsFromHtml } from "@/lib/strip-authoring-hints";
 import { formatChapterVersionLabel } from "@/lib/chapter-version";
+import { extractOpenQuestionTitle } from "@/lib/kn-citations";
 import {
   parseOpenQuestionsFromHtml,
   pickRelatedOpenQuestions,
@@ -988,42 +989,43 @@ export function ProjectKnowledgeNetworkSection({
                   {sectionId !== "questions" ? (
                     <>
                       <div className="my-4 h-px bg-[rgba(78,66,57,0.1)]" />
-                      <div className="mb-[5px] text-[12px] text-[#59625F]">
+                      <div className="mb-2 text-[12px] text-[#59625F]">
                         关联待确认问题
                       </div>
                       {relatedQuestions.length === 0 ? (
-                        <p className="text-[11.5px] leading-relaxed text-[#969E9A]">
-                          生成「待确认问题」章节后将在此显示
+                        <p className="text-[12px] leading-relaxed text-[#969E9A]">
+                          暂无关联事项
                         </p>
                       ) : (
                         <div>
-                          {relatedQuestions.map((q, i) => (
-                            <button
-                              key={`${q.priority}-${i}-${q.text.slice(0, 24)}`}
-                              type="button"
-                              onClick={goToQuestions}
-                              className="flex w-full items-start gap-[9px] border-b border-[rgba(78,66,57,0.08)] bg-transparent py-[9px] text-left font-inherit last:border-b-0"
-                            >
-                              <span
-                                className={cn(
-                                  "shrink-0 rounded-[7px] px-1.5 py-0.5 text-[9.5px]",
-                                  q.priority === "P1" &&
-                                    "bg-[#EFE7E6] text-[#A06358]",
-                                  q.priority === "P2" &&
-                                    "bg-[rgba(213,154,47,0.15)] text-[#B07d1f]",
-                                  q.priority === "P3" &&
-                                    "bg-[rgba(78,66,57,0.08)] text-[#59625F]",
-                                )}
+                          {relatedQuestions.map((q, i) => {
+                            const { title } = extractOpenQuestionTitle(q.text);
+                            return (
+                              <button
+                                key={`${q.priority}-${i}-${q.text.slice(0, 24)}`}
+                                type="button"
+                                onClick={goToQuestions}
+                                className="flex w-full items-start gap-2.5 border-b border-[rgba(78,66,57,0.08)] bg-transparent py-2.5 text-left font-inherit last:border-b-0"
                               >
-                                {q.priority}
-                              </span>
-                              <span className="text-[11.5px] leading-[1.55] text-[#1F2423]">
-                                {q.text.length > 72
-                                  ? `${q.text.slice(0, 72)}…`
-                                  : q.text}
-                              </span>
-                            </button>
-                          ))}
+                                <span
+                                  className={cn(
+                                    "mt-0.5 shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-none",
+                                    q.priority === "P1" &&
+                                      "bg-[#EFE7E6] text-[#A06358]",
+                                    q.priority === "P2" &&
+                                      "bg-[rgba(213,154,47,0.15)] text-[#B07d1f]",
+                                    q.priority === "P3" &&
+                                      "bg-[rgba(78,66,57,0.08)] text-[#59625F]",
+                                  )}
+                                >
+                                  {q.priority}
+                                </span>
+                                <span className="line-clamp-2 text-[13px] font-medium leading-snug text-[#1F2423]">
+                                  {title || q.text}
+                                </span>
+                              </button>
+                            );
+                          })}
                         </div>
                       )}
                       <button
