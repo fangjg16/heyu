@@ -16,6 +16,17 @@ export type SkillIntent =
   | "industry_due_diligence"
   | "financial_due_diligence"
   | "acquisition_due_diligence"
+  | "acquisition_intake"
+  | "target_screening"
+  | "acquisition_economics"
+  | "acquisition_gate"
+  | "buyer_fit_transition"
+  | "startup_design"
+  | "startup_competitors"
+  | "startup_positioning"
+  | "startup_pitch"
+  | "classify_investment_theme"
+  | "compliance_check"
   | "dd_checklist"
   | "dd_claim_audit"
   | "document_reorganize"
@@ -58,6 +69,50 @@ const INTENT_RULES: IntentRule[] = [
   {
     intent: "acquisition_due_diligence",
     re: /收购尽调|并购尽调|收购尽职|acquisition[-\s]?due[-\s]?diligence/iu,
+  },
+  {
+    intent: "acquisition_gate",
+    re: /收购闸门|并购闸门|买不买|是否收购|该不该买|acquisition\s*gate/iu,
+  },
+  {
+    intent: "acquisition_economics",
+    re: /收购经济性|并购经济性|收购划不划算|acquisition\s*economics/iu,
+  },
+  {
+    intent: "target_screening",
+    re: /标的筛选|目标筛选|筛标的|target\s*screening/iu,
+  },
+  {
+    intent: "buyer_fit_transition",
+    re: /接手适配|买方适配|老板依赖|买后接手|buyer[-\s]?fit/iu,
+  },
+  {
+    intent: "acquisition_intake",
+    re: /收购入驻|并购入驻|收购立项|并购立项|acquisition\s*intake/iu,
+  },
+  {
+    intent: "startup_pitch",
+    re: /路演稿|路演材料|pitch\s*deck|startup\s*pitch|融资bp|融资BP/iu,
+  },
+  {
+    intent: "startup_positioning",
+    re: /创业定位|早期定位|startup\s*positioning/iu,
+  },
+  {
+    intent: "startup_competitors",
+    re: /创业竞品|早期竞品|竞品分析|startup\s*competitors/iu,
+  },
+  {
+    intent: "startup_design",
+    re: /创业设计|早期项目设计|startup\s*design|早期验证/iu,
+  },
+  {
+    intent: "classify_investment_theme",
+    re: /投资主题|主题分类|属于什么赛道|什么行业主题|classify[-\s]?investment[-\s]?theme/iu,
+  },
+  {
+    intent: "compliance_check",
+    re: /合规分析|合规尽调|合规检查|牌照资质|监管约束|compliance[-\s]?check/iu,
   },
   { intent: "dd_checklist", re: /dd\s*checklist|尽调清单|diligence request|data room review|尽调跟踪|还要查什么|what do we still need to check|工作流清单/u },
   { intent: "dd_claim_audit", re: /声明审计|claim audit|verify claims|cross check|信息审计|矛盾|contradiction|审计.*声明|可信度|is this true|audit this/u },
@@ -151,6 +206,40 @@ const SKILL_PROMPTS: Record<Exclude<SkillIntent, "standard">, string[]> = {
   acquisition_due_diligence: [
     "【收购尽调】覆盖业务/行业/财务要点，并必须测：离开老板能否转、隐藏资本开支、控制权变更与接手风险。",
     "不要合成一份空泛总报告。",
+  ],
+  acquisition_intake: [
+    "【收购立项】写清买方是谁、能干什么、生活与资金约束、这条收购命题是什么。允许预算和回报暂不明确。",
+    "不要滑成被动财务投资视角。",
+  ],
+  target_screening: [
+    "【标的筛选】只排尽调顺序与筛选理由，不下买或不买的结论。",
+  ],
+  acquisition_economics: [
+    "【收购经济性】测算买下来划不划算：对价、资本开支、接手成本与回报口径。不要写成行业故事。",
+  ],
+  acquisition_gate: [
+    "【收购闸门】对照尽调、融资、经济性与接手版本，给出买 / 有条件 / 不买，并写明谁接受例外。",
+  ],
+  buyer_fit_transition: [
+    "【接手适配】买方能力、老板依赖、交接后能否运转。不要写成人事八卦。",
+  ],
+  startup_design: [
+    "【早期项目设计】市场怎么切、客户是谁、模式如何验证。写缺口与实验，不要做成品牌或路演稿。",
+  ],
+  startup_competitors: [
+    "【早期竞品】点名对手的产品/价格/获客差异，不要写成出价表或成熟并购对标。",
+  ],
+  startup_positioning: [
+    "【早期定位】这轮该占哪条缝、对谁成立。不要扩成全行业扫描。",
+  ],
+  startup_pitch: [
+    "【路演材料】按已有资料整理融资叙述。缺证据就标缺口，不要编增长曲线。",
+  ],
+  classify_investment_theme: [
+    "【投资主题分类】按经济实质归入一级主题和二级赛道白名单。名称不足或跨界时说明置信度，不得为了给标签而强行归类。",
+  ],
+  compliance_check: [
+    "【合规检查】只写牌照、审批、权属、持续经营相关事实与缺口。不要写成法律意见书或合同审查。",
   ],
   dd_checklist: [
     "【尽调清单】按行业与交易类型生成多工作流 checklist 表格，列：工作流 | 检查项 | 状态 | 优先级 | 备注。",

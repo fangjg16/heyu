@@ -40,4 +40,15 @@ describe("due-diligence chat intents", () => {
   it("keeps bare 尽调 on project-intake", () => {
     expect(detectSkillIntent("帮我做个尽调")).toBe("project_intake");
   });
+
+  it("routes newer specialist skills instead of project-intake", () => {
+    expect(detectSkillIntent("做一份合规分析")).toBe("compliance_check");
+    expect(detectSkillIntent("帮我看竞品分析")).toBe("startup_competitors");
+    expect(detectSkillIntent("这个项目收购立项怎么写")).toBe(
+      "acquisition_intake",
+    );
+    expect(detectSkillIntent("这属于什么赛道")).toBe(
+      "classify_investment_theme",
+    );
+  });
 });

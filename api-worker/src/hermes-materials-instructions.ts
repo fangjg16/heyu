@@ -148,6 +148,17 @@ function taskReadingGuidance(
     intent === "industry_due_diligence" ||
     intent === "financial_due_diligence" ||
     intent === "acquisition_due_diligence" ||
+    intent === "acquisition_intake" ||
+    intent === "target_screening" ||
+    intent === "acquisition_economics" ||
+    intent === "acquisition_gate" ||
+    intent === "buyer_fit_transition" ||
+    intent === "startup_design" ||
+    intent === "startup_competitors" ||
+    intent === "startup_positioning" ||
+    intent === "startup_pitch" ||
+    intent === "classify_investment_theme" ||
+    intent === "compliance_check" ||
     intent === "dd_claim_audit" ||
     intent === "comp_analysis" ||
     intent === "background_check"
