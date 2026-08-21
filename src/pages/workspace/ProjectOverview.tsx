@@ -158,12 +158,6 @@ function ProjectCard({
   // 红线 / 待补资料暂无结构化 API：诚实占位
   const redlinesDisplay = "—";
   const gapsDisplay = "—";
-  const maturity =
-    typeof project.researchMaturity === "number"
-      ? Math.max(0, Math.min(100, Math.round(project.researchMaturity)))
-      : null;
-  const maturityLabel = maturity == null ? "—" : `${maturity}%`;
-  const maturityWidth = maturity == null ? "0%" : `${maturity}%`;
   const mark = (() => {
     const t = project.name.trim();
     if (!t) return "项";
@@ -259,23 +253,6 @@ function ProjectCard({
       <p className="mt-4 line-clamp-3 flex-1 text-[13.5px] leading-[1.75] text-[hsl(var(--warm-charcoal-muted))]">
         {previewText}
       </p>
-      {!isIssuerRole(role) ? (
-        <div className="mt-4">
-          <div className="mb-1.5 flex justify-between text-[11.5px] text-[#59625F]">
-            <span>研究成熟度</span>
-            <span>{maturityLabel}</span>
-          </div>
-          <div
-            title={`研究成熟度 ${maturityLabel}`}
-            className="h-[7px] overflow-hidden rounded-[3px] bg-[rgba(78,66,57,0.14)]"
-          >
-            <div
-              className="h-full rounded-[3px] bg-[#5E9B75] transition-[width] duration-300"
-              style={{ width: maturityWidth }}
-            />
-          </div>
-        </div>
-      ) : null}
       <div className="mt-4 flex gap-[22px] border-t border-[rgba(78,66,57,0.1)] pt-3.5">
         {!isIssuerRole(role) ? (
           <>

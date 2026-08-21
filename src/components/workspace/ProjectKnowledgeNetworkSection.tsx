@@ -21,10 +21,6 @@ import {
   waitForDraftRunSettled,
   type KnowledgeChapterVersionMeta,
 } from "@/lib/project-api";
-import {
-  computeChapterMaturity,
-  maturityScoreClass,
-} from "@/lib/chapter-maturity";
 import { stripAuthoringHintsFromHtml } from "@/lib/strip-authoring-hints";
 import { formatChapterVersionLabel } from "@/lib/chapter-version";
 import { extractOpenQuestionTitle } from "@/lib/kn-citations";
@@ -33,7 +29,10 @@ import {
   pickRelatedOpenQuestions,
 } from "@/lib/open-questions-parse";
 import { canPublishProjectKnowledgeNetwork } from "@/workspace/project-manage";
-import type { WorkspaceProject } from "@/workspace/projects";
+import {
+  projectPhaseLabel,
+  type WorkspaceProject,
+} from "@/workspace/projects";
 
 type KnowledgeView = "chapters" | "sources" | "glossary" | "versions";
 
@@ -110,7 +109,7 @@ const VIEW_TABS: { id: KnowledgeView; label: string }[] = [
 type ProjectKnowledgeNetworkSectionProps = {
   projectId: string;
   userId?: string;
-  project?: unknown;
+  project?: WorkspaceProject;
   isGuest?: boolean;
   refreshKey?: number;
   updatingChapterIds?: string[];
@@ -303,11 +302,6 @@ export function ProjectKnowledgeNetworkSection({
   const sectionBusy =
     busyBySection[sectionId] ??
     (updatingChapterIds.includes(sectionId) ? "generate" : null);
-
-  const maturity = useMemo(
-    () => computeChapterMaturity(html),
-    [html],
-  );
 
   const relatedQuestions = useMemo(() => {
     if (sectionId === "questions") return [];
@@ -972,17 +966,12 @@ export function ProjectKnowledgeNetworkSection({
                     </span>
                   </div>
 
-                  <div className="mt-3 flex items-baseline justify-between">
+                  <div className="mt-3 flex items-baseline justify-between gap-2">
                     <span className="text-[11px] text-[#59625F]">
-                      本项研究成熟度
+                      项目阶段
                     </span>
-                    <span
-                      className={cn(
-                        "font-[family-name:var(--font-serif,serif)] text-[22px] font-semibold",
-                        maturityScoreClass(maturity.score),
-                      )}
-                    >
-                      {maturity.score}%
+                    <span className="font-[family-name:var(--font-serif,serif)] text-[18px] font-semibold leading-snug text-[#1F2423]">
+                      {project ? projectPhaseLabel(project.phase) : "—"}
                     </span>
                   </div>
 
