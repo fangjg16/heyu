@@ -905,7 +905,6 @@ export default function HomeDashboard() {
               ) : (
                 collabInbox.slice(0, 5).map((it) => {
                   const preview = previewCollabQuestion(it);
-                  const isFocus = collabInbox[0]?.id === it.id;
                   return (
                 <Link
                   key={it.id}

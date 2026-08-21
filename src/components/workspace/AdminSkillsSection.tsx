@@ -29,6 +29,7 @@ import {
 } from "@/lib/admin-skills-api";
 import { AdminChapterSkillMap } from "@/components/workspace/AdminChapterSkillMap";
 import { FALLBACK_CHAPTER_SKILL_MAP } from "@/lib/chapter-skill-map";
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 
 const SKILL_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/u;
 
