@@ -104,6 +104,66 @@ function phaseBadgeClass(phase: ProjectPhase | undefined): string {
   return PHASE_BADGE_CLASS[normalizeProjectPhase(phase)];
 }
 
+const PHASE_TRACK_STEPS = ["筹备", "研究", "签约"] as const;
+
+function phaseTrackState(phase: ProjectPhase | undefined): {
+  filledThrough: number;
+  current: number;
+  fillClass: string;
+} {
+  const p = normalizeProjectPhase(phase);
+  if (p.startsWith("Cancelled")) {
+    return { filledThrough: -1, current: -1, fillClass: "bg-[rgba(78,66,57,0.18)]" };
+  }
+  if (p.startsWith("Paused")) {
+    return { filledThrough: 0, current: 0, fillClass: "bg-[#C4B4A6]" };
+  }
+  if (p.startsWith("Completed")) {
+    return { filledThrough: 2, current: 2, fillClass: "bg-[#5E9B75]" };
+  }
+  return { filledThrough: 0, current: 0, fillClass: "bg-[#A06358]" };
+}
+
+function ProjectPhaseTrack({ phase }: { phase: ProjectPhase }) {
+  const { filledThrough, current, fillClass } = phaseTrackState(phase);
+  return (
+    <div className="mt-4" aria-label={`项目阶段：${projectPhaseLabel(phase)}`}>
+      <div className="mb-1.5 flex items-baseline justify-between gap-2 text-[11.5px] text-[#59625F]">
+        <span>项目阶段</span>
+        <span className="font-medium text-[hsl(var(--warm-charcoal))]">
+          {projectPhaseLabel(phase)}
+        </span>
+      </div>
+      <div className="flex gap-1">
+        {PHASE_TRACK_STEPS.map((label, i) => (
+          <div
+            key={label}
+            className={cn(
+              "h-[7px] flex-1 rounded-[3px]",
+              i <= filledThrough ? fillClass : "bg-[rgba(78,66,57,0.14)]",
+            )}
+          />
+        ))}
+      </div>
+      <div className="mt-1.5 flex justify-between">
+        {PHASE_TRACK_STEPS.map((label, i) => (
+          <span
+            key={label}
+            className={cn(
+              "text-[10px] leading-none",
+              i === current
+                ? "font-medium text-[#1F2423]"
+                : "text-[#969E9A]",
+            )}
+          >
+            {label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** 卡片脚注用短标签 */
 function roleFootnote(role: WorkspaceRole): string {
   return roleLabelForProject(role);
@@ -253,6 +313,7 @@ function ProjectCard({
       <p className="mt-4 line-clamp-3 flex-1 text-[13.5px] leading-[1.75] text-[hsl(var(--warm-charcoal-muted))]">
         {previewText}
       </p>
+      <ProjectPhaseTrack phase={project.phase} />
       <div className="mt-4 flex gap-[22px] border-t border-[rgba(78,66,57,0.1)] pt-3.5">
         {!isIssuerRole(role) ? (
           <>
