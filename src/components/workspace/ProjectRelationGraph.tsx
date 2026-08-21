@@ -39,6 +39,13 @@ type ProjectRelationGraphProps = {
   projectId: string;
 };
 
+const KIND_SWATCHES = [
+  { label: "主体", re: /主体|公司|项目|实体/, color: "#A3262C" },
+  { label: "技术/产品", re: /技术|产品|平台/, color: "#3F6F63" },
+  { label: "资本", re: /资本|投资|基金|创投|股东/, color: "#D59A2F" },
+  { label: "人物", re: /人物|团队|个人|创始/, color: "#2F3D34" },
+] as const;
+
 function statusText(status?: string): string {
   const map: Record<string, string> = {
     verified: "已核实",
@@ -50,67 +57,80 @@ function statusText(status?: string): string {
   return (status && map[status]) || "待确认";
 }
 
-function pickLegendColor(
-  kind: string,
-  legend: { label: string; color: string }[] | undefined,
-): string | null {
-  const items = legend?.length ? legend : [];
+function canonicalKind(kind: string): string | null {
   const k = kind.trim();
   if (!k) return null;
-  const exact = items.find((l) => l.label === k);
-  if (exact) return exact.color;
-  const fuzzy = items.find(
-    (l) => k.includes(l.label) || l.label.includes(k),
-  );
-  if (fuzzy) return fuzzy.color;
-  if (/资本|投资|基金|创投/u.test(k)) {
-    return items.find((l) => /资本|投资|基金|创投/u.test(l.label))?.color ?? "#D59A2F";
-  }
-  if (/技术|产品/u.test(k)) {
-    return items.find((l) => /技术|产品/u.test(l.label))?.color ?? "#A3262C";
-  }
-  if (/主体|人物|团队/u.test(k)) {
-    return items.find((l) => /主体|人物|团队/u.test(l.label))?.color ?? "#3F6F63";
-  }
-  return items[0]?.color ?? null;
+  return KIND_SWATCHES.find((c) => c.label === k || c.re.test(k))?.label ?? null;
 }
 
-function inferNodeKind(
+function guessKindFromLabel(label: string, type?: string): string | null {
+  const t = label.trim();
+  if (type === "project") return "主体";
+  if (
+    /[（(](CEO|CFO|CTO|COO|联创|创始人|创始|董事|合伙人)[）)]/iu.test(t) ||
+    /(CEO|CFO|CTO|COO|联创|创始人|董事|合伙人)/iu.test(t)
+  ) {
+    return "人物";
+  }
+  if (/创投|资本|基金|投资|Venture|Capital|Partners/iu.test(t)) return "资本";
+  if (/产品|平台|操作系统|技术栈|Bio-OS|\bOS\b/iu.test(t)) return "技术/产品";
+  return null;
+}
+
+function isGraphHub(
   node: ProjectGraphNode,
+  nodes: ProjectGraphNode[],
   edges: ProjectGraphEdge[],
+): boolean {
+  if (nodes.length < 3) return false;
+  const degree = (id: string) =>
+    edges.filter((e) => e.from === id || e.to === id).length;
+  const mine = degree(node.id);
+  if (mine < 2) return false;
+  return nodes
+    .filter((n) => n.id !== node.id)
+    .every((n) => degree(n.id) < mine);
+}
+
+function resolveNodeKind(
+  node: ProjectGraphNode,
+  nodes: ProjectGraphNode[] = [],
+  edges: ProjectGraphEdge[] = [],
 ): string {
-  const kind = (node.kind || "").trim();
-  if (kind && kind !== "主体") return kind;
-  const rel = edges
-    .filter((e) => e.from === node.id || e.to === node.id)
-    .map((e) => e.label)
-    .join(" ");
-  const blob = `${node.label} ${kind} ${node.summary ?? ""} ${rel}`;
-  if (/投资|创投|资本|基金|融资|种子轮|A轮|B轮/u.test(blob)) return "资本";
-  if (/产品|平台|技术栈|底层技术|量产/u.test(blob)) return "技术/产品";
-  return kind || "主体";
+  const guessed = guessKindFromLabel(node.label, node.type);
+  if (guessed) return guessed;
+  if (isGraphHub(node, nodes, edges)) return "主体";
+  return canonicalKind(node.kind) || node.kind?.trim() || "主体";
+}
+
+function legendColorForKind(kind: string): string {
+  const cat = canonicalKind(kind);
+  const swatch = KIND_SWATCHES.find((c) => c.label === (cat ?? kind.trim()));
+  return swatch?.color ?? KIND_SWATCHES[0].color;
+}
+
+function displayLegend(
+  legend: { label: string; color: string }[] | undefined,
+): { label: string; color: string }[] {
+  const items = legend?.length
+    ? legend
+    : KIND_SWATCHES.map(({ label, color }) => ({ label, color }));
+  return items.map((item) => {
+    const cat = canonicalKind(item.label);
+    const swatch = cat
+      ? KIND_SWATCHES.find((c) => c.label === cat)
+      : undefined;
+    return { label: item.label, color: swatch?.color ?? item.color };
+  });
 }
 
 function nodeKindDot(
   node: ProjectGraphNode,
+  nodes: ProjectGraphNode[],
   edges: ProjectGraphEdge[],
-  legend: { label: string; color: string }[] | undefined,
 ): string {
-  if (node.type === "project") return "rgba(255,255,255,0.92)";
   if (node.status === "conflict") return "#A06358";
-  const kind = inferNodeKind(node, edges);
-  return pickLegendColor(kind, legend) ?? "#3F6F63";
-}
-
-function statusText(status?: string): string {
-  const map: Record<string, string> = {
-    verified: "已核实",
-    claimed: "当事方声明",
-    inferred: "研究推论",
-    unverified: "待确认",
-    conflict: "存在反证",
-  };
-  return (status && map[status]) || "待确认";
+  return legendColorForKind(resolveNodeKind(node, nodes, edges));
 }
 
 function GraphNodeDrawer({
@@ -190,7 +210,12 @@ function GraphNodeDrawer({
         <div className="flex items-start justify-between gap-3 border-b border-[rgba(78,66,57,0.1)] px-6 py-5">
           <div className="min-w-0">
             <div className="text-[11.5px] font-medium text-[#A06358]">
-              项目关系 · {node.kind || "节点"}
+              项目关系 ·{" "}
+              {resolveNodeKind(
+                node,
+                Object.values(nodeById).filter(Boolean) as ProjectGraphNode[],
+                edges,
+              )}
             </div>
             <h2
               id="graph-node-drawer-title"
@@ -293,15 +318,21 @@ export function ProjectRelationGraph({
     () => ["全部", ...(data.filters ?? [])],
     [data.filters],
   );
+  const legendItems = useMemo(
+    () => displayLegend(data.legend),
+    [data.legend],
+  );
 
   const { visibleNodes, visibleEdges, nodeById } = useMemo(() => {
     const q = query.trim().toLowerCase();
     const matches = data.nodes.filter((node) => {
-      const displayKind = inferNodeKind(node, data.edges);
+      const displayKind = resolveNodeKind(node, data.nodes, data.edges);
       const filterMatch =
         filter === "全部" ||
         node.kind === filter ||
-        displayKind === filter;
+        displayKind === filter ||
+        canonicalKind(node.kind) === filter ||
+        canonicalKind(displayKind) === filter;
       const queryMatch =
         !q ||
         [node.label, node.kind, node.summary ?? ""]
@@ -421,7 +452,9 @@ export function ProjectRelationGraph({
         })}
 
         {visibleNodes.map((node) => {
-          const main = node.type === "project";
+          const main =
+            node.type === "project" ||
+            isGraphHub(node, data.nodes, data.edges);
           const selected = activeId === node.id;
           const border =
             node.status === "conflict"
@@ -464,16 +497,18 @@ export function ProjectRelationGraph({
             >
               <span
                 className="h-2 w-2 shrink-0 rounded-full"
-                style={{ background: nodeKindDot(node, data.edges, data.legend) }}
+                style={{
+                  background: nodeKindDot(node, data.nodes, data.edges),
+                }}
               />
               {node.label}
             </button>
           );
         })}
 
-        {(data.legend?.length ?? 0) > 0 ? (
+        {legendItems.length > 0 ? (
           <div className="absolute bottom-3.5 left-4 z-[3] flex flex-wrap gap-3 rounded-[9px] bg-[rgba(255,252,248,0.92)] px-3.5 py-2 text-[10.5px] text-[#59625F]">
-            {data.legend!.map((l) => (
+            {legendItems.map((l) => (
               <span key={l.label} className="inline-flex items-center gap-1.5">
                 <span
                   className="h-2.5 w-2.5 rounded-full"

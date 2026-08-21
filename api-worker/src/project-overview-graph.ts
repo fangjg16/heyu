@@ -42,10 +42,10 @@ export type ProjectGraphData = {
 };
 
 const DEFAULT_LEGEND = [
-  { label: "主体 / 技术", color: "#3F6F63" },
-  { label: "客户 / 订单", color: "#D59A2F" },
-  { label: "待核验权属", color: "#59625F" },
-  { label: "风险 / 冲突", color: "#A3262C" },
+  { label: "主体", color: "#A3262C" },
+  { label: "技术/产品", color: "#3F6F63" },
+  { label: "资本", color: "#D59A2F" },
+  { label: "人物", color: "#2F3D34" },
 ];
 
 function extractJsonObject(raw: string): unknown | null {
@@ -129,8 +129,64 @@ function asNum(v: unknown): number | undefined {
   return undefined;
 }
 
+function canonicalLegendLabel(label: string): string | null {
+  const k = label.trim();
+  if (!k) return null;
+  const hit = DEFAULT_LEGEND.find(
+    (c) =>
+      c.label === k ||
+      (c.label === "主体" && /主体|公司|项目|实体/u.test(k)) ||
+      (c.label === "技术/产品" && /技术|产品|平台/u.test(k)) ||
+      (c.label === "资本" && /资本|投资|基金|创投|股东/u.test(k)) ||
+      (c.label === "人物" && /人物|团队|个人|创始/u.test(k)),
+  );
+  return hit?.label ?? null;
+}
+
+function stabilizeGraphLegend(
+  raw: { label: string; color: string }[],
+): { label: string; color: string }[] {
+  const extras = raw.filter((item) => !canonicalLegendLabel(item.label));
+  return [...DEFAULT_LEGEND, ...extras];
+}
+
+function guessKindFromLabel(label: string, type?: string): string | null {
+  const t = label.trim();
+  if (type === "project") return "主体";
+  if (
+    /[（(](CEO|CFO|CTO|COO|联创|创始人|创始|董事|合伙人)[）)]/iu.test(t) ||
+    /(CEO|CFO|CTO|COO|联创|创始人|董事|合伙人)/iu.test(t)
+  ) {
+    return "人物";
+  }
+  if (/创投|资本|基金|投资|Venture|Capital|Partners/iu.test(t)) return "资本";
+  if (/产品|平台|操作系统|技术栈|Bio-OS|\bOS\b/iu.test(t)) return "技术/产品";
+  return null;
+}
+
+function coerceNodeKind(
+  node: ProjectGraphNode,
+  nodes: ProjectGraphNode[],
+  edges: ProjectGraphEdge[],
+): string {
+  const guessed = guessKindFromLabel(node.label, node.type);
+  if (guessed) return guessed;
+  if (nodes.length >= 3) {
+    const degree = (id: string) =>
+      edges.filter((e) => e.from === id || e.to === id).length;
+    const mine = degree(node.id);
+    if (
+      mine >= 2 &&
+      nodes.filter((n) => n.id !== node.id).every((n) => degree(n.id) < mine)
+    ) {
+      return "主体";
+    }
+  }
+  return canonicalLegendLabel(node.kind) || node.kind?.trim() || "主体";
+}
+
 /** 缺坐标时按环状布局补齐（百分位坐标 8–92） */
-export function layoutProjectGraphNodes(
+function layoutProjectGraphNodes(
   nodes: ProjectGraphNode[],
 ): ProjectGraphNode[] {
   if (nodes.length === 0) return nodes;
@@ -233,11 +289,34 @@ export function normalizeProjectGraphData(
     })
     .filter(Boolean) as ProjectGraphEdge[];
 
-  const filters = Array.isArray(o.filters)
-    ? o.filters.map((x) => String(x).trim()).filter(Boolean)
-    : [...new Set(nodes.map((n) => n.kind).filter(Boolean))];
+  const coercedNodes = nodes.map((n) => ({
+    ...n,
+    kind: coerceNodeKind(n, nodes, edges),
+  }));
+  const hub = coercedNodes.find((n) => {
+    if (n.type === "project") return true;
+    if (coercedNodes.length < 3) return false;
+    const degree = (id: string) =>
+      edges.filter((e) => e.from === id || e.to === id).length;
+    const mine = degree(n.id);
+    return (
+      mine >= 2 &&
+      coercedNodes
+        .filter((o) => o.id !== n.id)
+        .every((o) => degree(o.id) < mine)
+    );
+  });
+  const typedNodes = coercedNodes.map((n) =>
+    hub && n.id === hub.id ? { ...n, type: "project", kind: "主体" } : n,
+  );
 
-  const legend = Array.isArray(o.legend)
+  const filters = Array.isArray(o.filters)
+    ? o.filters
+        .map((x) => canonicalLegendLabel(String(x).trim()) || String(x).trim())
+        .filter(Boolean)
+    : [...new Set(typedNodes.map((n) => n.kind).filter(Boolean))];
+
+  const parsedLegend = Array.isArray(o.legend)
     ? (o.legend
         .map((item) => {
           if (!item || typeof item !== "object") return null;
@@ -247,7 +326,8 @@ export function normalizeProjectGraphData(
           return label ? { label, color } : null;
         })
         .filter(Boolean) as { label: string; color: string }[])
-    : DEFAULT_LEGEND;
+    : [];
+  const legend = stabilizeGraphLegend(parsedLegend);
 
   const candidates = Array.isArray(o.candidates)
     ? o.candidates
@@ -275,7 +355,7 @@ export function normalizeProjectGraphData(
       "节点与关系来自项目资料中的主张；连线不代表已独立核验。",
     filters,
     legend,
-    nodes: layoutProjectGraphNodes(nodes),
+    nodes: layoutProjectGraphNodes(typedNodes),
     edges,
     candidates: candidates as ProjectGraphData["candidates"],
   };
@@ -302,12 +382,23 @@ export const PROJECT_GRAPH_JSON_HINT = `输出一个 JSON 对象（可放在 jso
 {
   "coverageTitle": "短标题",
   "coverageText": "覆盖说明一句",
-  "filters": ["主体","技术/产品"],
-  "legend": [{"label":"…","color":"#3F6F63"}],
-  "nodes": [{"id":"k0","label":"…","kind":"主体","type":"entity","status":"claimed","x":50,"y":48,"summary":"…","section":"snapshot","evidenceRefs":["A-1"]}],
+  "filters": ["主体","技术/产品","资本","人物"],
+  "legend": [
+    {"label":"主体","color":"#A3262C"},
+    {"label":"技术/产品","color":"#3F6F63"},
+    {"label":"资本","color":"#D59A2F"},
+    {"label":"人物","color":"#2F3D34"}
+  ],
+  "nodes": [{"id":"k0","label":"…","kind":"主体","type":"project","status":"claimed","x":50,"y":48,"summary":"…","section":"snapshot","evidenceRefs":["A-1"]}],
   "edges": [{"id":"e1","from":"k0","to":"k1","label":"…","status":"claimed","evidenceRefs":["A-1"]}],
   "candidates": [{"text":"待核验：…","src":"…","section":"questions"}]
 }
-规则：5–10 个节点；必须有一个项目/主体中心节点；每个 node.kind 必须是 legend 里的某一个 label（如 主体、技术/产品、资本），不要把产品和投资机构都标成主体。
+规则：5–10 个节点；必须有一个项目/主体中心节点，type 必须是 "project"，kind 必须是 "主体"。
+每个 node.kind 必须且只能是 legend 里的某一个 label：主体、技术/产品、资本、人物。
+- 公司/项目本体 → 主体
+- 产品、平台、技术栈 → 技术/产品
+- 投资机构、基金、股东 → 资本
+- 创始人、CEO、联创、董事 → 人物
+不要把产品和投资机构都标成主体，也不要把人物标成技术/产品。
 中心辐射可以有；若资料明确写出两个非中心节点之间的关系（联合创始、产品基于某平台、同轮投资、任职于），必须再画一条边，不要只连中心。没有依据不要编横向关系。
 x/y 为 0–100 画布百分比（可省略）；禁止输出 SVG/HTML。`;
