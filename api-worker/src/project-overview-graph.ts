@@ -53,14 +53,68 @@ function extractJsonObject(raw: string): unknown | null {
   if (!t || /^(NONE|无|无新增)\s*$/iu.test(t)) return null;
   const fence = /```(?:json)?\s*([\s\S]*?)```/iu.exec(t);
   const body = (fence?.[1] ?? t).trim();
-  const start = body.indexOf("{");
-  const end = body.lastIndexOf("}");
-  if (start < 0 || end <= start) return null;
-  try {
-    return JSON.parse(body.slice(start, end + 1)) as unknown;
-  } catch {
-    return null;
+  return extractBalancedObject(body, 0);
+}
+
+function extractBalancedObject(raw: string, from: number): unknown | null {
+  const start = raw.indexOf("{", from);
+  if (start < 0) return null;
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  for (let i = start; i < raw.length; i++) {
+    const ch = raw[i]!;
+    if (inStr) {
+      if (esc) {
+        esc = false;
+        continue;
+      }
+      if (ch === "\\") {
+        esc = true;
+        continue;
+      }
+      if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') {
+      inStr = true;
+      continue;
+    }
+    if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        try {
+          return JSON.parse(raw.slice(start, i + 1)) as unknown;
+        } catch {
+          return null;
+        }
+      }
+    }
   }
+  return null;
+}
+
+function extractGraphObjectLoose(raw: string): unknown | null {
+  const text = String(raw ?? "");
+  if (!text.trim()) return null;
+  const marked =
+    /===(?:GRAPH|关系图)===\s*([\s\S]*?)(?====(?:SOURCES_ADD|SOURCES|GLOSSARY_ADD|CHAPTER)===|$)/iu.exec(
+      text,
+    );
+  if (marked?.[1]) {
+    const fromMark = extractJsonObject(marked[1]);
+    if (fromMark) return fromMark;
+  }
+  const needle = text.search(/"nodes"\s*:\s*\[/u);
+  if (needle >= 0) {
+    const start = text.lastIndexOf("{", needle);
+    if (start >= 0) {
+      const obj = extractBalancedObject(text, start);
+      if (obj) return obj;
+    }
+  }
+  return extractJsonObject(text);
 }
 
 function asString(v: unknown, fallback = ""): string {
@@ -134,7 +188,8 @@ export function normalizeProjectGraphData(
       if (!item || typeof item !== "object") return null;
       const n = item as Record<string, unknown>;
       const id = asString(n.id) || `n${i + 1}`;
-      const label = asString(n.label);
+      const label =
+        asString(n.label) || asString(n.name) || asString(n.title);
       if (!label) return null;
       return {
         id,
@@ -160,8 +215,8 @@ export function normalizeProjectGraphData(
     .map((item, i) => {
       if (!item || typeof item !== "object") return null;
       const e = item as Record<string, unknown>;
-      const from = asString(e.from);
-      const to = asString(e.to);
+      const from = asString(e.from) || asString(e.source);
+      const to = asString(e.to) || asString(e.target);
       if (!from || !to || !idSet.has(from) || !idSet.has(to)) return null;
       return {
         id: asString(e.id) || `e${i + 1}`,
@@ -230,6 +285,17 @@ export function parseProjectGraphFromAnswerSegment(
   segment: string,
 ): ProjectGraphData | null {
   return normalizeProjectGraphData(extractJsonObject(segment));
+}
+
+/** 从整段模型输出里抠关系图：===GRAPH===、代码块、或带 nodes 的 JSON。 */
+export function parseProjectGraphFromLlmAnswer(
+  answer: string,
+  graphSegment?: string,
+): ProjectGraphData | null {
+  return (
+    parseProjectGraphFromAnswerSegment(graphSegment ?? "") ??
+    normalizeProjectGraphData(extractGraphObjectLoose(answer))
+  );
 }
 
 export const PROJECT_GRAPH_JSON_HINT = `输出一个 JSON 对象（可放在 json 代码块内），字段：

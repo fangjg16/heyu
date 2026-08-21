@@ -9,6 +9,10 @@ import {
   Trash2,
 } from "lucide-react";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
+import {
+  ProjectRelationGraph,
+  parseProjectGraphHtml,
+} from "@/components/workspace/ProjectRelationGraph";
 import { cn } from "@/lib/utils";
 import {
   deleteChapterDraftSection,
@@ -161,6 +165,7 @@ export default function KnowledgeChapterDraftReviewPage() {
   const [publishBump, setPublishBump] = useState<ChapterVersionBump>("minor");
   const [chapterBusy, setChapterBusy] = useState<string | null>(null);
   const [hasGraphDraft, setHasGraphDraft] = useState(false);
+  const [graphDraftRaw, setGraphDraftRaw] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [instruction, setInstruction] = useState("");
   const [editBusy, setEditBusy] = useState(false);
@@ -298,7 +303,9 @@ export default function KnowledgeChapterDraftReviewPage() {
         const graphItem = draft.items.find(
           (i) => i.sectionId === "project-graph" && i.status === "ok",
         );
-        setHasGraphDraft(Boolean(graphItem?.html?.trim()));
+        const graphRaw = graphItem?.html?.trim() || null;
+        setGraphDraftRaw(graphRaw);
+        setHasGraphDraft(Boolean(parseProjectGraphHtml(graphRaw)));
 
         // 单章/概览草案只展示 run 内章节；全量草案展示 13 研究章
         const chaptersToShow =
@@ -381,6 +388,10 @@ export default function KnowledgeChapterDraftReviewPage() {
   }, [loadReview]);
 
   const selected = rows.find((r) => r.id === selectedId) ?? rows[0] ?? null;
+  const draftGraph = useMemo(
+    () => parseProjectGraphHtml(graphDraftRaw),
+    [graphDraftRaw],
+  );
   const hasRevising = rows.some((r) => r.kind === "revising");
   const reviseBusy =
     reviseSubmitting || selected?.kind === "revising";
@@ -1131,6 +1142,8 @@ export default function KnowledgeChapterDraftReviewPage() {
                             suppressContentEditableWarning
                             className={cn(
                               HTML_PANE,
+                              selected.id === "project-overview" &&
+                                "[&_#project-graph-slot]:hidden",
                               editing &&
                                 "outline outline-2 outline-[rgba(160,99,88,0.25)] outline-offset-2 rounded-md",
                             )}
@@ -1147,6 +1160,20 @@ export default function KnowledgeChapterDraftReviewPage() {
                             （草案为空）
                           </p>
                         )}
+                        {selected.id === "project-overview" && !editing ? (
+                          draftGraph ? (
+                            <div className="mt-3">
+                              <ProjectRelationGraph
+                                data={draftGraph}
+                                projectId={projectId}
+                              />
+                            </div>
+                          ) : (
+                            <p className="mt-3 rounded-lg border border-dashed border-[rgba(163,38,44,0.28)] bg-[rgba(255,252,248,0.78)] px-3 py-3 text-[12.5px] leading-relaxed text-[#59625F]">
+                              此次概览没有解析出关系图。上面虚线框只是模板占位，不是图；发布后正式概览也不会出现图。请放弃草案后再次「更新概览」。
+                            </p>
+                          )
+                        ) : null}
                       </div>
                     </div>
                   </div>

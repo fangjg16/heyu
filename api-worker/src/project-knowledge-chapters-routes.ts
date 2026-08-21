@@ -41,7 +41,7 @@ import {
   SOURCES_TABLE_SKELETON,
 } from "./project-knowledge-citations";
 import {
-  parseProjectGraphFromAnswerSegment,
+  parseProjectGraphFromLlmAnswer,
   PROJECT_GRAPH_JSON_HINT,
 } from "./project-overview-graph";
 import { getProjectById } from "./projects-db";
@@ -660,7 +660,10 @@ export async function handleGenerateProjectKnowledgeChapter(
       });
 
       if (isOverview) {
-        const graph = parseProjectGraphFromAnswerSegment(parsed.graphSegment);
+        const graph = parseProjectGraphFromLlmAnswer(
+          answer,
+          parsed.graphSegment,
+        );
         if (graph) {
           graphJson = graph;
           await upsertDraftItem(env.DB, {
@@ -790,7 +793,7 @@ export async function handleGenerateProjectKnowledgeChapter(
   > | null = null;
   let graphJson: unknown = null;
   if (isOverview) {
-    const graph = parseProjectGraphFromAnswerSegment(parsed.graphSegment);
+    const graph = parseProjectGraphFromLlmAnswer(answer, parsed.graphSegment);
     if (graph) {
       graphJson = graph;
       savedGraph = await upsertProjectKnowledgeChapterHtml(env.DB, {

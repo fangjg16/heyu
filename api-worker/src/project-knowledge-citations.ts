@@ -366,7 +366,7 @@ export function parseChapterGenerateAnswer(answer: string): {
     );
 
   const graphMark =
-    /===GRAPH===\s*([\s\S]*?)(?====SOURCES_ADD===|===SOURCES===|===GLOSSARY_ADD===|$)/iu.exec(
+    /===(?:GRAPH|关系图)===\s*([\s\S]*?)(?====(?:SOURCES_ADD|SOURCES|GLOSSARY_ADD|CHAPTER)===|$)/iu.exec(
       raw,
     );
 
