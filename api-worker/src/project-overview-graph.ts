@@ -308,4 +308,6 @@ export const PROJECT_GRAPH_JSON_HINT = `输出一个 JSON 对象（可放在 jso
   "edges": [{"id":"e1","from":"k0","to":"k1","label":"…","status":"claimed","evidenceRefs":["A-1"]}],
   "candidates": [{"text":"待核验：…","src":"…","section":"questions"}]
 }
-规则：5–10 个节点；必须有一个项目/主体中心节点；x/y 为 0–100 画布百分比（可省略）；禁止输出 SVG/HTML。`;
+规则：5–10 个节点；必须有一个项目/主体中心节点；每个 node.kind 必须是 legend 里的某一个 label（如 主体、技术/产品、资本），不要把产品和投资机构都标成主体。
+中心辐射可以有；若资料明确写出两个非中心节点之间的关系（联合创始、产品基于某平台、同轮投资、任职于），必须再画一条边，不要只连中心。没有依据不要编横向关系。
+x/y 为 0–100 画布百分比（可省略）；禁止输出 SVG/HTML。`;

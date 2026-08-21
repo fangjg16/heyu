@@ -39,12 +39,67 @@ type ProjectRelationGraphProps = {
   projectId: string;
 };
 
-function statusDot(node: ProjectGraphNode): string {
+function statusText(status?: string): string {
+  const map: Record<string, string> = {
+    verified: "已核实",
+    claimed: "当事方声明",
+    inferred: "研究推论",
+    unverified: "待确认",
+    conflict: "存在反证",
+  };
+  return (status && map[status]) || "待确认";
+}
+
+function pickLegendColor(
+  kind: string,
+  legend: { label: string; color: string }[] | undefined,
+): string | null {
+  const items = legend?.length ? legend : [];
+  const k = kind.trim();
+  if (!k) return null;
+  const exact = items.find((l) => l.label === k);
+  if (exact) return exact.color;
+  const fuzzy = items.find(
+    (l) => k.includes(l.label) || l.label.includes(k),
+  );
+  if (fuzzy) return fuzzy.color;
+  if (/资本|投资|基金|创投/u.test(k)) {
+    return items.find((l) => /资本|投资|基金|创投/u.test(l.label))?.color ?? "#D59A2F";
+  }
+  if (/技术|产品/u.test(k)) {
+    return items.find((l) => /技术|产品/u.test(l.label))?.color ?? "#A3262C";
+  }
+  if (/主体|人物|团队/u.test(k)) {
+    return items.find((l) => /主体|人物|团队/u.test(l.label))?.color ?? "#3F6F63";
+  }
+  return items[0]?.color ?? null;
+}
+
+function inferNodeKind(
+  node: ProjectGraphNode,
+  edges: ProjectGraphEdge[],
+): string {
+  const kind = (node.kind || "").trim();
+  if (kind && kind !== "主体") return kind;
+  const rel = edges
+    .filter((e) => e.from === node.id || e.to === node.id)
+    .map((e) => e.label)
+    .join(" ");
+  const blob = `${node.label} ${kind} ${node.summary ?? ""} ${rel}`;
+  if (/投资|创投|资本|基金|融资|种子轮|A轮|B轮/u.test(blob)) return "资本";
+  if (/产品|平台|技术栈|底层技术|量产/u.test(blob)) return "技术/产品";
+  return kind || "主体";
+}
+
+function nodeKindDot(
+  node: ProjectGraphNode,
+  edges: ProjectGraphEdge[],
+  legend: { label: string; color: string }[] | undefined,
+): string {
   if (node.type === "project") return "rgba(255,255,255,0.92)";
   if (node.status === "conflict") return "#A06358";
-  if (node.status === "unverified") return "#D59A2F";
-  if (node.kind === "方案") return "#8F564C";
-  return "#3F6F63";
+  const kind = inferNodeKind(node, edges);
+  return pickLegendColor(kind, legend) ?? "#3F6F63";
 }
 
 function statusText(status?: string): string {
@@ -242,7 +297,11 @@ export function ProjectRelationGraph({
   const { visibleNodes, visibleEdges, nodeById } = useMemo(() => {
     const q = query.trim().toLowerCase();
     const matches = data.nodes.filter((node) => {
-      const filterMatch = filter === "全部" || node.kind === filter;
+      const displayKind = inferNodeKind(node, data.edges);
+      const filterMatch =
+        filter === "全部" ||
+        node.kind === filter ||
+        displayKind === filter;
       const queryMatch =
         !q ||
         [node.label, node.kind, node.summary ?? ""]
@@ -405,7 +464,7 @@ export function ProjectRelationGraph({
             >
               <span
                 className="h-2 w-2 shrink-0 rounded-full"
-                style={{ background: statusDot(node) }}
+                style={{ background: nodeKindDot(node, data.edges, data.legend) }}
               />
               {node.label}
             </button>
