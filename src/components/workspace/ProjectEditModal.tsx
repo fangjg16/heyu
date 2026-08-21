@@ -102,10 +102,6 @@ export function ProjectEditModal({
       setError("请填写项目名称");
       return;
     }
-    if (industryTheme && !industrySector) {
-      setError("请选择二级分类");
-      return;
-    }
     setSaving(true);
     setError(null);
     void updateProjectViaApi(projectId, {

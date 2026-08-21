@@ -485,10 +485,6 @@ export default function ProjectOverview() {
       setCreateHint("请选择一级分类。");
       return;
     }
-    if (!newIndustrySector) {
-      setCreateHint("请选择二级分类。");
-      return;
-    }
     if (!ENABLE_LIVE_CHAT) {
       setCreateHint("未配置线上 API（VITE_AI_CHAT_ENDPOINT），无法创建项目。");
       return;

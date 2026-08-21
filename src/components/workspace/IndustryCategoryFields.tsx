@@ -65,7 +65,7 @@ export function IndustryCategoryFields({
             className="mt-1.5 w-full rounded-lg border border-border/70 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-55"
             aria-label="二级分类"
           >
-            <option value="">{theme ? "请选择二级分类" : "先选一级分类"}</option>
+            <option value="">{theme ? "二级分类（选填）" : "先选一级分类"}</option>
             {sectors.map((s) => (
               <option key={s} value={s}>
                 {s}
