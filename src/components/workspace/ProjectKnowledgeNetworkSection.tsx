@@ -16,7 +16,6 @@ import {
   fetchKnowledgeChapterVersion,
   fetchProjectKnowledgeChapter,
   listKnowledgeChapterVersions,
-  listProjectKnowledgeChapters,
   reviseProjectKnowledgeChapter,
   waitForDraftRunSettled,
   type KnowledgeChapterVersionMeta,
@@ -82,8 +81,6 @@ const CHAPTER_GROUPS: ChapterGroup[] = [
     ],
   },
 ];
-
-const TOTAL_SECTIONS = 13;
 
 function resolveSectionLocation(sectionRaw: string | null): {
   groupId: string;
@@ -166,7 +163,6 @@ export function ProjectKnowledgeNetworkSection({
     Record<string, "generate" | "revise">
   >({});
   const [error, setError] = useState<string | null>(null);
-  const [populatedCount, setPopulatedCount] = useState(0);
   const [instruction, setInstruction] = useState("");
   const chatRef = useRef<HTMLTextAreaElement>(null);
   const sourcesPaneRef = useRef<HTMLDivElement>(null);
@@ -309,16 +305,6 @@ export function ProjectKnowledgeNetworkSection({
     return pickRelatedOpenQuestions(sectionId, items, 2);
   }, [questionsHtml, sectionId]);
 
-  const refreshList = useCallback(async () => {
-    if (!projectId || !userId.trim() || isGuest) return;
-    try {
-      const list = await listProjectKnowledgeChapters(projectId, userId);
-      setPopulatedCount(list.populatedCount);
-    } catch {
-      /* 列表失败不阻断主内容 */
-    }
-  }, [isGuest, projectId, userId]);
-
   const onChapterGenerateSucceededRef = useRef(onChapterGenerateSucceeded);
   onChapterGenerateSucceededRef.current = onChapterGenerateSucceeded;
   const onChapterGenerateFailedRef = useRef(onChapterGenerateFailed);
@@ -425,14 +411,8 @@ export function ProjectKnowledgeNetworkSection({
 
   useEffect(() => {
     if (!refreshKey) return;
-    void refreshList();
     void loadChapter(sectionId);
-  }, [refreshKey, refreshList, loadChapter, sectionId]);
-
-  useEffect(() => {
-    if (view !== "chapters") return;
-    void refreshList();
-  }, [view, refreshList]);
+  }, [refreshKey, loadChapter, sectionId]);
 
   useEffect(() => {
     if (!projectId || !userId.trim() || isGuest) {
@@ -703,7 +683,6 @@ export function ProjectKnowledgeNetworkSection({
         setHtml(data.html?.trim() ? data.html : null);
         setInstruction("");
       }
-      await refreshList();
     } catch (e) {
       if (sectionIdRef.current === targetSectionId) {
         setError(e instanceof Error ? e.message : "改写失败");
@@ -726,11 +705,6 @@ export function ProjectKnowledgeNetworkSection({
     setGroupId("risk");
     setSectionId("questions");
   };
-
-  const progressPct = Math.min(
-    100,
-    Math.round((populatedCount / TOTAL_SECTIONS) * 100),
-  );
 
   return (
     <section className="mt-1" aria-labelledby="project-knowledge-heading">
@@ -935,22 +909,7 @@ export function ProjectKnowledgeNetworkSection({
                     </button>
                   </div>
 
-                  <div className="flex items-center justify-between gap-2.5">
-                    <div className="text-[13px] font-semibold text-[#1F2423]">
-                      研究内容状态
-                    </div>
-                    <span className="text-[11px] text-[#59625F]">
-                      {populatedCount} / {TOTAL_SECTIONS} 项已有内容
-                    </span>
-                  </div>
-                  <div className="mt-2.5 h-1 overflow-hidden bg-[rgba(78,66,57,0.1)]">
-                    <div
-                      className="h-full bg-[#5E9B75] transition-[width] duration-300"
-                      style={{ width: `${progressPct}%` }}
-                    />
-                  </div>
-
-                  <div className="mt-[15px] flex items-start justify-between gap-2.5">
+                  <div className="flex items-start justify-between gap-2.5">
                     <div className="text-[12.5px] font-semibold leading-snug text-[#1F2423]">
                       {sectionLabel}
                     </div>
