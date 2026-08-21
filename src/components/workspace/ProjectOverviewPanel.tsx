@@ -6,6 +6,7 @@ import {
   type ProjectGraphData,
 } from "@/components/workspace/ProjectRelationGraph";
 import { linkifyCitationMarkersHtml } from "@/lib/kn-citations";
+import { stripAuthoringHintsFromHtml } from "@/lib/strip-authoring-hints";
 import { fetchProjectKnowledgeChapter } from "@/lib/project-api";
 import { cn } from "@/lib/utils";
 import type { WorkspaceProject } from "@/workspace/projects";
@@ -59,7 +60,10 @@ export function ProjectOverviewPanel({
   }, [load, refreshKey]);
 
   const displayHtml = useMemo(
-    () => (html?.trim() ? linkifyCitationMarkersHtml(html) : null),
+    () =>
+      html?.trim()
+        ? stripAuthoringHintsFromHtml(linkifyCitationMarkersHtml(html))
+        : null,
     [html],
   );
 

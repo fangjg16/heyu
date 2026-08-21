@@ -14,6 +14,7 @@ import {
   parseProjectGraphHtml,
 } from "@/components/workspace/ProjectRelationGraph";
 import { cn } from "@/lib/utils";
+import { stripAuthoringHintsFromHtml } from "@/lib/strip-authoring-hints";
 import {
   deleteChapterDraftSection,
   discardChapterDraftRun,
@@ -1027,7 +1028,9 @@ export default function KnowledgeChapterDraftReviewPage() {
                       <div
                         className={HTML_PANE}
                         dangerouslySetInnerHTML={{
-                          __html: selected.draftHtml,
+                          __html: stripAuthoringHintsFromHtml(
+                            selected.draftHtml,
+                          ),
                         }}
                       />
                     </div>
@@ -1056,7 +1059,9 @@ export default function KnowledgeChapterDraftReviewPage() {
                           <div
                             className={HTML_PANE}
                             dangerouslySetInnerHTML={{
-                              __html: selected.liveHtml,
+                              __html: stripAuthoringHintsFromHtml(
+                                selected.liveHtml,
+                              ),
                             }}
                           />
                         ) : (
@@ -1151,7 +1156,9 @@ export default function KnowledgeChapterDraftReviewPage() {
                               ? {}
                               : {
                                   dangerouslySetInnerHTML: {
-                                    __html: selected.draftHtml ?? "",
+                                    __html: stripAuthoringHintsFromHtml(
+                                      selected.draftHtml ?? "",
+                                    ),
                                   },
                                 })}
                           />

@@ -24,8 +24,8 @@ import {
 import {
   computeChapterMaturity,
   maturityScoreClass,
-  maturitySidebarNote,
 } from "@/lib/chapter-maturity";
+import { stripAuthoringHintsFromHtml } from "@/lib/strip-authoring-hints";
 import { formatChapterVersionLabel } from "@/lib/chapter-version";
 import {
   parseOpenQuestionsFromHtml,
@@ -897,7 +897,9 @@ export function ProjectKnowledgeNetworkSection({
                       sectionId === "snapshot" &&
                         "[&_tbody_td:first-child]:whitespace-nowrap [&_tbody_td:first-child]:font-medium",
                     )}
-                    dangerouslySetInnerHTML={{ __html: html! }}
+                    dangerouslySetInnerHTML={{
+                      __html: stripAuthoringHintsFromHtml(html!),
+                    }}
                   />
                 ) : (
                   <div className="flex min-h-[280px] items-center justify-center px-8 py-16">
@@ -982,9 +984,6 @@ export function ProjectKnowledgeNetworkSection({
                       {maturity.score}%
                     </span>
                   </div>
-                  <p className="mt-[7px] text-[11.5px] leading-[1.6] text-[#59625F]">
-                    {maturitySidebarNote(hasHtml)}
-                  </p>
 
                   {sectionId !== "questions" ? (
                     <>

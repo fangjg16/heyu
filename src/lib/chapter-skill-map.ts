@@ -1,18 +1,11 @@
-/**
- * 网页知识网络章节 → skill 方法来源（按项目形态混用三包）。
- * 网页 Tab 框架是权威；skill 只提供「怎么填这个格子」。
- */
-import type { AnalysisKind } from "./analysis-kind";
-import { DEFAULT_ANALYSIS_KIND } from "./analysis-kind";
+/** 与 api-worker/src/chapter-skill-map.ts 保持一致：后台映射表的前端兜底。 */
+import type { ChapterSkillMapDto, ChapterSkillSpecDto } from "@/lib/admin-skills-api";
 
-export type ChapterSkillSpec = {
-  readonly primary: readonly string[];
-  readonly borrow: readonly string[];
-};
+type Spec = ChapterSkillSpecDto;
 
-const EMPTY: ChapterSkillSpec = { primary: [], borrow: [] };
+const EMPTY: Spec = { primary: [], borrow: [] };
 
-const MATURE: Record<string, ChapterSkillSpec> = {
+const MATURE: Record<string, Spec> = {
   "project-overview": { primary: ["project-intake"], borrow: [] },
   snapshot: { primary: ["project-intake"], borrow: ["classify-investment-theme"] },
   objectives: { primary: ["dd-claim-audit"], borrow: [] },
@@ -35,7 +28,7 @@ const MATURE: Record<string, ChapterSkillSpec> = {
   framework: { primary: ["value-creation-plan", "ic-memo"], borrow: [] },
 };
 
-const ACQUIRE: Record<string, ChapterSkillSpec> = {
+const ACQUIRE: Record<string, Spec> = {
   "project-overview": { primary: ["acquisition-intake"], borrow: [] },
   snapshot: {
     primary: ["acquisition-intake"],
@@ -82,7 +75,7 @@ const ACQUIRE: Record<string, ChapterSkillSpec> = {
   },
 };
 
-const EARLY: Record<string, ChapterSkillSpec> = {
+const EARLY: Record<string, Spec> = {
   "project-overview": { primary: ["project-intake"], borrow: ["startup-design"] },
   snapshot: {
     primary: ["project-intake", "classify-investment-theme"],
@@ -114,40 +107,13 @@ const EARLY: Record<string, ChapterSkillSpec> = {
   framework: { primary: ["ic-memo"], borrow: ["startup-design"] },
 };
 
-export const CHAPTER_SKILL_BY_KIND: Readonly<
-  Record<AnalysisKind, Readonly<Record<string, ChapterSkillSpec>>>
-> = {
+const BY_KIND: Record<string, Record<string, Spec>> = {
+  early: EARLY,
   mature: MATURE,
   acquire: ACQUIRE,
-  early: EARLY,
 };
 
-/** 除 SKILL.md 外，网页生成要一并读入的说明书（相对 skill 目录）。 */
-export const SKILL_REFERENCE_FILES: Readonly<
-  Record<string, readonly string[]>
-> = {
-  "industry-due-diligence": ["references/industry-due-diligence.md"],
-  "business-due-diligence": ["references/business-due-diligence.md"],
-  "financial-due-diligence": ["references/financial-due-diligence.md"],
-  "compliance-check": ["references/compliance-check.md"],
-  "ic-memo": ["references/ic-memo.md"],
-  "acquisition-intake": ["references/acquisition-thesis.md"],
-  "acquisition-due-diligence": ["references/acquisition-diligence.md"],
-  "acquisition-economics": ["references/acquisition-economics.md"],
-  "acquisition-gate": ["references/acquisition-gate.md"],
-  "buyer-fit-transition": ["references/buyer-fit-transition.md"],
-  "target-screening": ["references/target-screening.md"],
-  "classify-investment-theme": [
-    "references/taxonomy.md",
-    "references/decision-rules.md",
-  ],
-  "startup-design": ["references/honesty-protocol.md"],
-  "startup-competitors": ["references/honesty-protocol.md"],
-  "startup-positioning": ["references/honesty-protocol.md"],
-  "startup-pitch": ["references/honesty-protocol.md"],
-};
-
-export const CHAPTER_SKILL_SECTIONS: readonly { id: string; label: string }[] = [
+const SECTIONS: { id: string; label: string }[] = [
   { id: "project-overview", label: "项目概览" },
   { id: "snapshot", label: "项目快照" },
   { id: "objectives", label: "标的概况" },
@@ -164,63 +130,19 @@ export const CHAPTER_SKILL_SECTIONS: readonly { id: string; label: string }[] = 
   { id: "framework", label: "决策路径与法律结构" },
 ];
 
-export const ANALYSIS_KIND_LABELS: Readonly<Record<AnalysisKind, string>> = {
-  early: "早期",
-  mature: "成熟投资",
-  acquire: "收购经营",
-};
-
-export function serializeChapterSkillMap(): {
-  kinds: { id: AnalysisKind; label: string }[];
-  sections: { id: string; label: string }[];
-  cells: Record<string, Record<string, ChapterSkillSpec>>;
-} {
-  const kinds = (["early", "mature", "acquire"] as const).map((id) => ({
-    id,
-    label: ANALYSIS_KIND_LABELS[id],
-  }));
-  const cells: Record<string, Record<string, ChapterSkillSpec>> = {};
-  for (const kind of ["early", "mature", "acquire"] as const) {
-    cells[kind] = {};
-    for (const section of CHAPTER_SKILL_SECTIONS) {
-      cells[kind]![section.id] = specForChapter(section.id, kind);
-    }
-  }
-  return {
-    kinds,
-    sections: [...CHAPTER_SKILL_SECTIONS],
-    cells,
-  };
-}
-
-export function specForChapter(
-  sectionId: string,
-  kind: AnalysisKind = DEFAULT_ANALYSIS_KIND,
-): ChapterSkillSpec {
-  const id = (sectionId ?? "").trim();
-  return CHAPTER_SKILL_BY_KIND[kind]?.[id] ?? EMPTY;
-}
-
-export function skillsForChapter(
-  sectionId: string,
-  kind: AnalysisKind = DEFAULT_ANALYSIS_KIND,
-): readonly string[] {
-  const spec = specForChapter(sectionId, kind);
-  const out: string[] = [];
-  const seen = new Set<string>();
-  for (const name of [...spec.primary, ...spec.borrow]) {
-    if (!name || seen.has(name)) continue;
-    seen.add(name);
-    out.push(name);
-  }
-  return out;
-}
-
-/** 成熟投资的默认映射，便于旧测试与无 kind 调用。 */
-export const CHAPTER_SKILL_MAP: Readonly<Record<string, readonly string[]>> =
-  Object.fromEntries(
-    Object.entries(MATURE).map(([id, spec]) => [
-      id,
-      [...spec.primary, ...spec.borrow],
+export const FALLBACK_CHAPTER_SKILL_MAP: ChapterSkillMapDto = {
+  kinds: [
+    { id: "early", label: "早期" },
+    { id: "mature", label: "成熟投资" },
+    { id: "acquire", label: "收购经营" },
+  ],
+  sections: SECTIONS,
+  cells: Object.fromEntries(
+    Object.entries(BY_KIND).map(([kind, table]) => [
+      kind,
+      Object.fromEntries(
+        SECTIONS.map((s) => [s.id, table[s.id] ?? EMPTY]),
+      ),
     ]),
-  );
+  ),
+};

@@ -9,7 +9,7 @@ canonicalHint: industry
 
 <aside style="border-left:4px solid #A3262C;background:rgba(163,38,44,.05);padding:1rem 1.25rem;margin:8px 0 1.25rem">
   <p style="font-size:12px;font-weight:700;color:#A3262C;margin:0 0 .4rem">行业要点</p>
-  <p style="margin:0;font-size:13.5px;line-height:1.7;color:#1F2423">待补（市场怎么切、需求从哪来、和本项目怎么咬合；不要写对战卡或出价）</p>
+  <p style="margin:0;font-size:13.5px;line-height:1.7;color:#1F2423">待补</p>
 </aside>
 
 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(163,38,44,.18);margin:0 0 1.5rem">
@@ -55,7 +55,6 @@ canonicalHint: industry
   </tbody>
 </table>
 </div>
-<p style="font-size:12px;color:#59625F;margin:.35rem 0 0">标签用 [Data] / [Estimate] / [Assumption] / [Opinion]</p>
 
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">2. 红旗 / 黄旗</h3>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0">

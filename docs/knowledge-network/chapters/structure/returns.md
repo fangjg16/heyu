@@ -9,7 +9,7 @@ canonicalHint: returns
 
 <aside style="border-left:4px solid #A3262C;background:rgba(163,38,44,.05);padding:1rem 1.25rem;margin:8px 0 1.25rem">
   <p style="font-size:12px;font-weight:700;color:#A3262C;margin:0 0 .4rem">投资人回报摘要</p>
-  <p style="margin:0;font-size:13.5px;line-height:1.7;color:#1F2423">待补（缺关键参数则各格写待补，禁止编造 IRR）</p>
+  <p style="margin:0;font-size:13.5px;line-height:1.7;color:#1F2423">待补</p>
   <p style="margin:.65rem 0 0;font-size:12px;color:#59625F">模型状态：待补（假设模型 / 已校准）</p>
 </aside>
 

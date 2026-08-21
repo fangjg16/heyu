@@ -9,7 +9,7 @@ canonicalHint: assets
 
 <aside style="border-left:4px solid #A3262C;background:rgba(163,38,44,.05);padding:1rem 1.25rem;margin:8px 0 1.25rem">
   <p style="font-size:12px;font-weight:700;color:#A3262C;margin:0 0 .4rem">本章结论</p>
-  <p style="margin:0;font-size:13.5px;line-height:1.7;color:#1F2423">待补（这个标的是什么、现在能否下判断；不要三个核验计数）</p>
+  <p style="margin:0;font-size:13.5px;line-height:1.7;color:#1F2423">待补</p>
 </aside>
 
 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 1.5rem">

@@ -20,6 +20,17 @@ export type AdminSkillRow = {
   intents: string[];
 };
 
+export type ChapterSkillSpecDto = {
+  primary: string[];
+  borrow: string[];
+};
+
+export type ChapterSkillMapDto = {
+  kinds: { id: string; label: string }[];
+  sections: { id: string; label: string }[];
+  cells: Record<string, Record<string, ChapterSkillSpecDto>>;
+};
+
 export type AdminSkillsList = {
   sourceOfTruth: "mysql";
   bridgeConfigured: boolean;
@@ -28,6 +39,7 @@ export type AdminSkillsList = {
   volumeDir: string | null;
   volumeWarning: string | null;
   skills: AdminSkillRow[];
+  chapterSkillMap: ChapterSkillMapDto | null;
 };
 
 export type AdminSkillsSyncResult = {
@@ -73,13 +85,34 @@ export async function fetchAdminSkills(): Promise<AdminSkillsList> {
     hermesRestartConfigured?: boolean;
     volumeDir?: string | null;
     volumeWarning?: string | null;
+    chapterSkillMap?: ChapterSkillMapDto | null;
   };
+  const rawMap = data.chapterSkillMap;
+  const chapterSkillMap: ChapterSkillMapDto | null =
+    rawMap &&
+    Array.isArray(rawMap.kinds) &&
+    Array.isArray(rawMap.sections) &&
+    rawMap.cells &&
+    typeof rawMap.cells === "object"
+      ? {
+          kinds: rawMap.kinds.map((k) => ({
+            id: String(k.id ?? ""),
+            label: String(k.label ?? k.id ?? ""),
+          })),
+          sections: rawMap.sections.map((s) => ({
+            id: String(s.id ?? ""),
+            label: String(s.label ?? s.id ?? ""),
+          })),
+          cells: rawMap.cells,
+        }
+      : null;
   return {
     sourceOfTruth: "mysql",
     bridgeConfigured: Boolean(data.bridgeConfigured),
     hermesRestartConfigured: Boolean(data.hermesRestartConfigured),
     volumeDir: data.volumeDir ?? null,
     volumeWarning: data.volumeWarning ?? null,
+    chapterSkillMap,
     skills: (data.skills ?? []).map((s) => {
       const intent =
         (typeof s.intent === "string" && s.intent) ||

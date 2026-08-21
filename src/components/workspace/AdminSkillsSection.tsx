@@ -27,7 +27,8 @@ import {
   type AdminSkillRow,
   type AdminSkillsList,
 } from "@/lib/admin-skills-api";
-import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
+import { AdminChapterSkillMap } from "@/components/workspace/AdminChapterSkillMap";
+import { FALLBACK_CHAPTER_SKILL_MAP } from "@/lib/chapter-skill-map";
 
 const SKILL_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/u;
 
@@ -419,10 +420,8 @@ export function AdminSkillsSection() {
               Skills 管理
             </h2>
             <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-              以 MySQL 为权威源：编辑后自动整树同步到 Hermes
-              文件卷。首次请「同步到 MySQL」或本地{" "}
-              <code className="text-[10px]">npm run seed:hermes-skills</code>
-              。写入卷后需要时请「重启 Hermes Gateway」。
+              网页知识网络按「项目类型 × 章节」选用 Skill。下表是当前映射，再下面是全部
+              Skill 文件。
             </p>
           </div>
         </div>
@@ -494,22 +493,8 @@ export function AdminSkillsSection() {
 
       {list ? (
         <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">
-          共 {skills.length} 个（库{" "}
-          {skills.filter((s) => s.inDatabase).length} · 本地卷{" "}
-          {skills.filter((s) => s.onVolume || s.syncStatus === "not_in_db").length}
-          ）
-          {list.volumeDir ? (
-            <>
-              <br />
-              本地目录：{list.volumeDir}
-            </>
-          ) : null}
-          {list.bridgeConfigured
-            ? " · Bridge 已配置"
-            : " · Bridge 未配置（保存后无法落盘）"}
-          {list.hermesRestartConfigured
-            ? " · Gateway 一键重启可用"
-            : " · Gateway 一键重启未配置"}
+          共 {skills.length} 个 Skill
+          {list.bridgeConfigured ? "" : " · 保存后无法写入运行卷"}
         </p>
       ) : null}
 
@@ -536,10 +521,21 @@ export function AdminSkillsSection() {
         <p className="mt-3 text-[11px] font-medium text-emerald-700">{hint}</p>
       ) : null}
 
+      <AdminChapterSkillMap
+        data={list?.chapterSkillMap ?? FALLBACK_CHAPTER_SKILL_MAP}
+        knownSkills={new Set(skills.map((s) => s.name))}
+        onOpenSkill={(name) => {
+          const el = document.getElementById(`admin-skill-${name}`);
+          el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          void openEdit(name);
+        }}
+      />
+
       {!loading && skills.length > 0 ? (
         <ul className="mt-4 space-y-2">
           {skills.map((s) => (
             <li
+              id={`admin-skill-${s.name}`}
               key={s.name}
               className="flex flex-col gap-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
             >
@@ -622,8 +618,7 @@ export function AdminSkillsSection() {
 
       {!loading && !error && skills.length === 0 ? (
         <p className="mt-4 text-[11px] text-muted-foreground">
-          库中尚无 skill。请「同步到 MySQL」或运行{" "}
-          <code className="text-[10px]">npm run seed:hermes-skills</code>。
+          库中尚无 skill。请先点「同步到 MySQL」。
         </p>
       ) : null}
 

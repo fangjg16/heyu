@@ -533,10 +533,8 @@ export function normalizeProjectGraphData(
 
   return {
     schemaVersion: asString(o.schemaVersion, "1.0") || "1.0",
-    coverageTitle: asString(o.coverageTitle, "来自当前资料") || "来自当前资料",
-    coverageText:
-      asString(o.coverageText) ||
-      "节点与关系来自项目资料中的主张；连线不代表已独立核验。",
+    coverageTitle: asString(o.coverageTitle) || undefined,
+    coverageText: asString(o.coverageText) || undefined,
     filters,
     legend,
     nodes: layoutProjectGraphNodes(typedNodes, edges),

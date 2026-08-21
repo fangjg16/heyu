@@ -590,6 +590,11 @@ export function ProjectRelationGraph({
     return { visibleNodes, visibleEdges: subsetEdges, nodeById };
   }, [data, filter, query]);
 
+  const coverage = (data.coverageText ?? "").trim();
+  const showCoverage =
+    Boolean(coverage) &&
+    !/连线不代表已独立核验|节点与关系来自项目资料/u.test(coverage);
+
   const active = activeId
     ? (data.nodes.find((n) => n.id === activeId) ?? null)
     : null;
@@ -774,15 +779,16 @@ export function ProjectRelationGraph({
         />
       ) : null}
 
-      <div className="mt-3 grid grid-cols-[180px_minmax(0,1fr)] items-start gap-5 border border-[rgba(213,154,47,0.28)] bg-[rgba(213,154,47,0.07)] px-[18px] py-4">
-        <div className="text-[13px] font-semibold text-[#B07d1f]">
-          {data.coverageTitle || "资料覆盖"}
+      {showCoverage ? (
+        <div className="mt-3 grid grid-cols-[180px_minmax(0,1fr)] items-start gap-5 border border-[rgba(213,154,47,0.28)] bg-[rgba(213,154,47,0.07)] px-[18px] py-4">
+          <div className="text-[13px] font-semibold text-[#B07d1f]">
+            {data.coverageTitle || "资料覆盖"}
+          </div>
+          <div className="text-[12px] leading-[1.7] text-[#59625F]">
+            {coverage}
+          </div>
         </div>
-        <div className="text-[12px] leading-[1.7] text-[#59625F]">
-          {data.coverageText ||
-            "节点与关系来自项目资料中的主张；连线不代表已独立核验。"}
-        </div>
-      </div>
+      ) : null}
 
       {(data.candidates?.length ?? 0) > 0 ? (
         <ul className="mt-3 space-y-2">

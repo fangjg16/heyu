@@ -7,7 +7,7 @@ kicker: 基础研究 · B.3
 canonicalHint: comps
 ---
 
-<div style="margin:8px 0 18px;font-size:13.5px;line-height:1.75;color:#59625F">待补（跟谁比、比什么；不要和行业章重复对战或市场规模）</div>
+<div style="margin:8px 0 18px;font-size:13.5px;line-height:1.75;color:#59625F">待补</div>
 
 <!-- kn:begin early -->
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 功能矩阵</h3>
@@ -23,7 +23,6 @@ canonicalHint: comps
   </tbody>
 </table>
 </div>
-<p style="font-size:12px;color:#59625F;margin:.35rem 0 0">格内用 强 / 够 / 弱 / 无</p>
 
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">2. 定价</h3>
 <div style="overflow-x:auto">
@@ -56,7 +55,6 @@ canonicalHint: comps
     <div style="font-size:12.5px;color:#59625F;margin-top:6px;line-height:1.6">强项：待补<br>弱项：待补<br>何时会输给他们：待补</div>
   </div>
 </div>
-<p style="font-size:12px;color:#59625F;margin:-.5rem 0 1rem">只写 3–5 个关键对手；不要行业市场规模</p>
 
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">4. 估值锚（有融资轮次才填）</h3>
 <div style="overflow-x:auto">

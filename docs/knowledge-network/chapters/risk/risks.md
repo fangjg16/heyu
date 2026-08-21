@@ -9,11 +9,10 @@ canonicalHint: risks
 
 <aside style="border-left:4px solid #A3262C;background:#fdf5f4;padding:1rem 1.25rem;margin:8px 0 1.25rem">
   <p style="font-size:12px;font-weight:700;color:#A3262C;margin:0 0 .4rem">总体风险画像</p>
-  <p style="margin:0;font-size:13.5px;line-height:1.7;color:#1F2423">待补（aggressive / moderate / conservative）</p>
+  <p style="margin:0;font-size:13.5px;line-height:1.7;color:#1F2423">待补</p>
 </aside>
 
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 热力图（可能性 × 影响）</h3>
-<div style="font-size:12px;color:#59625F;margin:-.25rem 0 .75rem">格内填风险编号；底色表示得分，禁止改成 SVG</div>
 <div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12);text-align:center">
   <thead>

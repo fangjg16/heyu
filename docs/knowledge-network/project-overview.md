@@ -96,7 +96,6 @@ canonicalHint: project-overview
 
   <div id="project-timeline" style="margin-top:34px;padding-top:26px;border-top:1px solid rgba(78,66,57,0.12)">
     <div style="font-family:'Noto Serif SC',serif;font-size:20px;font-weight:600;color:#1F2423">项目时间轴</div>
-    <div style="font-size:12px;color:#59625F;margin-top:5px">按已发生事项、待核验节点和后续计划呈现项目进展；仅写入与本项目直接相关的带日期事件</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-top:20px">
       <div style="position:relative;padding:18px 18px 0 0;border-top:2px solid rgba(94,155,117,0.5);min-height:126px">
         <span style="position:absolute;left:0;top:-6px;width:10px;height:10px;border-radius:50%;background:#5E9B75;box-shadow:0 0 0 4px #F6F3EE"></span>
@@ -130,7 +129,6 @@ canonicalHint: project-overview
 
   <div id="project-graph-slot" style="margin-top:34px;padding-top:26px;border-top:1px solid rgba(78,66,57,0.12)">
     <div style="font-family:'Noto Serif SC',serif;font-size:20px;font-weight:600;color:#1F2423">项目关系图</div>
-    <div style="font-size:12px;color:#59625F;margin-top:5px">主体、资产与关键对手方关系；生成后由页面挂载交互图</div>
     <div style="margin-top:16px;min-height:220px;border:1px dashed rgba(163,38,44,.28);border-radius:16px;background:rgba(255,252,248,.78);display:flex;align-items:center;justify-content:center;color:#969E9A;font-size:13px">待生成关系图</div>
   </div>
 </div>

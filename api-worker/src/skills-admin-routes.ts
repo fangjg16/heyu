@@ -33,7 +33,7 @@ import {
   pushSkillToVolume,
   skillsBridgeBase,
 } from "./skills-volume-sync";
-import { recordOperationLog } from "./operation-logs-db";
+import { serializeChapterSkillMap } from "./chapter-skill-map";
 
 type Env = {
   DB: AppDatabase;
@@ -155,6 +155,7 @@ export async function handleAdminListSkills(
       volumeDir,
       volumeWarning,
       skills,
+      chapterSkillMap: serializeChapterSkillMap(),
     });
   } catch (e) {
     return json(

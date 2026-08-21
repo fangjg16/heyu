@@ -9,7 +9,7 @@ canonicalHint: business-model
 
 <aside style="border-left:4px solid #A3262C;background:rgba(163,38,44,.05);padding:1rem 1.25rem;margin:8px 0 1.25rem">
   <p style="font-size:12px;font-weight:700;color:#A3262C;margin:0 0 .4rem">怎么赚钱</p>
-  <p style="margin:0;font-size:13.5px;line-height:1.7;color:#1F2423">待补（客户、定价与单位经济一句话；不要写 IRR）</p>
+  <p style="margin:0;font-size:13.5px;line-height:1.7;color:#1F2423">待补</p>
 </aside>
 
 <!-- kn:begin early -->
@@ -54,7 +54,6 @@ canonicalHint: business-model
 </div>
 
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">2. 已有交付路径</h3>
-<div style="font-size:12px;color:#59625F;margin:-.25rem 0 .75rem">尚无真实交付则各格写待补，不要再画一张九宫格</div>
 <div style="display:grid;grid-template-columns:repeat(4,minmax(6.5rem,1fr));gap:.45rem;margin:1.25rem 0">
   <div style="text-align:center;font-size:11px;font-weight:700;letter-spacing:.06em;color:#A3262C;padding:.45rem .3rem;border-bottom:2px solid #A3262C">① 触达</div>
   <div style="text-align:center;font-size:11px;font-weight:700;letter-spacing:.06em;color:#A3262C;padding:.45rem .3rem;border-bottom:2px solid #A3262C">② 交付</div>
@@ -69,7 +68,6 @@ canonicalHint: business-model
 
 <!-- kn:begin mature,acquire -->
 <h3 style="margin:1.25rem 0 .75rem;font-size:15px;font-weight:600;color:#1F2423">1. 变现路径（Journey Map）</h3>
-<div style="font-size:12px;color:#59625F;margin:-.25rem 0 .75rem">多路径用此图；若只有一条线性供应链，可改成流程增值图，但仍须保留本节</div>
 <div style="display:grid;grid-template-columns:7.5rem repeat(4,minmax(6.5rem,1fr));column-gap:.3rem;row-gap:.45rem;margin:1.25rem 0;overflow-x:auto;min-width:42rem">
   <div></div>
   <div style="text-align:center;font-size:11px;font-weight:700;letter-spacing:.06em;color:#A3262C;padding:.45rem .3rem;border-bottom:2px solid #A3262C">① 待补</div>
