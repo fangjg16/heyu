@@ -133,6 +133,192 @@ function nodeKindDot(
   return legendColorForKind(resolveNodeKind(node, nodes, edges));
 }
 
+function clampPct(n: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, n));
+}
+
+function polarPos(r: number, angle: number): { x: number; y: number } {
+  return {
+    x: Math.round(clampPct(50 + r * Math.cos(angle), 8, 92)),
+    y: Math.round(clampPct(47 + r * 0.8 * Math.sin(angle), 11, 87)),
+  };
+}
+
+function spreadAngles(count: number, start: number, end: number): number[] {
+  if (count <= 0) return [];
+  if (count === 1) return [(start + end) / 2];
+  const pad = count === 2 ? 0.16 : 0.07;
+  const a0 = start + (end - start) * pad;
+  const a1 = end - (end - start) * pad;
+  return Array.from(
+    { length: count },
+    (_, i) => a0 + (i / (count - 1)) * (a1 - a0),
+  );
+}
+
+function spokeLabel(
+  nodeId: string,
+  hubId: string | undefined,
+  edges: ProjectGraphEdge[],
+): string {
+  if (!hubId) return "";
+  return edges
+    .filter(
+      (e) =>
+        (e.from === nodeId && e.to === hubId) ||
+        (e.to === nodeId && e.from === hubId),
+    )
+    .map((e) => e.label)
+    .join(" ");
+}
+
+function looksLikePlatform(node: ProjectGraphNode, spoke: string): boolean {
+  return /OS|平台|底层|架构|引擎/iu.test(`${node.label} ${spoke}`);
+}
+
+function inferHierarchyPair(
+  a: ProjectGraphNode,
+  b: ProjectGraphNode,
+  label: string,
+): { parent: string; child: string } | null {
+  const blob = label || "";
+  const platA = looksLikePlatform(a, "");
+  const platB = looksLikePlatform(b, "");
+  const run = /运行于|基于|依赖于|搭建在|建立在/u.exec(blob);
+  if (run) {
+    const before = blob.slice(0, run.index);
+    const after = blob.slice(run.index);
+    const aBefore = Boolean(a.label && before.includes(a.label));
+    const bBefore = Boolean(b.label && before.includes(b.label));
+    const aAfter = Boolean(a.label && after.includes(a.label));
+    const bAfter = Boolean(b.label && after.includes(b.label));
+    if (aBefore && bAfter) return { child: a.id, parent: b.id };
+    if (bBefore && aAfter) return { child: b.id, parent: a.id };
+  }
+  if (
+    platA !== platB &&
+    /运行|基于|底层|架构|之上|承载/u.test(blob)
+  ) {
+    return platA
+      ? { parent: a.id, child: b.id }
+      : { parent: b.id, child: a.id };
+  }
+  return null;
+}
+
+function childToParentMap(
+  products: ProjectGraphNode[],
+  edges: ProjectGraphEdge[],
+): Map<string, string> {
+  const parentOf = new Map<string, string>();
+  const ids = new Set(products.map((p) => p.id));
+  const byId = Object.fromEntries(products.map((p) => [p.id, p]));
+  for (const e of edges) {
+    if (!ids.has(e.from) || !ids.has(e.to)) continue;
+    if ((e as { type?: string }).type === "hierarchy") {
+      parentOf.set(e.to, e.from);
+      continue;
+    }
+    const pair = inferHierarchyPair(byId[e.from]!, byId[e.to]!, e.label);
+    if (pair) parentOf.set(pair.child, pair.parent);
+  }
+  return parentOf;
+}
+
+/** 按类型扇区集结；产品树沿同一径向内外层排。不使用模型给的 x/y。 */
+function layoutClusteredGraph(
+  nodes: ProjectGraphNode[],
+  edges: ProjectGraphEdge[],
+): ProjectGraphNode[] {
+  if (nodes.length === 0) return nodes;
+  const hub =
+    nodes.find((n) => n.type === "project") ||
+    nodes.find((n) => isGraphHub(n, nodes, edges)) ||
+    nodes.find((n) => resolveNodeKind(n, nodes, edges) === "主体") ||
+    nodes[0]!;
+  const others = nodes.filter((n) => n.id !== hub.id);
+  const kindOf = (n: ProjectGraphNode) => resolveNodeKind(n, nodes, edges);
+  const groups = new Map<string, ProjectGraphNode[]>();
+  for (const node of others) {
+    const k = kindOf(node);
+    const list = groups.get(k) ?? [];
+    list.push(node);
+    groups.set(k, list);
+  }
+
+  const arcs: { kind: string; start: number; end: number; radius: number }[] = [
+    { kind: "人物", start: (-120 * Math.PI) / 180, end: (-58 * Math.PI) / 180, radius: 29 },
+    { kind: "资本", start: (-28 * Math.PI) / 180, end: (102 * Math.PI) / 180, radius: 35 },
+    { kind: "技术/产品", start: (128 * Math.PI) / 180, end: (228 * Math.PI) / 180, radius: 27 },
+  ];
+
+  const placed = new Map<string, { x: number; y: number }>();
+  placed.set(hub.id, { x: 50, y: 47 });
+
+  const placeSpread = (
+    list: ProjectGraphNode[],
+    start: number,
+    end: number,
+    radius: number,
+  ) => {
+    const angles = spreadAngles(list.length, start, end);
+    list.forEach((node, i) => {
+      placed.set(node.id, polarPos(radius, angles[i]!));
+    });
+  };
+
+  for (const arc of arcs) {
+    const list = groups.get(arc.kind) ?? [];
+    if (list.length === 0) continue;
+    if (arc.kind !== "技术/产品") {
+      placeSpread(list, arc.start, arc.end, arc.radius);
+      continue;
+    }
+
+    const parentOf = childToParentMap(list, edges);
+    const roots = list.filter((n) => !parentOf.has(n.id));
+    const trees = (roots.length ? roots : list).map((root) => ({
+      root,
+      children: list.filter((n) => parentOf.get(n.id) === root.id),
+    }));
+    const rootAngles = spreadAngles(trees.length, arc.start, arc.end);
+    trees.forEach((tree, i) => {
+      const mid = rootAngles[i]!;
+      const spoke = spokeLabel(tree.root.id, hub.id, edges);
+      const inner =
+        looksLikePlatform(tree.root, spoke) || tree.children.length > 0
+          ? 24
+          : /路线图/u.test(spoke)
+            ? 36
+            : 30;
+      placed.set(tree.root.id, polarPos(inner, mid));
+      if (tree.children.length === 1) {
+        placed.set(tree.children[0]!.id, polarPos(40, mid));
+      } else if (tree.children.length > 1) {
+        const span = ((arc.end - arc.start) / Math.max(trees.length, 1)) * 0.65;
+        const childAngles = spreadAngles(
+          tree.children.length,
+          mid - span / 2,
+          mid + span / 2,
+        );
+        tree.children.forEach((child, j) => {
+          placed.set(child.id, polarPos(40, childAngles[j]!));
+        });
+      }
+    });
+  }
+
+  const leftover = others.filter((n) => !placed.has(n.id));
+  if (leftover.length) {
+    placeSpread(leftover, (70 * Math.PI) / 180, (110 * Math.PI) / 180, 33);
+  }
+
+  return nodes.map((n) => {
+    const pos = placed.get(n.id);
+    return pos ? { ...n, x: pos.x, y: pos.y } : { ...n, x: 50, y: 47 };
+  });
+}
+
 function GraphNodeDrawer({
   node,
   edges,
@@ -348,12 +534,13 @@ export function ProjectRelationGraph({
       );
       if (root) ids.add(root.id);
     }
-    const visibleNodes = data.nodes.filter((n) => ids.has(n.id));
-    const nodeById = Object.fromEntries(data.nodes.map((n) => [n.id, n]));
-    const visibleEdges = data.edges.filter(
+    const subset = data.nodes.filter((n) => ids.has(n.id));
+    const subsetEdges = data.edges.filter(
       (e) => ids.has(e.from) && ids.has(e.to),
     );
-    return { visibleNodes, visibleEdges, nodeById };
+    const visibleNodes = layoutClusteredGraph(subset, subsetEdges);
+    const nodeById = Object.fromEntries(visibleNodes.map((n) => [n.id, n]));
+    return { visibleNodes, visibleEdges: subsetEdges, nodeById };
   }, [data, filter, query]);
 
   const active = activeId
@@ -417,6 +604,11 @@ export function ProjectRelationGraph({
             const conflict = e.status === "conflict";
             const dashed =
               e.status === "inferred" || e.status === "unverified";
+            const hierarchy = Boolean(
+              from &&
+                to &&
+                inferHierarchyPair(from, to, e.label),
+            );
             return (
               <line
                 key={e.id}
@@ -425,9 +617,13 @@ export function ProjectRelationGraph({
                 x2={to.x ?? 50}
                 y2={to.y ?? 50}
                 stroke={
-                  conflict ? "rgba(160,99,88,0.42)" : "rgba(78,66,57,0.27)"
+                  conflict
+                    ? "rgba(160,99,88,0.42)"
+                    : hierarchy
+                      ? "rgba(63,111,99,0.55)"
+                      : "rgba(78,66,57,0.27)"
                 }
-                strokeWidth={conflict ? 0.48 : 0.32}
+                strokeWidth={conflict ? 0.48 : hierarchy ? 0.55 : 0.32}
                 strokeDasharray={dashed ? "1.4 1.1" : undefined}
               />
             );
