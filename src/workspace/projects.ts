@@ -1,9 +1,6 @@
-/** 项目状态（英文标签 + 中文说明） */
-export type ProjectPhase =
-  | "Active（资源筹备中）"
-  | "Completed（已签约）"
-  | "Paused（暂停）"
-  | "Cancelled（已取消）";
+/** 项目状态 */
+export const PROJECT_PHASES = ["进行中", "已完成", "已归档", "已暂停"] as const;
+export type ProjectPhase = (typeof PROJECT_PHASES)[number];
 
 /** 目录可见性：全开放 | 内部邀请（wire：partial | invite） */
 export type ProjectOpenness = "partial" | "invite";
@@ -28,21 +25,38 @@ export type WorkspaceProject = {
   researchMaturity?: number | null;
 };
 
-export const DEFAULT_PROJECT_PHASE: ProjectPhase = "Active（资源筹备中）";
+export const DEFAULT_PROJECT_PHASE: ProjectPhase = "进行中";
+
+const LEGACY_PHASE: Record<string, ProjectPhase> = {
+  "Active（资源筹备中）": "进行中",
+  Active: "进行中",
+  资源筹备中: "进行中",
+  进行中: "进行中",
+  "Completed（已签约）": "已完成",
+  Completed: "已完成",
+  已签约: "已完成",
+  已完成: "已完成",
+  "Paused（暂停）": "已暂停",
+  Paused: "已暂停",
+  暂停: "已暂停",
+  已暂停: "已暂停",
+  "Cancelled（已取消）": "已归档",
+  Cancelled: "已归档",
+  已取消: "已归档",
+  已归档: "已归档",
+};
 
 export function normalizeProjectPhase(raw: string | undefined | null): ProjectPhase {
-  const phases: ProjectPhase[] = [
-    "Active（资源筹备中）",
-    "Completed（已签约）",
-    "Paused（暂停）",
-    "Cancelled（已取消）",
-  ];
-  const p = (raw ?? "").trim() as ProjectPhase;
-  return phases.includes(p) ? p : DEFAULT_PROJECT_PHASE;
+  const p = (raw ?? "").trim();
+  if ((PROJECT_PHASES as readonly string[]).includes(p)) return p as ProjectPhase;
+  if (LEGACY_PHASE[p]) return LEGACY_PHASE[p];
+  if (p.startsWith("Paused")) return "已暂停";
+  if (p.startsWith("Completed")) return "已完成";
+  if (p.startsWith("Cancelled")) return "已归档";
+  if (p.startsWith("Active")) return "进行中";
+  return DEFAULT_PROJECT_PHASE;
 }
 
-/** 界面展示用中文阶段名；库内仍存 Active（资源筹备中）等原值 */
 export function projectPhaseLabel(phase: ProjectPhase | undefined | null): string {
-  const safe = normalizeProjectPhase(phase);
-  return safe.match(/（(.+?)）/)?.[1] ?? safe;
+  return normalizeProjectPhase(phase);
 }

@@ -1,10 +1,6 @@
 import type { AppDatabase } from "./app-database";
 
-export type ProjectPhase =
-  | "Active（资源筹备中）"
-  | "Completed（已签约）"
-  | "Paused（暂停）"
-  | "Cancelled（已取消）";
+export type ProjectPhase = "进行中" | "已完成" | "已归档" | "已暂停";
 
 /** 目录可见性：全开放 | 内部邀请（partial/public 为全开放；invite 为内部邀请） */
 export type ProjectOpenness = "partial" | "invite";
@@ -54,7 +50,7 @@ export function rowToJson(row: ProjectRow): ProjectJson {
     id: row.id,
     name: row.name,
     category: row.category,
-    phase: row.phase,
+    phase: normalizeProjectPhase(row.phase),
     summary: row.summary,
     guestSummary: row.guest_summary,
     openness: normalizeProjectOpenness(row.openness),
@@ -198,7 +194,7 @@ export async function createProject(
       id,
       input.name.trim(),
       (input.category ?? "未分类").trim() || "未分类",
-      input.phase ?? "Active（资源筹备中）",
+      input.phase ?? "进行中",
       input.summary.trim(),
       guestSummary,
       openness,
@@ -212,16 +208,36 @@ export async function createProject(
   return created;
 }
 
-const VALID_PHASES: ProjectPhase[] = [
-  "Active（资源筹备中）",
-  "Completed（已签约）",
-  "Paused（暂停）",
-  "Cancelled（已取消）",
-];
+const VALID_PHASES: ProjectPhase[] = ["进行中", "已完成", "已归档", "已暂停"];
+
+const LEGACY_PHASE: Record<string, ProjectPhase> = {
+  "Active（资源筹备中）": "进行中",
+  Active: "进行中",
+  资源筹备中: "进行中",
+  进行中: "进行中",
+  "Completed（已签约）": "已完成",
+  Completed: "已完成",
+  已签约: "已完成",
+  已完成: "已完成",
+  "Paused（暂停）": "已暂停",
+  Paused: "已暂停",
+  暂停: "已暂停",
+  已暂停: "已暂停",
+  "Cancelled（已取消）": "已归档",
+  Cancelled: "已归档",
+  已取消: "已归档",
+  已归档: "已归档",
+};
 
 export function normalizeProjectPhase(raw: string | undefined): ProjectPhase {
-  const p = (raw ?? "").trim() as ProjectPhase;
-  return VALID_PHASES.includes(p) ? p : "Active（资源筹备中）";
+  const p = (raw ?? "").trim();
+  if (VALID_PHASES.includes(p as ProjectPhase)) return p as ProjectPhase;
+  if (LEGACY_PHASE[p]) return LEGACY_PHASE[p];
+  if (p.startsWith("Paused")) return "已暂停";
+  if (p.startsWith("Completed")) return "已完成";
+  if (p.startsWith("Cancelled")) return "已归档";
+  if (p.startsWith("Active")) return "进行中";
+  return "进行中";
 }
 
 export async function updateProject(
@@ -245,7 +261,7 @@ export async function updateProject(
   const summary = (input.summary ?? existing.summary).trim();
   const guestSummary = (input.guestSummary ?? existing.guestSummary).trim();
   const category = ((input.category ?? existing.category).trim() || "未分类");
-  const phase = input.phase ?? existing.phase;
+  const phase = normalizeProjectPhase(input.phase ?? existing.phase);
   const openness =
     input.openness !== undefined
       ? normalizeProjectOpenness(input.openness)

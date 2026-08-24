@@ -29,7 +29,8 @@ import {
   isIssuerRole,
   projectEntryPath,
 } from "@/workspace/workspace-users";
-import type { ProjectPhase, WorkspaceProject } from "@/workspace/projects";
+import { projectPhaseLabel, type WorkspaceProject } from "@/workspace/projects";
+import { judgmentFromPhase } from "@/workspace/project-judgment";
 
 /** 原型硬编码色，总览页与 HTML 原型逐项对齐 */
 const C = {
@@ -83,34 +84,8 @@ function projectMark(name: string): string {
   return t.slice(0, 2);
 }
 
-function judgmentFromPhase(phase: ProjectPhase): {
-  label: string;
-  bg: string;
-  fg: string;
-} {
-  if (phase.startsWith("Paused")) {
-    return { label: "暂缓", bg: "rgba(78,66,57,0.08)", fg: C.muted };
-  }
-  if (phase.startsWith("Completed")) {
-    return {
-      label: "继续推进",
-      bg: "rgba(94,155,117,0.16)",
-      fg: C.greenDeep,
-    };
-  }
-  if (phase.startsWith("Cancelled")) {
-    return { label: "已取消", bg: "rgba(78,66,57,0.08)", fg: C.muted };
-  }
-  return {
-    label: "研究中",
-    bg: "#FBF1E2",
-    fg: "#B07d1f",
-  };
-}
-
 function stageLabel(p: WorkspaceProject): string {
-  const cn = p.phase.match(/（(.+?)）/)?.[1];
-  return cn ? `研究中 · ${cn}` : p.phase || "研究中";
+  return projectPhaseLabel(p.phase);
 }
 
 function iconTone(index: number): { bg: string; fg: string } {

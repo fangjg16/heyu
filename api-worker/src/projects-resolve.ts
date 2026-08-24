@@ -62,7 +62,7 @@ async function healProjectRowFromDocuments(
       projectId,
       name,
       "未分类",
-      "Active（资源筹备中）" satisfies ProjectPhase,
+      "进行中" satisfies ProjectPhase,
       summary,
       `${name} 项目在管推进中，详情按权限展示。`,
       doc.uploaded_by,

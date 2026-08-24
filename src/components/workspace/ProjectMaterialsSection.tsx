@@ -7,7 +7,9 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { createPortal } from "react-dom";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import type { Components } from "react-markdown";
 import { useNavigate } from "react-router-dom";
 import {
   ChevronDown,
@@ -20,6 +22,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { ChatMarkdown } from "@/components/workspace/ChatMarkdown";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-auth";
 import {
@@ -146,6 +149,12 @@ function isZipFile(file: File): boolean {
 function fileExt(name: string): string {
   const i = name.lastIndexOf(".");
   return i >= 0 ? name.slice(i + 1).toLowerCase() : "";
+}
+
+function isMarkdownFile(file: ProjectFileRecord): boolean {
+  const ext = fileExt(file.filename);
+  const mime = (file.mime ?? "").toLowerCase();
+  return ext === "md" || ext === "markdown" || mime.includes("markdown");
 }
 
 function classifyFileKind(file: ProjectFileRecord): FileKindFilter {
@@ -1112,7 +1121,6 @@ export function ProjectMaterialsSection({
       }
 
       const refLabels = cache?.refs ?? [];
-      const usedFor = cache?.usedFor ?? [];
       return {
         title: file.filename,
         trail,
@@ -1131,7 +1139,6 @@ export function ProjectMaterialsSection({
         summary,
         documentType: cache?.documentType || file.fileCategory || "",
         keyPoints: cache?.keyPoints ?? [],
-        usedFor,
         srcLines: [
           { label: "来源", value: SOURCE_BUCKETS.find((b) => b.id === fileSourceBucket(file))?.name ?? "项目上传" },
           { label: "时间", value: formatFileDate(file.createdAt) },
@@ -1173,7 +1180,6 @@ export function ProjectMaterialsSection({
       summary: "",
       documentType: "",
       keyPoints: [] as string[],
-      usedFor: [] as string[],
       srcLines: [] as { label: string; value: string }[],
       canPreview: false,
       canCreateSubfolder: canManageProjectFolder,
@@ -1472,7 +1478,11 @@ export function ProjectMaterialsSection({
                           {detail.documentType}
                         </div>
                       ) : null}
-                      <div>{detail.summary}</div>
+                      {detail.summary.trim() ? (
+                        <ChatMarkdown text={detail.summary} variant="assistant" />
+                      ) : (
+                        <div>—</div>
+                      )}
                       {detail.keyPoints.length > 0 ? (
                         <ul className="mt-3 list-disc space-y-1 pl-5 text-[13px] leading-relaxed text-[hsl(var(--warm-charcoal))]">
                           {detail.keyPoints.map((p, i) => (
@@ -1497,24 +1507,6 @@ export function ProjectMaterialsSection({
                       </span>
                     </div>
                   ))}
-                </div>
-              ) : null}
-
-              {detail.isFile && detail.usedFor.length > 0 ? (
-                <div className="mt-5">
-                  <div className="mb-2 text-[11.5px] text-[hsl(var(--warm-charcoal-muted))]">
-                    已用于
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    {detail.usedFor.map((u, i) => (
-                      <div
-                        key={`${i}-${u.slice(0, 24)}`}
-                        className="text-[12.5px] text-[hsl(var(--wine))]"
-                      >
-                        {u}
-                      </div>
-                    ))}
-                  </div>
                 </div>
               ) : null}
 
@@ -1931,6 +1923,109 @@ function TreeRow({
   );
 }
 
+}
+
+const FILE_MD_COMPONENTS: Components = {
+  h1: ({ children }) => (
+    <h1 className="mb-4 mt-2 font-display text-[26px] font-semibold leading-snug text-[#1F2423] first:mt-0">
+      {children}
+    </h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="mb-3 mt-8 border-b border-[rgba(78,66,57,0.12)] pb-2 text-[17px] font-semibold text-[#1F2423]">
+      {children}
+    </h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="mb-2 mt-6 text-[15px] font-semibold text-[#1F2423]">{children}</h3>
+  ),
+  p: ({ children }) => (
+    <p className="mb-3 text-[14.5px] leading-[1.9] text-[hsl(var(--warm-charcoal))] last:mb-0">
+      {children}
+    </p>
+  ),
+  ul: ({ children }) => (
+    <ul className="mb-4 list-outside list-disc space-y-1.5 pl-5 text-[14.5px] leading-[1.8] text-[hsl(var(--warm-charcoal))]">
+      {children}
+    </ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="mb-4 list-outside list-decimal space-y-1.5 pl-5 text-[14.5px] leading-[1.8] text-[hsl(var(--warm-charcoal))]">
+      {children}
+    </ol>
+  ),
+  li: ({ children }) => <li className="pl-0.5">{children}</li>,
+  strong: ({ children }) => <strong className="font-semibold text-[#1F2423]">{children}</strong>,
+  em: ({ children }) => <em className="italic">{children}</em>,
+  blockquote: ({ children }) => (
+    <blockquote className="my-4 border-l-[3px] border-[hsl(var(--wine))]/40 bg-[hsl(var(--wine))]/[0.04] px-4 py-2 text-[14px] leading-relaxed text-[hsl(var(--warm-charcoal))]">
+      {children}
+    </blockquote>
+  ),
+  hr: () => <hr className="my-6 border-[rgba(78,66,57,0.12)]" />,
+  a: ({ href, children }) => (
+    <a
+      href={href}
+      className="text-[hsl(var(--wine))] underline underline-offset-2"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      {children}
+    </a>
+  ),
+  code: ({ className, children, ...props }) => {
+    if (className?.startsWith("language-")) {
+      return (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      );
+    }
+    return (
+      <code
+        className="rounded bg-[rgba(78,66,57,0.08)] px-1 py-0.5 font-mono text-[12.5px]"
+        {...props}
+      >
+        {children}
+      </code>
+    );
+  },
+  pre: ({ children }) => (
+    <pre className="my-4 overflow-x-auto rounded-xl bg-[rgba(78,66,57,0.06)] p-4 font-mono text-[12.5px] leading-relaxed text-[#1F2423]">
+      {children}
+    </pre>
+  ),
+  table: ({ children }) => (
+    <div className="my-5 overflow-x-auto rounded-xl border border-[rgba(78,66,57,0.12)]">
+      <table className="w-full min-w-[480px] border-collapse text-left text-[13px]">
+        {children}
+      </table>
+    </div>
+  ),
+  thead: ({ children }) => (
+    <thead className="bg-[rgba(78,66,57,0.05)]">{children}</thead>
+  ),
+  th: ({ children }) => (
+    <th className="px-3 py-2.5 text-[12px] font-semibold text-[#1F2423]">{children}</th>
+  ),
+  td: ({ children }) => (
+    <td className="border-t border-[rgba(78,66,57,0.08)] px-3 py-2.5 align-top leading-snug text-[hsl(var(--warm-charcoal))]">
+      {children}
+    </td>
+  ),
+  tr: ({ children }) => <tr className="even:bg-[rgba(78,66,57,0.03)]">{children}</tr>,
+};
+
+function FileMarkdownBody({ text }: { text: string }) {
+  return (
+    <div className="file-md-preview">
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={FILE_MD_COMPONENTS}>
+        {text}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
 function FilePreviewModal({
   projectId,
   userId,
@@ -2065,16 +2160,24 @@ function FilePreviewModal({
                 </span>
                 <span className="font-mono text-[10px] text-[#969E9A]">{format}</span>
               </div>
-              <h1 className="mt-8 font-display text-[28px] font-semibold leading-snug">
-                {file.filename.replace(/\.[^.]+$/, "")}
-              </h1>
-              <div className="mt-2 mb-8 text-xs text-[hsl(var(--warm-charcoal-muted))]">
-                {file.scope === "session" ? "对话上传" : "项目资料包"} ·{" "}
-                {formatFileDate(file.createdAt)}
-              </div>
-              <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-[1.95] text-[hsl(var(--warm-charcoal))]">
-                {text || "—"}
-              </pre>
+              {isMarkdownFile(file) ? (
+                <div className="mt-8">
+                  <FileMarkdownBody text={text || ""} />
+                </div>
+              ) : (
+                <>
+                  <h1 className="mt-8 font-display text-[28px] font-semibold leading-snug">
+                    {file.filename.replace(/\.[^.]+$/, "")}
+                  </h1>
+                  <div className="mt-2 mb-8 text-xs text-[hsl(var(--warm-charcoal-muted))]">
+                    {file.scope === "session" ? "对话上传" : "项目资料包"} ·{" "}
+                    {formatFileDate(file.createdAt)}
+                  </div>
+                  <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-[1.95] text-[hsl(var(--warm-charcoal))]">
+                    {text || "—"}
+                  </pre>
+                </>
+              )}
             </div>
           ) : null}
           {!loading && !error && mode === "pdf" && blobUrl ? (

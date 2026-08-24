@@ -87,13 +87,13 @@ function prettyMemberName(displayName: string): string {
 }
 
 const PHASE_BADGE_CLASS: Record<ProjectPhase, string> = {
-  "Active（资源筹备中）":
+  进行中:
     "rounded-sm border border-[hsl(145_18%_78%)] bg-[hsl(145_22%_93%)] text-[hsl(145_24%_30%)]",
-  "Completed（已签约）":
+  已完成:
     "rounded-sm border border-[hsl(var(--wine-deep)/0.35)] bg-[hsl(var(--wine-muted)/0.55)] text-[hsl(var(--wine-deep))]",
-  "Paused（暂停）":
+  已暂停:
     "rounded-sm border border-[hsl(var(--terracotta)/0.38)] bg-[hsl(32_26%_93%)] text-[hsl(22_28%_38%)]",
-  "Cancelled（已取消）":
+  已归档:
     "rounded-sm border border-[hsl(var(--sand))] bg-[hsl(var(--warm-charcoal)/0.06)] text-[hsl(var(--warm-charcoal-muted))]",
 };
 

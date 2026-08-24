@@ -1,4 +1,4 @@
-import type { ProjectPhase } from "@/workspace/projects";
+import { normalizeProjectPhase, type ProjectPhase } from "@/workspace/projects";
 
 /** 与总览/原型一致的判断胶囊 */
 export function judgmentFromPhase(phase: ProjectPhase | string | undefined): {
@@ -6,22 +6,22 @@ export function judgmentFromPhase(phase: ProjectPhase | string | undefined): {
   bg: string;
   fg: string;
 } {
-  const p = String(phase ?? "");
-  if (p.startsWith("Paused")) {
-    return { label: "暂缓", bg: "rgba(78,66,57,0.08)", fg: "#59625F" };
+  const safe = normalizeProjectPhase(phase);
+  if (safe === "已暂停") {
+    return { label: "已暂停", bg: "rgba(78,66,57,0.08)", fg: "#59625F" };
   }
-  if (p.startsWith("Completed")) {
+  if (safe === "已完成") {
     return {
-      label: "继续推进",
+      label: "已完成",
       bg: "rgba(94,155,117,0.16)",
       fg: "#3F6F63",
     };
   }
-  if (p.startsWith("Cancelled")) {
-    return { label: "已取消", bg: "rgba(78,66,57,0.08)", fg: "#59625F" };
+  if (safe === "已归档") {
+    return { label: "已归档", bg: "rgba(78,66,57,0.08)", fg: "#59625F" };
   }
   return {
-    label: "研究中",
+    label: "进行中",
     bg: "#FBF1E2",
     fg: "#B07d1f",
   };

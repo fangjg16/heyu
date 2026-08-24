@@ -10,18 +10,14 @@ import {
   UNCATEGORIZED_LABEL,
 } from "@/workspace/industry-taxonomy";
 import {
+  PROJECT_PHASES,
   projectPhaseLabel,
   type ProjectOpenness,
   type ProjectPhase,
   type WorkspaceProject,
 } from "@/workspace/projects";
 
-const PHASE_OPTIONS: ProjectPhase[] = [
-  "Active（资源筹备中）",
-  "Completed（已签约）",
-  "Paused（暂停）",
-  "Cancelled（已取消）",
-];
+const PHASE_OPTIONS: ProjectPhase[] = [...PROJECT_PHASES];
 
 const OPENNESS_OPTIONS: {
   value: ProjectOpenness;
