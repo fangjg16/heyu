@@ -18,7 +18,7 @@ export type PersistedConversation = {
   preview: string;
   updatedAt: string;
   files: string[];
-  variant?: "blank";
+  variant?: "blank" | "named";
 };
 
 export type ChatPersistOptions = {

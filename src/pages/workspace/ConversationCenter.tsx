@@ -21,6 +21,7 @@ import {
   MoreHorizontal,
   Paperclip,
   PanelLeftClose,
+  Pencil,
   Plus,
   Quote,
   Square,
@@ -119,8 +120,8 @@ type SessionConversation = {
   preview: string;
   updatedAt: string;
   files: string[];
-  /** blank 为空白新对话 */
-  variant?: "blank";
+  /** blank 为空白新对话；named 为用户重命名，不再自动抽主题 */
+  variant?: "blank" | "named";
 };
 
 type SessionConversationState = {
@@ -183,6 +184,7 @@ function pruneEmptyLiveConversations(
     (c) =>
       c.id === `${c.projectId}-main` ||
       c.variant === "blank" ||
+      c.variant === "named" ||
       conversationHasMessages(c, messagesByConversation),
   );
 }
@@ -241,6 +243,9 @@ function applyConversationMetadataFromMessages(
     const msgs = messagesByConversation[c.id];
     if (!msgs?.length) return c;
     const lastTime = latestMessageTimeLabel(msgs);
+    if (c.variant === "named") {
+      return { ...c, updatedAt: lastTime || c.updatedAt };
+    }
     const topicPreview = topicFromFirstUserMessage(msgs);
     const keepExisting =
       isSidebarTopicPreview(c.preview) &&
@@ -315,6 +320,10 @@ function resolveConversationTopic(
   conversation: SessionConversation | null | undefined,
   messages?: { role: string; content: string }[],
 ): string {
+  if (conversation?.variant === "named") {
+    const custom = conversation.preview?.trim() ?? "";
+    if (custom) return custom;
+  }
   if (messages && messages.length > 0) {
     const fromMsgs = topicFromFirstUserMessage(messages);
     if (fromMsgs && fromMsgs !== "对话记录") return fromMsgs;
@@ -868,12 +877,6 @@ function ChatThinkingBadge({
   );
 }
 
-function ChatAgentStatusLine({ children }: { children: ReactNode }) {
-  return (
-    <p className="mt-2 whitespace-nowrap text-[11px] text-muted-foreground">{children}</p>
-  );
-}
-
 function AiShell({
   children,
   time,
@@ -1007,6 +1010,9 @@ export default function ConversationCenter() {
   const [liveError, setLiveError] = useState<string | null>(null);
   const [liveCitationMap, setLiveCitationMap] = useState<Record<string, string>>({});
   const [newlyAddedConversationId, setNewlyAddedConversationId] = useState<string | null>(null);
+  const [renamingConversationId, setRenamingConversationId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const renameInputRef = useRef<HTMLInputElement | null>(null);
   const [entryReady, setEntryReady] = useState(true);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
@@ -1030,6 +1036,14 @@ export default function ConversationCenter() {
   useLayoutEffect(() => {
     resizeChatComposer(chatInputRef.current);
   }, [draftMessage]);
+
+  useEffect(() => {
+    if (!renamingConversationId) return;
+    const el = renameInputRef.current;
+    if (!el) return;
+    el.focus();
+    el.select();
+  }, [renamingConversationId]);
 
   useEffect(() => {
     const state = location.state as KnowledgeNetworkChatEntryState | null;
@@ -1728,16 +1742,30 @@ export default function ConversationCenter() {
         const isBlank = isBlankConversationId(projectId, id);
         const builtMain = buildConversationFromProject(projectId, project);
         if (!isBlank && !builtMain) return prev;
+        const cachedConv = SESSION_CONVERSATION_CACHE[userId]?.conversations.find(
+          (c) => c.id === id,
+        );
+        const keepNamed = cachedConv?.variant === "named";
+        const namedPreview = cachedConv?.preview?.trim() ?? "";
         return [
           {
             ...(isBlank
               ? buildBlankSessionConversation(projectId, id, project.name)
               : { ...builtMain!, id }),
-            preview: hasMsgs ? topicFromFirstUserMessage(msgs) : "新对话",
+            preview:
+              keepNamed && namedPreview
+                ? namedPreview
+                : hasMsgs
+                  ? topicFromFirstUserMessage(msgs)
+                  : "新对话",
             updatedAt: hasMsgs
               ? latestMessageTimeLabel(msgs) || getCurrentDateTimeLabel()
               : getCurrentDateTimeLabel(),
-            variant: hasMsgs && !isBlank ? undefined : ("blank" as const),
+            variant: keepNamed
+              ? "named"
+              : hasMsgs && !isBlank
+                ? undefined
+                : ("blank" as const),
           },
           ...prev,
         ];
@@ -1862,31 +1890,64 @@ export default function ConversationCenter() {
 
   const updateConversationPreview = (preview?: string, fileNames: string[] = []) => {
     setConversations((prev) =>
-      prev.map((t) =>
-        t.id === effectiveConversationId
-          ? {
-              ...t,
-              files:
-                fileNames.length > 0
-                  ? Array.from(new Set([...t.files, ...fileNames]))
-                  : t.files,
-              ...(preview !== undefined
-                ? {
-                    preview,
-                    title: formatProjectConversationTitle(
-                      projectDisplayName(t.projectId),
-                      preview,
-                    ),
-                  }
-                : {}),
-              updatedAt:
-                latestMessageTimeLabel(
-                  liveMessagesByConversation[effectiveConversationId],
-                ) || getCurrentDateTimeLabel(),
-            }
-          : t
-      )
+      prev.map((t) => {
+        if (t.id !== effectiveConversationId) return t;
+        const keepCustomName = t.variant === "named";
+        return {
+          ...t,
+          files:
+            fileNames.length > 0
+              ? Array.from(new Set([...t.files, ...fileNames]))
+              : t.files,
+          ...(preview !== undefined && !keepCustomName
+            ? {
+                preview,
+                title: formatProjectConversationTitle(
+                  projectDisplayName(t.projectId),
+                  preview,
+                ),
+              }
+            : {}),
+          updatedAt:
+            latestMessageTimeLabel(
+              liveMessagesByConversation[effectiveConversationId],
+            ) || getCurrentDateTimeLabel(),
+        };
+      }),
     );
+  };
+
+  const startRenameConversation = (conversation: SessionConversation) => {
+    setRenamingConversationId(conversation.id);
+    setRenameDraft(conversation.preview);
+  };
+
+  const cancelRenameConversation = () => {
+    setRenamingConversationId(null);
+    setRenameDraft("");
+  };
+
+  const commitRenameConversation = (conversationId: string) => {
+    const name = renameDraft.trim();
+    setRenamingConversationId(null);
+    if (!name) return;
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === conversationId
+          ? {
+              ...c,
+              preview: name,
+              title: formatProjectConversationTitle(
+                projectDisplayName(c.projectId),
+                name,
+              ),
+              variant: "named",
+              updatedAt: getCurrentDateTimeLabel(),
+            }
+          : c,
+      ),
+    );
+    flushChatPersist();
   };
 
   const deleteConversation = (target: SessionConversation) => {
@@ -2624,6 +2685,7 @@ export default function ConversationCenter() {
                       const active =
                         conversation.id === effectiveConversationId &&
                         conversation.projectId === projectId;
+                      const renaming = renamingConversationId === conversation.id;
                       return (
                         <div
                           key={conversation.id}
@@ -2643,38 +2705,94 @@ export default function ConversationCenter() {
                             />
                           ) : null}
                           <div className="flex items-start gap-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                saveLastChatProjectId(conversation.projectId);
-                                navigate(conversationPath(conversation));
-                              }}
-                              className="min-w-0 flex-1 text-left"
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <p
-                                  className={cn(
-                                    "line-clamp-1 break-words pr-1 text-[12px] leading-snug",
-                                    active
-                                      ? "font-semibold text-[hsl(var(--wine-deep))]"
-                                      : "text-foreground",
-                                  )}
-                                >
-                                  {conversation.preview}
-                                </p>
-                                <p className="shrink-0 text-[10px] text-muted-foreground">
+                            {renaming ? (
+                              <div className="flex min-w-0 flex-1 items-start justify-between gap-2">
+                                <input
+                                  ref={renameInputRef}
+                                  value={renameDraft}
+                                  maxLength={40}
+                                  aria-label="重命名对话"
+                                  onChange={(e) => setRenameDraft(e.target.value)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => {
+                                    if (e.nativeEvent.isComposing || e.key === "Process") {
+                                      return;
+                                    }
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      commitRenameConversation(conversation.id);
+                                    } else if (e.key === "Escape") {
+                                      e.preventDefault();
+                                      cancelRenameConversation();
+                                    }
+                                  }}
+                                  onBlur={() => commitRenameConversation(conversation.id)}
+                                  className="min-w-0 flex-1 rounded-md border border-[hsl(var(--wine-deep)/0.32)] bg-white px-1.5 py-0.5 text-[12px] leading-snug text-foreground outline-none"
+                                />
+                                <p className="shrink-0 pt-0.5 text-[10px] text-muted-foreground">
                                   {formatSidebarDateLabel(conversation.updatedAt)}
                                 </p>
                               </div>
-                            </button>
-                            <button
-                              type="button"
-                              title="删除此对话"
-                              onClick={() => deleteConversation(conversation)}
-                              className="shrink-0 rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover/item:opacity-100"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
-                            </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  saveLastChatProjectId(conversation.projectId);
+                                  navigate(conversationPath(conversation));
+                                }}
+                                className="min-w-0 flex-1 text-left"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <p
+                                    className={cn(
+                                      "line-clamp-1 break-words pr-1 text-[12px] leading-snug",
+                                      active
+                                        ? "font-semibold text-[hsl(var(--wine-deep))]"
+                                        : "text-foreground",
+                                    )}
+                                  >
+                                    {conversation.preview}
+                                  </p>
+                                  <p className="shrink-0 text-[10px] text-muted-foreground">
+                                    {formatSidebarDateLabel(conversation.updatedAt)}
+                                  </p>
+                                </div>
+                              </button>
+                            )}
+                            {renaming ? null : (
+                              <>
+                                <button
+                                  type="button"
+                                  title="重命名此对话"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    startRenameConversation(conversation);
+                                  }}
+                                  className={cn(
+                                    "shrink-0 rounded-md p-1 text-muted-foreground transition-opacity hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]",
+                                    active
+                                      ? "opacity-100"
+                                      : "opacity-0 group-hover/item:opacity-100",
+                                  )}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="删除此对话"
+                                  onClick={() => deleteConversation(conversation)}
+                                  className={cn(
+                                    "shrink-0 rounded-md p-1 text-muted-foreground transition-opacity hover:bg-destructive/10 hover:text-destructive",
+                                    active
+                                      ? "opacity-100"
+                                      : "opacity-0 group-hover/item:opacity-100",
+                                  )}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </div>
                       );
@@ -2710,14 +2828,11 @@ export default function ConversationCenter() {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[rgba(255,252,248,0.55)]">
-        <header className="sticky top-0 z-10 flex flex-wrap items-start justify-between gap-3 border-b border-border/50 bg-white/65 px-4 py-4 backdrop-blur-md md:px-8">
+        <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-border/50 bg-white/65 px-4 py-4 backdrop-blur-md md:px-8">
           <div>
             <h1 className="text-lg font-bold text-[#1F2423] md:text-xl">
               {chatTitle}
             </h1>
-            <p className="text-xs font-medium text-muted-foreground">
-              Master Agent 在线
-            </p>
           </div>
           <div
             ref={conversationFilesMenuRef}
@@ -2970,10 +3085,6 @@ export default function ConversationCenter() {
                           请到项目知识网络页更新章节。
                         </p>
                       ) : null}
-                      <ChatAgentStatusLine>
-                        ● Master Agent · AI {m.isStreaming ? "处理中" : "返回"}
-                        {m.pendingJobId ? " · 生成中" : ""}
-                      </ChatAgentStatusLine>
                     </AiShell>
                   );
                 })
@@ -2981,7 +3092,6 @@ export default function ConversationCenter() {
               {isCurrentConversationSending && !hasStreamingAssistantInThread ? (
                 <AiShell>
                   <ChatThinkingBadge>思考中…</ChatThinkingBadge>
-                  <ChatAgentStatusLine>● Master Agent · AI 处理中</ChatAgentStatusLine>
                 </AiShell>
               ) : null}
             </>

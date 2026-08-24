@@ -21,7 +21,7 @@ export type SyncConversation = {
   preview: string;
   updatedAt: string;
   files: string[];
-  variant?: "blank";
+  variant?: "blank" | "named";
 };
 
 export type SyncChatMessage = {
@@ -916,7 +916,7 @@ export async function handleGetChatState(
       preview: r.preview,
       updatedAt: r.updated_at,
       files,
-      variant: r.variant === "blank" ? "blank" : undefined,
+      variant: r.variant === "blank" || r.variant === "named" ? r.variant : undefined,
     };
   });
 
