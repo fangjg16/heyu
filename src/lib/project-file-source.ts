@@ -1,4 +1,5 @@
 import type { ProjectFileRecord } from "@/lib/project-api";
+import { resolveFileTopic } from "@/lib/file-topic";
 import {
   PROJECT_UPLOAD_FOLDER,
   SESSION_UPLOAD_FOLDER,
@@ -157,11 +158,12 @@ export function topicLabelForFile(
   file: ProjectFileRecord,
   parsedType?: string,
 ): string {
-  const fromDb = String(file.fileCategory ?? "").trim();
-  if (fromDb) return fromDb;
-  const fromParse = String(parsedType ?? "").trim();
-  if (fromParse) return fromParse;
-  return "未分类";
+  return resolveFileTopic({
+    filename: file.filename,
+    relativePath: file.relativePath,
+    fileCategory: file.fileCategory,
+    documentType: parsedType,
+  }).label;
 }
 
 function folderAt(root: FileTreeFolderNode, path: string): FileTreeFolderNode | null {
@@ -198,7 +200,7 @@ export function buildSourceMaterialsTree(
   return { kind: "folder", path: "", name: "源文件", children, markerIds: [] };
 }
 
-/** 左侧按主题（file_category / 解析得到的文件类型） */
+/** 左侧按主题：收成少数投研桶（对标、财务、定位…），不用解析器给每份文件起的长类型名 */
 export function buildTopicMaterialsTree(
   files: ProjectFileRecord[],
   parsedTypeById: Record<string, string | undefined>,
@@ -213,14 +215,14 @@ export function buildTopicMaterialsTree(
   }
   const children: FileTreeNode[] = Array.from(map.entries())
     .sort((a, b) => {
-      if (a[0] === "未分类") return 1;
-      if (b[0] === "未分类") return -1;
+      if (a[0] === "其他") return 1;
+      if (b[0] === "其他") return -1;
       return a[0].localeCompare(b[0], "zh");
     })
     .map(([label, list]) => ({
       kind: "folder" as const,
       path: `${TOPIC_ROOT_PATH}/${encodeURIComponent(label)}`,
-      name: label,
+      name: `${label}（${list.length}）`,
       children: list
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         .map((file) => ({

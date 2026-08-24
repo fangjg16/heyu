@@ -8,6 +8,7 @@ import { extractPdfPlainText } from "./pdf-text";
 import { getProjectById } from "./projects-db";
 import { decodePathProjectId } from "./projects-resolve";
 import { chunkPlainText } from "./search";
+import { canonicalizeFileTopic } from "./file-topic";
 import { extractSpreadsheetPlainText } from "./spreadsheet-text";
 import { canDownloadProjectFile } from "./workspace-roles";
 import {
@@ -28,11 +29,12 @@ const PARSE_SYSTEM = `你是投研工作台的源文件解析助手。根据给�
 1. 只依据原文，禁止编造原文未出现的事实、数据、主体或结论。
 2. 若信息不足，在 summary 中如实说明「原文未披露…」，不要猜测。
 3. 输出唯一 JSON 对象，字段：
-{"summary":"不超过220字的投研向摘要","documentType":"文件类型简述","keyPoints":["要点"],"refs":["可引用主题"],"usedFor":["投研用途建议"]}
+{"summary":"不超过220字的投研向摘要","documentType":"必须是下列之一：项目介绍、定位与进展、对标与竞品、行业与市场、财务与估值、法律与合规、股权与主体、尽调材料、其他","keyPoints":["要点"],"refs":["可引用主题"],"usedFor":["投研用途建议"]}
 4. summary 必须是完整句子，约 120–220 字，最多 220 个汉字/字符；keyPoints、refs、usedFor 各最多 6 条；无内容用空数组。
 5. summary 是 JSON 字符串：内部英文双引号必须写成 \\"，专名优先用「」或『』，禁止未转义的 "。
 6. refs=该文件可作为何种证据/主题被引用，必须是不超过 16 字的中文短词（如「竞品定价」「团队背景」）；禁止 URL、域名、脚注编号、原文摘录。
-7. usedFor=建议用于哪些投研环节，同样用短词，禁止 URL。`;
+7. usedFor=建议用于哪些投研环节，同样用短词，禁止 URL。
+8. documentType 只输出上列短标签本身，禁止用整句文件名或报告标题当类型。`;
 
 type ParseResultRow = {
   document_id: string;
@@ -600,7 +602,7 @@ export async function handleParseProjectFileSummary(
     const parsed = parseLlmDocumentJson(answer);
     const payload: DocumentParsePayload = {
       summary: parsed.summary,
-      documentType: parsed.documentType,
+      documentType: canonicalizeFileTopic(parsed.documentType, row.filename),
       keyPoints: parsed.keyPoints,
       refs: parsed.refs,
       usedFor: parsed.usedFor,

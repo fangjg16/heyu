@@ -59,6 +59,7 @@ import {
   toPhysicalFolder,
   toVirtualFolder,
 } from "@/lib/project-file-source";
+import { resolveFileTopic } from "@/lib/file-topic";
 import {
   relativePathFromWebkitFile,
   unzipProjectPackageFiles,
@@ -1138,9 +1139,12 @@ export function ProjectMaterialsSection({
             ? [{ label: "上传者", value: file.uploadedBy }]
             : []),
           { label: "大小", value: formatFileSize(file.sizeBytes) },
-          ...(file.fileCategory
-            ? [{ label: "主题", value: file.fileCategory }]
-            : []),
+          { label: "主题", value: resolveFileTopic({
+            filename: file.filename,
+            relativePath: file.relativePath,
+            fileCategory: file.fileCategory,
+            documentType: cache?.documentType,
+          }).label },
         ],
         canPreview: canDownload || file.scope === "session",
         canCreateSubfolder: false,
