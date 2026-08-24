@@ -3,20 +3,17 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Briefcase,
   Home,
-  LogOut,
   MessageSquare,
+  PanelLeft,
+  PanelLeftClose,
   Settings,
 } from "lucide-react";
-import { UserAvatar } from "@/components/workspace/UserAvatar";
+import { BrandMark } from "@/components/workspace/BrandMark";
 import { cn } from "@/lib/utils";
-import { logoutRemote } from "@/lib/api-auth";
-import { signOutClerkBrowser } from "@/lib/clerk-enabled";
 import { useMyProjectRoles } from "@/hooks/use-my-project-roles";
-import { clearSession, loadSessionUserId } from "@/workspace/session";
+import { loadSessionUserId } from "@/workspace/session";
 import {
   canOpenWorkspaceChat,
-  getUserById,
-  isAccountGuestUser,
   isIssuerOnlyUser,
   isPlatformAdminUser,
 } from "@/workspace/workspace-users";
@@ -37,8 +34,6 @@ export function WorkspaceLeftRail() {
   const { pathname } = useLocation();
   const userId = loadSessionUserId();
   useMyProjectRoles(userId);
-  const user = getUserById(userId);
-  const isGuest = isAccountGuestUser(userId);
   const isAdmin = isPlatformAdminUser(userId);
   const issuerOnly = isIssuerOnlyUser(userId);
 
@@ -59,20 +54,14 @@ export function WorkspaceLeftRail() {
     }
   }, [pinned]);
 
+  const togglePinned = () => setPinned((v) => !v);
+
   const goChat = () => {
     if (!canOpenWorkspaceChat(userId)) {
       setGuestDialog(true);
       return;
     }
     navigate("/app/chat");
-  };
-
-  const logout = () => {
-    clearSession();
-    void logoutRemote();
-    void signOutClerkBrowser().finally(() => {
-      window.location.assign(`${import.meta.env.BASE_URL}app/login`);
-    });
   };
 
   const topNav: NavItem[] = [
@@ -171,64 +160,50 @@ export function WorkspaceLeftRail() {
           pinned ? "w-[240px]" : "w-20"
         )}
       >
-        <div className="flex h-[72px] shrink-0 items-center gap-3 px-[18px]">
+        <div
+          className={cn(
+            "flex shrink-0 items-center gap-2",
+            pinned ? "h-[72px] px-3" : "flex-col justify-center px-2 py-3",
+          )}
+        >
+          <Link
+            to="/app/home"
+            title="总览"
+            className="flex min-w-0 items-center gap-3"
+          >
+            <BrandMark className="h-9 w-9 shrink-0" />
+            {pinned ? (
+              <span className="truncate font-display text-[19px] font-bold">
+                合域 AI
+              </span>
+            ) : null}
+          </Link>
           <button
             type="button"
-            title="展开 / 收起导航"
-            onClick={() => setPinned((v) => !v)}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] bg-[hsl(var(--wine))] font-display text-xs font-bold tracking-wider text-white transition-colors hover:bg-[hsl(var(--wine-hover))]"
+            title={pinned ? "收起导航" : "展开导航"}
+            onClick={togglePinned}
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[hsl(var(--warm-charcoal-muted))] transition-colors hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]",
+              pinned ? "ml-auto" : "mt-1",
+            )}
           >
-            合域
+            {pinned ? (
+              <PanelLeftClose className="h-[18px] w-[18px]" strokeWidth={1.8} />
+            ) : (
+              <PanelLeft className="h-[18px] w-[18px]" strokeWidth={1.8} />
+            )}
           </button>
-          {pinned ? (
-            <div className="truncate font-display text-[19px] font-bold">
-              合域 AI
-            </div>
-          ) : null}
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-[3px] px-[14px] py-2.5">
           {topNav.map(renderItem)}
           <div className="flex-1" />
-          <div className="mx-0.5 my-1.5 h-px bg-[rgba(78,66,57,0.08)]" />
-          {bottomNav.map(renderItem)}
-        </div>
-
-        <div className="border-t border-[rgba(78,66,57,0.08)] px-[14px] py-2.5">
-          <div className="hy-nav-item flex h-[52px] items-center gap-3 px-2">
-            <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full">
-              <UserAvatar
-                user={user}
-                className="h-9 w-9 text-[13px] font-bold"
-                fallbackClassName="bg-[hsl(var(--wine-deep))] text-white"
-              />
-            </div>
-            {pinned ? (
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">
-                  {user?.displayName ?? "用户"}
-                </div>
-                <div className="text-xs text-[hsl(var(--warm-charcoal-muted))]">
-                  {isAdmin ? "平台管理员" : isGuest ? "未加入项目" : "工作台成员"}
-                </div>
-              </div>
-            ) : (
-              <div className="hy-nav-tip rounded-[9px] bg-[hsl(var(--warm-charcoal))] px-[13px] py-[7px] text-[12.5px] text-white shadow-[0_8px_22px_rgba(31,36,35,0.3)]">
-                {user?.displayName ?? "用户"}
-                <span className="absolute left-[-4px] top-1/2 h-2 w-2 -translate-y-1/2 rotate-45 bg-[hsl(var(--warm-charcoal))]" />
-              </div>
-            )}
-            {pinned ? (
-              <button
-                type="button"
-                onClick={logout}
-                title="退出登录"
-                className="rounded-lg p-1.5 text-[hsl(var(--warm-charcoal-muted))] transition-colors hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
-              >
-                <LogOut className="h-4 w-4" strokeWidth={1.8} />
-              </button>
-            ) : null}
-          </div>
+          {bottomNav.length > 0 ? (
+            <>
+              <div className="mx-0.5 my-1.5 h-px bg-[rgba(78,66,57,0.08)]" />
+              {bottomNav.map(renderItem)}
+            </>
+          ) : null}
         </div>
       </aside>
 

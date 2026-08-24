@@ -9,7 +9,6 @@ import {
 } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft,
   Check,
   ChevronDown,
   ChevronRight,
@@ -20,15 +19,17 @@ import {
   Loader2,
   MoreHorizontal,
   Paperclip,
+  PanelLeft,
+  PanelLeftClose,
   Plane,
   Plus,
   Quote,
-  Sparkles,
   Square,
   Trash2,
   X,
 } from "lucide-react";
 import { ChatMarkdown } from "@/components/workspace/ChatMarkdown";
+import { BrandMark } from "@/components/workspace/BrandMark";
 import { TypingLoader } from "@/components/ui/loader";
 import {
   KnowledgeNetworkPreview,
@@ -1284,6 +1285,21 @@ export default function ConversationCenter() {
   const [collapsedProjectIds, setCollapsedProjectIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [chatListOpen, setChatListOpen] = useState(() => {
+    try {
+      return localStorage.getItem("hy-chat-list-open") !== "0";
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("hy-chat-list-open", chatListOpen ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [chatListOpen]);
 
   const toggleProjectCollapsed = (pid: string) => {
     setCollapsedProjectIds((prev) => {
@@ -2516,20 +2532,35 @@ export default function ConversationCenter() {
         style={{ transitionTimingFunction: "cubic-bezier(0.23, 1, 0.32, 1)" }}
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
-        <aside className="flex w-full shrink-0 flex-col overflow-hidden border-b border-[rgba(78,66,57,0.1)] bg-[rgba(248,243,238,0.92)] backdrop-blur-md md:w-[17rem] md:border-b-0 md:border-r">
-        <div className="border-b border-[rgba(78,66,57,0.1)] px-4 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[hsl(var(--wine-muted))] text-[hsl(var(--wine))]">
-              <Sparkles size={24} strokeWidth={2} />
-            </div>
-            <div>
+        <aside
+          className={cn(
+            "shrink-0 flex-col overflow-hidden border-[rgba(78,66,57,0.1)] bg-[rgba(248,243,238,0.92)] backdrop-blur-md md:border-b-0 md:border-r",
+            chatListOpen
+              ? "flex w-full border-b md:w-[17rem]"
+              : "hidden md:flex md:w-12",
+          )}
+        >
+        {chatListOpen ? (
+          <>
+        <div className="border-b border-[rgba(78,66,57,0.1)] px-3 py-3">
+          <div className="flex items-center gap-2.5">
+            <BrandMark className="h-9 w-9 shrink-0" />
+            <div className="min-w-0 flex-1">
               <p className="font-display text-sm font-bold leading-tight text-foreground">
                 对话中心
               </p>
               <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                合域 · Joint Office
+                Joint Family Office
               </p>
             </div>
+            <button
+              type="button"
+              title="收起对话列表"
+              onClick={() => setChatListOpen(false)}
+              className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))] md:flex"
+            >
+              <PanelLeftClose className="h-[18px] w-[18px]" strokeWidth={1.8} />
+            </button>
           </div>
         </div>
         <nav className="flex-1 space-y-1.5 overflow-y-auto p-3">
@@ -2657,29 +2688,37 @@ export default function ConversationCenter() {
             );
           })}
         </nav>
-        <div className="shrink-0 border-t border-border/60 px-4 py-3 md:rounded-bl-[1.65rem]">
-          {permissionSidebarHint ? (
-            <p className="mb-2 text-[10px] font-medium leading-snug text-muted-foreground">
+        {permissionSidebarHint ? (
+          <div className="shrink-0 border-t border-border/60 px-4 py-3">
+            <p className="text-[10px] font-medium leading-snug text-muted-foreground">
               当前权限：{permissionSidebarHint}
             </p>
-          ) : null}
-          <Link
-            to="/"
-            className="flex items-center gap-1 rounded-full px-1 py-1 text-[11px] font-semibold text-muted-foreground hover:text-[hsl(var(--wine-deep))]"
-          >
-            <ArrowLeft className="h-3 w-3" />
-            返回官网
-          </Link>
-        </div>
+          </div>
+        ) : null}
+          </>
+        ) : (
+          <div className="hidden h-full flex-col items-center gap-3 px-1 py-3 md:flex">
+            <BrandMark className="h-8 w-8" />
+            <button
+              type="button"
+              title="展开对话列表"
+              onClick={() => setChatListOpen(true)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
+            >
+              <PanelLeft className="h-[18px] w-[18px]" strokeWidth={1.8} />
+            </button>
+          </div>
+        )}
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-gradient-to-b from-background/30 to-background/5 md:rounded-tr-[1.75rem]">
         <header className="sticky top-0 z-10 flex flex-wrap items-start justify-between gap-3 border-b border-border/50 bg-white/65 px-4 py-4 backdrop-blur-md md:px-6">
           <div>
             <Link
-              to="/"
-              className="mb-1 inline-block text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-[hsl(var(--wine-deep))]"
+              to="/app/home"
+              className="mb-1 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-[hsl(var(--wine-deep))]"
             >
+              <BrandMark className="h-4 w-4" />
               合域
             </Link>
             <h1 className="text-lg font-bold text-foreground md:text-xl">
