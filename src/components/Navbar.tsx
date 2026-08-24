@@ -30,7 +30,7 @@ export function Navbar() {
           <img
             src={`${import.meta.env.BASE_URL}brand/heyu-mark.png`}
             alt="合域"
-            className="h-9 w-9 rounded-full bg-white object-contain"
+            className="h-7 w-7 object-contain"
           />
           合域 AI
         </Link>

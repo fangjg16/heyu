@@ -34,7 +34,7 @@ function LoginShell({ children }: { children: ReactNode }) {
               <img
                 src={`${import.meta.env.BASE_URL}brand/heyu-mark.png`}
                 alt="合域"
-                className="h-[52px] w-[52px] rounded-full bg-white object-contain"
+                className="h-10 w-10 object-contain"
               />
             </Link>
             <div>
