@@ -389,5 +389,25 @@ report(
   t8JsonLen <= MATERIAL_HINTS_JSON_MAX_CHARS,
 );
 
+const jucloudCompare = doc({
+  id: "f-jucloud",
+  filename: "剧云 jucloud 对标对比.xlsx",
+  sampleText: "剧云 Jucloud 国内 AI 剧本工具 竞品对比",
+});
+const tJucloud = buildMaterialHintsFromDocuments({
+  mode: "full",
+  userMessage: "生成知识网络",
+  touchedSlots: [],
+  documents: [jucloudCompare],
+  chunks: [],
+  maxFilesPerSlot: 3,
+});
+report(
+  "剧云对比文件 → comps-benchmark",
+  Boolean(
+    tJucloud?.slots["comps-benchmark"]?.some((e) => /剧云|jucloud/i.test(e.filename)),
+  ),
+);
+
 console.log(`\n${failed === 0 ? "ALL PASS" : `${failed} FAILED`}`);
 process.exit(failed === 0 ? 0 : 1);

@@ -4,8 +4,67 @@ const HINT_RE =
 
 const PAREN_HINT_RE = /（[^）]{0,80}(?:不要|禁止|仅写入|格内填|须保留)[^）]{0,80}）/gu;
 
+function unescapeJsonString(s: string): string {
+  return s
+    .replace(/\\n/gu, "\n")
+    .replace(/\\r/gu, "\r")
+    .replace(/\\t/gu, "\t")
+    .replace(/\\"/gu, '"')
+    .replace(/\\\//gu, "/")
+    .replace(/\\\\/gu, "\\");
+}
+
+function extractHtmlFieldLoose(raw: string): string | null {
+  const m = /"html"\s*:\s*"/u.exec(raw);
+  if (!m) return null;
+  const start = m.index + m[0].length;
+  let end = -1;
+  for (let i = raw.length - 1; i > start; i -= 1) {
+    if (raw[i] === '"' && /^\s*\}/u.test(raw.slice(i + 1))) {
+      end = i;
+      break;
+    }
+  }
+  const body = end > start ? raw.slice(start, end) : raw.slice(start);
+  const html = unescapeJsonString(body).trim();
+  return html.length > 0 ? html : null;
+}
+
+/**
+ * 修复改写落库脏稿：JSON {note,html} 外壳、字面 \\n。
+ * 正常 HTML 原样返回。
+ */
+export function repairDisplayedChapterHtml(raw: string): string {
+  let t = String(raw ?? "").trim();
+  if (!t) return "";
+  const fenced = /^```(?:json|html)?\s*([\s\S]*?)```$/iu.exec(t);
+  if (fenced?.[1]) t = fenced[1].trim();
+
+  if (t.startsWith("{") && /"(?:note|reviseNote|html)"\s*:/u.test(t)) {
+    try {
+      const obj = JSON.parse(t) as { html?: unknown; content?: unknown };
+      const inner = String(obj.html ?? obj.content ?? "").trim();
+      if (inner) t = inner;
+    } catch {
+      const loose = extractHtmlFieldLoose(t);
+      if (loose) t = loose;
+    }
+  }
+
+  const chapter = /===CHAPTER===\s*([\s\S]*?)(?====NOTE===|===SOURCES_ADD===|$)/iu.exec(
+    t,
+  );
+  if (chapter?.[1]?.trim()) t = chapter[1].trim();
+
+  if (/\\[ntr"]/u.test(t) && /<[a-z][\s\S]*>/iu.test(t)) {
+    t = unescapeJsonString(t);
+  }
+
+  return t.replace(/^(?:["'`])+|(?:["'`])+$/gu, "").trim();
+}
+
 export function stripAuthoringHintsFromHtml(html: string): string {
-  const raw = String(html ?? "");
+  const raw = repairDisplayedChapterHtml(String(html ?? ""));
   if (!raw.trim()) return raw;
   if (typeof DOMParser === "undefined") {
     return raw.replace(PAREN_HINT_RE, "");

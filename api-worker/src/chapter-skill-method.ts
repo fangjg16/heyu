@@ -9,7 +9,7 @@ import { getSkillFileText, getSkillMdContent } from "./skills-db";
 
 /** 拼进 generate_system：有分析方法时只填待补，不得改 HTML 版式 */
 export const GENERATE_SYSTEM_SKILL_LOCK =
-  "10. 若用户消息含「分析方法」：只用来填模板中的「待补」；禁止改表头、禁止用分析方法里的示例表替换骨架、禁止改成散文。允许按资料增删数据行。版式以章节 Markdown 模板为准。";
+  "11. 若用户消息含「分析方法」：只用来填模板中的「待补」；禁止改表头、禁止用分析方法里的示例表替换骨架、禁止改成散文。允许按资料增删数据行。版式以章节 Markdown 模板为准。";
 
 const MAX_SKILL_CHARS = 9000;
 
@@ -113,7 +113,7 @@ function wrapMethodBlock(
               : sectionId === "industry"
                 ? "写市场切法、政策、与标的咬合、红黄旗；禁止对战卡和出价区间。"
                 : sectionId === "benchmarks"
-                  ? "只填模板里出现的对标主格式；禁止行业章内容、禁止同时做完整对战卡和完整出价表。"
+                  ? "只填模板里出现的对标主格式；禁止行业章内容、禁止同时做完整对战卡和完整出价表。附件文件名或正文点名的对标主体（含中文名/英文名）必须入表，不得漏列。"
                   : sectionId === "framework"
                     ? "写建议、论点、法律路径、增值杠杆与路线图；禁止 Top5 风险表和三情景 IRR 摘要。"
                     : "";

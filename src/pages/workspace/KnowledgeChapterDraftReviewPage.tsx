@@ -577,7 +577,9 @@ export default function KnowledgeChapterDraftReviewPage() {
 
   useEffect(() => {
     if (!editing || !draftPaneRef.current || !selected?.draftHtml) return;
-    draftPaneRef.current.innerHTML = selected.draftHtml;
+    draftPaneRef.current.innerHTML = stripAuthoringHintsFromHtml(
+      selected.draftHtml,
+    );
     // 进入编辑时灌入当前已保存草案；不随后续 draftHtml 覆盖手改中内容
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing, selectedId]);

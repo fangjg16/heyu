@@ -107,8 +107,8 @@ export const SLOT_MATERIAL_RULES: readonly SlotRule[] = [
   {
     slot: "comps-benchmark",
     keywords:
-      /benchmark|comp|comparable|transaction|peer|precedent|对标|可比|交易案例|同业/iu,
-    filenameBoost: /comp|benchmark|对标|可比|交易/iu,
+      /benchmark|comp|comparable|transaction|peer|precedent|对标|可比|对比|竞品|对手|交易案例|同业/iu,
+    filenameBoost: /comp|benchmark|对标|可比|对比|竞品|交易/iu,
     evidenceType: "comps-benchmark",
     publicExcerpt: true,
   },

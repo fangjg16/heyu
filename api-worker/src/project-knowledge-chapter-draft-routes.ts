@@ -20,6 +20,7 @@ import {
   handleGenerateProjectKnowledgeChapter,
   reviseChapterHtmlContent,
 } from "./project-knowledge-chapters-routes";
+import { repairStoredChapterHtml } from "./chapter-revise-parse";
 import {
   createDraftRun,
   ensureChapterBundle,
@@ -603,7 +604,7 @@ export async function handleGetChapterDraftRun(
     items: items.map((i) => ({
       sectionId: i.sectionId,
       status: i.status,
-      html: i.html,
+      html: repairStoredChapterHtml(i.html ?? ""),
       error: i.error,
       reviseNote: i.reviseNote,
       llmBackend: i.llmBackend,
@@ -907,8 +908,11 @@ export async function handleReviseChapterDraftSection(
       const revised = await reviseChapterHtmlContent(env, {
         title,
         kicker: template?.kicker,
-        html: previousHtml,
+        html: repairStoredChapterHtml(previousHtml),
         instruction,
+        projectId,
+        userId,
+        sectionId,
       });
       await upsertDraftItem(env.DB, {
         runId,

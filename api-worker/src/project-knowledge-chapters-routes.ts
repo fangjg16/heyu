@@ -8,6 +8,7 @@ import {
   buildChapterSkillMethodBlock,
   GENERATE_SYSTEM_SKILL_LOCK,
 } from "./chapter-skill-method";
+import { parseReviseChapterAnswer, repairStoredChapterHtml } from "./chapter-revise-parse";
 import { callLlm, type LlmClientEnv } from "./llm-client";
 import { ensureAnalysisKind } from "./analysis-kind";
 import { filterTemplateByKind } from "./kn-template-kind";
@@ -27,7 +28,11 @@ import {
   refreshDraftRunProgress,
   upsertDraftItem,
 } from "./project-knowledge-chapter-revisions-db";
-import { buildChapterGenerateMaterialsDigest } from "./project-knowledge-chapters-digest";
+import { buildChapterGenerateMaterials } from "./project-knowledge-chapters-digest";
+import {
+  formatNamedSubjectsBlock,
+  missingNamedSubjects,
+} from "./chapter-named-subjects";
 import {
   ensureSourceRowAnchors,
   ensureTableHeaderNoWrap,
@@ -195,8 +200,9 @@ const GENERATE_SYSTEM = `你是投研知识网络章节撰写助手。根据「�
 5. 凡表格「证据/来源」列：单元格内**只输出**引用标记如 [A-1]，禁止「项目协作方整理」「项目方整理」「BP称」等说明文字；多个引用用空格分隔。
 6. 表格表头须可单行完整显示（勿把长表头拆成多行文字）。
 7. 若模板已含带 style 的 HTML 骨架：必须保留这些 style，只替换「待补」内容。
-8. 事实必须来自附件摘录；缺依据写「待补」，禁止编造。
+8. 事实必须来自【资料目录】【本章深读】【相关段落补充】。目录里有、深读/补充未覆盖的细节写「待补」，禁止编造，禁止把未深读文件当成已读全文。
 9. 标记外禁止任何说明文字。章节内图表用 HTML <table>（含热力图格子），禁止 SVG。关系图禁止输出 SVG/HTML，只输出 JSON。
+10. 附件文件名或摘录里反复出现的对标主体、产品名、公司名必须写入对应章节（尤其对标分析），禁止只列通用海外模型而漏国内点名对象。
 ${GENERATE_SYSTEM_SKILL_LOCK}`;
 
 const SECTION_FORMAT_HINT: Record<string, string> = {
@@ -213,7 +219,7 @@ const SECTION_FORMAT_HINT: Record<string, string> = {
   legal:
     "===CHAPTER=== 按模板：合规要点 callout + 声明审计表 + 矛盾登记表 + 假设敏感性 + 待核项（聚焦合规/审批/权属声明）。允许增删行；禁止路径卡片散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   benchmarks:
-    "===CHAPTER=== 只填模板里出现的块（服务端已按项目形态去掉另一套）。早期：功能矩阵 + 定价 + 3–5 张对战卡，无成交则不要出价大数字。成熟/收购：出价区间 + 可比交易（含经营差异列）+ 溢价/折价。禁止两套并排。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 只填模板里出现的块（服务端已按项目形态去掉另一套）。早期：功能矩阵 + 定价 + 3–5 张对战卡，无成交则不要出价大数字。成熟/收购：出价区间 + 可比交易（含经营差异列）+ 溢价/折价。禁止两套并排。附件点名的对标主体必须进入矩阵或对战卡；禁止只用通用品类/海外工具示例顶替。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   business:
     "===CHAPTER=== 只填模板里出现的那一张画布。早期：Lean Canvas 宫格；有交付才填短 Journey。成熟/收购：Journey + BMC。再填客户表、单位经济、待验证假设。禁止 IRR/MOIC。保留内联 grid style。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   returns:
@@ -237,57 +243,19 @@ function enforceChapterHtmlFormat(html: string): string {
 
 const REVISE_SYSTEM = `你是投研知识网络章节改写助手。根据用户指令，在现有 HTML 片段上做最小必要修改。
 
-输出唯一 JSON 对象（不要 markdown 围栏，不要其它说明），字段：
-{"note":"改写说明","html":"完整更新后的 HTML 片段"}
+输出格式严格为标记分段（不要 JSON，不要 markdown 围栏，不要其它说明）：
+===NOTE===
+（3～6 句中文：听懂了什么、改了哪些、刻意没改什么；不要复述整章）
+===CHAPTER===
+（完整更新后的 HTML 片段本身，不要完整页面）
 
 要求：
 1. 只改用户点名的部分；未提及处尽量保持原样。
 2. 保持原版式（表格章仍是表格，三块结构仍是三块），禁止扩写成模板外结构。
-3. 不要编造无依据的新事实；缺依据处用「待补」。
-4. note：用中文写 3～6 句短说明，说明你听懂了什么、改了哪些、刻意没改什么；不要复述整章正文。
-5. html：完整更新后的 HTML 片段本身（不要完整页面）。`;
+3. 不要编造无依据的新事实；缺依据处用「待补」。若用户指出源文件中的对标/主体，必须写入对应表格或对战卡。
+4. ===CHAPTER=== 内只放 HTML，禁止把说明或 JSON 包进 HTML。`;
 
-function stripJsonFence(raw: string): string {
-  let t = raw.trim();
-  const fenced = /^```(?:json)?\s*([\s\S]*?)```$/iu.exec(t);
-  if (fenced?.[1]) t = fenced[1].trim();
-  return t;
-}
-
-/** 解析改写模型输出：优先 JSON {note,html}；兼容旧版纯 HTML */
-export function parseReviseChapterAnswer(answer: string): {
-  html: string;
-  note: string;
-} {
-  const raw = stripJsonFence(answer);
-  try {
-    const obj = JSON.parse(raw) as {
-      note?: unknown;
-      reviseNote?: unknown;
-      html?: unknown;
-      content?: unknown;
-    };
-    if (obj && typeof obj === "object") {
-      const html = String(obj.html ?? obj.content ?? "").trim();
-      const note = String(obj.note ?? obj.reviseNote ?? "")
-        .trim()
-        .slice(0, 2000);
-      if (html) return { html, note };
-    }
-  } catch {
-    /* 非 JSON，走纯 HTML */
-  }
-  const split = /(?:^|\n)\s*-{3,}\s*HTML\s*-{3,}\s*\n([\s\S]*)$/iu.exec(raw);
-  if (split?.[1]) {
-    const before = raw.slice(0, split.index).trim();
-    const note = before
-      .replace(/^(?:改写说明|说明)[:：]\s*/u, "")
-      .trim()
-      .slice(0, 2000);
-    return { html: split[1].trim(), note };
-  }
-  return { html: raw, note: "" };
-}
+export { parseReviseChapterAnswer, repairStoredChapterHtml } from "./chapter-revise-parse";
 
 async function assertCanRead(
   env: Env,
@@ -397,7 +365,9 @@ export async function handleGetProjectKnowledgeChapter(
         html = linkifyCitationMarkers(ensureSourceRowAnchors(html));
       }
     } else {
-      html = polishChapterTableHtml(linkifyCitationMarkers(html));
+      html = polishChapterTableHtml(
+        linkifyCitationMarkers(repairStoredChapterHtml(html)),
+      );
     }
   }
 
@@ -532,10 +502,15 @@ export async function handleGenerateProjectKnowledgeChapter(
     }
   };
 
-  const digest = await buildChapterGenerateMaterialsDigest(
+  const materialsBundle = await buildChapterGenerateMaterials(
     env,
     projectId,
     userId,
+    { sectionId },
+  );
+  const digest = materialsBundle.digest;
+  const namedSubjectsBlock = formatNamedSubjectsBlock(
+    materialsBundle.namedSubjects,
   );
   const analysisKind = await ensureAnalysisKind(env, projectId, digest, {
     refresh: sectionId === "project-overview",
@@ -615,6 +590,7 @@ export async function handleGenerateProjectKnowledgeChapter(
     "",
     digest.trim() ||
       "【项目上传附件】\n（暂无可用资料；请在对应位置标注「待补」。）",
+    namedSubjectsBlock,
   ]
     .filter(Boolean)
     .join("\n");
@@ -642,6 +618,46 @@ export async function handleGenerateProjectKnowledgeChapter(
   if (!html) {
     await markDraftFailed("模型未返回有效 HTML 片段");
     return json({ error: "模型未返回有效 HTML 片段" }, 502);
+  }
+
+  const missingSubjects = missingNamedSubjects(
+    html,
+    materialsBundle.namedSubjects,
+  );
+  if (missingSubjects.length > 0) {
+    try {
+      const retry = await callLlm(env, [
+        { role: "system", content: generateSystem },
+        {
+          role: "user",
+          content: [
+            userPrompt,
+            "",
+            "【漏列补写】上一稿漏了这些附件点名的主体，必须写入表格或对战卡，不要改成 JSON：",
+            ...missingSubjects.map((n) => `- ${n}`),
+            "",
+            "【当前 HTML】",
+            html,
+          ].join("\n"),
+        },
+      ]);
+      const retryParsed = parseChapterGenerateAnswer(retry.answer);
+      let retryHtml = normalizeChapterHtmlFragment(retryParsed.chapterHtml);
+      retryHtml = linkifyCitationMarkers(retryHtml);
+      retryHtml = enforceChapterHtmlFormat(retryHtml);
+      if (retryHtml) {
+        const stillMissing = missingNamedSubjects(
+          retryHtml,
+          materialsBundle.namedSubjects,
+        );
+        if (stillMissing.length <= missingSubjects.length) {
+          html = retryHtml;
+          llmBackend = retry.llmBackend;
+        }
+      }
+    } catch {
+      /* 保留首稿 */
+    }
   }
 
   if (isDraft && draftRunId) {
@@ -910,14 +926,40 @@ export async function reviseChapterHtmlContent(
     kicker?: string | null;
     html: string;
     instruction: string;
+    projectId?: string;
+    userId?: string;
+    sectionId?: string;
   },
 ): Promise<{ html: string; note: string; llmBackend: string }> {
+  let materials = "";
+  let namedSubjects: string[] = [];
+  if (input.projectId && input.userId) {
+    try {
+      const bundle = await buildChapterGenerateMaterials(
+        env,
+        input.projectId,
+        input.userId,
+        { sectionId: input.sectionId, extraQuery: input.instruction },
+      );
+      materials = bundle.digest;
+      namedSubjects = bundle.namedSubjects;
+    } catch {
+      materials = "";
+    }
+  }
+
   const userPrompt = [
     `章节：${input.title}`,
     input.kicker ? `副标：${input.kicker}` : "",
     "",
     "【用户改写指令】",
     input.instruction,
+    "",
+    materials
+      ? "源文件里点名的对标/主体，必须写进本章对应表格或对战卡，不得只改说明文字。"
+      : "",
+    formatNamedSubjectsBlock(namedSubjects),
+    materials,
     "",
     "【当前 HTML】",
     input.html,
@@ -933,13 +975,48 @@ export async function reviseChapterHtmlContent(
   let html = normalizeChapterHtmlFragment(parsed.html);
   html = linkifyCitationMarkers(html);
   html = polishChapterTableHtml(html);
-  if (!html) {
+  if (!html || html.trim().startsWith("{")) {
     throw new Error("模型未返回有效 HTML 片段");
   }
-  const note =
-    parsed.note.trim() ||
+
+  const missing = missingNamedSubjects(html, namedSubjects);
+  let llmBackend = result.llmBackend;
+  let note = parsed.note.trim();
+  if (missing.length > 0) {
+    try {
+      const retry = await callLlm(env, [
+        { role: "system", content: REVISE_SYSTEM },
+        {
+          role: "user",
+          content: [
+            userPrompt,
+            "",
+            "【漏列补写】上一稿漏了这些附件点名的主体，必须写入表格或对战卡：",
+            ...missing.map((n) => `- ${n}`),
+            "",
+            "【当前 HTML】",
+            html,
+          ].join("\n"),
+        },
+      ]);
+      const retryParsed = parseReviseChapterAnswer(retry.answer);
+      let retryHtml = normalizeChapterHtmlFragment(retryParsed.html);
+      retryHtml = linkifyCitationMarkers(retryHtml);
+      retryHtml = polishChapterTableHtml(retryHtml);
+      if (retryHtml && !retryHtml.trim().startsWith("{")) {
+        html = retryHtml;
+        llmBackend = retry.llmBackend;
+        note = retryParsed.note.trim() || note;
+      }
+    } catch {
+      /* 保留首稿 */
+    }
+  }
+
+  const reviseNote =
+    note ||
     `已按指令改写「${input.title}」：已处理你指出的问题；未点名部分尽量保持原样。`;
-  return { html, note, llmBackend: result.llmBackend };
+  return { html, note: reviseNote, llmBackend };
 }
 
 /** POST /api/projects/:id/knowledge-chapters/:sectionId/revise */
@@ -1025,8 +1102,11 @@ export async function handleReviseProjectKnowledgeChapter(
     const revised = await reviseChapterHtmlContent(env, {
       title,
       kicker: template?.kicker,
-      html: existing.html,
+      html: repairStoredChapterHtml(existing.html),
       instruction,
+      projectId,
+      userId,
+      sectionId,
     });
     html = revised.html;
     llmBackend = revised.llmBackend;

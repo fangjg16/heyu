@@ -4,6 +4,7 @@ import {
   normalizeStoredChapterVersion,
   type ChapterVersionBump,
 } from "./chapter-version";
+import { repairStoredChapterHtml } from "./chapter-revise-parse";
 import {
   getProjectKnowledgeChapterHtml,
   listProjectKnowledgeChapterHtml,
@@ -723,7 +724,7 @@ export async function publishDraftRunToLive(
     await upsertProjectKnowledgeChapterHtml(db, {
       projectId: input.run.projectId,
       sectionId: item.sectionId,
-      html: item.html,
+      html: repairStoredChapterHtml(item.html),
       source: "generate",
       llmBackend: item.llmBackend,
       updatedBy: input.publishedBy,
