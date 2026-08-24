@@ -7,6 +7,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
@@ -1921,8 +1922,6 @@ function TreeRow({
         : null}
     </div>
   );
-}
-
 }
 
 const FILE_MD_COMPONENTS: Components = {
