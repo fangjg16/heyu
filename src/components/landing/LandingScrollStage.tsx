@@ -99,19 +99,17 @@ function ChapterBody({ c, centered }: { c: ScrollChapter; centered: boolean }) {
 
   if (c.id === "welcome") {
     return (
-      <div className={`mx-auto max-w-2xl ${align}`}>
+      <div className={`mx-auto max-w-3xl ${align}`}>
         <h1 className="font-display text-[clamp(1.75rem,4.5vw,2.85rem)] font-semibold leading-[1.12] tracking-[0.04em]">
           <span className="text-gradient-landing">{c.title}</span>
           {c.subtitle && (
-            <span className="mt-2 block text-[clamp(1.05rem,2.4vw,1.6rem)] font-normal tracking-[0.06em] text-[hsl(var(--hero-foreground))]">
+            <span className="mt-3 block text-[clamp(1.05rem,2.4vw,1.55rem)] font-normal leading-[1.45] tracking-[0.04em] text-[hsl(var(--hero-foreground))]">
               {c.subtitle}
             </span>
           )}
         </h1>
-        <p className="mx-auto mt-5 max-w-lg text-[0.9rem] leading-[1.85] text-[hsl(var(--hero-muted))] md:text-[0.95rem]">
-          以 AI Agent 为引擎的多家族联合投资决策辅助系统。
-          <br />
-          从信息输入到签约方案输出，全链路权限隔离。
+        <p className="mx-auto mt-5 max-w-2xl text-[0.9rem] leading-[1.85] text-[#E4C76A] md:text-[0.95rem]">
+          {c.body}
         </p>
       </div>
     );

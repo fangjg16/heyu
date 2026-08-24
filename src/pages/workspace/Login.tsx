@@ -30,32 +30,29 @@ function LoginShell({ children }: { children: ReactNode }) {
           <LoginParticleCanvas className="absolute inset-0 h-full w-full" />
 
           <div className="relative flex items-center gap-3.5">
-            <Link
-              to="/"
-              className="flex h-[46px] w-[46px] items-center justify-center rounded-[11px] bg-[hsl(var(--wine))] font-display text-[13px] font-bold tracking-wide text-white"
-            >
-              合域
+            <Link to="/" className="shrink-0">
+              <img
+                src={`${import.meta.env.BASE_URL}brand/heyu-mark.svg`}
+                alt="合域"
+                className="h-[52px] w-[52px] rounded-full object-contain"
+              />
             </Link>
             <div>
               <div className="font-display text-[22px] font-bold tracking-wide">
-                合域 AI
+                合域AI
               </div>
               <div className="text-xs tracking-[2px] text-[hsl(var(--warm-charcoal-muted))]">
-                JOINT OFFICE AI
+                JOINT FAMILY OFFICE
               </div>
             </div>
           </div>
 
           <div className="relative">
-            <div className="font-display text-[40px] font-bold leading-[1.3] tracking-wide">
-              为多个家族共同投资，
-              <br />
-              建立一套可信的 AI 决策工作台
+            <div className="max-w-[560px] font-display text-[34px] font-bold leading-[1.35] tracking-wide">
+              为家族办公室建立一个 AI 辅助、权限隔离、可持续更新的项目投资决策工作台。
             </div>
-            <div className="mt-5 max-w-[440px] text-[15px] leading-[1.9] text-[hsl(var(--warm-charcoal-muted))]">
-              把项目资料、AI 分析、家族协同、IC 决议和签约方案，
-              <br />
-              串成一条可审计的清晰流程。
+            <div className="mt-5 max-w-[520px] text-[15px] leading-[1.9] text-[#C4A046]">
+              项目资料整理、调研补充、证据核验、动态重评估、报告生成和跨主体协作流程产品化
             </div>
           </div>
 
@@ -899,7 +896,7 @@ function MobileBrand() {
   return (
     <div className="mb-4 lg:hidden">
       <Link to="/" className="font-display text-lg font-bold text-[hsl(var(--wine))]">
-        合域 AI
+        合域AI
       </Link>
     </div>
   );
