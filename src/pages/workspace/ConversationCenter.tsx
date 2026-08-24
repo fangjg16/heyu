@@ -187,17 +187,17 @@ function pruneEmptyLiveConversations(
   );
 }
 
-/** 输入框：单行起，随内容增高，超过上限后框内滚动 */
-const CHAT_INPUT_MIN_PX = 52;
-/** 约 3 行正文 + 内边距，再高则框内滚动 */
-const CHAT_INPUT_MAX_PX = 88;
+/** 输入框：与右侧 36px 按钮同高，随内容增高 */
+const CHAT_INPUT_MIN_PX = 36;
+/** 约 3 行正文，再高则框内滚动 */
+const CHAT_INPUT_MAX_PX = 72;
 
 function resizeChatComposer(el: HTMLTextAreaElement | null) {
   if (!el) return;
-  el.style.height = "auto";
+  el.style.height = `${CHAT_INPUT_MIN_PX}px`;
   const next = Math.min(Math.max(el.scrollHeight, CHAT_INPUT_MIN_PX), CHAT_INPUT_MAX_PX);
   el.style.height = `${next}px`;
-  el.style.overflowY = el.scrollHeight > CHAT_INPUT_MAX_PX ? "auto" : "hidden";
+  el.style.overflowY = next >= CHAT_INPUT_MAX_PX ? "auto" : "hidden";
 }
 
 function buildBlankSessionConversation(
@@ -3141,7 +3141,12 @@ export default function ConversationCenter() {
             </div>
           ) : null}
 
-          <div className="relative w-full min-w-0">
+          <div
+            className={cn(
+              "flex w-full min-w-0 items-center gap-0.5 rounded-[1.35rem] border border-black/[0.08] bg-white py-1.5 pl-4 pr-1.5 focus-within:border-[hsl(var(--wine-deep)/0.28)] focus-within:ring-1 focus-within:ring-[hsl(var(--wine-deep)/0.16)]",
+              isCurrentConversationSending && "opacity-70",
+            )}
+          >
             <textarea
               ref={chatInputRef}
               rows={1}
@@ -3175,13 +3180,11 @@ export default function ConversationCenter() {
               aria-label="对话输入"
               placeholder="输入消息并发送"
               className={cn(
-                "min-h-[52px] max-h-[88px] w-full resize-none overflow-x-hidden overflow-y-auto rounded-[1.35rem] border border-black/[0.08] bg-white py-3.5 pl-4 pr-[6.5rem] text-sm font-medium leading-relaxed break-words whitespace-pre-wrap [overflow-wrap:anywhere] placeholder:text-muted-foreground/55 focus-visible:border-[hsl(var(--wine-deep)/0.28)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[hsl(var(--wine-deep)/0.16)]",
+                "max-h-[72px] min-h-9 min-w-0 flex-1 resize-none overflow-x-hidden overflow-y-auto border-0 bg-transparent px-0 py-1.5 text-sm font-medium leading-relaxed break-words whitespace-pre-wrap [overflow-wrap:anywhere] placeholder:text-muted-foreground/55 focus-visible:outline-none focus-visible:ring-0",
                 draftMessage ? "text-foreground" : "text-muted-foreground",
-                isCurrentConversationSending && "opacity-70",
               )}
             />
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-end pb-2 pr-1.5">
-              <div className="pointer-events-auto flex items-center gap-0.5">
+            <div className="flex shrink-0 items-center gap-0.5 self-center">
                 <button
                   type="button"
                   onClick={() => setShowUploadPanel((open) => !open)}
@@ -3251,7 +3254,6 @@ export default function ConversationCenter() {
                     <ArrowUp className="h-4 w-4" strokeWidth={2.4} />
                   )}
                 </button>
-              </div>
             </div>
           </div>
         </footer>
