@@ -29,7 +29,6 @@ import {
   X,
 } from "lucide-react";
 import { ChatMarkdown } from "@/components/workspace/ChatMarkdown";
-import { BrandMark } from "@/components/workspace/BrandMark";
 import { TypingLoader } from "@/components/ui/loader";
 import {
   KnowledgeNetworkPreview,
@@ -2544,7 +2543,6 @@ export default function ConversationCenter() {
           <>
         <div className="border-b border-[rgba(78,66,57,0.1)] px-3 py-3">
           <div className="flex items-center gap-2.5">
-            <BrandMark className="h-9 w-9 shrink-0" />
             <div className="min-w-0 flex-1">
               <p className="font-display text-sm font-bold leading-tight text-foreground">
                 对话中心
@@ -2697,8 +2695,7 @@ export default function ConversationCenter() {
         ) : null}
           </>
         ) : (
-          <div className="hidden h-full flex-col items-center gap-3 px-1 py-3 md:flex">
-            <BrandMark className="h-8 w-8" />
+          <div className="hidden h-full flex-col items-center px-1 py-3 md:flex">
             <button
               type="button"
               title="展开对话列表"
@@ -2714,13 +2711,6 @@ export default function ConversationCenter() {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-gradient-to-b from-background/30 to-background/5 md:rounded-tr-[1.75rem]">
         <header className="sticky top-0 z-10 flex flex-wrap items-start justify-between gap-3 border-b border-border/50 bg-white/65 px-4 py-4 backdrop-blur-md md:px-6">
           <div>
-            <Link
-              to="/app/home"
-              className="mb-1 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-[hsl(var(--wine-deep))]"
-            >
-              <BrandMark className="h-4 w-4" />
-              合域
-            </Link>
             <h1 className="text-lg font-bold text-foreground md:text-xl">
               {chatTitle}
             </h1>

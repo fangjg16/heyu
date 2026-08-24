@@ -8,7 +8,6 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { Bell, LogOut, Search } from "lucide-react";
-import { BrandMark } from "@/components/workspace/BrandMark";
 import { cn } from "@/lib/utils";
 import { logoutRemote } from "@/lib/api-auth";
 import { signOutClerkBrowser } from "@/lib/clerk-enabled";
@@ -163,10 +162,9 @@ export function WorkspaceTopBar({
       >
         <Link
           to="/app/home"
-          className="flex items-center gap-2 transition-opacity hover:opacity-80"
+          className="transition-colors hover:text-[hsl(var(--wine))]"
         >
-          <BrandMark className="h-6 w-6" />
-          <span>合域</span>
+          合域
         </Link>
         {crumbs.map((c, i) => (
           <span key={`${c.label}-${i}`} className="flex items-center gap-2">
