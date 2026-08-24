@@ -104,12 +104,16 @@ function ChapterBody({ c, centered }: { c: ScrollChapter; centered: boolean }) {
           <span className="text-gradient-landing">{c.title}</span>
           {c.subtitle && (
             <span className="mt-3 block text-[clamp(1.05rem,2.4vw,1.55rem)] font-normal leading-[1.45] tracking-[0.04em] text-[hsl(var(--hero-foreground))]">
-              {c.subtitle}
+              为家族办公室建立一个 AI 辅助、权限隔离、
+              <br />
+              可持续更新的项目投资决策工作台
             </span>
           )}
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-[0.9rem] leading-[1.85] text-[hsl(var(--hero-muted))] md:text-[0.95rem]">
-          {c.body}
+          项目资料整理、调研补充、证据核验、动态重评估、
+          <br />
+          报告生成和跨主体协作流程产品化
         </p>
       </div>
     );

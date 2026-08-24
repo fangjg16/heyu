@@ -87,7 +87,7 @@ export const SCROLL_CHAPTERS: ScrollChapter[] = [
     label: "Welcome",
     folio: "Welcome",
     title: "合域 AI",
-    subtitle: "为家族办公室建立一个 AI 辅助、权限隔离、可持续更新的项目投资决策工作台。",
+    subtitle: "为家族办公室建立一个 AI 辅助、权限隔离、可持续更新的项目投资决策工作台",
     body: "项目资料整理、调研补充、证据核验、动态重评估、报告生成和跨主体协作流程产品化",
     start: 0,
     end: 0.2,

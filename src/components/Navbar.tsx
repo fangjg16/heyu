@@ -27,9 +27,11 @@ export function Navbar() {
           to="/"
           className="flex items-center gap-2.5 font-display text-[1.05rem] font-semibold tracking-[0.08em] text-[hsl(var(--hero-foreground))] transition-colors hover:text-white"
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[hsl(var(--wine))] text-[10px] font-bold tracking-wide text-white">
-            合域
-          </span>
+          <img
+            src={`${import.meta.env.BASE_URL}brand/heyu-mark.png`}
+            alt="合域"
+            className="h-9 w-9 rounded-full bg-white object-contain"
+          />
           合域 AI
         </Link>
         <div className="flex items-center gap-2 sm:gap-3">

@@ -32,9 +32,9 @@ function LoginShell({ children }: { children: ReactNode }) {
           <div className="relative flex items-center gap-3.5">
             <Link to="/" className="shrink-0">
               <img
-                src={`${import.meta.env.BASE_URL}brand/heyu-mark.svg`}
+                src={`${import.meta.env.BASE_URL}brand/heyu-mark.png`}
                 alt="合域"
-                className="h-[52px] w-[52px] rounded-full object-contain"
+                className="h-[52px] w-[52px] rounded-full bg-white object-contain"
               />
             </Link>
             <div>
@@ -49,10 +49,16 @@ function LoginShell({ children }: { children: ReactNode }) {
 
           <div className="relative">
             <div className="max-w-[560px] font-display text-[34px] font-bold leading-[1.35] tracking-wide">
-              为家族办公室建立一个 AI 辅助、权限隔离、可持续更新的项目投资决策工作台。
+              为家族办公室建立一个 AI 辅助、
+              <br />
+              权限隔离、可持续更新的
+              <br />
+              项目投资决策工作台
             </div>
             <div className="mt-5 max-w-[520px] text-[15px] leading-[1.9] text-[hsl(var(--warm-charcoal-muted))]">
-              项目资料整理、调研补充、证据核验、动态重评估、报告生成和跨主体协作流程产品化
+              项目资料整理、调研补充、证据核验、动态重评估、
+              <br />
+              报告生成和跨主体协作流程产品化
             </div>
           </div>
 
