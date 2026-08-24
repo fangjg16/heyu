@@ -9,6 +9,7 @@ import {
 } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
+  ArrowUp,
   Check,
   ChevronDown,
   ChevronRight,
@@ -19,9 +20,7 @@ import {
   Loader2,
   MoreHorizontal,
   Paperclip,
-  PanelLeft,
   PanelLeftClose,
-  Plane,
   Plus,
   Quote,
   Square,
@@ -208,8 +207,8 @@ function buildBlankSessionConversation(
   return {
     id: conversationId,
     projectId,
-    title: `${projectName} · 全局分析`,
-    preview: "尚未发送消息",
+    title: `${projectName} · 新对话`,
+    preview: "新对话",
     updatedAt: getCurrentDateTimeLabel(),
     files: [],
     variant: "blank",
@@ -244,9 +243,11 @@ function applyConversationMetadataFromMessages(
     const topicPreview = topicFromFirstUserMessage(msgs);
     const looksLikeTopic =
       isSidebarTopicPreview(c.preview) && c.preview.trim().length <= 20;
+    const preview = looksLikeTopic ? c.preview : topicPreview;
     return {
       ...c,
-      preview: looksLikeTopic ? c.preview : topicPreview,
+      preview,
+      title: formatProjectConversationTitle(projectDisplayName(c.projectId), preview),
       updatedAt: lastTime || c.updatedAt,
     };
   });
@@ -307,25 +308,34 @@ function projectDisplayName(projectId: string): string {
   return getProjectById(projectId)?.name ?? (projectId.startsWith("proj-") ? "云端项目" : projectId);
 }
 
-function isProjectMainConversation(conversationId: string, projectId: string): boolean {
-  return conversationId === `${projectId}-main`;
+function resolveConversationTopic(
+  conversation: SessionConversation | null | undefined,
+  messages?: { role: string; content: string }[],
+): string {
+  if (messages && messages.length > 0) {
+    const fromMsgs = topicFromFirstUserMessage(messages);
+    if (fromMsgs && fromMsgs !== "对话记录") return fromMsgs;
+  }
+  const preview = conversation?.preview?.trim() ?? "";
+  if (preview && isSidebarTopicPreview(preview)) return preview;
+  return "新对话";
 }
 
-function mainConversationTitle(projectName: string): string {
-  return `${projectName} · 全局分析`;
+function formatProjectConversationTitle(projectName: string, topic: string): string {
+  return `${projectName} · ${topic}`;
 }
 
-/** 主会话标题随项目名实时更新；子线程仍用持久化 title */
+/** 顶栏：项目名称 · 首条提问自动生成的对话主题 */
 function resolveConversationHeaderTitle(
   conversation: SessionConversation | null | undefined,
   project: WorkspaceProject | undefined,
-  projectId: string,
+  messages?: { role: string; content: string }[],
 ): string {
   if (!project) return "项目对话";
-  if (conversation && isProjectMainConversation(conversation.id, projectId)) {
-    return mainConversationTitle(project.name);
-  }
-  return conversation?.title ?? mainConversationTitle(project.name);
+  return formatProjectConversationTitle(
+    project.name,
+    resolveConversationTopic(conversation, messages),
+  );
 }
 
 function conversationSidebarRows(
@@ -681,8 +691,8 @@ function buildConversationFromProject(
   return {
     id: `${projectId}-main`,
     projectId,
-    title: `${project.name} · 全局分析`,
-    preview: "尚未发送消息",
+    title: `${project.name} · 新对话`,
+    preview: "新对话",
     updatedAt: getCurrentDateTimeLabel(),
     files: [],
     variant: "blank",
@@ -1158,21 +1168,6 @@ export default function ConversationCenter() {
   const isLiveAiMode =
     ENABLE_LIVE_CHAT && Boolean(AI_CHAT_ENDPOINT) && projectRole !== "guest";
 
-  useEffect(() => {
-    if (!projectId || !project?.name || !isLiveAiMode) return;
-    const expectedTitle = mainConversationTitle(project.name);
-    setConversations((prev) => {
-      let changed = false;
-      const next = prev.map((c) => {
-        if (!isProjectMainConversation(c.id, projectId)) return c;
-        if (c.title === expectedTitle) return c;
-        changed = true;
-        return { ...c, title: expectedTitle };
-      });
-      return changed ? next : prev;
-    });
-  }, [projectId, project?.name, isLiveAiMode]);
-
   const isCurrentConversationSending = Boolean(
     effectiveConversationId && sendingConversationId === effectiveConversationId,
   );
@@ -1262,7 +1257,7 @@ export default function ConversationCenter() {
     return {
       ...built,
       id: effectiveConversationId,
-      preview: "尚未发送消息",
+      preview: "新对话",
       variant: "blank" as const,
     };
   }, [conversations, effectiveConversationId, projectId, isLiveAiMode]);
@@ -1735,7 +1730,7 @@ export default function ConversationCenter() {
             ...(isBlank
               ? buildBlankSessionConversation(projectId, id, project.name)
               : { ...builtMain!, id }),
-            preview: hasMsgs ? topicFromFirstUserMessage(msgs) : "尚未发送消息",
+            preview: hasMsgs ? topicFromFirstUserMessage(msgs) : "新对话",
             updatedAt: hasMsgs
               ? latestMessageTimeLabel(msgs) || getCurrentDateTimeLabel()
               : getCurrentDateTimeLabel(),
@@ -1872,7 +1867,15 @@ export default function ConversationCenter() {
                 fileNames.length > 0
                   ? Array.from(new Set([...t.files, ...fileNames]))
                   : t.files,
-              ...(preview !== undefined ? { preview } : {}),
+              ...(preview !== undefined
+                ? {
+                    preview,
+                    title: formatProjectConversationTitle(
+                      projectDisplayName(t.projectId),
+                      preview,
+                    ),
+                  }
+                : {}),
               updatedAt:
                 latestMessageTimeLabel(
                   liveMessagesByConversation[effectiveConversationId],
@@ -2507,7 +2510,7 @@ export default function ConversationCenter() {
   const chatTitle = resolveConversationHeaderTitle(
     activeConversation,
     project,
-    projectId,
+    liveMessagesByConversation[effectiveConversationId],
   );
   const chatDayLabel = new Intl.DateTimeFormat("zh-CN", {
     year: "numeric",
@@ -2542,15 +2545,40 @@ export default function ConversationCenter() {
         {chatListOpen ? (
           <>
         <div className="border-b border-[rgba(78,66,57,0.1)] px-3 py-3">
-          <div className="flex items-center gap-2.5">
-            <div className="min-w-0 flex-1">
-              <p className="font-display text-sm font-bold leading-tight text-foreground">
-                对话中心
-              </p>
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Joint Family Office
-              </p>
-            </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (!projectId || !project || !userId) return;
+                const newId = `${projectId}-blank-${userId}-${Date.now()}`;
+                const newConv = buildBlankSessionConversation(
+                  projectId,
+                  newId,
+                  project.name,
+                );
+                skipNextAutoPersistRef.current = true;
+                setConversations((prev) => [
+                  newConv,
+                  ...prev.filter((c) => c.id !== newId),
+                ]);
+                setLiveMessagesByConversation((prev) => ({
+                  ...prev,
+                  [newId]: prev[newId] ?? [],
+                }));
+                setNewlyAddedConversationId(newId);
+                if (newConversationTimerRef.current !== null) {
+                  window.clearTimeout(newConversationTimerRef.current);
+                }
+                newConversationTimerRef.current = window.setTimeout(() => {
+                  setNewlyAddedConversationId((prev) => (prev === newId ? null : prev));
+                }, 260);
+                navigate(`/app/chat/${projectId}/${newId}`);
+              }}
+              className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--wine-deep)/0.32)] bg-[hsl(var(--wine-deep)/0.08)] px-3 py-2.5 text-xs font-semibold text-[hsl(var(--wine-deep))] transition-colors hover:bg-[hsl(var(--wine-deep)/0.14)]"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2} />
+              新增对话
+            </button>
             <button
               type="button"
               title="收起对话列表"
@@ -2562,39 +2590,6 @@ export default function ConversationCenter() {
           </div>
         </div>
         <nav className="flex-1 space-y-1.5 overflow-y-auto p-3">
-          <button
-            type="button"
-            onClick={() => {
-              if (!projectId || !project || !userId) return;
-              const newId = `${projectId}-blank-${userId}-${Date.now()}`;
-              const newConv = buildBlankSessionConversation(
-                projectId,
-                newId,
-                project.name,
-              );
-              skipNextAutoPersistRef.current = true;
-              setConversations((prev) => [
-                newConv,
-                ...prev.filter((c) => c.id !== newId),
-              ]);
-              setLiveMessagesByConversation((prev) => ({
-                ...prev,
-                [newId]: prev[newId] ?? [],
-              }));
-              setNewlyAddedConversationId(newId);
-              if (newConversationTimerRef.current !== null) {
-                window.clearTimeout(newConversationTimerRef.current);
-              }
-              newConversationTimerRef.current = window.setTimeout(() => {
-                setNewlyAddedConversationId((prev) => (prev === newId ? null : prev));
-              }, 260);
-              navigate(`/app/chat/${projectId}/${newId}`);
-            }}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--wine-deep)/0.32)] bg-[hsl(var(--wine-deep)/0.08)] px-3 py-2.5 text-xs font-semibold text-[hsl(var(--wine-deep))] transition-colors hover:bg-[hsl(var(--wine-deep)/0.14)]"
-          >
-            <Plus className="h-4 w-4" strokeWidth={2} />
-            新增对话
-          </button>
           {sidebarGroups.length === 0 ? (
             <p className="px-2 py-3 text-[11px] leading-relaxed text-muted-foreground">
               暂无对话记录。选择项目后发送消息即可开始。
@@ -2702,7 +2697,10 @@ export default function ConversationCenter() {
               onClick={() => setChatListOpen(true)}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
             >
-              <PanelLeft className="h-[18px] w-[18px]" strokeWidth={1.8} />
+              <PanelLeftClose
+                className="h-[18px] w-[18px] -scale-x-100"
+                strokeWidth={1.8}
+              />
             </button>
           </div>
         )}
@@ -2711,7 +2709,7 @@ export default function ConversationCenter() {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-gradient-to-b from-background/30 to-background/5 md:rounded-tr-[1.75rem]">
         <header className="sticky top-0 z-10 flex flex-wrap items-start justify-between gap-3 border-b border-border/50 bg-white/65 px-4 py-4 backdrop-blur-md md:px-6">
           <div>
-            <h1 className="text-lg font-bold text-foreground md:text-xl">
+            <h1 className="text-lg font-bold text-[#1F2423] md:text-xl">
               {chatTitle}
             </h1>
             <p className="text-xs font-medium text-muted-foreground">
@@ -3208,19 +3206,34 @@ export default function ConversationCenter() {
                   : isCurrentConversationSending ||
                     (draftMessage.trim().length === 0 && selectedFiles.length === 0)
               }
+              aria-label={
+                canStopCurrentTask
+                  ? "停止"
+                  : isCurrentConversationSending
+                    ? "发送中"
+                    : "发送"
+              }
+              title={
+                canStopCurrentTask
+                  ? "停止"
+                  : isCurrentConversationSending
+                    ? "发送中"
+                    : "发送"
+              }
               className={cn(
-                "inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-full border px-8 text-sm font-semibold shadow-[0_8px_22px_-10px_hsl(var(--wine-deep)/0.55)] transition-all active:scale-[0.98]",
+                "inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border shadow-[0_8px_22px_-10px_hsl(var(--wine-deep)/0.55)] transition-all active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40",
                 canStopCurrentTask
                   ? "border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/15"
                   : "border-[hsl(var(--wine-deep))] bg-[hsl(var(--wine-deep))] text-[hsl(var(--wine-deep-foreground))] hover:bg-[hsl(353_42%_28%)]",
               )}
             >
               {canStopCurrentTask ? (
-                <Square className="h-4 w-4 fill-current" strokeWidth={2} />
+                <Square className="h-5 w-5 fill-current" strokeWidth={2} />
+              ) : isCurrentConversationSending ? (
+                <Loader2 className="h-5 w-5 animate-spin" strokeWidth={2} />
               ) : (
-                <Plane className="h-4 w-4" strokeWidth={2} />
+                <ArrowUp className="h-5 w-5" strokeWidth={2.25} />
               )}
-              {canStopCurrentTask ? "停止" : isCurrentConversationSending ? "发送中…" : "发送"}
             </button>
           </div>
         </footer>

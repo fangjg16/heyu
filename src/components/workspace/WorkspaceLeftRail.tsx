@@ -4,7 +4,6 @@ import {
   Briefcase,
   Home,
   MessageSquare,
-  PanelLeft,
   PanelLeftClose,
   Settings,
 } from "lucide-react";
@@ -187,11 +186,13 @@ export function WorkspaceLeftRail() {
               pinned ? "ml-auto" : "mt-1",
             )}
           >
-            {pinned ? (
-              <PanelLeftClose className="h-[18px] w-[18px]" strokeWidth={1.8} />
-            ) : (
-              <PanelLeft className="h-[18px] w-[18px]" strokeWidth={1.8} />
-            )}
+            <PanelLeftClose
+              className={cn(
+                "h-[18px] w-[18px]",
+                !pinned && "-scale-x-100",
+              )}
+              strokeWidth={1.8}
+            />
           </button>
         </div>
 
