@@ -188,7 +188,7 @@ function pruneEmptyLiveConversations(
 }
 
 /** 输入框：单行起，随内容增高，超过上限后框内滚动 */
-const CHAT_INPUT_MIN_PX = 48;
+const CHAT_INPUT_MIN_PX = 52;
 /** 约 3 行正文 + 内边距，再高则框内滚动 */
 const CHAT_INPUT_MAX_PX = 88;
 
@@ -3141,7 +3141,7 @@ export default function ConversationCenter() {
             </div>
           ) : null}
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="relative min-w-0">
             <textarea
               ref={chatInputRef}
               rows={1}
@@ -3175,69 +3175,84 @@ export default function ConversationCenter() {
               aria-label="对话输入"
               placeholder="输入消息并发送"
               className={cn(
-                "min-h-12 max-h-[88px] min-w-0 flex-1 resize-none overflow-x-hidden overflow-y-auto rounded-2xl border border-input bg-white px-5 py-2.5 text-sm font-medium leading-relaxed break-words whitespace-pre-wrap shadow-inner [overflow-wrap:anywhere] placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--wine-deep)/0.28)] focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                "min-h-[52px] max-h-[88px] w-full resize-none overflow-x-hidden overflow-y-auto rounded-[1.35rem] border border-black/[0.08] bg-white py-3.5 pl-4 pr-[6.5rem] text-sm font-medium leading-relaxed break-words whitespace-pre-wrap [overflow-wrap:anywhere] placeholder:text-muted-foreground/55 focus-visible:border-[hsl(var(--wine-deep)/0.28)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[hsl(var(--wine-deep)/0.16)]",
                 draftMessage ? "text-foreground" : "text-muted-foreground",
                 isCurrentConversationSending && "opacity-70",
               )}
             />
-            <button
-              type="button"
-              onClick={() => setShowUploadPanel((open) => !open)}
-              className={cn(
-                "inline-flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-full border text-muted-foreground transition-colors",
-                showUploadPanel || selectedFiles.length > 0
-                  ? "border-[hsl(var(--wine-deep)/0.35)] bg-[hsl(var(--wine-deep)/0.1)] text-[hsl(var(--wine-deep))]"
-                  : "border-input bg-white hover:bg-muted hover:text-foreground",
-              )}
-              aria-label="展开或收起文件上传区"
-              aria-expanded={showUploadPanel}
-            >
-              <Paperclip className="h-4 w-4" strokeWidth={2} aria-hidden />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (canStopCurrentTask) {
-                  void handleStopCurrentTask();
-                  return;
-                }
-                void handleSend();
-              }}
-              disabled={
-                canStopCurrentTask
-                  ? false
-                  : isCurrentConversationSending ||
-                    (draftMessage.trim().length === 0 && selectedFiles.length === 0)
-              }
-              aria-label={
-                canStopCurrentTask
-                  ? "停止"
-                  : isCurrentConversationSending
-                    ? "发送中"
-                    : "发送"
-              }
-              title={
-                canStopCurrentTask
-                  ? "停止"
-                  : isCurrentConversationSending
-                    ? "发送中"
-                    : "发送"
-              }
-              className={cn(
-                "inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border shadow-[0_8px_22px_-10px_hsl(var(--wine-deep)/0.55)] transition-all active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40",
-                canStopCurrentTask
-                  ? "border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/15"
-                  : "border-[hsl(var(--wine-deep))] bg-[hsl(var(--wine-deep))] text-[hsl(var(--wine-deep-foreground))] hover:bg-[hsl(353_42%_28%)]",
-              )}
-            >
-              {canStopCurrentTask ? (
-                <Square className="h-5 w-5 fill-current" strokeWidth={2} />
-              ) : isCurrentConversationSending ? (
-                <Loader2 className="h-5 w-5 animate-spin" strokeWidth={2} />
-              ) : (
-                <ArrowUp className="h-5 w-5" strokeWidth={2.25} />
-              )}
-            </button>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-end pb-2 pr-2">
+              <div className="pointer-events-auto flex items-center gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => setShowUploadPanel((open) => !open)}
+                  className={cn(
+                    "relative inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground/75 transition-[transform,background-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-[hsl(var(--wine-deep)/0.07)] hover:text-[hsl(var(--wine-deep))] active:scale-[0.97]",
+                    (showUploadPanel || selectedFiles.length > 0) &&
+                      "bg-[hsl(var(--wine-deep)/0.09)] text-[hsl(var(--wine-deep))]",
+                  )}
+                  aria-label="展开或收起文件上传区"
+                  aria-expanded={showUploadPanel}
+                >
+                  <Paperclip
+                    className="h-[17px] w-[17px] -rotate-[32deg]"
+                    strokeWidth={1.7}
+                    aria-hidden
+                  />
+                  {selectedFiles.length > 0 ? (
+                    <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[hsl(var(--wine-deep))]" />
+                  ) : null}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (canStopCurrentTask) {
+                      void handleStopCurrentTask();
+                      return;
+                    }
+                    void handleSend();
+                  }}
+                  disabled={
+                    canStopCurrentTask
+                      ? false
+                      : isCurrentConversationSending ||
+                        (draftMessage.trim().length === 0 &&
+                          selectedFiles.length === 0)
+                  }
+                  aria-label={
+                    canStopCurrentTask
+                      ? "停止"
+                      : isCurrentConversationSending
+                        ? "发送中"
+                        : "发送"
+                  }
+                  title={
+                    canStopCurrentTask
+                      ? "停止"
+                      : isCurrentConversationSending
+                        ? "发送中"
+                        : "发送"
+                  }
+                  className={cn(
+                    "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-[transform,background-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] disabled:pointer-events-none",
+                    canStopCurrentTask
+                      ? "bg-destructive/10 text-destructive hover:bg-destructive/15"
+                      : isCurrentConversationSending ||
+                          draftMessage.trim().length > 0 ||
+                          selectedFiles.length > 0
+                        ? "bg-[hsl(var(--wine-deep))] text-[hsl(var(--wine-deep-foreground))] hover:bg-[hsl(353_38%_27%)]"
+                        : "bg-muted text-muted-foreground/45",
+                  )}
+                >
+                  {canStopCurrentTask ? (
+                    <Square className="h-3.5 w-3.5 fill-current" strokeWidth={0} />
+                  ) : isCurrentConversationSending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
+                  ) : (
+                    <ArrowUp className="h-4 w-4" strokeWidth={2.4} />
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </footer>
       </div>
