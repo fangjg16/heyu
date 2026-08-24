@@ -2709,8 +2709,8 @@ export default function ConversationCenter() {
         )}
       </aside>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-gradient-to-b from-background/30 to-background/5 md:rounded-tr-[1.75rem]">
-        <header className="sticky top-0 z-10 flex flex-wrap items-start justify-between gap-3 border-b border-border/50 bg-white/65 px-4 py-4 backdrop-blur-md md:px-6">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[rgba(255,252,248,0.55)]">
+        <header className="sticky top-0 z-10 flex flex-wrap items-start justify-between gap-3 border-b border-border/50 bg-white/65 px-4 py-4 backdrop-blur-md md:px-8">
           <div>
             <h1 className="text-lg font-bold text-[#1F2423] md:text-xl">
               {chatTitle}
@@ -2995,7 +2995,7 @@ export default function ConversationCenter() {
           )}
         </div>
 
-        <footer className="relative shrink-0 border-t border-border/50 bg-white/70 px-4 py-4 backdrop-blur-md md:rounded-br-[1.65rem] md:px-6">
+        <footer className="relative shrink-0 border-t border-border/40 bg-[rgba(255,252,248,0.94)] px-4 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md md:px-8">
           <input
             id="jfo-chat-file-input"
             ref={fileInputRef}
@@ -3010,7 +3010,7 @@ export default function ConversationCenter() {
             }}
           />
           {showUploadPanel || selectedFiles.length > 0 ? (
-            <div className="absolute bottom-full left-4 right-4 z-30 mb-3 rounded-2xl border border-dashed border-[hsl(var(--wine-deep)/0.45)] bg-white/95 p-3 shadow-[0_-8px_30px_-12px_rgba(15,23,42,0.12)] backdrop-blur-md md:left-6 md:right-6">
+            <div className="absolute bottom-full left-4 right-4 z-30 mb-2 rounded-2xl border border-dashed border-[hsl(var(--wine-deep)/0.45)] bg-white/95 p-3 shadow-[0_-8px_30px_-12px_rgba(15,23,42,0.12)] backdrop-blur-md md:left-8 md:right-8">
               <div
                 className="rounded-2xl border border-dashed border-border/70 bg-background/40 px-4 py-4"
                 onDragOver={(e) => e.preventDefault()}
@@ -3126,7 +3126,7 @@ export default function ConversationCenter() {
           ) : null}
 
           {isLiveAiMode ? (
-            <div className="mb-3 flex flex-wrap gap-2">
+            <div className="mb-2 flex flex-wrap gap-2">
               {CHAT_QUICK_PROMPTS.map((item) => (
                 <button
                   key={item.label}
@@ -3141,7 +3141,7 @@ export default function ConversationCenter() {
             </div>
           ) : null}
 
-          <div className="relative min-w-0">
+          <div className="relative w-full min-w-0">
             <textarea
               ref={chatInputRef}
               rows={1}
@@ -3180,7 +3180,7 @@ export default function ConversationCenter() {
                 isCurrentConversationSending && "opacity-70",
               )}
             />
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-end pb-2 pr-2">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-end pb-2 pr-1.5">
               <div className="pointer-events-auto flex items-center gap-0.5">
                 <button
                   type="button"
