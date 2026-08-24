@@ -91,6 +91,23 @@ export async function listPendingJoinRequests(
   return (results ?? []).map(rowToJoinRequestJson);
 }
 
+export async function listReviewedJoinRequests(
+  env: Env,
+  limit = 80,
+): Promise<JoinRequestJson[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT id, project_id, applicant_user_id, status, created_at, updated_at,
+            reviewed_by, reviewed_at
+     FROM project_join_requests
+     WHERE status IN ('approved', 'rejected')
+     ORDER BY COALESCE(reviewed_at, updated_at) DESC
+     LIMIT ?`,
+  )
+    .bind(Math.max(1, Math.min(limit, 200)))
+    .all<JoinRequestRow>();
+  return (results ?? []).map(rowToJoinRequestJson);
+}
+
 export async function listJoinRequestsForApplicant(
   env: Env,
   applicantUserId: string,

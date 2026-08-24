@@ -70,7 +70,7 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     group: "我的",
     method: "GET",
     pathTemplate: "/api/me/join-reviews",
-    summary: "待我审批的加入申请",
+    summary: "待审批加入申请、已处理历史与协作提交",
     risk: "safe",
     autoProbe: true,
   },

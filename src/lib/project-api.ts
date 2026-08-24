@@ -324,6 +324,7 @@ export type ProjectJoinRequest = {
   reviewedAt: string | null;
   projectName?: string;
   applicantDisplayName?: string;
+  reviewedByDisplayName?: string | null;
 };
 
 function mapJoinRequest(row: {
@@ -335,9 +336,10 @@ function mapJoinRequest(row: {
   updatedAt?: string;
   reviewedBy?: string | null;
   reviewedAt?: string | null;
-  projectName?: string;
-  applicantDisplayName?: string;
-}): ProjectJoinRequest {
+    projectName?: string;
+    applicantDisplayName?: string;
+    reviewedByDisplayName?: string | null;
+  }): ProjectJoinRequest {
   const statusRaw = String(row.status ?? "")
     .trim()
     .toLowerCase();
@@ -354,6 +356,7 @@ function mapJoinRequest(row: {
     reviewedAt: row.reviewedAt ?? null,
     projectName: row.projectName?.trim() || undefined,
     applicantDisplayName: row.applicantDisplayName?.trim() || undefined,
+    reviewedByDisplayName: row.reviewedByDisplayName?.trim() || null,
   };
 }
 
@@ -372,17 +375,66 @@ export async function fetchMyJoinRequests(
   return (data.requests ?? []).map(mapJoinRequest);
 }
 
-export async function fetchMyJoinReviews(): Promise<ProjectJoinRequest[]> {
-  if (!apiBaseFromChatEndpoint(AI_CHAT_ENDPOINT)) return [];
+export type CollabSubmitNotice = {
+  id: string;
+  projectId: string;
+  projectName: string;
+  title: string;
+  replyBy: string | null;
+  replyByName: string;
+  replySubmittedAt: string | null;
+};
+
+export type InboxPayload = {
+  pending: ProjectJoinRequest[];
+  reviewed: ProjectJoinRequest[];
+  collabSubmitted: CollabSubmitNotice[];
+};
+
+function mapCollabSubmitNotice(row: {
+  id?: string;
+  projectId?: string;
+  projectName?: string;
+  title?: string;
+  replyBy?: string | null;
+  replyByName?: string;
+  replySubmittedAt?: string | null;
+}): CollabSubmitNotice {
+  return {
+    id: row.id ?? "",
+    projectId: row.projectId ?? "",
+    projectName: row.projectName?.trim() || "项目",
+    title: row.title?.trim() || "协作资料",
+    replyBy: row.replyBy ?? null,
+    replyByName: row.replyByName?.trim() || "项目协作方",
+    replySubmittedAt: row.replySubmittedAt ?? null,
+  };
+}
+
+export async function fetchMyInbox(): Promise<InboxPayload> {
+  if (!apiBaseFromChatEndpoint(AI_CHAT_ENDPOINT)) {
+    return { pending: [], reviewed: [], collabSubmitted: [] };
+  }
   const res = await jfoFetch("/api/me/join-reviews");
   const data = (await res.json().catch(() => ({}))) as {
     requests?: Parameters<typeof mapJoinRequest>[0][];
+    reviewed?: Parameters<typeof mapJoinRequest>[0][];
+    collabSubmitted?: Parameters<typeof mapCollabSubmitNotice>[0][];
     error?: string;
   };
   if (!res.ok) {
-    throw new Error(data.error || `待审批申请加载失败（${res.status}）`);
+    throw new Error(data.error || `通知加载失败（${res.status}）`);
   }
-  return (data.requests ?? []).map(mapJoinRequest);
+  return {
+    pending: (data.requests ?? []).map(mapJoinRequest),
+    reviewed: (data.reviewed ?? []).map(mapJoinRequest),
+    collabSubmitted: (data.collabSubmitted ?? []).map(mapCollabSubmitNotice),
+  };
+}
+
+export async function fetchMyJoinReviews(): Promise<ProjectJoinRequest[]> {
+  const inbox = await fetchMyInbox();
+  return inbox.pending;
 }
 
 export type OpenQuestionPriority = "P1" | "P2" | "P3";

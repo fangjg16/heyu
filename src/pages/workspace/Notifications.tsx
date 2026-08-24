@@ -1,10 +1,38 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import { JoinRequestReviewBar } from "@/components/workspace/JoinRequestReviewBar";
 import { useJoinReviews } from "@/hooks/use-join-reviews";
+import { cn } from "@/lib/utils";
+import type { ProjectJoinRequest } from "@/lib/project-api";
+
+function formatWhen(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("zh-CN");
+}
+
+function joinStatusLabel(req: ProjectJoinRequest): string {
+  if (req.status === "approved") return "已通过";
+  if (req.status === "rejected") return "已拒绝";
+  return "待处理";
+}
 
 export default function Notifications() {
-  const { requests, pendingCount, loading, error, busyId, review } = useJoinReviews();
+  const {
+    requests,
+    reviewed,
+    collabSubmitted,
+    pendingCount,
+    loading,
+    error,
+    busyId,
+    review,
+  } = useJoinReviews();
+  const [tab, setTab] = useState<"pending" | "history">("pending");
+
+  const pendingEmpty = requests.length === 0 && collabSubmitted.length === 0;
 
   return (
     <WorkspaceShell>
@@ -14,54 +42,181 @@ export default function Notifications() {
         </h1>
         <p className="mt-2 text-[hsl(var(--warm-charcoal-muted))]">
           {pendingCount > 0
-            ? `${pendingCount} 条待审批的加入申请`
-            : "暂无待处理的加入申请。"}
+            ? `${pendingCount} 条待处理通知`
+            : "暂无待处理通知。"}
         </p>
         {error ? (
           <p className="mt-3 text-sm text-[#A06358]">{error}</p>
         ) : null}
 
-        {loading && requests.length === 0 ? (
+        <div className="mt-6 flex gap-1 rounded-xl bg-[rgba(78,66,57,0.06)] p-1">
+          <button
+            type="button"
+            onClick={() => setTab("pending")}
+            className={cn(
+              "flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors",
+              tab === "pending"
+                ? "bg-white text-[#1F2423] shadow-sm"
+                : "text-[#59625F] hover:text-[#1F2423]",
+            )}
+          >
+            待处理
+            {pendingCount > 0 ? (
+              <span className="ml-1.5 text-[12px] font-medium text-[#A06358]">
+                {pendingCount}
+              </span>
+            ) : null}
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("history")}
+            className={cn(
+              "flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors",
+              tab === "history"
+                ? "bg-white text-[#1F2423] shadow-sm"
+                : "text-[#59625F] hover:text-[#1F2423]",
+            )}
+          >
+            已处理
+            {reviewed.length > 0 ? (
+              <span className="ml-1.5 text-[12px] font-medium text-[#969E9A]">
+                {reviewed.length}
+              </span>
+            ) : null}
+          </button>
+        </div>
+
+        {loading && requests.length === 0 && reviewed.length === 0 ? (
           <p className="mt-8 text-sm text-[hsl(var(--warm-charcoal-muted))]">
             加载中…
           </p>
-        ) : requests.length === 0 ? (
+        ) : tab === "pending" ? (
+          pendingEmpty ? (
+            <div className="heyu-card mt-8 border border-[rgba(255,255,255,0.65)] bg-[rgba(255,252,248,0.88)] px-6 py-10 text-center text-sm text-[hsl(var(--warm-charcoal-muted))] shadow-[0_8px_24px_rgba(102,80,60,0.06)]">
+              加入申请与协作方提交的资料，会显示在这里。
+            </div>
+          ) : (
+            <div className="mt-8 space-y-8">
+              {collabSubmitted.length > 0 ? (
+                <section>
+                  <h2 className="text-[13px] font-semibold tracking-wide text-[#59625F]">
+                    项目协作
+                  </h2>
+                  <ul className="mt-3 space-y-3">
+                    {collabSubmitted.map((item) => (
+                      <li
+                        key={item.id}
+                        className="heyu-card border border-[rgba(255,255,255,0.65)] bg-[rgba(255,252,248,0.88)] px-5 py-4 shadow-[0_8px_24px_rgba(102,80,60,0.06)]"
+                      >
+                        <div className="text-[15px] font-semibold text-[#1F2423]">
+                          {item.replyByName}
+                          <span className="font-normal text-[#59625F]">
+                            {" "}
+                            提交了协作资料
+                          </span>
+                        </div>
+                        <div className="mt-1 text-[13px] text-[#1F2423]">
+                          {item.projectName}
+                          {item.title ? ` · ${item.title}` : ""}
+                        </div>
+                        <div className="mt-1 text-[12.5px] text-[#969E9A]">
+                          {formatWhen(item.replySubmittedAt)}
+                        </div>
+                        <Link
+                          to={`/app/projects/${encodeURIComponent(item.projectId)}/collab`}
+                          className="mt-3 inline-flex h-8 items-center text-[13px] text-[hsl(var(--warm-charcoal-muted))] transition-colors hover:text-[hsl(var(--wine))]"
+                        >
+                          查看协作 →
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+
+              {requests.length > 0 ? (
+                <section>
+                  <h2 className="text-[13px] font-semibold tracking-wide text-[#59625F]">
+                    加入申请
+                  </h2>
+                  <ul className="mt-3 space-y-3">
+                    {requests.map((req) => (
+                      <li
+                        key={req.id}
+                        className="heyu-card border border-[rgba(255,255,255,0.65)] bg-[rgba(255,252,248,0.88)] px-5 py-4 shadow-[0_8px_24px_rgba(102,80,60,0.06)]"
+                      >
+                        <div className="text-[15px] font-semibold text-[#1F2423]">
+                          {req.applicantDisplayName ?? req.applicantUserId}
+                          <span className="font-normal text-[#59625F]">
+                            {" "}
+                            申请加入
+                          </span>{" "}
+                          {req.projectName ?? "项目"}
+                        </div>
+                        <div className="mt-1 text-[12.5px] text-[#969E9A]">
+                          {formatWhen(req.createdAt)}
+                        </div>
+                        <JoinRequestReviewBar
+                          disabled={busyId === req.id}
+                          onApprove={(role) => void review(req, "approved", role)}
+                          onReject={() => void review(req, "rejected")}
+                          extra={
+                            <Link
+                              to={`/app/projects/${encodeURIComponent(req.projectId)}/overview`}
+                              className="inline-flex h-8 items-center px-1 text-[13px] text-[hsl(var(--warm-charcoal-muted))] transition-colors hover:text-[hsl(var(--wine))]"
+                            >
+                              打开项目 →
+                            </Link>
+                          }
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+            </div>
+          )
+        ) : reviewed.length === 0 ? (
           <div className="heyu-card mt-8 border border-[rgba(255,255,255,0.65)] bg-[rgba(255,252,248,0.88)] px-6 py-10 text-center text-sm text-[hsl(var(--warm-charcoal-muted))] shadow-[0_8px_24px_rgba(102,80,60,0.06)]">
-            有人从项目广场申请加入时，会出现在这里。
+            还没有已处理的加入申请。
           </div>
         ) : (
           <ul className="mt-8 space-y-3">
-            {requests.map((req) => (
+            {reviewed.map((req) => (
               <li
                 key={req.id}
                 className="heyu-card border border-[rgba(255,255,255,0.65)] bg-[rgba(255,252,248,0.88)] px-5 py-4 shadow-[0_8px_24px_rgba(102,80,60,0.06)]"
               >
-                <div className="text-[15px] font-semibold text-[#1F2423]">
-                  {req.applicantDisplayName ?? req.applicantUserId}
-                  <span className="font-normal text-[#59625F]">
-                    {" "}
-                    申请加入
-                  </span>{" "}
-                  {req.projectName ?? "项目"}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                      req.status === "approved"
+                        ? "bg-[rgba(94,155,117,0.14)] text-[#3F7A52]"
+                        : "bg-[rgba(160,99,88,0.12)] text-[#A06358]",
+                    )}
+                  >
+                    {joinStatusLabel(req)}
+                  </span>
+                  <span className="text-[15px] font-semibold text-[#1F2423]">
+                    {req.applicantDisplayName ?? req.applicantUserId}
+                  </span>
+                  <span className="text-[14px] text-[#59625F]">
+                    加入 {req.projectName ?? "项目"}
+                  </span>
                 </div>
-                <div className="mt-1 text-[12.5px] text-[#969E9A]">
-                  {req.createdAt
-                    ? new Date(req.createdAt).toLocaleString("zh-CN")
+                <div className="mt-1.5 text-[12.5px] text-[#969E9A]">
+                  {req.reviewedByDisplayName
+                    ? `${req.reviewedByDisplayName} · `
                     : ""}
+                  {formatWhen(req.reviewedAt ?? req.updatedAt)}
                 </div>
-                <JoinRequestReviewBar
-                  disabled={busyId === req.id}
-                  onApprove={(role) => void review(req, "approved", role)}
-                  onReject={() => void review(req, "rejected")}
-                  extra={
-                    <Link
-                      to={`/app/projects/${encodeURIComponent(req.projectId)}/overview`}
-                      className="inline-flex h-8 items-center px-1 text-[13px] text-[hsl(var(--warm-charcoal-muted))] transition-colors hover:text-[hsl(var(--wine))]"
-                    >
-                      打开项目 →
-                    </Link>
-                  }
-                />
+                <Link
+                  to={`/app/projects/${encodeURIComponent(req.projectId)}/overview`}
+                  className="mt-3 inline-flex h-8 items-center text-[13px] text-[hsl(var(--warm-charcoal-muted))] transition-colors hover:text-[hsl(var(--wine))]"
+                >
+                  打开项目 →
+                </Link>
               </li>
             ))}
           </ul>

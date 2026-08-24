@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ENABLE_LIVE_CHAT,
-  fetchMyJoinReviews,
+  fetchMyInbox,
   reviewJoinRequest,
+  type CollabSubmitNotice,
   type JoinApproveRole,
   type ProjectJoinRequest,
 } from "@/lib/project-api";
@@ -15,6 +16,8 @@ export function notifyJoinReviewsChanged(): void {
 
 export function useJoinReviews(): {
   requests: ProjectJoinRequest[];
+  reviewed: ProjectJoinRequest[];
+  collabSubmitted: CollabSubmitNotice[];
   pendingCount: number;
   loading: boolean;
   error: string | null;
@@ -27,6 +30,10 @@ export function useJoinReviews(): {
   ) => Promise<void>;
 } {
   const [requests, setRequests] = useState<ProjectJoinRequest[]>([]);
+  const [reviewed, setReviewed] = useState<ProjectJoinRequest[]>([]);
+  const [collabSubmitted, setCollabSubmitted] = useState<CollabSubmitNotice[]>(
+    [],
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -34,15 +41,23 @@ export function useJoinReviews(): {
   const reload = useCallback(() => {
     if (!ENABLE_LIVE_CHAT) {
       setRequests([]);
+      setReviewed([]);
+      setCollabSubmitted([]);
       return;
     }
     setLoading(true);
     setError(null);
-    void fetchMyJoinReviews()
-      .then((rows) => setRequests(rows.filter((r) => r.status === "pending")))
+    void fetchMyInbox()
+      .then((inbox) => {
+        setRequests(inbox.pending);
+        setReviewed(inbox.reviewed);
+        setCollabSubmitted(inbox.collabSubmitted);
+      })
       .catch((e) => {
-        setError(e instanceof Error ? e.message : "加载加入申请失败");
+        setError(e instanceof Error ? e.message : "加载通知失败");
         setRequests([]);
+        setReviewed([]);
+        setCollabSubmitted([]);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -85,7 +100,9 @@ export function useJoinReviews(): {
 
   return {
     requests,
-    pendingCount: requests.length,
+    reviewed,
+    collabSubmitted,
+    pendingCount: requests.length + collabSubmitted.length,
     loading,
     error,
     busyId,

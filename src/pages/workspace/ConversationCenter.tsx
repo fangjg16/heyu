@@ -64,6 +64,7 @@ import {
 import {
   deriveConversationTopicHeuristic,
   isSidebarTopicPreview,
+  looksLikeRawUserRequest,
   topicFromFirstUserMessage,
 } from "@/lib/conversation-topic";
 import { isDeepSkillMessage, streamingAssistantDisplayText } from "@/lib/chat-intent";
@@ -241,9 +242,11 @@ function applyConversationMetadataFromMessages(
     if (!msgs?.length) return c;
     const lastTime = latestMessageTimeLabel(msgs);
     const topicPreview = topicFromFirstUserMessage(msgs);
-    const looksLikeTopic =
-      isSidebarTopicPreview(c.preview) && c.preview.trim().length <= 20;
-    const preview = looksLikeTopic ? c.preview : topicPreview;
+    const keepExisting =
+      isSidebarTopicPreview(c.preview) &&
+      c.preview.trim().length <= 20 &&
+      !looksLikeRawUserRequest(c.preview);
+    const preview = keepExisting ? c.preview : topicPreview;
     return {
       ...c,
       preview,
@@ -2725,7 +2728,7 @@ export default function ConversationCenter() {
                 to={`/app/projects/${projectId}/materials`}
                 className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-white/85 px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-[hsl(var(--wine-deep)/0.25)] hover:text-foreground"
               >
-                打开源文件页
+                项目源文件
               </Link>
             ) : null}
             <button

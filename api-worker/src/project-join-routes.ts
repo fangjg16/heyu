@@ -1,10 +1,6 @@
 import type { AppDatabase } from "./app-database";
 import { upsertProjectMemberRole } from "./project-member-roles-db";
-import {
-  canManageProjectRecord,
-  isUserProjectMember,
-  userSeesPlazaDiscovery,
-} from "./projects-auth";
+import { isUserProjectMember, userSeesPlazaDiscovery } from "./projects-auth";
 import { getProjectById, listProjects, normalizeProjectOpenness, type ProjectJson } from "./projects-db";
 import { decodePathProjectId } from "./projects-resolve";
 import {
@@ -13,11 +9,13 @@ import {
   listJoinRequestsForApplicant,
   listJoinRequestsForProject,
   listPendingJoinRequests,
+  listReviewedJoinRequests,
   reviewJoinRequest,
   upsertPendingJoinRequest,
   deletePendingJoinRequestByApplicant,
 } from "./project-join-db";
-import { resolveProjectRole } from "./workspace-roles";
+import { listCollabItemsForProjects } from "./collab-db";
+import { canManageProjectCollab, resolveProjectRole } from "./workspace-roles";
 import {
   getWorkspaceUserById,
   isKnownWorkspaceUser,
@@ -49,9 +47,8 @@ async function canReviewProjectJoins(
   userId: string,
   project: ProjectJson,
 ): Promise<boolean> {
-  if (await canManageProjectRecord(env, project, userId)) return true;
   const role = await resolveProjectRole(env, userId, project.id, project.createdBy);
-  return role === "admin" || role === "core";
+  return role === "admin";
 }
 
 /** POST /api/projects/:id/join-requests */
@@ -182,7 +179,24 @@ export async function handleListMyJoinRequests(
   }
 }
 
-/** GET /api/me/join-reviews 待我审批的广场加入申请 */
+async function enrichJoinRequest(
+  env: Env,
+  req: Awaited<ReturnType<typeof listPendingJoinRequests>>[number],
+  projectName: string,
+): Promise<Record<string, unknown>> {
+  const applicant = await getWorkspaceUserById(env, req.applicantUserId);
+  const reviewer = req.reviewedBy
+    ? await getWorkspaceUserById(env, req.reviewedBy)
+    : null;
+  return {
+    ...req,
+    projectName,
+    applicantDisplayName: applicant?.display_name ?? req.applicantUserId,
+    reviewedByDisplayName: reviewer?.display_name ?? req.reviewedBy ?? null,
+  };
+}
+
+/** GET /api/me/join-reviews 待我审批的加入申请 + 已处理历史 + 协作提交 */
 export async function handleListMyJoinReviews(
   env: Env,
   authUserId: string,
@@ -190,25 +204,65 @@ export async function handleListMyJoinReviews(
   const userId = normalizeUserId(authUserId);
   if (!userId) return json({ error: "未登录" }, 401);
   try {
-    const pending = await listPendingJoinRequests(env);
-    if (pending.length === 0) return json({ requests: [] });
     const projects = await listProjects(env);
     const byId = new Map(projects.map((p) => [p.id, p]));
+
+    const pending = await listPendingJoinRequests(env);
     const requests = [];
     for (const req of pending) {
       const project = byId.get(req.projectId);
       if (!project) continue;
       if (!(await canReviewProjectJoins(env, userId, project))) continue;
-      const applicant = await getWorkspaceUserById(env, req.applicantUserId);
-      requests.push({
-        ...req,
-        projectName: project.name,
-        applicantDisplayName: applicant?.display_name ?? req.applicantUserId,
-      });
+      requests.push(await enrichJoinRequest(env, req, project.name));
     }
-    return json({ requests });
+
+    const reviewedRaw = await listReviewedJoinRequests(env);
+    const reviewed = [];
+    for (const req of reviewedRaw) {
+      const project = byId.get(req.projectId);
+      if (!project) continue;
+      if (!(await canReviewProjectJoins(env, userId, project))) continue;
+      reviewed.push(await enrichJoinRequest(env, req, project.name));
+    }
+
+    let collabSubmitted: Record<string, unknown>[] = [];
+    try {
+      const collabProjectIds: string[] = [];
+      for (const project of projects) {
+        if (await canManageProjectCollab(env, userId, project.id, project.createdBy)) {
+          collabProjectIds.push(project.id);
+        }
+      }
+      const collabRows = await listCollabItemsForProjects(env, collabProjectIds);
+      for (const row of collabRows) {
+        if (row.status !== "submitted") continue;
+        const project = byId.get(row.project_id);
+        if (!project) continue;
+        const submitter = row.reply_by
+          ? await getWorkspaceUserById(env, row.reply_by)
+          : null;
+        collabSubmitted.push({
+          id: row.id,
+          projectId: row.project_id,
+          projectName: project.name,
+          title: row.title,
+          replyBy: row.reply_by,
+          replyByName: submitter?.display_name ?? row.reply_by ?? "项目协作方",
+          replySubmittedAt: row.reply_submitted_at,
+        });
+      }
+      collabSubmitted.sort((a, b) =>
+        String(b.replySubmittedAt ?? "").localeCompare(String(a.replySubmittedAt ?? "")),
+      );
+    } catch {
+      collabSubmitted = [];
+    }
+
+    return json({ requests, reviewed, collabSubmitted });
   } catch (e) {
-    if (isMissingJoinTable(e)) return json({ requests: [] });
+    if (isMissingJoinTable(e)) {
+      return json({ requests: [], reviewed: [], collabSubmitted: [] });
+    }
     throw e;
   }
 }
@@ -228,7 +282,7 @@ export async function handleListProjectJoinRequests(
   if (!project) return json({ error: "项目不存在" }, 404);
 
   if (!(await canReviewProjectJoins(env, userId, project))) {
-    return json({ error: "仅项目负责人或 Admin / Core 可查看加入申请" }, 403);
+    return json({ error: "仅项目管理员可查看加入申请" }, 403);
   }
 
   const status =
@@ -263,7 +317,7 @@ export async function handleReviewJoinRequest(
   if (!project) return json({ error: "项目不存在" }, 404);
 
   if (!(await canReviewProjectJoins(env, userId, project))) {
-    return json({ error: "仅项目负责人或 Admin / Core 可审批加入申请" }, 403);
+    return json({ error: "仅项目管理员可审批加入申请" }, 403);
   }
 
   let body: { status?: string; role?: unknown };

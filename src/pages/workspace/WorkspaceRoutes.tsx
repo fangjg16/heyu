@@ -850,7 +850,7 @@ function ProjectOverviewTab() {
   }>();
   if (!project) return null;
   const role = getProjectRole(userId, projectId, project.createdBy);
-  const canReviewJoins = role === "admin" || role === "core";
+  const canReviewJoins = role === "admin";
   return (
     <div className="space-y-8">
       <ProjectOverviewPanel
