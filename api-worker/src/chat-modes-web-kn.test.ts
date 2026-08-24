@@ -51,4 +51,9 @@ describe("due-diligence chat intents", () => {
       "classify_investment_theme",
     );
   });
+
+  it("routes 对标 to industry-due-diligence, not legacy comp-analysis", () => {
+    expect(detectSkillIntent("做一下市场对标")).toBe("industry_due_diligence");
+    expect(detectSkillIntent("列一组可比交易")).toBe("industry_due_diligence");
+  });
 });

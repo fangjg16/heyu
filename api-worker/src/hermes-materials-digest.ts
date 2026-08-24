@@ -54,7 +54,6 @@ export function resolveMaterialsDigestIntensity(
     intent === "returns_analysis" ||
     intent === "sensitivity_analysis" ||
     intent === "value_creation_plan" ||
-    intent === "comp_analysis" ||
     intent === "background_check"
   ) {
     return "session_priority";

@@ -40,7 +40,6 @@ const INTENT_TITLE: Record<string, string> = {
   document_reorganize: "文件整理",
   public_info_search: "外部资料",
   term_annotator: "术语表",
-  comp_analysis: "对标分析",
   background_check: "背景调查",
   risk_matrix: "风险矩阵",
   returns_analysis: "回报测算",

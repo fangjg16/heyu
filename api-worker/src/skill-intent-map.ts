@@ -6,6 +6,7 @@ export const INTENT_TO_SKILL: Record<
   string
 > = {
   project_intake: "project-intake",
+  // 仅网页知识网络任务；对话检测到该意图会直接引导去项目页，不 invoke
   knowledge_network: "opportunistic-investments-hermes",
   ic_memo: "ic-memo",
   business_due_diligence: "business-due-diligence",
@@ -28,7 +29,6 @@ export const INTENT_TO_SKILL: Record<
   document_reorganize: "document-reorganize",
   public_info_search: "public-info-search",
   term_annotator: "term-annotator",
-  comp_analysis: "comp-analysis",
   background_check: "background-check",
   risk_matrix: "risk-matrix",
   returns_analysis: "returns-analysis",

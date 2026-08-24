@@ -32,7 +32,6 @@ export type SkillIntent =
   | "document_reorganize"
   | "public_info_search"
   | "term_annotator"
-  | "comp_analysis"
   | "background_check"
   | "risk_matrix"
   | "returns_analysis"
@@ -60,7 +59,7 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: "industry_due_diligence",
-    re: /行业尽调|产业尽调|行业尽职|industry[-\s]?due[-\s]?diligence|\bindustry\s*dd\b/iu,
+    re: /行业尽调|产业尽调|行业尽职|经营对标|市场对标|可比交易|估值参照|对标|industry[-\s]?due[-\s]?diligence|\bindustry\s*dd\b|comp analysis|comparable|market positioning/iu,
   },
   {
     intent: "financial_due_diligence",
@@ -119,7 +118,6 @@ const INTENT_RULES: IntentRule[] = [
   { intent: "risk_matrix", re: /风险矩阵|risk matrix|风险评估|what could go wrong|what are the risks|风险登记/u },
   { intent: "returns_analysis", re: /回报测算|returns analysis|what'?s the irr|投资回报|financial model|cash flow model|irr|npv|equity multiple|估值测算|valuation model|\/valuation/u },
   { intent: "sensitivity_analysis", re: /敏感性分析|sensitivity|what if|假设变动|tornado|stress test|情景/u },
-  { intent: "comp_analysis", re: /可比交易|comp analysis|comparable|估值参照|对标|market positioning|what'?s this worth/u },
   { intent: "background_check", re: /背景调查|background check|对手调查|实控人|counterparty|who is this|check the seller|关联交易/u },
   { intent: "value_creation_plan", re: /增值方案|value creation|投后增值|value-add|how do we add value|what can we do with this asset/u },
   { intent: "gap_tracking", re: /信息缺口|gap tracking|what'?s missing|outstanding items|还缺什么|缺口清单|gap status/u },
@@ -155,7 +153,7 @@ export function shouldForceExternalSearch(intent: SkillIntent): boolean {
 
 /** 非轻问任务走 Hermes Agent（真 skills），需配置 HERMES_BASE_URL + HERMES_API_KEY */
 export function shouldRouteToHermes(intent: SkillIntent): boolean {
-  return intent !== "standard";
+  return intent !== "standard" && intent !== "knowledge_network";
 }
 
 export function websitePlatformIdentityLines(): string[] {
@@ -258,9 +256,6 @@ const SKILL_PROMPTS: Record<Exclude<SkillIntent, "standard">, string[]> = {
   ],
   term_annotator: [
     "【术语注释】列出文中专业术语表格：术语 | 英文/缩写 | 简要解释 | 首次出现上下文。若用户针对某词提问，重点解释该词。",
-  ],
-  comp_analysis: [
-    "【可比与定位】表格：可比项目/交易 | 区位/业态 | 规模/价格或租金 | 差异点；并给出本项目差异化定位与估值参照区间（资料不足则标待核实）。",
   ],
   background_check: [
     "【背景调查框架】交易对手/主体：股权结构、实控人、诉讼/信用/声誉（摘录有的写 ✅，无则列待公开核查项）；勿捏造工商细节。",

@@ -7,7 +7,7 @@ import { isKnowledgeNetworkDeliveryIntent } from "@/lib/knowledge-network-intent
 const DEEP_SKILL_PATTERNS: RegExp[] = [
   /投资委员会|ic\s*memo|ic备忘录|投资决策备忘录|立项备忘录|表决建议|条款清单|投委会|decision memo|prepare for ic|总结一下这个项目|write up the deal/u,
   /商业尽调|业务尽调|商业尽职|业务尽职|商业模式.{0,12}尽调|尽调.{0,12}商业模式|business[-\s]?due[-\s]?diligence|\bbusiness\s*dd\b/iu,
-  /行业尽调|产业尽调|行业尽职|industry[-\s]?due[-\s]?diligence|\bindustry\s*dd\b/iu,
+  /行业尽调|产业尽调|行业尽职|经营对标|市场对标|可比交易|估值参照|对标|industry[-\s]?due[-\s]?diligence|\bindustry\s*dd\b|comp analysis|comparable|market positioning/iu,
   /财务尽调|财务尽职|financial[-\s]?due[-\s]?diligence|\bfinancial\s*dd\b|\bfdd\b/iu,
   /收购尽调|并购尽调|收购尽职|acquisition[-\s]?due[-\s]?diligence/iu,
   /收购闸门|并购闸门|买不买|是否收购|该不该买|acquisition\s*gate/iu,
@@ -26,7 +26,6 @@ const DEEP_SKILL_PATTERNS: RegExp[] = [
   /风险矩阵|risk matrix|风险评估|what could go wrong|what are the risks|风险登记/u,
   /回报测算|returns analysis|what'?s the irr|投资回报|financial model|cash flow model|irr|npv|equity multiple/u,
   /敏感性分析|sensitivity|what if|假设变动|tornado|stress test|情景/u,
-  /可比交易|comp analysis|comparable|估值参照|对标|market positioning|what'?s this worth/u,
   /背景调查|background check|对手调查|实控人|counterparty|who is this|check the seller|关联交易/u,
   /增值方案|value creation|投后增值|value-add|how do we add value|what can we do with this asset/u,
   /信息缺口|gap tracking|what'?s missing|outstanding items|还缺什么|缺口清单|gap status/u,

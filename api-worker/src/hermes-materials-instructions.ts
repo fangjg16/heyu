@@ -160,7 +160,6 @@ function taskReadingGuidance(
     intent === "classify_investment_theme" ||
     intent === "compliance_check" ||
     intent === "dd_claim_audit" ||
-    intent === "comp_analysis" ||
     intent === "background_check"
   ) {
     return {
