@@ -108,7 +108,7 @@ function ChapterBody({ c, centered }: { c: ScrollChapter; centered: boolean }) {
             </span>
           )}
         </h1>
-        <p className="mx-auto mt-5 max-w-2xl text-[0.9rem] leading-[1.85] text-[#E4C76A] md:text-[0.95rem]">
+        <p className="mx-auto mt-5 max-w-2xl text-[0.9rem] leading-[1.85] text-[hsl(var(--hero-muted))] md:text-[0.95rem]">
           {c.body}
         </p>
       </div>

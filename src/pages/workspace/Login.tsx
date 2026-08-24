@@ -51,7 +51,7 @@ function LoginShell({ children }: { children: ReactNode }) {
             <div className="max-w-[560px] font-display text-[34px] font-bold leading-[1.35] tracking-wide">
               为家族办公室建立一个 AI 辅助、权限隔离、可持续更新的项目投资决策工作台。
             </div>
-            <div className="mt-5 max-w-[520px] text-[15px] leading-[1.9] text-[#C4A046]">
+            <div className="mt-5 max-w-[520px] text-[15px] leading-[1.9] text-[hsl(var(--warm-charcoal-muted))]">
               项目资料整理、调研补充、证据核验、动态重评估、报告生成和跨主体协作流程产品化
             </div>
           </div>
