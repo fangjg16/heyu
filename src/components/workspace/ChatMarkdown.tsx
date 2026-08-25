@@ -165,7 +165,7 @@ function CitationMarker({
         ref={tipRef}
         role="tooltip"
         className={cn(
-          "pointer-events-none absolute z-30 w-max max-w-[min(22rem,calc(100vw-16px))] rounded-md border px-2 py-1.5 text-[11px] leading-snug shadow-lg",
+          "pointer-events-none absolute z-30 w-max max-w-[min(22rem,calc(100vw-16px))] rounded-md border px-2 py-1.5 text-[12px] leading-snug shadow-lg",
           "transition-[opacity,transform] duration-75 ease-out",
           placementX === "center" && "left-1/2 -translate-x-1/2",
           placementX === "left" && "left-0 translate-x-0",
@@ -243,7 +243,7 @@ export function ChatMarkdown({ text, variant }: ChatMarkdownProps) {
     h3: ({ children }) => (
       <h3
         className={cn(
-          "mb-1.5 mt-1 text-sm font-semibold",
+          "mb-1.5 mt-1 text-[13px] font-semibold",
           u ? "text-wine-deep-foreground" : "text-foreground",
         )}
       >
@@ -253,7 +253,7 @@ export function ChatMarkdown({ text, variant }: ChatMarkdownProps) {
     h4: ({ children }) => (
       <h4
         className={cn(
-          "mb-1.5 mt-1 text-sm font-semibold",
+          "mb-1.5 mt-1 text-[13px] font-semibold",
           u ? "text-wine-deep-foreground" : "text-foreground",
         )}
       >
@@ -382,7 +382,7 @@ export function ChatMarkdown({ text, variant }: ChatMarkdownProps) {
   };
 
   if (!text.trim()) {
-    return <span className="text-sm text-muted-foreground">&nbsp;</span>;
+    return <span className="text-[13px] text-muted-foreground">&nbsp;</span>;
   }
 
   const normalized = normalizeMarkdownTables(normalizeLooseMarkdownBold(text));
@@ -390,7 +390,7 @@ export function ChatMarkdown({ text, variant }: ChatMarkdownProps) {
   return (
     <div
       className={cn(
-        "chat-markdown min-w-0 max-w-full break-words text-sm leading-relaxed",
+        "chat-markdown min-w-0 max-w-full break-words text-[13px] leading-relaxed",
         u
           ? "text-wine-deep-foreground selection:bg-[hsl(var(--wine-muted))] selection:text-[hsl(var(--warm-charcoal))]"
           : "text-foreground selection:bg-[hsl(var(--wine-deep)/0.14)] selection:text-foreground",

@@ -191,10 +191,23 @@ function pruneEmptyLiveConversations(
   );
 }
 
-/** 输入框：与右侧 36px 按钮同高，随内容增高 */
-const CHAT_INPUT_MIN_PX = 36;
+/** 输入框：与工具按钮同高 32px，随内容增高 */
+const CHAT_INPUT_MIN_PX = 32;
 /** 约 3 行正文，再高则框内滚动 */
 const CHAT_INPUT_MAX_PX = 72;
+
+const chatIconBtn =
+  "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-[transform,background-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))] active:scale-[0.97]";
+const chatTextBtn =
+  "inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium transition-[transform,background-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97]";
+const chatTextBtnGhost = cn(
+  chatTextBtn,
+  "border border-border/70 bg-white/80 text-muted-foreground hover:border-[hsl(var(--wine-deep)/0.22)] hover:text-foreground",
+);
+const chatTextBtnSoft = cn(
+  chatTextBtn,
+  "border border-[hsl(var(--wine-deep)/0.22)] bg-[hsl(var(--wine-deep)/0.07)] text-[hsl(var(--wine-deep))] hover:bg-[hsl(var(--wine-deep)/0.12)]",
+);
 
 function resizeChatComposer(el: HTMLTextAreaElement | null) {
   if (!el) return;
@@ -823,7 +836,7 @@ function MessageBubbleToolbar({
 const USER_MESSAGE_SHELL = cn(
   "border border-[hsl(var(--wine-deep)/0.32)]",
   "bg-gradient-to-br from-[hsl(var(--wine-deep))] to-[hsl(353_42%_28%)]",
-  "shadow-[0_8px_22px_-12px_hsl(var(--wine-deep)/0.42)]",
+  "shadow-[0_1px_2px_rgba(15,23,42,0.08)]",
 );
 
 function UserBubble({
@@ -851,9 +864,8 @@ function UserBubble({
           />
           <div
             className={cn(
-              "inline-block max-w-[32ch] sm:max-w-[42ch] rounded-3xl rounded-br-lg px-5 py-3 text-sm font-medium leading-relaxed text-wine-deep-foreground break-words whitespace-pre-line",
+              "inline-block max-w-[32ch] sm:max-w-[42ch] rounded-2xl rounded-br-md px-4 py-2.5 text-[13px] font-medium leading-relaxed text-wine-deep-foreground break-words whitespace-pre-line",
               USER_MESSAGE_SHELL,
-              "transition-transform duration-300 hover:scale-[1.005]",
               "selection:bg-[hsl(var(--wine-muted))] selection:text-[hsl(var(--warm-charcoal))]",
             )}
           >
@@ -861,7 +873,7 @@ function UserBubble({
           </div>
         </div>
         {displayTime ? (
-          <span className="mt-1 text-[10px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+          <span className="mt-1 text-[12px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
             {displayTime}
           </span>
         ) : null}
@@ -880,12 +892,12 @@ function ChatThinkingBadge({
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-2 rounded-full border border-border/70 bg-muted/25 px-3 py-1.5",
+        "inline-flex h-8 items-center gap-2 rounded-lg border border-border/70 bg-muted/20 px-2.5",
         className,
       )}
     >
       <TypingLoader size="sm" className="[&>div]:bg-[hsl(var(--wine-deep)/0.7)]" />
-      <span className="text-sm font-medium text-muted-foreground">{children}</span>
+      <span className="text-[13px] text-muted-foreground">{children}</span>
     </div>
   );
 }
@@ -910,8 +922,8 @@ function AiShell({
         <div className="flex items-start gap-1.5">
           <div
             className={cn(
-              "max-w-[92%] rounded-3xl rounded-bl-lg border border-border/80 bg-white px-5 py-4 text-sm leading-relaxed text-foreground",
-              "shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)]",
+              "max-w-[92%] rounded-2xl rounded-bl-md border border-border/70 bg-white px-4 py-3 text-[13px] leading-relaxed text-foreground",
+              "shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
               "selection:bg-[hsl(var(--wine-deep)/0.14)] selection:text-foreground",
             )}
           >
@@ -924,7 +936,7 @@ function AiShell({
           />
         </div>
         {displayTime ? (
-          <span className="mt-1 text-[10px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+          <span className="mt-1 text-[12px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
             {displayTime}
           </span>
         ) : null}
@@ -936,12 +948,12 @@ function AiShell({
 function UploadSelectedFileIcon({ name }: { name: string }) {
   const lower = name.toLowerCase();
   if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) {
-    return <FileSpreadsheet className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={2} aria-hidden />;
+    return <FileSpreadsheet className="h-3.5 w-3.5 shrink-0 text-emerald-600" strokeWidth={2} aria-hidden />;
   }
   if (lower.endsWith(".pdf")) {
-    return <FileText className="h-4 w-4 shrink-0 text-rose-600" strokeWidth={2} aria-hidden />;
+    return <FileText className="h-3.5 w-3.5 shrink-0 text-rose-600" strokeWidth={2} aria-hidden />;
   }
-  return <FileUp className="h-4 w-4 shrink-0 text-[hsl(var(--wine-deep))]" strokeWidth={2} aria-hidden />;
+  return <FileUp className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--wine-deep))]" strokeWidth={2} aria-hidden />;
 }
 
 /** 对话内「已发送附件」：与用户气泡同色系（brand kit 酒红），仅展示文件名 */
@@ -954,26 +966,26 @@ function ChatSentFilesPanel({ files }: { files: readonly { name: string }[] }) {
         USER_MESSAGE_SHELL,
       )}
     >
-      <div className="mb-2.5 flex items-center gap-2 border-b border-wine-deep-foreground/15 pb-2">
+      <div className="mb-2 flex items-center gap-2 border-b border-wine-deep-foreground/15 pb-2">
         <Paperclip
           className="h-3.5 w-3.5 text-wine-deep-foreground/75"
           strokeWidth={2}
           aria-hidden
         />
-        <span className="text-[11px] font-semibold tracking-wide text-wine-deep-foreground/80">
+        <span className="text-[13px] font-medium text-wine-deep-foreground/80">
           已发送 {files.length} 个文件
         </span>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-1">
         {files.map((f) => (
           <div
             key={f.name}
-            className="flex items-center justify-between gap-2 rounded-xl border border-wine-deep-foreground/12 bg-black/[0.12] px-3 py-2.5"
+            className="flex h-8 items-center justify-between gap-2 rounded-lg bg-black/[0.1] px-2.5"
           >
-            <span className="truncate text-xs font-medium text-wine-deep-foreground">
+            <span className="truncate text-[13px] text-wine-deep-foreground">
               {f.name}
             </span>
-            <span className="shrink-0 text-[10px] font-semibold text-wine-muted">已送达</span>
+            <span className="shrink-0 text-[12px] text-wine-muted">已送达</span>
           </div>
         ))}
       </div>
@@ -2708,8 +2720,8 @@ export default function ConversationCenter() {
         >
         {chatListOpen ? (
           <>
-        <div className="border-b border-[rgba(78,66,57,0.1)] px-3 py-3">
-          <div className="flex items-center gap-2">
+        <div className="flex min-h-[3.25rem] items-center border-b border-[rgba(78,66,57,0.1)] px-2.5">
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => {
@@ -2738,24 +2750,24 @@ export default function ConversationCenter() {
                 }, 260);
                 navigate(`/app/chat/${projectId}/${newId}`);
               }}
-              className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--wine-deep)/0.32)] bg-[hsl(var(--wine-deep)/0.08)] px-3 py-2.5 text-xs font-semibold text-[hsl(var(--wine-deep))] transition-colors hover:bg-[hsl(var(--wine-deep)/0.14)]"
+              className={cn(chatTextBtnSoft, "min-w-0 flex-1")}
             >
-              <Plus className="h-4 w-4" strokeWidth={2} />
+              <Plus className="h-3.5 w-3.5" strokeWidth={2} />
               新增对话
             </button>
             <button
               type="button"
               title="收起对话列表"
               onClick={() => setChatListOpen(false)}
-              className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))] md:flex"
+              className={cn(chatIconBtn, "hidden md:flex")}
             >
               <PanelLeftClose className="h-[18px] w-[18px]" strokeWidth={1.8} />
             </button>
           </div>
         </div>
-        <nav className="flex-1 space-y-1.5 overflow-y-auto p-3">
+        <nav className="flex-1 space-y-1 overflow-y-auto p-2">
           {sidebarGroups.length === 0 ? (
-            <p className="px-2 py-3 text-[11px] leading-relaxed text-muted-foreground">
+            <p className="px-2 py-3 text-[13px] leading-relaxed text-muted-foreground">
               暂无对话记录。选择项目后发送消息即可开始。
             </p>
           ) : null}
@@ -2773,10 +2785,10 @@ export default function ConversationCenter() {
                   ) : (
                     <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   )}
-                  <span className="min-w-0 flex-1 text-[12px] font-semibold leading-snug text-foreground">
+                  <span className="min-w-0 flex-1 text-[13px] font-medium leading-5 text-foreground">
                     {group.projectName}
                   </span>
-                  <span className="shrink-0 text-[10px] text-muted-foreground">
+                  <span className="shrink-0 text-[12px] tabular-nums text-muted-foreground">
                     {group.conversations.length}
                   </span>
                 </button>
@@ -2790,12 +2802,12 @@ export default function ConversationCenter() {
                         <div
                           key={conversation.id}
                           className={cn(
-                            "group/item relative ml-2 w-[calc(100%-0.5rem)] rounded-xl border px-2.5 py-2 text-left transition-colors",
+                            "group/item relative ml-1.5 w-[calc(100%-0.375rem)] rounded-lg px-2 py-1.5 text-left transition-colors",
                             conversation.id === newlyAddedConversationId &&
                               "animate-in fade-in slide-in-from-top-1 duration-200",
                             active
-                              ? "border-[hsl(var(--wine-deep)/0.32)] bg-[hsl(var(--wine-deep)/0.08)]"
-                              : "border-transparent bg-white/70 hover:border-border/80 hover:bg-white",
+                              ? "bg-[hsl(var(--wine-deep)/0.08)]"
+                              : "hover:bg-black/[0.04]",
                           )}
                         >
                           {renaming ? (
@@ -2822,7 +2834,7 @@ export default function ConversationCenter() {
                                 onBlur={() => commitRenameConversation(conversation.id)}
                                 className="h-5 min-w-0 flex-1 rounded-md border border-[hsl(var(--wine-deep)/0.32)] bg-white px-1.5 text-[13px] leading-5 text-foreground outline-none"
                               />
-                              <span className="shrink-0 text-[11px] leading-5 tabular-nums text-muted-foreground">
+                              <span className="shrink-0 text-[12px] leading-5 tabular-nums text-muted-foreground">
                                 {formatSidebarDateLabel(conversation.updatedAt)}
                               </span>
                             </div>
@@ -2851,7 +2863,7 @@ export default function ConversationCenter() {
                                 >
                                   {conversation.preview}
                                 </span>
-                                <span className="shrink-0 text-[11px] leading-5 tabular-nums text-muted-foreground">
+                                <span className="shrink-0 text-[12px] leading-5 tabular-nums text-muted-foreground">
                                   {formatSidebarDateLabel(conversation.updatedAt)}
                                 </span>
                               </button>
@@ -2895,8 +2907,8 @@ export default function ConversationCenter() {
           })}
         </nav>
         {permissionSidebarHint ? (
-          <div className="shrink-0 border-t border-border/60 px-4 py-3">
-            <p className="text-[10px] font-medium leading-snug text-muted-foreground">
+          <div className="shrink-0 border-t border-border/60 px-3 py-2.5">
+            <p className="text-[12px] leading-snug text-muted-foreground">
               当前权限：{permissionSidebarHint}
             </p>
           </div>
@@ -2908,7 +2920,7 @@ export default function ConversationCenter() {
               type="button"
               title="展开对话列表"
               onClick={() => setChatListOpen(true)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
+              className={chatIconBtn}
             >
               <PanelLeftClose
                 className="h-[18px] w-[18px] -scale-x-100"
@@ -2920,25 +2932,22 @@ export default function ConversationCenter() {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[rgba(255,252,248,0.55)]">
-        <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-border/50 bg-white/65 px-4 py-4 backdrop-blur-md md:px-8">
-          <div>
-            <h1 className="text-lg font-bold text-[#1F2423] md:text-xl">
+        <header className="sticky top-0 z-10 flex min-h-[3.25rem] flex-wrap items-center justify-between gap-2 border-b border-border/50 bg-white/70 px-4 py-2 backdrop-blur-md md:px-6">
+          <div className="min-w-0">
+            <h1 className="truncate text-[15px] font-semibold tracking-tight text-[#1F2423]">
               {chatTitle}
             </h1>
           </div>
           <div
             ref={conversationFilesMenuRef}
-            className="relative flex flex-wrap items-center gap-2"
+            className="relative flex flex-wrap items-center gap-1.5"
           >
             {projectId ? (
               <button
                 type="button"
                 onClick={() => setSourcePanelOpen((open) => !open)}
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
-                  sourcePanelOpen
-                    ? "border-[hsl(var(--wine-deep)/0.32)] bg-[hsl(var(--wine-deep)/0.08)] text-[hsl(var(--wine-deep))]"
-                    : "border-border/70 bg-white/85 text-muted-foreground hover:border-[hsl(var(--wine-deep)/0.25)] hover:text-foreground",
+                  sourcePanelOpen ? chatTextBtnSoft : chatTextBtnGhost,
                 )}
               >
                 项目源文件
@@ -2947,47 +2956,47 @@ export default function ConversationCenter() {
             <button
               type="button"
               onClick={() => setShowHistoryMenu((v) => !v)}
-              className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-white/85 px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-[hsl(var(--wine-deep)/0.25)] hover:text-foreground"
+              className={chatTextBtnGhost}
             >
-              <MoreHorizontal className="h-4 w-4" />
+              <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={1.8} />
               本对话文件
               {isLiveAiMode && conversationFileTreeItems.length > 0 ? (
-                <span className="ml-0.5 rounded-full bg-[hsl(var(--wine-deep)/0.12)] px-1.5 py-0.5 text-[10px] font-bold text-[hsl(var(--wine-deep))]">
+                <span className="rounded-md bg-[hsl(var(--wine-deep)/0.1)] px-1 text-[12px] font-medium tabular-nums text-[hsl(var(--wine-deep))]">
                   {conversationFileTreeItems.length}
                 </span>
               ) : null}
             </button>
             {showHistoryMenu ? (
-              <div className="absolute right-0 top-10 z-20 w-[18rem] rounded-2xl border border-border/70 bg-white/95 p-2 shadow-[0_12px_32px_-16px_rgba(15,23,42,0.35)] backdrop-blur-md">
-                <p className="px-2 py-1 text-[11px] font-semibold text-muted-foreground">
+              <div className="absolute right-0 top-9 z-20 w-[17rem] rounded-xl border border-border/70 bg-white/95 p-2 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.28)] backdrop-blur-md">
+                <p className="px-2 py-1 text-[13px] font-medium text-foreground">
                   本对话文件（{conversationFileTreeItems.length}）
                 </p>
-                <p className="px-2 pb-1 text-[10px] leading-snug text-muted-foreground">
-                  仅含当前对话内上传、已入库的附件（非项目资料包）。
-                  {isLiveAiMode ? " 点右侧垃圾桶可删除。" : ""}
+                <p className="px-2 pb-2 text-[12px] leading-snug text-muted-foreground">
+                  仅含当前对话内上传的附件。
+                  {isLiveAiMode ? " 点右侧可删除。" : ""}
                 </p>
-                <div className="max-h-52 overflow-y-auto rounded-xl border border-border/60 bg-background/50 p-2">
+                <div className="max-h-52 overflow-y-auto rounded-lg border border-border/60 bg-background/50 p-1.5">
                   {conversationFilesLoading && isLiveAiMode ? (
-                    <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <p className="flex items-center gap-1.5 px-1 py-1.5 text-[13px] text-muted-foreground">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
                       加载附件列表…
                     </p>
                   ) : conversationFileTreeItems.length === 0 ? (
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="px-1 py-1.5 text-[13px] text-muted-foreground">
                       暂无文件。请用输入栏回形针上传。
                     </p>
                   ) : (
-                    <ul className="space-y-1.5">
+                    <ul className="space-y-0.5">
                       {conversationFileTreeItems.map((item) => {
                         const isDeleting = deletingSessionFileId === item.documentId;
                         return (
                           <li
                             key={item.key}
-                            className="rounded-lg border border-border/50 bg-white/80 px-2 py-1.5"
+                            className="rounded-lg px-1.5 py-1"
                           >
-                            <div className="flex items-start gap-1.5 text-[11px] text-foreground">
-                              <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[hsl(var(--wine-deep)/0.8)]" />
-                              <span className="min-w-0 flex-1 leading-snug">{item.name}</span>
+                            <div className="flex items-center gap-1.5 text-[13px] text-foreground">
+                              <FileText className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--wine-deep)/0.8)]" />
+                              <span className="min-w-0 flex-1 truncate leading-5">{item.name}</span>
                               {item.canDelete && item.documentId ? (
                                 <button
                                   type="button"
@@ -3000,7 +3009,8 @@ export default function ConversationCenter() {
                                     )
                                   }
                                   className={cn(
-                                    "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600",
+                                    chatIconBtn,
+                                    "h-7 w-7 hover:bg-rose-50 hover:text-rose-600",
                                     isDeleting && "pointer-events-none opacity-50",
                                   )}
                                   aria-label={`删除 ${item.name}`}
@@ -3015,7 +3025,7 @@ export default function ConversationCenter() {
                               ) : null}
                             </div>
                             {item.meta ? (
-                              <p className="mt-0.5 pl-5 text-[10px] text-muted-foreground">
+                              <p className="pl-5 text-[12px] text-muted-foreground">
                                 {item.meta}
                               </p>
                             ) : null}
@@ -3032,32 +3042,19 @@ export default function ConversationCenter() {
 
         <div
           ref={chatScrollRef}
-          className={cn(
-            "flex-1 space-y-6 overflow-y-auto px-4 py-6 md:px-8",
-            showUploadPanel && "pb-[min(42vh,22rem)]",
-          )}
+          className="flex-1 space-y-5 overflow-y-auto px-4 py-5 md:px-6"
         >
           <div className="flex justify-center">
-            <span className="rounded-full border border-border/70 bg-white/80 px-3 py-1 text-[11px] font-medium text-muted-foreground">
+            <span className="text-[12px] text-muted-foreground">
               {chatDayLabel}
             </span>
           </div>
           {isLiveAiMode ? (
             <>
-              <AiShell>
-                <p className="text-sm font-semibold text-[hsl(var(--wine-deep))]">
-                  AI 助手已接入
-                </p>
-                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                  经 JFO API 调用 LLM。可上传 .txt / .md / 电子版 PDF；仅发附件后请再提一个具体问题。
-                </p>
-              </AiShell>
               {liveMessages.length === 0 ? (
-                <AiShell>
-                  <p className="text-sm text-muted-foreground">
-                    还没有消息。先发送一条问题试试。
-                  </p>
-                </AiShell>
+                <p className="pt-8 text-center text-[13px] text-muted-foreground">
+                  还没有消息。输入问题，或从右侧引用源文件。
+                </p>
               ) : (
                 liveMessages.map((m) => {
                   const streaming = Boolean(m.isStreaming);
@@ -3143,7 +3140,7 @@ export default function ConversationCenter() {
                       {m.content.trim() ? (
                         <div
                           className={cn(
-                            "text-sm",
+                            "text-[13px]",
                             m.isStreaming && "max-h-80 overflow-y-auto pr-1",
                           )}
                         >
@@ -3153,7 +3150,7 @@ export default function ConversationCenter() {
                           />
                         </div>
                       ) : m.isStreaming ? (
-                        <p className="text-xs text-muted-foreground/80">
+                        <p className="text-[13px] text-muted-foreground/80">
                           {productizeStreamStatusLabel(m.streamStatusLabel)}
                         </p>
                       ) : null}
@@ -3162,7 +3159,7 @@ export default function ConversationCenter() {
                           <ChatThinkingBadge>
                             {displayJobProgressLabel?.trim() || "正在生成，请稍候…"}
                           </ChatThinkingBadge>
-                          <p className="text-[11px] text-muted-foreground/90">
+                          <p className="text-[12px] text-muted-foreground">
                             可保持本页打开；刷新后会自动继续等待结果。
                           </p>
                         </div>
@@ -3171,7 +3168,7 @@ export default function ConversationCenter() {
                         <>
                           <KnowledgeNetworkPreview html={knPrepared.html} />
                           {typeof m.projectKnowledgeNetworkVersion === "number" ? (
-                            <p className="mt-2 text-[11px] font-medium text-primary">
+                            <p className="mt-2 text-[12px] font-medium text-primary">
                               已同步至项目知识网络 v{m.projectKnowledgeNetworkVersion}
                             </p>
                           ) : null}
@@ -3179,7 +3176,7 @@ export default function ConversationCenter() {
                       ) : /知识网络交付失败|未检测到 curl PUT|知识网络未通过 API/i.test(
                           m.content,
                         ) ? (
-                        <p className="mt-3 rounded-lg border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-sm leading-relaxed text-amber-950">
+                        <p className="mt-3 rounded-lg border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-[13px] leading-relaxed text-amber-950">
                           请到项目知识网络页更新章节。
                         </p>
                       ) : null}
@@ -3194,9 +3191,9 @@ export default function ConversationCenter() {
               ) : null}
             </>
           ) : (
-            <div className="flex min-h-[40vh] flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-white/40 px-6 py-16 text-center">
-              <p className="text-sm font-semibold text-foreground">空白对话</p>
-              <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+            <div className="flex min-h-[40vh] flex-col items-center justify-center px-6 py-16 text-center">
+              <p className="text-[15px] font-semibold text-foreground">空白对话</p>
+              <p className="mt-2 max-w-md text-[13px] leading-relaxed text-muted-foreground">
                 真 AI 未接入。配置线上对话接口后，可在此发送消息与上传资料。
               </p>
             </div>
@@ -3204,7 +3201,7 @@ export default function ConversationCenter() {
         </div>
 
         <footer
-          className="relative shrink-0 border-t border-border/40 bg-[rgba(255,252,248,0.94)] px-4 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md md:px-8"
+          className="relative shrink-0 border-t border-border/40 bg-[rgba(255,252,248,0.94)] px-4 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md md:px-6"
           onDragOver={handleComposerDragOver}
           onDrop={handleComposerDrop}
         >
@@ -3222,122 +3219,103 @@ export default function ConversationCenter() {
             }}
           />
           {showUploadPanel || selectedFiles.length > 0 ? (
-            <div className="absolute bottom-full left-4 right-4 z-30 mb-2 rounded-2xl border border-dashed border-[hsl(var(--wine-deep)/0.45)] bg-white/95 p-3 shadow-[0_-8px_30px_-12px_rgba(15,23,42,0.12)] backdrop-blur-md md:left-8 md:right-8">
-              <div
-                className="rounded-2xl border border-dashed border-border/70 bg-background/40 px-4 py-4"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  handleComposerDrop(e);
-                }}
-              >
-                {showUploadPanel ? (
-                  <div className="flex items-center gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                        <FileUp
-                          className="h-4 w-4 shrink-0 text-[hsl(var(--wine-deep))]"
-                          strokeWidth={2}
-                          aria-hidden
-                        />
-                        拖到此处可上传新文件，或从右侧拖入源文件引用
-                      </div>
-                      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                        AI 检索优先支持 .txt / .md；亦可上传 .htm / .html、PDF、Word、Excel、图片（PDF 等暂仅入库摘要）
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="inline-flex h-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-[hsl(var(--wine-deep))] px-4 text-sm font-semibold text-[hsl(var(--wine-deep))] transition-colors hover:bg-[hsl(var(--wine-deep)/0.08)]"
-                    >
-                      选择文件
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSourcePanelOpen(true)}
-                      className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-border/80 px-4 text-sm font-semibold text-muted-foreground transition-colors hover:border-[hsl(var(--wine-deep)/0.3)] hover:text-foreground"
-                    >
-                      从源文件选择
-                    </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-3">
-                    <p className="text-[11px] font-semibold text-muted-foreground">
-                      已选 {selectedFiles.length} 个文件（点击回形针展开拖拽区）
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setShowUploadPanel(true)}
-                      className="text-[11px] font-semibold text-[hsl(var(--wine-deep))] underline-offset-2 hover:underline"
-                    >
-                      添加更多
-                    </button>
-                  </div>
-                )}
+            <div
+              className="mb-2 rounded-xl border border-border/70 bg-white/90 px-3 py-2"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                handleComposerDrop(e);
+              }}
+            >
+              {showUploadPanel ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="min-w-0 flex-1 text-[13px] text-muted-foreground">
+                    拖入文件，或从源文件引用
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className={chatTextBtnSoft}
+                  >
+                    选择文件
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSourcePanelOpen(true)}
+                    className={chatTextBtnGhost}
+                  >
+                    从源文件选择
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[13px] text-muted-foreground">
+                    已选 {selectedFiles.length} 个文件
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowUploadPanel(true)}
+                    className="h-8 text-[13px] font-medium text-[hsl(var(--wine-deep))] hover:underline"
+                  >
+                    添加更多
+                  </button>
+                </div>
+              )}
 
-                {selectedFiles.length > 0 ? (
-                  <div className={cn(showUploadPanel ? "mt-4 border-t border-border/60 pt-4" : "mt-3")}>
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      已添加 {selectedFiles.length} 个文件
-                    </p>
-                    <ul className="max-h-48 space-y-2 overflow-y-auto pr-0.5">
-                      {selectedFiles.map((f, idx) => (
-                        <li key={`${f.name}-${f.size}-${f.lastModified}`}>
-                          <div className="flex items-center gap-3 rounded-xl border border-[hsl(var(--wine-deep)/0.15)] bg-white px-3 py-2.5 text-xs shadow-sm">
-                            <UploadSelectedFileIcon name={f.name} />
-                            <span className="min-w-0 flex-1 truncate font-medium text-foreground">{f.name}</span>
-                            <span className="shrink-0 text-[10px] font-semibold text-[hsl(var(--wine-deep))]">待发送</span>
-                            <button
-                              type="button"
-                              onClick={() => removeFile(idx)}
-                              className="shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                              aria-label="移除文件"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </div>
+              {selectedFiles.length > 0 ? (
+                <ul className="mt-2 max-h-32 space-y-1 overflow-y-auto">
+                  {selectedFiles.map((f, idx) => (
+                    <li key={`${f.name}-${f.size}-${f.lastModified}`}>
+                      <div className="flex h-8 items-center gap-2 rounded-lg bg-muted/40 px-2 text-[13px]">
+                        <UploadSelectedFileIcon name={f.name} />
+                        <span className="min-w-0 flex-1 truncate text-foreground">{f.name}</span>
+                        <span className="shrink-0 text-[12px] text-[hsl(var(--wine-deep))]">待发送</span>
+                        <button
+                          type="button"
+                          onClick={() => removeFile(idx)}
+                          className={chatIconBtn}
+                          aria-label="移除文件"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           ) : null}
           {chatSyncError ? (
-            <div className="mb-2 rounded-xl border border-amber-200/90 bg-amber-50/90 px-3 py-2 text-xs leading-relaxed text-amber-900">
+            <div className="mb-2 rounded-xl border border-amber-200/90 bg-amber-50/90 px-3 py-2 text-[13px] leading-relaxed text-amber-900">
               {chatSyncError}
             </div>
           ) : null}
           {liveError ? (
-            <div className="mb-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs leading-relaxed text-rose-700">
+            <div className="mb-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[13px] leading-relaxed text-rose-700">
               {liveError}
             </div>
           ) : null}
 
           {quoteDraft ? (
-            <div className="mb-2 flex items-start gap-2 rounded-xl border border-[hsl(var(--wine-deep)/0.2)] bg-[hsl(var(--wine-deep)/0.05)] px-3 py-2.5">
+            <div className="mb-2 flex items-start gap-2 rounded-xl border border-[hsl(var(--wine-deep)/0.2)] bg-[hsl(var(--wine-deep)/0.05)] px-3 py-2">
               <Quote
                 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[hsl(var(--wine-deep))]"
                 strokeWidth={2}
               />
               <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-semibold text-[hsl(var(--wine-deep))]">
+                <div className="text-[13px] font-medium text-[hsl(var(--wine-deep))]">
                   引用
                   {quoteDraft.from === "assistant" ? "助手" : "我"}
-                  的消息 · 针对性回复
+                  的消息
                 </div>
-                <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                <p className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-muted-foreground">
                   {quoteDraft.excerpt}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setQuoteDraft(null)}
-                className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                className={chatIconBtn}
                 aria-label="取消引用"
                 title="取消引用"
               >
@@ -3351,9 +3329,9 @@ export default function ConversationCenter() {
               {referencedSourceFiles.map((file) => (
                 <span
                   key={file.id}
-                  className="inline-flex max-w-full items-center gap-1 rounded-full border border-[hsl(var(--wine-deep)/0.2)] bg-[hsl(var(--wine-deep)/0.06)] py-1 pl-2 pr-1 text-[11px] text-[hsl(var(--wine-deep))]"
+                  className="inline-flex h-8 max-w-full items-center gap-1 rounded-lg border border-[hsl(var(--wine-deep)/0.2)] bg-[hsl(var(--wine-deep)/0.06)] pl-2.5 pr-1 text-[13px] text-[hsl(var(--wine-deep))]"
                 >
-                  <FileText className="h-3 w-3 shrink-0" strokeWidth={2} />
+                  <FileText className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
                   <span className="min-w-0 truncate">{file.filename}</span>
                   <button
                     type="button"
@@ -3363,9 +3341,9 @@ export default function ConversationCenter() {
                         prev.filter((f) => f.id !== file.id),
                       )
                     }
-                    className="rounded-full p-0.5 hover:bg-[hsl(var(--wine-deep)/0.12)]"
+                    className={cn(chatIconBtn, "h-6 w-6")}
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </span>
               ))}
@@ -3374,7 +3352,7 @@ export default function ConversationCenter() {
 
           <div
             className={cn(
-              "flex w-full min-w-0 items-center gap-0.5 rounded-[1.35rem] border border-black/[0.08] bg-white py-1.5 pl-4 pr-1.5 focus-within:border-[hsl(var(--wine-deep)/0.28)] focus-within:ring-1 focus-within:ring-[hsl(var(--wine-deep)/0.16)]",
+              "flex w-full min-w-0 items-end gap-0.5 rounded-xl border border-black/[0.08] bg-white py-1 pl-3 pr-1 focus-within:border-[hsl(var(--wine-deep)/0.28)] focus-within:ring-1 focus-within:ring-[hsl(var(--wine-deep)/0.16)]",
               isCurrentConversationSending && "opacity-70",
             )}
             onDragOver={handleComposerDragOver}
@@ -3413,16 +3391,17 @@ export default function ConversationCenter() {
               aria-label="对话输入"
               placeholder="输入消息并发送"
               className={cn(
-                "max-h-[72px] min-h-9 min-w-0 flex-1 resize-none overflow-x-hidden overflow-y-auto border-0 bg-transparent px-0 py-1.5 text-sm font-medium leading-relaxed break-words whitespace-pre-wrap [overflow-wrap:anywhere] placeholder:text-muted-foreground/55 focus-visible:outline-none focus-visible:ring-0",
+                "max-h-[72px] min-h-8 min-w-0 flex-1 resize-none overflow-x-hidden overflow-y-auto border-0 bg-transparent px-0 py-1 text-[13px] leading-5 break-words whitespace-pre-wrap [overflow-wrap:anywhere] placeholder:text-muted-foreground/55 focus-visible:outline-none focus-visible:ring-0",
                 draftMessage ? "text-foreground" : "text-muted-foreground",
               )}
             />
-            <div className="flex shrink-0 items-center gap-0.5 self-center">
+            <div className="flex shrink-0 items-center gap-0.5 self-end">
                 <button
                   type="button"
                   onClick={() => setShowUploadPanel((open) => !open)}
                   className={cn(
-                    "relative inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground/75 transition-[transform,background-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-[hsl(var(--wine-deep)/0.07)] hover:text-[hsl(var(--wine-deep))] active:scale-[0.97]",
+                    chatIconBtn,
+                    "relative",
                     (showUploadPanel ||
                       selectedFiles.length > 0 ||
                       referencedSourceFiles.length > 0) &&
@@ -3432,8 +3411,8 @@ export default function ConversationCenter() {
                   aria-expanded={showUploadPanel}
                 >
                   <Paperclip
-                    className="h-[17px] w-[17px] -rotate-[32deg]"
-                    strokeWidth={1.7}
+                    className="h-3.5 w-3.5 -rotate-[32deg]"
+                    strokeWidth={1.8}
                     aria-hidden
                   />
                   {selectedFiles.length > 0 || referencedSourceFiles.length > 0 ? (
@@ -3472,23 +3451,24 @@ export default function ConversationCenter() {
                         : "发送"
                   }
                   className={cn(
-                    "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-[transform,background-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] disabled:pointer-events-none",
+                    chatIconBtn,
+                    "disabled:pointer-events-none",
                     canStopCurrentTask
-                      ? "bg-destructive/10 text-destructive hover:bg-destructive/15"
+                      ? "bg-destructive/10 text-destructive hover:bg-destructive/15 hover:text-destructive"
                       : isCurrentConversationSending ||
                           draftMessage.trim().length > 0 ||
                           selectedFiles.length > 0 ||
                           referencedSourceFiles.length > 0
-                        ? "bg-[hsl(var(--wine-deep))] text-[hsl(var(--wine-deep-foreground))] hover:bg-[hsl(353_38%_27%)]"
-                        : "bg-muted text-muted-foreground/45",
+                        ? "bg-[hsl(var(--wine-deep))] text-[hsl(var(--wine-deep-foreground))] hover:bg-[hsl(353_38%_27%)] hover:text-[hsl(var(--wine-deep-foreground))]"
+                        : "bg-muted text-muted-foreground/45 hover:bg-muted hover:text-muted-foreground/45",
                   )}
                 >
                   {canStopCurrentTask ? (
                     <Square className="h-3.5 w-3.5 fill-current" strokeWidth={0} />
                   ) : isCurrentConversationSending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
                   ) : (
-                    <ArrowUp className="h-4 w-4" strokeWidth={2.4} />
+                    <ArrowUp className="h-3.5 w-3.5" strokeWidth={2.2} />
                   )}
                 </button>
             </div>
