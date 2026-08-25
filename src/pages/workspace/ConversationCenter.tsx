@@ -50,7 +50,6 @@ import { apiFetch } from "@/lib/api-auth";
 import { loadSessionToken } from "@/workspace/session";
 import type { KnowledgeNetworkChatEntryState } from "@/lib/knowledge-network-prompts";
 import type { WorkspaceProject } from "@/workspace/projects";
-import { CHAT_QUICK_PROMPTS } from "@/lib/chat-quick-prompts";
 import { consumeChatSse } from "@/lib/chat-stream-client";
 import { cancelAgentJobRemote, mergeAsyncAgentJobIntoConversation } from "@/lib/chat-sync-api";
 import {
@@ -2690,7 +2689,7 @@ export default function ConversationCenter() {
                         <div
                           key={conversation.id}
                           className={cn(
-                            "group/item relative ml-2 w-[calc(100%-0.5rem)] rounded-xl border px-3 py-2.5 text-left transition-colors",
+                            "group/item relative ml-2 w-[calc(100%-0.5rem)] rounded-xl border px-2.5 py-2 text-left transition-colors",
                             conversation.id === newlyAddedConversationId &&
                               "animate-in fade-in slide-in-from-top-1 duration-200",
                             active
@@ -2698,36 +2697,36 @@ export default function ConversationCenter() {
                               : "border-transparent bg-white/70 hover:border-border/80 hover:bg-white",
                           )}
                         >
-                          <div className="flex items-start">
-                            {renaming ? (
-                              <div className="flex min-w-0 flex-1 items-start justify-between gap-2">
-                                <input
-                                  ref={renameInputRef}
-                                  value={renameDraft}
-                                  maxLength={40}
-                                  aria-label="重命名对话"
-                                  onChange={(e) => setRenameDraft(e.target.value)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  onKeyDown={(e) => {
-                                    if (e.nativeEvent.isComposing || e.key === "Process") {
-                                      return;
-                                    }
-                                    if (e.key === "Enter") {
-                                      e.preventDefault();
-                                      commitRenameConversation(conversation.id);
-                                    } else if (e.key === "Escape") {
-                                      e.preventDefault();
-                                      cancelRenameConversation();
-                                    }
-                                  }}
-                                  onBlur={() => commitRenameConversation(conversation.id)}
-                                  className="min-w-0 flex-1 rounded-md border border-[hsl(var(--wine-deep)/0.32)] bg-white px-1.5 py-0.5 text-[12px] leading-snug text-foreground outline-none"
-                                />
-                                <p className="shrink-0 pt-0.5 text-[10px] text-muted-foreground">
-                                  {formatSidebarDateLabel(conversation.updatedAt)}
-                                </p>
-                              </div>
-                            ) : (
+                          {renaming ? (
+                            <div className="flex h-5 min-w-0 items-center gap-2">
+                              <input
+                                ref={renameInputRef}
+                                value={renameDraft}
+                                maxLength={40}
+                                aria-label="重命名对话"
+                                onChange={(e) => setRenameDraft(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => {
+                                  if (e.nativeEvent.isComposing || e.key === "Process") {
+                                    return;
+                                  }
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    commitRenameConversation(conversation.id);
+                                  } else if (e.key === "Escape") {
+                                    e.preventDefault();
+                                    cancelRenameConversation();
+                                  }
+                                }}
+                                onBlur={() => commitRenameConversation(conversation.id)}
+                                className="h-5 min-w-0 flex-1 rounded-md border border-[hsl(var(--wine-deep)/0.32)] bg-white px-1.5 text-[13px] leading-5 text-foreground outline-none"
+                              />
+                              <span className="shrink-0 text-[11px] leading-5 tabular-nums text-muted-foreground">
+                                {formatSidebarDateLabel(conversation.updatedAt)}
+                              </span>
+                            </div>
+                          ) : (
+                            <>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -2735,33 +2734,29 @@ export default function ConversationCenter() {
                                   navigate(conversationPath(conversation));
                                 }}
                                 className={cn(
-                                  "min-w-0 flex-1 text-left transition-[padding]",
+                                  "flex h-5 w-full min-w-0 items-center gap-2 text-left transition-[padding]",
                                   active
-                                    ? "pr-12"
-                                    : "group-hover/item:pr-12 group-focus-within/item:pr-12",
+                                    ? "pr-11"
+                                    : "group-hover/item:pr-11 group-focus-within/item:pr-11",
                                 )}
                               >
-                                <div className="flex items-start justify-between gap-2">
-                                  <p
-                                    className={cn(
-                                      "line-clamp-1 break-words pr-1 text-[12px] leading-snug",
-                                      active
-                                        ? "font-semibold text-[hsl(var(--wine-deep))]"
-                                        : "text-foreground",
-                                    )}
-                                  >
-                                    {conversation.preview}
-                                  </p>
-                                  <p className="shrink-0 text-[10px] text-muted-foreground">
-                                    {formatSidebarDateLabel(conversation.updatedAt)}
-                                  </p>
-                                </div>
+                                <span
+                                  className={cn(
+                                    "min-w-0 flex-1 truncate text-[13px] leading-5",
+                                    active
+                                      ? "font-semibold text-[hsl(var(--wine-deep))]"
+                                      : "text-foreground",
+                                  )}
+                                >
+                                  {conversation.preview}
+                                </span>
+                                <span className="shrink-0 text-[11px] leading-5 tabular-nums text-muted-foreground">
+                                  {formatSidebarDateLabel(conversation.updatedAt)}
+                                </span>
                               </button>
-                            )}
-                            {renaming ? null : (
                               <div
                                 className={cn(
-                                  "absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center transition-opacity",
+                                  "absolute inset-y-0 right-1 flex items-center transition-opacity",
                                   active
                                     ? "opacity-100"
                                     : "pointer-events-none opacity-0 group-hover/item:pointer-events-auto group-hover/item:opacity-100 group-focus-within/item:pointer-events-auto group-focus-within/item:opacity-100",
@@ -2788,8 +2783,8 @@ export default function ConversationCenter() {
                                   <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
                                 </button>
                               </div>
-                            )}
-                          </div>
+                            </>
+                          )}
                         </div>
                       );
                     })
@@ -3228,22 +3223,6 @@ export default function ConversationCenter() {
               >
                 <X className="h-3.5 w-3.5" />
               </button>
-            </div>
-          ) : null}
-
-          {isLiveAiMode ? (
-            <div className="mb-2 flex flex-wrap gap-2">
-              {CHAT_QUICK_PROMPTS.map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  disabled={isCurrentConversationSending}
-                  onClick={() => setDraftMessage(item.message)}
-                  className="rounded-full border border-border/80 bg-white px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-[hsl(var(--wine-deep)/0.3)] hover:bg-[hsl(var(--wine-deep)/0.05)] hover:text-foreground disabled:opacity-50"
-                >
-                  {item.label}
-                </button>
-              ))}
             </div>
           ) : null}
 
