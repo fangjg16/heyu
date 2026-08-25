@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { Download, ExternalLink, Eye, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  dismissIfBackdropClick,
+  markBackdropPointerDown,
+} from "@/lib/backdrop-dismiss";
 
 type KnowledgeNetworkPreviewProps = {
   html: string;
@@ -69,7 +73,8 @@ export function KnowledgeNetworkPreview({
           role="dialog"
           aria-modal="true"
           aria-labelledby="kn-preview-title"
-          onClick={() => setOpen(false)}
+          onPointerDown={markBackdropPointerDown}
+          onClick={(e) => dismissIfBackdropClick(e, () => setOpen(false))}
         >
           <div
             className="flex max-h-[90vh] w-full max-w-[min(96vw,1200px)] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-xl"

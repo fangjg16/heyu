@@ -30,6 +30,10 @@ import {
 import { AdminChapterSkillMap } from "@/components/workspace/AdminChapterSkillMap";
 import { FALLBACK_CHAPTER_SKILL_MAP } from "@/lib/chapter-skill-map";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
+import {
+  dismissIfBackdropClick,
+  markBackdropPointerDown,
+} from "@/lib/backdrop-dismiss";
 
 const SKILL_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/u;
 
@@ -630,11 +634,14 @@ export function AdminSkillsSection() {
               role="dialog"
               aria-modal
               aria-labelledby="admin-skill-import-title"
-              onClick={(e) => {
-                if (e.target === e.currentTarget && !importing) {
-                  setImportConfirm(false);
-                }
-              }}
+              onPointerDown={markBackdropPointerDown}
+              onClick={(e) =>
+                dismissIfBackdropClick(
+                  e,
+                  () => setImportConfirm(false),
+                  !importing,
+                )
+              }
             >
               <div className="w-full max-w-md overflow-hidden rounded-xl border border-border/80 bg-white shadow-2xl">
                 <div className="border-b border-border/60 px-5 py-4">
@@ -686,11 +693,10 @@ export function AdminSkillsSection() {
               role="dialog"
               aria-modal
               aria-labelledby="admin-skill-sync-mysql-title"
-              onClick={(e) => {
-                if (e.target === e.currentTarget && !syncing) {
-                  setSyncConfirm(false);
-                }
-              }}
+              onPointerDown={markBackdropPointerDown}
+              onClick={(e) =>
+                dismissIfBackdropClick(e, () => setSyncConfirm(false), !syncing)
+              }
             >
               <div className="w-full max-w-md overflow-hidden rounded-xl border border-border/80 bg-white shadow-2xl">
                 <div className="border-b border-border/60 px-5 py-4">
@@ -742,11 +748,14 @@ export function AdminSkillsSection() {
               role="dialog"
               aria-modal
               aria-labelledby="admin-skill-restart-gateway-title"
-              onClick={(e) => {
-                if (e.target === e.currentTarget && !restarting) {
-                  setRestartConfirm(false);
-                }
-              }}
+              onPointerDown={markBackdropPointerDown}
+              onClick={(e) =>
+                dismissIfBackdropClick(
+                  e,
+                  () => setRestartConfirm(false),
+                  !restarting,
+                )
+              }
             >
               <div className="w-full max-w-md overflow-hidden rounded-xl border border-border/80 bg-white shadow-2xl">
                 <div className="border-b border-border/60 px-5 py-4">
@@ -802,11 +811,14 @@ export function AdminSkillsSection() {
               role="dialog"
               aria-modal
               aria-labelledby="admin-skill-create-title"
-              onClick={(e) => {
-                if (e.target === e.currentTarget && !createSaving) {
-                  setCreateOpen(false);
-                }
-              }}
+              onPointerDown={markBackdropPointerDown}
+              onClick={(e) =>
+                dismissIfBackdropClick(
+                  e,
+                  () => setCreateOpen(false),
+                  !createSaving,
+                )
+              }
             >
               <div className="w-full max-w-md overflow-hidden rounded-xl border border-border/80 bg-white shadow-2xl">
                 <div className="border-b border-border/60 px-5 py-4">
@@ -901,11 +913,14 @@ export function AdminSkillsSection() {
               role="dialog"
               aria-modal
               aria-labelledby="admin-skill-delete-title"
-              onClick={(e) => {
-                if (e.target === e.currentTarget && !deleteBusy) {
-                  setDeleteName(null);
-                }
-              }}
+              onPointerDown={markBackdropPointerDown}
+              onClick={(e) =>
+                dismissIfBackdropClick(
+                  e,
+                  () => setDeleteName(null),
+                  !deleteBusy,
+                )
+              }
             >
               <div className="w-full max-w-md overflow-hidden rounded-xl border border-border/80 bg-white shadow-2xl">
                 <div className="border-b border-border/60 px-5 py-4">
@@ -965,9 +980,10 @@ export function AdminSkillsSection() {
               role="dialog"
               aria-modal
               aria-labelledby="admin-skill-editor-title"
-              onClick={(e) => {
-                if (e.target === e.currentTarget && !editSaving) closeEdit();
-              }}
+              onPointerDown={markBackdropPointerDown}
+              onClick={(e) =>
+                dismissIfBackdropClick(e, () => closeEdit(), !editSaving)
+              }
             >
               <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-border/80 bg-white shadow-2xl">
                 <div className="shrink-0 border-b border-border/60 px-5 py-4">

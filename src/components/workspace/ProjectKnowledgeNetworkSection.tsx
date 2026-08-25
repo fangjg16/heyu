@@ -29,6 +29,10 @@ import {
 } from "@/lib/open-questions-parse";
 import { canPublishProjectKnowledgeNetwork } from "@/workspace/project-manage";
 import {
+  dismissIfBackdropClick,
+  markBackdropPointerDown,
+} from "@/lib/backdrop-dismiss";
+import {
   projectPhaseLabel,
   type WorkspaceProject,
 } from "@/workspace/projects";
@@ -1231,9 +1235,10 @@ export function ProjectKnowledgeNetworkSection({
               role="dialog"
               aria-modal
               aria-labelledby="all-chapters-confirm-title"
-              onClick={(e) => {
-                if (e.target === e.currentTarget) setAllChaptersConfirm(false);
-              }}
+              onPointerDown={markBackdropPointerDown}
+              onClick={(e) =>
+                dismissIfBackdropClick(e, () => setAllChaptersConfirm(false))
+              }
             >
               <div className="w-full max-w-md overflow-hidden rounded-xl border border-[rgba(78,66,57,0.12)] bg-white shadow-2xl">
                 <div className="border-b border-[rgba(78,66,57,0.1)] px-5 py-4">

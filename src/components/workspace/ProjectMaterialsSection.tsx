@@ -8,6 +8,10 @@ import {
   type SetStateAction,
 } from "react";
 import { createPortal } from "react-dom";
+import {
+  dismissIfBackdropClick,
+  markBackdropPointerDown,
+} from "@/lib/backdrop-dismiss";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
@@ -2098,7 +2102,8 @@ function FilePreviewModal({
       role="dialog"
       aria-modal="true"
       aria-label="源文件预览"
-      onClick={onClose}
+      onPointerDown={markBackdropPointerDown}
+      onClick={(e) => dismissIfBackdropClick(e, onClose)}
     >
       <div
         className="flex max-h-[min(92vh,880px)] w-full max-w-[min(96vw,80rem)] flex-col overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.12)] bg-[hsl(var(--paper))] shadow-2xl"

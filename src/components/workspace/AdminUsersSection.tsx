@@ -26,6 +26,10 @@ import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { ProjectRoleSelects } from "@/components/workspace/MemberRoleFields";
 import { UserAvatar } from "@/components/workspace/UserAvatar";
 import { stripOrgRoleLabel } from "@/lib/org-title";
+import {
+  dismissIfBackdropClick,
+  markBackdropPointerDown,
+} from "@/lib/backdrop-dismiss";
 
 const ASSIGNABLE: WorkspaceRole[] = [...PROJECT_ASSIGNABLE_ROLES];
 
@@ -540,9 +544,10 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
               role="dialog"
               aria-modal
               aria-labelledby="admin-user-editor-title"
-              onClick={(e) => {
-                if (e.target === e.currentTarget && !saving) setEditorOpen(false);
-              }}
+              onPointerDown={markBackdropPointerDown}
+              onClick={(e) =>
+                dismissIfBackdropClick(e, () => setEditorOpen(false), !saving)
+              }
             >
               <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-xl border border-border/80 bg-white p-5 shadow-2xl">
                 <h3
@@ -790,9 +795,10 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
               role="dialog"
               aria-modal
               aria-labelledby="admin-pwd-title"
-              onClick={(e) => {
-                if (e.target === e.currentTarget && !pwdSaving) setPwdUser(null);
-              }}
+              onPointerDown={markBackdropPointerDown}
+              onClick={(e) =>
+                dismissIfBackdropClick(e, () => setPwdUser(null), !pwdSaving)
+              }
             >
               <div className="w-full max-w-sm rounded-xl border border-border/80 bg-white p-5 shadow-2xl">
                 <h3

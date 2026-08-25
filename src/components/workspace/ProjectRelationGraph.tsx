@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import {
+  dismissIfBackdropClick,
+  markBackdropPointerDown,
+} from "@/lib/backdrop-dismiss";
 
 export type ProjectGraphNode = {
   id: string;
@@ -432,7 +436,8 @@ function GraphNodeDrawer({
         type="button"
         aria-label="关闭"
         className="fixed inset-0 z-[160] border-0 bg-[rgba(31,36,35,0.28)] p-0"
-        onClick={onClose}
+        onPointerDown={markBackdropPointerDown}
+        onClick={(e) => dismissIfBackdropClick(e, onClose)}
       />
       <aside
         role="dialog"

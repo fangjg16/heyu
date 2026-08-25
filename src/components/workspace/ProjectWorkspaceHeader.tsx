@@ -5,6 +5,10 @@ import { MessageSquare, RefreshCw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import {
+  dismissIfBackdropClick,
+  markBackdropPointerDown,
+} from "@/lib/backdrop-dismiss";
+import {
   ENABLE_LIVE_CHAT,
   fetchProjectPermissions,
   type ProjectPermissionMember,
@@ -384,9 +388,10 @@ export function ProjectWorkspaceHeader({
               role="dialog"
               aria-modal
               aria-labelledby="project-update-confirm-title"
-              onClick={(e) => {
-                if (e.target === e.currentTarget) setConfirmKind(null);
-              }}
+              onPointerDown={markBackdropPointerDown}
+              onClick={(e) =>
+                dismissIfBackdropClick(e, () => setConfirmKind(null))
+              }
             >
               <div className="w-full max-w-md overflow-hidden rounded-xl border border-[rgba(78,66,57,0.12)] bg-white shadow-2xl">
                 <div className="border-b border-[rgba(78,66,57,0.1)] px-5 py-4">
@@ -429,9 +434,10 @@ export function ProjectWorkspaceHeader({
               role="dialog"
               aria-modal="true"
               aria-labelledby="project-members-title"
-              onClick={(e) => {
-                if (e.target === e.currentTarget) setMembersOpen(false);
-              }}
+              onPointerDown={markBackdropPointerDown}
+              onClick={(e) =>
+                dismissIfBackdropClick(e, () => setMembersOpen(false))
+              }
             >
               <div className="flex max-h-[min(86vh,40rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border/80 bg-white shadow-2xl">
                 <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
