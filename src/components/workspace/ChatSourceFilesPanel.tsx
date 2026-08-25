@@ -39,28 +39,23 @@ type ChatSourceFilesPanelProps = {
 function SourceTreeNodes({
   nodes,
   depth,
-  collapsed,
+  expanded,
   referencedIds,
   onToggle,
   onPickFile,
 }: {
   nodes: FileTreeNode[];
   depth: number;
-  collapsed: Set<string>;
+  expanded: Set<string>;
   referencedIds: Set<string>;
   onToggle: (path: string) => void;
   onPickFile: (file: ProjectFileRecord) => void;
 }) {
   return (
-    <ul
-      className={cn(
-        "space-y-1",
-        depth > 0 && "ml-1.5 border-l border-[rgba(78,66,57,0.12)] pl-1.5",
-      )}
-    >
+    <ul className={cn("space-y-1", depth > 0 && "ml-3")}>
       {nodes.map((node) => {
         if (node.kind === "folder") {
-          const isOpen = !collapsed.has(node.path);
+          const isOpen = expanded.has(node.path);
           const hasKids = node.children.length > 0;
           return (
             <li key={node.path}>
@@ -85,7 +80,7 @@ function SourceTreeNodes({
                 <SourceTreeNodes
                   nodes={node.children}
                   depth={depth + 1}
-                  collapsed={collapsed}
+                  expanded={expanded}
                   referencedIds={referencedIds}
                   onToggle={onToggle}
                   onPickFile={onPickFile}
@@ -146,7 +141,7 @@ export function ChatSourceFilesPanel({
   const visible = tree.children.filter(
     (n) => n.kind === "folder" && n.children.length > 0,
   );
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 
   return (
     <aside className="flex h-full min-h-0 w-full shrink-0 flex-col border-l border-[rgba(78,66,57,0.1)] bg-[rgba(248,243,238,0.92)] backdrop-blur-md md:w-[14.5rem]">
@@ -174,10 +169,10 @@ export function ChatSourceFilesPanel({
           <SourceTreeNodes
             nodes={visible}
             depth={0}
-            collapsed={collapsed}
+            expanded={expanded}
             referencedIds={referencedIds}
             onToggle={(path) => {
-              setCollapsed((prev) => {
+              setExpanded((prev) => {
                 const next = new Set(prev);
                 if (next.has(path)) next.delete(path);
                 else next.add(path);
