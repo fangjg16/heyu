@@ -1047,6 +1047,7 @@ export default function ConversationCenter() {
   const renameInputRef = useRef<HTMLInputElement | null>(null);
   const [entryReady, setEntryReady] = useState(true);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const attachMenuRef = useRef<HTMLDivElement | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const newConversationTimerRef = useRef<number | null>(null);
   const resumedAgentJobIdsRef = useRef<Set<string>>(new Set());
@@ -1746,6 +1747,18 @@ export default function ConversationCenter() {
   }, [showHistoryMenu]);
 
   useEffect(() => {
+    if (!showUploadPanel) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const el = attachMenuRef.current;
+      if (el && !el.contains(e.target as Node)) {
+        setShowUploadPanel(false);
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [showUploadPanel]);
+
+  useEffect(() => {
     if (!isLiveAiMode || !AI_CHAT_ENDPOINT) return;
     const healthUrl = buildApiHealthProbeUrl(AI_CHAT_ENDPOINT);
     if (!healthUrl) return;
@@ -1913,7 +1926,7 @@ export default function ConversationCenter() {
       });
       return merged;
     });
-    setShowUploadPanel(true);
+    setShowUploadPanel(false);
   };
 
   const removeFile = (idx: number) => {
@@ -3218,73 +3231,6 @@ export default function ConversationCenter() {
               e.currentTarget.value = "";
             }}
           />
-          {showUploadPanel || selectedFiles.length > 0 ? (
-            <div
-              className="mb-2 rounded-xl border border-border/70 bg-white/90 px-3 py-2"
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                handleComposerDrop(e);
-              }}
-            >
-              {showUploadPanel ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="min-w-0 flex-1 text-[13px] text-muted-foreground">
-                    拖入文件，或从源文件引用
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className={chatTextBtnSoft}
-                  >
-                    选择文件
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSourcePanelOpen(true)}
-                    className={chatTextBtnGhost}
-                  >
-                    从源文件选择
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-[13px] text-muted-foreground">
-                    已选 {selectedFiles.length} 个文件
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowUploadPanel(true)}
-                    className="h-8 text-[13px] font-medium text-[hsl(var(--wine-deep))] hover:underline"
-                  >
-                    添加更多
-                  </button>
-                </div>
-              )}
-
-              {selectedFiles.length > 0 ? (
-                <ul className="mt-2 max-h-32 space-y-1 overflow-y-auto">
-                  {selectedFiles.map((f, idx) => (
-                    <li key={`${f.name}-${f.size}-${f.lastModified}`}>
-                      <div className="flex h-8 items-center gap-2 rounded-lg bg-muted/40 px-2 text-[13px]">
-                        <UploadSelectedFileIcon name={f.name} />
-                        <span className="min-w-0 flex-1 truncate text-foreground">{f.name}</span>
-                        <span className="shrink-0 text-[12px] text-[hsl(var(--wine-deep))]">待发送</span>
-                        <button
-                          type="button"
-                          onClick={() => removeFile(idx)}
-                          className={chatIconBtn}
-                          aria-label="移除文件"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
-          ) : null}
           {chatSyncError ? (
             <div className="mb-2 rounded-xl border border-amber-200/90 bg-amber-50/90 px-3 py-2 text-[13px] leading-relaxed text-amber-900">
               {chatSyncError}
@@ -3324,8 +3270,26 @@ export default function ConversationCenter() {
             </div>
           ) : null}
 
-          {referencedSourceFiles.length > 0 ? (
+          {selectedFiles.length > 0 || referencedSourceFiles.length > 0 ? (
             <div className="mb-2 flex flex-wrap gap-1.5">
+              {selectedFiles.map((f, idx) => (
+                <span
+                  key={`${f.name}-${f.size}-${f.lastModified}`}
+                  className="inline-flex h-8 max-w-full items-center gap-1 rounded-lg border border-border/70 bg-white pl-2.5 pr-1 text-[13px] text-foreground"
+                >
+                  <UploadSelectedFileIcon name={f.name} />
+                  <span className="min-w-0 truncate">{f.name}</span>
+                  <button
+                    type="button"
+                    title="移除文件"
+                    onClick={() => removeFile(idx)}
+                    className={cn(chatIconBtn, "h-6 w-6")}
+                    aria-label="移除文件"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </span>
+              ))}
               {referencedSourceFiles.map((file) => (
                 <span
                   key={file.id}
@@ -3338,7 +3302,7 @@ export default function ConversationCenter() {
                     title="取消引用"
                     onClick={() =>
                       setReferencedSourceFiles((prev) =>
-                        prev.filter((f) => f.id !== file.id),
+                        prev.filter((item) => item.id !== file.id),
                       )
                     }
                     className={cn(chatIconBtn, "h-6 w-6")}
@@ -3396,6 +3360,7 @@ export default function ConversationCenter() {
               )}
             />
             <div className="flex shrink-0 items-center gap-0.5 self-end">
+                <div className="relative" ref={attachMenuRef}>
                 <button
                   type="button"
                   onClick={() => setShowUploadPanel((open) => !open)}
@@ -3407,8 +3372,9 @@ export default function ConversationCenter() {
                       referencedSourceFiles.length > 0) &&
                       "bg-[hsl(var(--wine-deep)/0.09)] text-[hsl(var(--wine-deep))]",
                   )}
-                  aria-label="展开或收起文件上传区"
+                  aria-label="添加文件"
                   aria-expanded={showUploadPanel}
+                  aria-haspopup="menu"
                 >
                   <Paperclip
                     className="h-3.5 w-3.5 -rotate-[32deg]"
@@ -3419,6 +3385,36 @@ export default function ConversationCenter() {
                     <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[hsl(var(--wine-deep))]" />
                   ) : null}
                 </button>
+                {showUploadPanel ? (
+                  <div
+                    role="menu"
+                    className="absolute bottom-full right-0 z-30 mb-1.5 w-44 rounded-xl border border-border/70 bg-white p-1 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.28)]"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setShowUploadPanel(false);
+                        fileInputRef.current?.click();
+                      }}
+                      className="flex h-8 w-full items-center rounded-lg px-2.5 text-left text-[13px] text-foreground hover:bg-[hsl(var(--wine)/0.08)]"
+                    >
+                      选择文件
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setShowUploadPanel(false);
+                        setSourcePanelOpen(true);
+                      }}
+                      className="flex h-8 w-full items-center rounded-lg px-2.5 text-left text-[13px] text-foreground hover:bg-[hsl(var(--wine)/0.08)]"
+                    >
+                      从源文件选择
+                    </button>
+                  </div>
+                ) : null}
+                </div>
                 <button
                   type="button"
                   onClick={() => {
