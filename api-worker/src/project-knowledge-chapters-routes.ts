@@ -44,6 +44,7 @@ import {
   parseChapterGenerateAnswer,
   polishChapterTableHtml,
   SOURCES_TABLE_SKELETON,
+  extractSourceIds,
 } from "./project-knowledge-citations";
 import {
   parseProjectGraphFromLlmAnswer,
@@ -54,6 +55,7 @@ import {
   canListProjectFiles,
   canPublishProjectKnowledgeNetwork,
 } from "./workspace-roles";
+import { syncProjectSourcesFromPublishedChapters } from "./project-knowledge-sources-sync";
 
 type Env = { DB: AppDatabase } & LlmClientEnv;
 
@@ -362,12 +364,36 @@ export async function handleGetProjectKnowledgeChapter(
     } else if (sectionId === "sources" || sectionId === "glossary") {
       html = ensureTableHeaderNoWrap(html);
       if (sectionId === "sources") {
+        try {
+          html = await syncProjectSourcesFromPublishedChapters(
+            env.DB,
+            projectId,
+            userId,
+            html,
+          );
+        } catch {
+          /* 回填失败仍返回已存表 */
+        }
         html = linkifyCitationMarkers(ensureSourceRowAnchors(html));
       }
     } else {
       html = polishChapterTableHtml(
         linkifyCitationMarkers(repairStoredChapterHtml(html)),
       );
+    }
+  } else if (sectionId === "sources") {
+    try {
+      html = await syncProjectSourcesFromPublishedChapters(
+        env.DB,
+        projectId,
+        userId,
+        html,
+      );
+      if (html?.trim()) {
+        html = linkifyCitationMarkers(ensureSourceRowAnchors(html));
+      }
+    } catch {
+      /* 无表且回填失败则保持空 */
     }
   }
 
@@ -722,7 +748,7 @@ export async function handleGenerateProjectKnowledgeChapter(
           mergedGlossary.trim() !== baseGlossaryHtml.trim() &&
           /<td\b/iu.test(mergedGlossary);
 
-        if (sourcesChanged || parsed.sourcesAddHtml.trim()) {
+        if (sourcesChanged || extractSourceIds(mergedSources).length > 0) {
           sourcesHtml = linkifyCitationMarkers(
             ensureSourceRowAnchors(mergedSources),
           );
@@ -860,7 +886,7 @@ export async function handleGenerateProjectKnowledgeChapter(
         mergedGlossary.trim() !== (latestGlossary?.html ?? "").trim() &&
         /<td\b/iu.test(mergedGlossary);
 
-      if (sourcesChanged || parsed.sourcesAddHtml.trim()) {
+      if (sourcesChanged || extractSourceIds(mergedSources).length > 0) {
         savedSources = await upsertProjectKnowledgeChapterHtml(env.DB, {
           projectId,
           sectionId: "sources",
@@ -889,6 +915,31 @@ export async function handleGenerateProjectKnowledgeChapter(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return json({ error: `引用来源/名词解释合并失败：${msg}` }, 502);
+  }
+
+  try {
+    const synced = await syncProjectSourcesFromPublishedChapters(
+      env.DB,
+      projectId,
+      userId,
+      savedSources?.html,
+    );
+    if (synced?.trim()) {
+      savedSources = {
+        ...(savedSources ?? {
+          projectId,
+          sectionId: "sources",
+          html: synced,
+          source: "generate",
+          llmBackend: null,
+          updatedAt: new Date().toISOString(),
+          updatedBy: userId,
+        }),
+        html: synced,
+      };
+    }
+  } catch {
+    /* 章节已保存；引用来源回填失败不阻断 */
   }
 
   return json({

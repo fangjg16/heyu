@@ -3,7 +3,9 @@
  * 锚点：id=kn-source-A-1；名词可选 id=kn-term-…
  */
 
-const CITE_ID_RE = /\[([A-Za-z]+-\d+)\]/gu;
+const CITE_ID_CORE =
+  "(?:[A-Za-z][A-Za-z0-9]*-\\d+[A-Za-z]?|[A-Za-z]\\d+[A-Za-z]?)";
+const CITE_ID_RE = new RegExp(`\\[(${CITE_ID_CORE})\\]`, "gu");
 
 export function knSourceAnchorId(citeId: string): string {
   return `kn-source-${citeId}`;
@@ -26,7 +28,7 @@ export function linkifyCitationMarkers(html: string): string {
 
 export function ensureSourceRowAnchors(sourcesHtml: string): string {
   return sourcesHtml.replace(
-    /<tr(\s[^>]*)?>\s*<td([^>]*)>\s*([A-Za-z]+-\d+)\s*<\/td>/giu,
+    /<tr(\s[^>]*)?>\s*<td([^>]*)>\s*([A-Za-z][A-Za-z0-9]*-\d+[A-Za-z]?)\s*<\/td>/giu,
     (_m, trRest: string | undefined, tdRest: string, id: string) => {
       const trAttrs = trRest ?? "";
       let tdAttrs = tdRest ?? "";
@@ -156,9 +158,158 @@ export function extractSourceIds(sourcesHtml: string): string[] {
   const ids: string[] = [];
   for (const row of extractTbodyRows(sourcesHtml)) {
     const id = rowFirstCellText(row);
-    if (/^[A-Za-z]+-\d+$/u.test(id)) ids.push(id);
+    if (/^[A-Za-z][A-Za-z0-9]*-\d+[A-Za-z]?$/u.test(id)) ids.push(id);
   }
   return ids;
+}
+
+export function normalizeCiteId(raw: string): string | null {
+  const s = String(raw ?? "")
+    .replace(/^source-/iu, "")
+    .trim();
+  if (!s) return null;
+  const dashed = /^([A-Za-z][A-Za-z0-9]*)-(\d+[A-Za-z]?)$/u.exec(s);
+  if (dashed) return `${dashed[1]!.toUpperCase()}-${dashed[2]}`;
+  const short = /^([A-Za-z])(\d+[A-Za-z]?)$/u.exec(s);
+  if (short) return `${short[1]!.toUpperCase()}-${short[2]}`;
+  return null;
+}
+
+export function extractCiteIdsFromHtml(html: string): string[] {
+  if (!html?.trim()) return [];
+  const found: string[] = [];
+  const seen = new Set<string>();
+  const add = (raw: string) => {
+    const id = normalizeCiteId(raw);
+    if (!id) return;
+    const key = id.toUpperCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    found.push(id);
+  };
+  for (const m of html.matchAll(CITE_ID_RE)) add(m[1] ?? "");
+  for (const m of html.matchAll(/data-kn-cite=["']([^"']+)["']/giu)) {
+    add(m[1] ?? "");
+  }
+  for (const m of html.matchAll(/#(?:kn-)?source-([A-Za-z][A-Za-z0-9_-]*)/giu)) {
+    add(m[1] ?? "");
+  }
+  return found;
+}
+
+function typeFromCiteId(id: string): string {
+  const prefix = id.split("-")[0]?.toUpperCase() ?? "";
+  if (prefix === "A") return "项目文件";
+  if (prefix === "U") return "用户上传";
+  if (prefix === "S") return "公开资料";
+  return "引用";
+}
+
+function patchSourceUsedIn(
+  tableHtml: string,
+  id: string,
+  sectionLabel: string,
+): string {
+  if (!sectionLabel.trim()) return tableHtml;
+  return tableHtml.replace(
+    new RegExp(
+      `(<tr\\b[^>]*\\bid=["']${knSourceAnchorId(id)}["'][^>]*>[\\s\\S]*?<\\/tr>)|(<tr\\b[^>]*>\\s*<td[^>]*>\\s*${id}\\s*<\\/td>[\\s\\S]*?<\\/tr>)`,
+      "iu",
+    ),
+    (full) => {
+      const tds = full.match(/<td\b[^>]*>[\s\S]*?<\/td>/giu) ?? [];
+      if (tds.length < 6) return full;
+      const usedIn = stripTags(tds[5]!);
+      const next = mergeUsedIn(usedIn, sectionLabel);
+      if (next === usedIn) return full;
+      const newTd = tds[5]!.replace(/>([\s\S]*)</u, `>${next}<`);
+      return full.replace(tds[5]!, newTd);
+    },
+  );
+}
+
+export type SourceFileHint = {
+  id: string;
+  title: string;
+  type?: string;
+  excerpt?: string;
+};
+
+/** 用已发布章节里的引用标记 + 资料包文件，补全空的引用来源表 */
+export function mergeCitedSourcesIntoTable(params: {
+  existingHtml?: string | null;
+  citations: { id: string; usedIn: string }[];
+  files?: SourceFileHint[];
+}): { html: string; changed: boolean } {
+  const before = (params.existingHtml ?? "").trim();
+  let base = ensureSourcesTableShell(params.existingHtml);
+  const existingIds = new Set(
+    extractSourceIds(base).map((id) => id.toUpperCase()),
+  );
+  const usedById = new Map<string, string[]>();
+  const displayId = new Map<string, string>();
+  const remember = (id: string, usedIn?: string) => {
+    const key = id.toUpperCase();
+    if (!displayId.has(key)) displayId.set(key, id);
+    if (!usedIn?.trim()) return;
+    const arr = usedById.get(key) ?? [];
+    if (!arr.includes(usedIn)) arr.push(usedIn);
+    usedById.set(key, arr);
+  };
+
+  for (const c of params.citations) {
+    const id = normalizeCiteId(c.id);
+    if (id) remember(id, c.usedIn);
+  }
+  for (const file of params.files ?? []) {
+    const id = normalizeCiteId(file.id) ?? file.id;
+    remember(id);
+  }
+
+  const orderedKeys: string[] = [];
+  for (const file of params.files ?? []) {
+    const id = normalizeCiteId(file.id) ?? file.id;
+    const key = id.toUpperCase();
+    if (!orderedKeys.includes(key)) orderedKeys.push(key);
+  }
+  for (const key of usedById.keys()) {
+    if (!orderedKeys.includes(key)) orderedKeys.push(key);
+  }
+
+  const fileById = new Map(
+    (params.files ?? []).map((f) => {
+      const id = normalizeCiteId(f.id) ?? f.id;
+      return [id.toUpperCase(), f] as const;
+    }),
+  );
+
+  const toAppend: string[] = [];
+  for (const key of orderedKeys) {
+    const id = displayId.get(key) ?? key;
+    const labels = usedById.get(key) ?? [];
+    if (existingIds.has(key)) {
+      for (const label of labels) {
+        base = patchSourceUsedIn(base, id, label);
+      }
+      continue;
+    }
+    const file = fileById.get(key);
+    toAppend.push(
+      formatSourceRow(
+        id,
+        file?.type || typeFromCiteId(id),
+        file?.title || `来源 ${id}`,
+        "",
+        file?.excerpt || "",
+        labels.join("、") || (file ? "资料包" : "待补"),
+      ),
+    );
+    existingIds.add(key);
+  }
+
+  base = appendRowsToTbody(base, toAppend);
+  const html = ensureSourceRowAnchors(base);
+  return { html, changed: html.trim() !== before };
 }
 
 export function extractGlossaryTerms(glossaryHtml: string): string[] {
@@ -283,7 +434,7 @@ export function mergeSourcesAppend(params: {
   for (const row of extractTbodyRows(addTable)) {
     const cells = rowCellTexts(row);
     const id = (cells[0] ?? "").trim();
-    if (!/^[A-Za-z]+-\d+$/u.test(id)) continue;
+    if (!/^[A-Za-z][A-Za-z0-9]*-\d+[A-Za-z]?$/u.test(id)) continue;
     const idKey = id.toUpperCase();
     if (existingIds.has(idKey)) {
       base = base.replace(

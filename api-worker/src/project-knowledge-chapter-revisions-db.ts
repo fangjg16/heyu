@@ -11,6 +11,7 @@ import {
   type ProjectKnowledgeChapterHtmlPublic,
   upsertProjectKnowledgeChapterHtml,
 } from "./project-knowledge-chapters-db";
+import { syncProjectSourcesFromPublishedChapters } from "./project-knowledge-sources-sync";
 
 export type DraftRunStatus =
   | "generating"
@@ -746,6 +747,16 @@ export async function publishDraftRunToLive(
     )
     .bind(newVersion, now, input.publishedBy, input.run.projectId)
     .run();
+
+  try {
+    await syncProjectSourcesFromPublishedChapters(
+      db,
+      input.run.projectId,
+      input.publishedBy,
+    );
+  } catch {
+    /* 正式章节已发布；来源表回填失败不阻断归档 */
+  }
 
   // 新正式版也立刻归档一份，便于版本列表浏览「当前」
   await archiveLiveChaptersAsVersion(db, {

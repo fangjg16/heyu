@@ -9,6 +9,8 @@ import {
   parseSnapshotAndSourcesAnswer,
   shouldKeepGlossaryTerm,
   stripEvidenceSourceCellsToLinksOnly,
+  extractCiteIdsFromHtml,
+  mergeCitedSourcesIntoTable,
 } from "./project-knowledge-citations";
 
 describe("project-knowledge-citations", () => {
@@ -103,5 +105,37 @@ NONE
     expect(html).toContain('class="kn-cite"');
     expect(html).not.toContain("项目方整理");
     expect(html).toContain("待补");
+  });
+
+  it("extractCiteIdsFromHtml reads markers and anchors", () => {
+    const html = `<td>[A-1] <a class="kn-cite" href="#kn-source-U-2" data-kn-cite="U-2">[U-2]</a> #source-S-3</td>`;
+    expect(extractCiteIdsFromHtml(html)).toEqual(["A-1", "U-2", "S-3"]);
+  });
+
+  it("mergeCitedSourcesIntoTable fills empty skeleton from cites and files", () => {
+    const merged = mergeCitedSourcesIntoTable({
+      existingHtml: `<table><thead><tr><th>ID</th></tr></thead><tbody></tbody></table>`,
+      citations: [
+        { id: "A-1", usedIn: "项目快照" },
+        { id: "A-1", usedIn: "行业分析" },
+      ],
+      files: [{ id: "A-1", title: "BP.pdf", type: "项目文件" }],
+    });
+    expect(merged.changed).toBe(true);
+    expect(merged.html).toContain("A-1");
+    expect(merged.html).toContain("BP.pdf");
+    expect(merged.html).toContain("项目快照、行业分析");
+  });
+
+  it("mergeCitedSourcesIntoTable fills from package files when chapters have no cites", () => {
+    const merged = mergeCitedSourcesIntoTable({
+      existingHtml: "",
+      citations: [],
+      files: [{ id: "A-1", title: "deck.pdf", excerpt: "剧本引擎 BP" }],
+    });
+    expect(merged.changed).toBe(true);
+    expect(merged.html).toContain("deck.pdf");
+    expect(merged.html).toContain("剧本引擎 BP");
+    expect(merged.html).toContain("资料包");
   });
 });
