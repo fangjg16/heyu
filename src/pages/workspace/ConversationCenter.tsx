@@ -5,9 +5,10 @@ import {
   useMemo,
   useRef,
   useState,
+  type DragEvent,
   type ReactNode,
 } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowUp,
   Check,
@@ -29,6 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { ChatMarkdown } from "@/components/workspace/ChatMarkdown";
+import { ChatSourceFilesPanel, parseSourceFileDrag, SOURCE_FILE_DRAG_TYPE } from "@/components/workspace/ChatSourceFilesPanel";
 import { TypingLoader } from "@/components/ui/loader";
 import {
   KnowledgeNetworkPreview,
@@ -89,6 +91,7 @@ import {
   pickConversationIdForProject,
   resolveConversationIdFromUrl,
 } from "@/workspace/chat-conversation-id";
+import { rememberChatReturnPath } from "@/workspace/chat-return";
 import {
   appendMessageWithSortIndex,
   sortMessagesByConversation,
@@ -686,6 +689,17 @@ function buildFileUploadApiMessage(fileNames: string[]): string {
   return `请阅读刚上传的项目资料并回答用户后续问题。附件：${fileNames.join("、")}`;
 }
 
+function buildSourceFileApiMessage(fileNames: string[]): string {
+  return `请结合这些项目源文件回答。源文件：${fileNames.join("、")}`;
+}
+
+function buildMixedFileApiMessage(uploadNames: string[], sourceNames: string[]): string {
+  const parts: string[] = [];
+  if (uploadNames.length > 0) parts.push(`附件：${uploadNames.join("、")}`);
+  if (sourceNames.length > 0) parts.push(`源文件：${sourceNames.join("、")}`);
+  return `请阅读刚上传与指定的项目资料。${parts.join("。")}`;
+}
+
 function withCurrentPreviewTime(conversation: SessionConversation): SessionConversation {
   return {
     ...conversation,
@@ -982,6 +996,13 @@ export default function ConversationCenter() {
   const [user, setUser] = useState<WorkspaceUser | null>(null);
   const [showUploadPanel, setShowUploadPanel] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [referencedSourceFiles, setReferencedSourceFiles] = useState<
+    ProjectFileRecord[]
+  >([]);
+  const [projectSourceFiles, setProjectSourceFiles] = useState<ProjectFileRecord[]>(
+    [],
+  );
+  const [projectSourceFilesLoading, setProjectSourceFilesLoading] = useState(false);
   const [conversations, setConversations] = useState<SessionConversation[]>([]);
   const [showHistoryMenu, setShowHistoryMenu] = useState(false);
   const [conversationFileRecords, setConversationFileRecords] = useState<
@@ -1302,6 +1323,13 @@ export default function ConversationCenter() {
       return true;
     }
   });
+  const [sourcePanelOpen, setSourcePanelOpen] = useState(() => {
+    try {
+      return localStorage.getItem("hy-chat-source-panel") === "1";
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     try {
@@ -1310,6 +1338,14 @@ export default function ConversationCenter() {
       /* ignore */
     }
   }, [chatListOpen]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("hy-chat-source-panel", sourcePanelOpen ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [sourcePanelOpen]);
 
   const toggleProjectCollapsed = (pid: string) => {
     setCollapsedProjectIds((prev) => {
@@ -1455,6 +1491,7 @@ export default function ConversationCenter() {
   /** 切换侧边对话或路由会话时清空本地「待发送」附件，避免上方气泡已发出、底下仍挂着同一批待发送 */
   useEffect(() => {
     setSelectedFiles([]);
+    setReferencedSourceFiles([]);
     setShowUploadPanel(false);
     setQuoteDraft(null);
   }, [effectiveConversationId]);
@@ -1566,30 +1603,43 @@ export default function ConversationCenter() {
   }, [liveMessagesByConversation, effectiveConversationId]);
 
   useEffect(() => {
-    if (!isLiveAiMode || !AI_CHAT_ENDPOINT || !projectId || !effectiveConversationId || !userId) {
+    if (!projectId || !userId || !AI_CHAT_ENDPOINT) {
       setConversationFileRecords([]);
+      setProjectSourceFiles([]);
       setConversationFilesLoading(false);
+      setProjectSourceFilesLoading(false);
       return;
     }
     let cancelled = false;
     setConversationFilesLoading(true);
+    setProjectSourceFilesLoading(true);
     const run = async () => {
       try {
         const all = await fetchProjectFiles(projectId, userId);
         if (cancelled) return;
-        const session = filterConversationSessionFiles(
-          all,
-          effectiveConversationId,
-          sessionMessageFilenames,
-        );
-        // 同名也全部列出（本对话附件各自独立，不做按名去重）
-        setConversationFileRecords(
-          [...session].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-        );
+        setProjectSourceFiles(all);
+        if (isLiveAiMode && effectiveConversationId) {
+          const session = filterConversationSessionFiles(
+            all,
+            effectiveConversationId,
+            sessionMessageFilenames,
+          );
+          setConversationFileRecords(
+            [...session].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+          );
+        } else {
+          setConversationFileRecords([]);
+        }
       } catch {
-        if (!cancelled) setConversationFileRecords([]);
+        if (!cancelled) {
+          setConversationFileRecords([]);
+          setProjectSourceFiles([]);
+        }
       } finally {
-        if (!cancelled) setConversationFilesLoading(false);
+        if (!cancelled) {
+          setConversationFilesLoading(false);
+          setProjectSourceFilesLoading(false);
+        }
       }
     };
     void run();
@@ -1797,6 +1847,48 @@ export default function ConversationCenter() {
     setShowHistoryMenu(false);
     setLiveError(null);
   }, [projectId]);
+
+  const addReferencedSourceFile = (file: ProjectFileRecord) => {
+    setReferencedSourceFiles((prev) =>
+      prev.some((f) => f.id === file.id) ? prev : [...prev, file],
+    );
+  };
+
+  const addReferencedSourceFromDrag = (id: string, filename: string) => {
+    const found = projectSourceFiles.find((f) => f.id === id);
+    addReferencedSourceFile(
+      found ?? {
+        id,
+        filename,
+        scope: "package",
+        conversationId: null,
+        mime: null,
+        createdAt: "",
+        chunkCount: 0,
+      },
+    );
+  };
+
+  const handleComposerDragOver = (e: DragEvent) => {
+    const types = Array.from(e.dataTransfer.types);
+    if (types.includes("Files") || types.includes(SOURCE_FILE_DRAG_TYPE)) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    }
+  };
+
+  const handleComposerDrop = (e: DragEvent) => {
+    const dragged = parseSourceFileDrag(e.dataTransfer);
+    if (dragged) {
+      e.preventDefault();
+      addReferencedSourceFromDrag(dragged.id, dragged.filename);
+      return;
+    }
+    if (e.dataTransfer.files?.length) {
+      e.preventDefault();
+      addFiles(e.dataTransfer.files);
+    }
+  };
 
   const addFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -2054,7 +2146,9 @@ export default function ConversationCenter() {
   const handleSend = async () => {
     if (!projectId) return;
     const trimmed = draftMessage.trim();
-    const fileNames = selectedFiles.map((f) => f.name);
+    const uploadNames = selectedFiles.map((f) => f.name);
+    const sourceNames = referencedSourceFiles.map((f) => f.filename);
+    const fileNames = [...uploadNames, ...sourceNames];
 
     if (!isLiveAiMode) {
       if (trimmed && fileNames.length === 0) {
@@ -2087,10 +2181,16 @@ export default function ConversationCenter() {
       quotePrefix +
       (trimmed ||
         (fileNames.length > 0 ? `已发送 ${fileNames.length} 个文件` : ""));
-    const apiMessage =
-      quotePrefix +
-      (trimmed ||
-        (fileNames.length > 0 ? buildFileUploadApiMessage(fileNames) : ""));
+    const bodyWithoutQuote = trimmed
+      ? sourceNames.length > 0
+        ? `${trimmed}\n\n【指定源文件】${sourceNames.join("、")}`
+        : trimmed
+      : uploadNames.length > 0 && sourceNames.length > 0
+        ? buildMixedFileApiMessage(uploadNames, sourceNames)
+        : uploadNames.length > 0
+          ? buildFileUploadApiMessage(uploadNames)
+          : buildSourceFileApiMessage(sourceNames);
+    const apiMessage = quotePrefix + bodyWithoutQuote;
 
     const userMsgId = `user-${Date.now()}`;
 
@@ -2126,6 +2226,7 @@ export default function ConversationCenter() {
     }
     setDraftMessage("");
     setSelectedFiles([]);
+    setReferencedSourceFiles([]);
     setShowUploadPanel(false);
 
     if (!AI_CHAT_ENDPOINT) {
@@ -2830,12 +2931,18 @@ export default function ConversationCenter() {
             className="relative flex flex-wrap items-center gap-2"
           >
             {projectId ? (
-              <Link
-                to={`/app/projects/${projectId}/materials`}
-                className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-white/85 px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-[hsl(var(--wine-deep)/0.25)] hover:text-foreground"
+              <button
+                type="button"
+                onClick={() => setSourcePanelOpen((open) => !open)}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                  sourcePanelOpen
+                    ? "border-[hsl(var(--wine-deep)/0.32)] bg-[hsl(var(--wine-deep)/0.08)] text-[hsl(var(--wine-deep))]"
+                    : "border-border/70 bg-white/85 text-muted-foreground hover:border-[hsl(var(--wine-deep)/0.25)] hover:text-foreground",
+                )}
               >
                 项目源文件
-              </Link>
+              </button>
             ) : null}
             <button
               type="button"
@@ -3096,7 +3203,11 @@ export default function ConversationCenter() {
           )}
         </div>
 
-        <footer className="relative shrink-0 border-t border-border/40 bg-[rgba(255,252,248,0.94)] px-4 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md md:px-8">
+        <footer
+          className="relative shrink-0 border-t border-border/40 bg-[rgba(255,252,248,0.94)] px-4 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md md:px-8"
+          onDragOver={handleComposerDragOver}
+          onDrop={handleComposerDrop}
+        >
           <input
             id="jfo-chat-file-input"
             ref={fileInputRef}
@@ -3117,7 +3228,7 @@ export default function ConversationCenter() {
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault();
-                  addFiles(e.dataTransfer.files);
+                  handleComposerDrop(e);
                 }}
               >
                 {showUploadPanel ? (
@@ -3129,12 +3240,13 @@ export default function ConversationCenter() {
                           strokeWidth={2}
                           aria-hidden
                         />
-                        拖拽文件到此处上传
+                        拖到此处可上传新文件，或从右侧拖入源文件引用
                       </div>
                       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                         AI 检索优先支持 .txt / .md；亦可上传 .htm / .html、PDF、Word、Excel、图片（PDF 等暂仅入库摘要）
                       </p>
                     </div>
+                    <div className="flex shrink-0 flex-col gap-2">
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
@@ -3142,6 +3254,14 @@ export default function ConversationCenter() {
                     >
                       选择文件
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setSourcePanelOpen(true)}
+                      className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-border/80 px-4 text-sm font-semibold text-muted-foreground transition-colors hover:border-[hsl(var(--wine-deep)/0.3)] hover:text-foreground"
+                    >
+                      从源文件选择
+                    </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-3">
@@ -3226,11 +3346,39 @@ export default function ConversationCenter() {
             </div>
           ) : null}
 
+          {referencedSourceFiles.length > 0 ? (
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {referencedSourceFiles.map((file) => (
+                <span
+                  key={file.id}
+                  className="inline-flex max-w-full items-center gap-1 rounded-full border border-[hsl(var(--wine-deep)/0.2)] bg-[hsl(var(--wine-deep)/0.06)] py-1 pl-2 pr-1 text-[11px] text-[hsl(var(--wine-deep))]"
+                >
+                  <FileText className="h-3 w-3 shrink-0" strokeWidth={2} />
+                  <span className="min-w-0 truncate">{file.filename}</span>
+                  <button
+                    type="button"
+                    title="取消引用"
+                    onClick={() =>
+                      setReferencedSourceFiles((prev) =>
+                        prev.filter((f) => f.id !== file.id),
+                      )
+                    }
+                    className="rounded-full p-0.5 hover:bg-[hsl(var(--wine-deep)/0.12)]"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : null}
+
           <div
             className={cn(
               "flex w-full min-w-0 items-center gap-0.5 rounded-[1.35rem] border border-black/[0.08] bg-white py-1.5 pl-4 pr-1.5 focus-within:border-[hsl(var(--wine-deep)/0.28)] focus-within:ring-1 focus-within:ring-[hsl(var(--wine-deep)/0.16)]",
               isCurrentConversationSending && "opacity-70",
             )}
+            onDragOver={handleComposerDragOver}
+            onDrop={handleComposerDrop}
           >
             <textarea
               ref={chatInputRef}
@@ -3275,7 +3423,9 @@ export default function ConversationCenter() {
                   onClick={() => setShowUploadPanel((open) => !open)}
                   className={cn(
                     "relative inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground/75 transition-[transform,background-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-[hsl(var(--wine-deep)/0.07)] hover:text-[hsl(var(--wine-deep))] active:scale-[0.97]",
-                    (showUploadPanel || selectedFiles.length > 0) &&
+                    (showUploadPanel ||
+                      selectedFiles.length > 0 ||
+                      referencedSourceFiles.length > 0) &&
                       "bg-[hsl(var(--wine-deep)/0.09)] text-[hsl(var(--wine-deep))]",
                   )}
                   aria-label="展开或收起文件上传区"
@@ -3286,7 +3436,7 @@ export default function ConversationCenter() {
                     strokeWidth={1.7}
                     aria-hidden
                   />
-                  {selectedFiles.length > 0 ? (
+                  {selectedFiles.length > 0 || referencedSourceFiles.length > 0 ? (
                     <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[hsl(var(--wine-deep))]" />
                   ) : null}
                 </button>
@@ -3304,7 +3454,8 @@ export default function ConversationCenter() {
                       ? false
                       : isCurrentConversationSending ||
                         (draftMessage.trim().length === 0 &&
-                          selectedFiles.length === 0)
+                          selectedFiles.length === 0 &&
+                          referencedSourceFiles.length === 0)
                   }
                   aria-label={
                     canStopCurrentTask
@@ -3326,7 +3477,8 @@ export default function ConversationCenter() {
                       ? "bg-destructive/10 text-destructive hover:bg-destructive/15"
                       : isCurrentConversationSending ||
                           draftMessage.trim().length > 0 ||
-                          selectedFiles.length > 0
+                          selectedFiles.length > 0 ||
+                          referencedSourceFiles.length > 0
                         ? "bg-[hsl(var(--wine-deep))] text-[hsl(var(--wine-deep-foreground))] hover:bg-[hsl(353_38%_27%)]"
                         : "bg-muted text-muted-foreground/45",
                   )}
@@ -3343,6 +3495,36 @@ export default function ConversationCenter() {
           </div>
         </footer>
       </div>
+      {sourcePanelOpen ? (
+        <div className="flex min-h-0 w-full shrink-0 flex-col overflow-hidden border-t border-[rgba(78,66,57,0.1)] md:w-auto md:border-t-0">
+          <ChatSourceFilesPanel
+            files={projectSourceFiles}
+            loading={projectSourceFilesLoading}
+            referencedIds={new Set(referencedSourceFiles.map((f) => f.id))}
+            materialsHref={`/app/projects/${projectId}/materials`}
+            materialsState={
+              effectiveConversationId
+                ? {
+                    fromConversation: conversationRoutePath(
+                      projectId,
+                      effectiveConversationId,
+                    ),
+                  }
+                : undefined
+            }
+            onRememberReturn={() => {
+              if (projectId && effectiveConversationId) {
+                rememberChatReturnPath(
+                  projectId,
+                  conversationRoutePath(projectId, effectiveConversationId),
+                );
+              }
+            }}
+            onPickFile={addReferencedSourceFile}
+            onClose={() => setSourcePanelOpen(false)}
+          />
+        </div>
+      ) : null}
         </div>
       </div>
     </WorkspaceShell>

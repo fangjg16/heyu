@@ -43,6 +43,12 @@ import {
   setApiProjects,
 } from "@/workspace/project-registry";
 import { loadSessionUserId } from "@/workspace/session";
+import {
+  clearChatReturnPath,
+  fromConversationInState,
+  rememberChatReturnPath,
+  resolveChatReturnPath,
+} from "@/workspace/chat-return";
 import type { WorkspaceProject } from "@/workspace/projects";
 import {
   canEnterChat,
@@ -241,6 +247,12 @@ function ProjectWorkspaceLayout() {
   >(null);
 
   useEffect(() => {
+    if (!projectId) return;
+    const fromConversation = fromConversationInState(locationState);
+    if (fromConversation) rememberChatReturnPath(projectId, fromConversation);
+  }, [projectId, locationState]);
+
+  useEffect(() => {
     const published = (
       locationState as { knowledgePublishedVersion?: number } | null
     )?.knowledgePublishedVersion;
@@ -248,8 +260,12 @@ function ProjectWorkspaceLayout() {
     setKnowledgeRefreshKey((k) => k + 1);
     setOverviewRefreshKey((k) => k + 1);
     setAllChaptersNotice(`已发布为正式版 v${published}`);
-    // 清掉 state，避免重复触发刷新
-    navigate(pathname, { replace: true, state: {} });
+    const fromConversation = fromConversationInState(locationState);
+    // 清掉发布标记，避免重复触发刷新；保留从对话进来的返回地址
+    navigate(pathname, {
+      replace: true,
+      state: fromConversation ? { fromConversation } : {},
+    });
   }, [locationState, navigate, pathname]);
 
   useEffect(() => {
@@ -392,6 +408,12 @@ function ProjectWorkspaceLayout() {
   const goChat = () => {
     if (!chatOk) {
       setGuestDialog(true);
+      return;
+    }
+    const returnPath = resolveChatReturnPath(project.id, locationState);
+    if (returnPath) {
+      clearChatReturnPath(project.id);
+      navigate(returnPath);
       return;
     }
     navigate(`/app/chat/${project.id}`);
@@ -743,6 +765,7 @@ function ProjectWorkspaceLayout() {
           project={project}
           userId={userId}
           tab={tab}
+          chatReturnPath={resolveChatReturnPath(project.id, locationState)}
           onChat={goChat}
           onUpdateOverview={() => void onUpdateOverview()}
           overviewBusy={overviewBusy}

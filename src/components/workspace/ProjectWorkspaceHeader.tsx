@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { MessageSquare, RefreshCw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
@@ -19,6 +19,7 @@ import {
 } from "@/workspace/workspace-users";
 import type { WorkspaceRole } from "@/workspace/types";
 import { ProjectPermissionsSection } from "@/components/workspace/ProjectPermissionsSection";
+import { clearChatReturnPath } from "@/workspace/chat-return";
 
 const AVATAR_TONES = [
   "#A06358",
@@ -87,6 +88,7 @@ type ProjectWorkspaceHeaderProps = {
   userId: string;
   tab: "overview" | "knowledge" | "materials" | "collab";
   onChat: () => void;
+  chatReturnPath?: string | null;
   onUpdateOverview?: () => void;
   overviewBusy?: boolean;
   canUpdateOverview?: boolean;
@@ -115,6 +117,7 @@ export function ProjectWorkspaceHeader({
   userId,
   tab,
   onChat,
+  chatReturnPath = null,
   onUpdateOverview,
   overviewBusy = false,
   canUpdateOverview = false,
@@ -122,6 +125,7 @@ export function ProjectWorkspaceHeader({
   allChaptersProgress = null,
 }: ProjectWorkspaceHeaderProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const role = getProjectRole(userId, project.id, project.createdBy);
   const judgment = judgmentFromPhase(project.phase);
   const canManage = canManageProjectPermissions(userId, project);
@@ -200,10 +204,18 @@ export function ProjectWorkspaceHeader({
     <div className="mx-auto max-w-[1600px] px-8 pt-6 md:px-10">
       <button
         type="button"
-        onClick={() => navigate("/app/projects")}
+        onClick={() => {
+          if (chatReturnPath) {
+            clearChatReturnPath(project.id);
+            navigate(chatReturnPath);
+            return;
+          }
+          clearChatReturnPath(project.id);
+          navigate("/app/projects");
+        }}
         className="mb-3.5 flex items-center gap-1.5 text-[13px] text-[hsl(var(--wine))]"
       >
-        ← 返回项目列表
+        {chatReturnPath ? "← 返回对话" : "← 返回项目列表"}
       </button>
       <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
@@ -330,6 +342,7 @@ export function ProjectWorkspaceHeader({
             <Link
               key={t.id}
               to={t.to}
+              state={location.state}
               className={cn(
                 "mb-[-1px] inline-flex h-[42px] items-end px-4 pb-2.5 text-sm leading-none transition-colors",
                 tab === t.id
