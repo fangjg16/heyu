@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, FileText, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
 import { projectMatchesQuery } from "@/workspace/project-search";
+import { projectCardMarksFor } from "@/workspace/project-card-mark";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import { ProjectEditModal } from "@/components/workspace/ProjectEditModal";
 import { IndustryCategoryFields, RequiredMark } from "@/components/workspace/IndustryCategoryFields";
@@ -161,6 +162,7 @@ function ProjectCard({
   onWithdrawJoin,
   onEdit,
   onDelete,
+  mark,
   requested,
   joining,
   withdrawing,
@@ -172,6 +174,7 @@ function ProjectCard({
   onWithdrawJoin?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  mark: string;
   requested?: boolean;
   joining?: boolean;
   withdrawing?: boolean;
@@ -185,13 +188,6 @@ function ProjectCard({
     "请进入协作工作台查看待确认事项与可上传资料。";
   const owner = ownerDisplayName(project.createdBy);
   const cover = coverToneFor(project);
-  const mark = (() => {
-    const t = project.name.trim();
-    if (!t) return "项";
-    if (/^[A-Za-z]/.test(t)) return t.slice(0, 3).toUpperCase();
-    return t.slice(0, 2);
-  })();
-
   const actionLabel = isIssuerRole(role)
     ? "进入协作"
     : isMember
@@ -452,6 +448,10 @@ export default function ProjectOverview() {
         return true;
       })
     : [];
+  const cardMarks = useMemo(
+    () => projectCardMarksFor(filteredProjects),
+    [filteredProjects],
+  );
   const memberCount = userId
     ? visibleProjects.filter(
         (p) => getProjectRole(userId, p.id, p.createdBy) !== "guest"
@@ -704,6 +704,7 @@ export default function ProjectOverview() {
                 key={p.id}
                 project={p}
                 userId={userId!}
+                mark={cardMarks.get(p.id) ?? "项"}
                 requested={pendingJoinIds.includes(p.id)}
                 joining={joiningProjectId === p.id}
                 withdrawing={withdrawingProjectId === p.id}

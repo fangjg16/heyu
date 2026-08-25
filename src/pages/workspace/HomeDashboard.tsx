@@ -30,6 +30,7 @@ import {
   projectEntryPath,
 } from "@/workspace/workspace-users";
 import { projectPhaseLabel, type WorkspaceProject } from "@/workspace/projects";
+import { projectCardMarksFor } from "@/workspace/project-card-mark";
 import { judgmentFromPhase } from "@/workspace/project-judgment";
 
 /** 原型硬编码色，总览页与 HTML 原型逐项对齐 */
@@ -75,13 +76,6 @@ function shortDisplayName(name: string | null | undefined): string {
   const spaced = raw.replace(/([a-z])([A-Z])/g, "$1 $2");
   const first = spaced.split(/[\s·・]+/)[0]?.trim();
   return first || raw;
-}
-
-function projectMark(name: string): string {
-  const t = name.trim();
-  if (!t) return "项";
-  if (/^[A-Za-z]/.test(t)) return t.slice(0, 3).toUpperCase();
-  return t.slice(0, 2);
 }
 
 function stageLabel(p: WorkspaceProject): string {
@@ -240,7 +234,14 @@ export default function HomeDashboard() {
     () => filterMemberProjectsForUser(userId ?? "", projects),
     [userId, projects, rolesVersion],
   );
-  const shortList = memberProjects.slice(0, 3);
+  const shortList = useMemo(
+    () => memberProjects.slice(0, 3),
+    [memberProjects],
+  );
+  const shortMarks = useMemo(
+    () => projectCardMarksFor(shortList),
+    [shortList],
+  );
   const hasInvestorProject = memberProjects.some((p) =>
     isInvestorRole(getProjectRole(userId ?? "", p.id, p.createdBy)),
   );
@@ -1008,7 +1009,7 @@ export default function HomeDashboard() {
                     fontWeight: 700,
                   }}
                 >
-                  {projectMark(p.name)}
+                  {shortMarks.get(p.id) ?? "项"}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
