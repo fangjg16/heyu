@@ -2690,7 +2690,7 @@ export default function ConversationCenter() {
                         <div
                           key={conversation.id}
                           className={cn(
-                            "group/item relative ml-2 w-[calc(100%-0.5rem)] rounded-xl border px-3 py-2.5 text-left transition-colors",
+                            "group/item ml-2 w-[calc(100%-0.5rem)] rounded-xl border px-3 py-2.5 text-left transition-colors",
                             conversation.id === newlyAddedConversationId &&
                               "animate-in fade-in slide-in-from-top-1 duration-200",
                             active
@@ -2698,12 +2698,6 @@ export default function ConversationCenter() {
                               : "border-transparent bg-white/70 hover:border-border/80 hover:bg-white",
                           )}
                         >
-                          {active ? (
-                            <span
-                              aria-hidden
-                              className="absolute bottom-1.5 right-0 top-1.5 w-[3px] rounded-full bg-[hsl(var(--wine-deep)/0.9)]"
-                            />
-                          ) : null}
                           <div className="flex items-start gap-1">
                             {renaming ? (
                               <div className="flex min-w-0 flex-1 items-start justify-between gap-2">
