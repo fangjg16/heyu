@@ -2741,8 +2741,8 @@ export default function ConversationCenter() {
         >
         {chatListOpen ? (
           <>
-        <div className="flex min-h-[3.25rem] items-center border-b border-[rgba(78,66,57,0.1)] px-2.5">
-          <div className="flex items-center gap-1.5">
+        <div className="flex min-h-[3.25rem] w-full items-center border-b border-[rgba(78,66,57,0.1)] px-2.5">
+          <div className="flex w-full items-center justify-between gap-2">
             <button
               type="button"
               onClick={() => {
@@ -2771,7 +2771,7 @@ export default function ConversationCenter() {
                 }, 260);
                 navigate(`/app/chat/${projectId}/${newId}`);
               }}
-              className={cn(chatTextBtnSoft, "min-w-0 flex-1")}
+              className={chatTextBtnSoft}
             >
               <Plus className="h-3.5 w-3.5" strokeWidth={2} />
               新增对话
@@ -2799,17 +2799,17 @@ export default function ConversationCenter() {
                 <button
                   type="button"
                   onClick={() => toggleProjectCollapsed(group.projectId)}
-                  className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left hover:bg-muted/50"
+                  className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1 text-left hover:bg-muted/50"
                 >
                   {collapsed ? (
                     <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   ) : (
                     <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   )}
-                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium leading-5 text-foreground">
+                  <span className="min-w-0 flex-1 truncate text-[12px] font-medium leading-4 text-muted-foreground">
                     {group.projectName}
                   </span>
-                  <span className="shrink-0 text-[12px] tabular-nums text-muted-foreground">
+                  <span className="shrink-0 text-[12px] tabular-nums text-muted-foreground/80">
                     {group.conversations.length}
                   </span>
                 </button>
@@ -2823,7 +2823,7 @@ export default function ConversationCenter() {
                         <div
                           key={conversation.id}
                           className={cn(
-                            "group/item relative ml-1.5 w-[calc(100%-0.375rem)] rounded-lg px-2 py-1.5 text-left transition-colors",
+                            "group/item relative ml-7 w-[calc(100%-1.75rem)] rounded-lg px-2.5 py-2 text-left transition-colors",
                             conversation.id === newlyAddedConversationId &&
                               "animate-in fade-in slide-in-from-top-1 duration-200",
                             active
@@ -2832,7 +2832,7 @@ export default function ConversationCenter() {
                           )}
                         >
                           {renaming ? (
-                            <div className="flex h-5 min-w-0 items-center gap-2">
+                            <div className="flex min-h-8 min-w-0 items-center gap-2">
                               <input
                                 ref={renameInputRef}
                                 value={renameDraft}
@@ -2853,7 +2853,7 @@ export default function ConversationCenter() {
                                   }
                                 }}
                                 onBlur={() => commitRenameConversation(conversation.id)}
-                                className="h-5 min-w-0 flex-1 rounded-lg border border-[hsl(var(--wine-deep)/0.32)] bg-white px-1.5 text-[13px] leading-5 text-foreground outline-none"
+                                className="h-8 min-w-0 flex-1 rounded-lg border border-[hsl(var(--wine-deep)/0.32)] bg-white px-1.5 text-[14px] leading-5 text-foreground outline-none"
                               />
                               <span className="shrink-0 text-[12px] leading-5 tabular-nums text-muted-foreground">
                                 {formatSidebarDateLabel(conversation.updatedAt)}
@@ -2868,7 +2868,7 @@ export default function ConversationCenter() {
                                   navigate(conversationPath(conversation));
                                 }}
                                 className={cn(
-                                  "flex h-5 w-full min-w-0 items-center gap-2 text-left transition-[padding]",
+                                  "flex min-h-8 w-full min-w-0 items-center gap-2 text-left transition-[padding]",
                                   active
                                     ? "pr-11"
                                     : "group-hover/item:pr-11 group-focus-within/item:pr-11",
@@ -2876,7 +2876,7 @@ export default function ConversationCenter() {
                               >
                                 <span
                                   className={cn(
-                                    "min-w-0 flex-1 truncate text-[13px] leading-5",
+                                    "min-w-0 flex-1 truncate text-[14px] leading-5",
                                     active
                                       ? "font-medium text-[hsl(var(--wine-deep))]"
                                       : "text-foreground",

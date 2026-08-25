@@ -52,7 +52,12 @@ function SourceTreeNodes({
   onPickFile: (file: ProjectFileRecord) => void;
 }) {
   return (
-    <ul className="space-y-0.5">
+    <ul
+      className={cn(
+        "space-y-0.5",
+        depth > 0 && "ml-2.5 border-l border-[rgba(78,66,57,0.14)] pl-2",
+      )}
+    >
       {nodes.map((node) => {
         if (node.kind === "folder") {
           const isOpen = !collapsed.has(node.path);
@@ -62,8 +67,12 @@ function SourceTreeNodes({
               <button
                 type="button"
                 onClick={() => onToggle(node.path)}
-                style={{ paddingLeft: 8 + depth * 12 }}
-                className="flex w-full items-center gap-1.5 rounded-lg py-1 pr-2 text-left text-[13px] text-muted-foreground hover:bg-white/80 hover:text-foreground"
+                className={cn(
+                  "flex w-full items-center gap-1.5 rounded-lg py-1 pr-2 text-left hover:bg-white/80 hover:text-foreground",
+                  depth === 0
+                    ? "text-[12px] font-medium text-muted-foreground"
+                    : "text-[12px] text-muted-foreground",
+                )}
               >
                 {isOpen ? (
                   <ChevronDown className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
@@ -71,7 +80,7 @@ function SourceTreeNodes({
                   <ChevronRight className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
                 )}
                 <Folder className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
-                <span className="min-w-0 truncate font-medium">{node.name}</span>
+                <span className="min-w-0 truncate">{node.name}</span>
               </button>
               {isOpen && hasKids ? (
                 <SourceTreeNodes
@@ -103,7 +112,6 @@ function SourceTreeNodes({
                 e.dataTransfer.effectAllowed = "copy";
               }}
               onClick={() => onPickFile(node.file)}
-              style={{ paddingLeft: 8 + depth * 12 }}
               className={cn(
                 "flex w-full cursor-grab items-center gap-1.5 rounded-lg py-1 pr-2 text-left text-[13px] leading-5 active:cursor-grabbing",
                 active
@@ -111,6 +119,7 @@ function SourceTreeNodes({
                   : "text-foreground hover:bg-white/80",
               )}
             >
+              <span className="inline-block h-3.5 w-3.5 shrink-0" aria-hidden />
               <FileText className="h-3.5 w-3.5 shrink-0 opacity-70" strokeWidth={1.8} />
               <span className="min-w-0 truncate">{node.name}</span>
             </button>
