@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseOpenQuestionsFromHtml } from "./open-questions-parse";
+import { parseOpenQuestionsFromHtml, inferQuestionKind } from "./open-questions-parse";
 
 describe("parseOpenQuestionsFromHtml", () => {
   it("extracts P1/P2 items and skips 待补", () => {
@@ -50,7 +50,7 @@ describe("parseOpenQuestionsFromHtml", () => {
     const items = parseOpenQuestionsFromHtml(html);
     expect(items).toEqual([
       {
-        text: "具体目标公司是谁？ 当前仅有行业分析。 → 需要 BP",
+        text: "具体目标公司是谁？： 当前仅有行业分析。 → 需要 BP",
         priority: "P1",
       },
       { text: "已上线作品的播放量与收入数据是否齐备？", priority: "P2" },
@@ -74,5 +74,19 @@ describe("parseOpenQuestionsFromHtml", () => {
       { text: "开工法定定义未确认", priority: "P1" },
       { text: "历史租金合同尚未取得", priority: "P3" },
     ]);
+  });
+});
+
+describe("inferQuestionKind", () => {
+  it("does not treat 技术人员 as a tech question", () => {
+    expect(
+      inferQuestionKind("团队成员身份与能力核实 胡敏身份未核实，技术人员背景材料未提供"),
+    ).toBe("other");
+  });
+
+  it("still classifies actual tech claims as tech", () => {
+    expect(
+      inferQuestionKind("NKG / 多 Agent 核心技术主张未验证，专利与模型评测缺失"),
+    ).toBe("tech");
   });
 });

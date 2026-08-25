@@ -56,12 +56,46 @@ function isPlaceholderQuestion(text: string): boolean {
   return false;
 }
 
+/**
+ * 把 <strong>标题</strong> + 说明 还原成「标题： 正文」，
+ * 避免 stripTags 把标题和正文拍成一句后只能靠字数硬裁。
+ */
+function flattenQuestionItemHtml(innerHtml: string): string {
+  const html = innerHtml ?? "";
+  const strongMatch = /<strong\b[^>]*>([\s\S]*?)<\/strong>/iu.exec(html);
+  if (strongMatch) {
+    const title = stripLeadingMarker(stripTags(strongMatch[1] ?? ""));
+    const rest = stripLeadingMarker(stripTags(html.replace(strongMatch[0], " ")));
+    if (title && rest && !rest.startsWith(title)) return `${title}： ${rest}`;
+    return rest || title;
+  }
+
+  const chunks = html
+    .split(/<br\s*\/?>/iu)
+    .map((part) => stripLeadingMarker(stripTags(part)))
+    .filter(Boolean);
+  if (chunks.length >= 2) {
+    const [head, ...tail] = chunks;
+    const rest = tail.join(" ");
+    if (
+      head.length >= 4 &&
+      head.length <= 40 &&
+      rest.length > head.length &&
+      !rest.startsWith(head)
+    ) {
+      return `${head}： ${rest}`;
+    }
+  }
+
+  return stripLeadingMarker(stripTags(html));
+}
+
 function extractListItems(blockHtml: string): string[] {
   const out: string[] = [];
   const re = /<li\b[^>]*>([\s\S]*?)<\/li>/giu;
   let m: RegExpExecArray | null;
   while ((m = re.exec(blockHtml))) {
-    const text = stripLeadingMarker(stripTags(m[1] ?? ""));
+    const text = flattenQuestionItemHtml(m[1] ?? "");
     if (!isPlaceholderQuestion(text)) out.push(text);
   }
   return out;
@@ -72,7 +106,7 @@ function extractParagraphs(blockHtml: string): string[] {
   const re = /<p\b[^>]*>([\s\S]*?)<\/p>/giu;
   let m: RegExpExecArray | null;
   while ((m = re.exec(blockHtml))) {
-    const text = stripLeadingMarker(stripTags(m[1] ?? ""));
+    const text = flattenQuestionItemHtml(m[1] ?? "");
     if (!isPlaceholderQuestion(text)) out.push(text);
   }
   return out;
@@ -189,4 +223,30 @@ export function priorityRank(p: OpenQuestionPriority): number {
   if (p === "P1") return 0;
   if (p === "P2") return 1;
   return 2;
+}
+
+export type QuestionKind = "business" | "tech" | "finance" | "other";
+
+const KIND_KEYWORDS: Record<Exclude<QuestionKind, "other">, string[]> = {
+  business: ["业务", "模式", "客群", "市场", "客户", "销售", "运营", "商业"],
+  tech: ["技术", "电芯", "工艺", "系统", "设备", "专利", "效率", "寿命", "功率", "热管理"],
+  finance: ["财务", "回报", "IRR", "估值", "收入", "利润", "现金流", "成本", "融资", "造价"],
+};
+
+/** 「技术人员」等角色词不是技术类问题，先挖掉再匹配关键词。 */
+const ROLE_COMPOUND_RE =
+  /(?:核心)?(?:技术|业务|财务|法务|运营|产品)(?:人员|团队|负责人|合伙人|顾问|总监|经理|骨干|人才|同事|出身|背景)/gu;
+
+export function inferQuestionKind(text: string): QuestionKind {
+  const hay = (text ?? "").replace(ROLE_COMPOUND_RE, " ").toLowerCase();
+  const score = (kws: string[]) =>
+    kws.reduce((n, kw) => (hay.includes(kw.toLowerCase()) ? n + 1 : n), 0);
+  const business = score(KIND_KEYWORDS.business);
+  const tech = score(KIND_KEYWORDS.tech);
+  const finance = score(KIND_KEYWORDS.finance);
+  const max = Math.max(business, tech, finance);
+  if (max === 0) return "other";
+  if (finance === max) return "finance";
+  if (tech === max) return "tech";
+  return "business";
 }

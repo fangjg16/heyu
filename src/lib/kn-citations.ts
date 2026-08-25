@@ -54,11 +54,13 @@ export function formatOpenQuestionForIssuer(raw: string): {
   title: string;
   body: string;
 } {
-  const body = stripCitationMarkers(raw).replace(/\s+/gu, " ").trim();
-  const { title } = extractOpenQuestionTitle(raw);
+  const full = stripCitationMarkers(raw).replace(/\s+/gu, " ").trim();
+  const { title, detail } = extractOpenQuestionTitle(raw);
+  const cleanTitle = title || full;
+  const body = (detail || stripTitleFromBody(full, cleanTitle)).trim();
   return {
-    title: (title || body).slice(0, 80),
-    body: body || title,
+    title: cleanTitle,
+    body: body && body !== cleanTitle ? body : full,
   };
 }
 
@@ -73,38 +75,113 @@ export function previewCollabQuestion(input: {
   const cleanedBody = stripCitationMarkers(input.body ?? "")
     .replace(/\s+/gu, " ")
     .trim();
+  const clipped = /…$|\.{2,}$/u.test(cleanedTitle);
   const parsed = extractOpenQuestionTitle(cleanedBody || cleanedTitle);
   const customTitle =
     Boolean(cleanedTitle) &&
     Boolean(cleanedBody) &&
     cleanedTitle !== cleanedBody &&
-    !cleanedBody.startsWith(cleanedTitle) &&
+    !clipped &&
+    !cleanedBody.startsWith(cleanedTitle.replace(/[…]+$/u, "").trim()) &&
     !cleanedTitle.startsWith(parsed.title);
   if (customTitle) {
     return {
       title: cleanedTitle,
-      detail: parsed.detail || cleanedBody,
+      detail:
+        stripTitleFromBody(cleanedBody, cleanedTitle.replace(/…+$/u, "").trim()) ||
+        parsed.detail ||
+        cleanedBody,
     };
   }
-  if (parsed.title) return parsed;
+  if (parsed.title) {
+    return {
+      title: parsed.title,
+      detail:
+        parsed.detail ||
+        stripTitleFromBody(cleanedBody || cleanedTitle, parsed.title),
+    };
+  }
   return { title: cleanedTitle || cleanedBody, detail: "" };
 }
 
-function clipQuestionTitle(s: string): string {
-  const t = s.replace(/\s+/gu, " ").trim();
-  if (t.length <= 36) return t;
-  const cut = t.slice(0, 36);
-  const punct = Math.max(
-    cut.lastIndexOf("、"),
-    cut.lastIndexOf("，"),
-    cut.lastIndexOf(" "),
+const CLAIM_END =
+  "未确认|未提供|未核实|未验证|未披露|全未提供|待核实|待验证|待确认";
+
+function shareTitleTokens(a: string, b: string): boolean {
+  const toks = (s: string) =>
+    s
+      .split(/[\/·、,，\s]+/u)
+      .map((x) => x.trim())
+      .filter((x) => x.length >= 2);
+  const left = toks(a);
+  const right = toks(b);
+  if (left.length === 0 || right.length === 0) return false;
+  let hits = 0;
+  for (const tok of left) {
+    if (right.some((r) => r === tok || r.includes(tok) || tok.includes(r))) {
+      hits += 1;
+    }
+  }
+  return hits >= Math.min(2, left.length);
+}
+
+/** 去掉正文开头重复的标题（含同义短句，如 cap table / 股权结构表） */
+export function stripTitleFromBody(text: string, title: string): string {
+  const t = title.replace(/[….]+$/u, "").trim();
+  if (!t) return text.trim();
+  let s = text.trim();
+  if (s.startsWith(t)) {
+    s = s
+      .slice(t.length)
+      .replace(/^(?:[：:]\s*|[，,、;；。.\s]+)/u, "")
+      .trim();
+  }
+  const ender = t.match(new RegExp(`(?:${CLAIM_END})$`, "u"))?.[0];
+  if (ender) {
+    const lead = s.match(new RegExp(`^.{4,48}?${ender}[\\s。；;，,]*`, "u"));
+    if (lead?.[0] && shareTitleTokens(lead[0], t)) {
+      s = s.slice(lead[0].length).trim();
+    }
+  }
+  return s;
+}
+
+function pickHeadline(body: string): { title: string; detail: string } {
+  const colon = body.match(/^(.{4,40}?)[：:]\s+(.+)$/u);
+  if (colon) {
+    return { title: colon[1]!.trim(), detail: colon[2]!.trim() };
+  }
+
+  const claim = body.match(
+    new RegExp(`^(.{4,40}?(?:${CLAIM_END}))(?=\\s|[。；;，,]|$)`, "u"),
   );
-  const base = punct > 14 ? cut.slice(0, punct) : cut;
-  return `${base.replace(/[，、·.\s]+$/u, "")}…`;
+  if (claim) {
+    const title = claim[1]!.trim();
+    return { title, detail: stripTitleFromBody(body, title) };
+  }
+
+  const breakAt = body.search(
+    /[。；]|(?:\s+附件)|(?:\s+资料仅)|(?:\s+仅称)|(?:\s*(?:→|->|——)\s*)/u,
+  );
+  if (breakAt >= 8 && breakAt <= 48) {
+    const title = body.slice(0, breakAt).replace(/[：:\s]+$/u, "").trim();
+    return { title, detail: stripTitleFromBody(body, title) };
+  }
+
+  const compact = body.match(/^(.{6,28})\s+(.{12,})$/u);
+  if (compact && !/[。；：:]/u.test(compact[1]!)) {
+    const title = compact[1]!.trim();
+    return { title, detail: stripTitleFromBody(body, title) };
+  }
+
+  return {
+    title: body.length <= 40 ? body : body.slice(0, 40).trim(),
+    detail: body,
+  };
 }
 
 /**
- * 从待确认问题长句提取列表小标题（Q1 · 短句 / 冒号前 / 首个分句）。
+ * 从待确认问题长句提取完整小标题，而不是按字数裁切加省略号。
  */
 export function extractOpenQuestionTitle(raw: string): {
   title: string;
@@ -118,21 +195,10 @@ export function extractOpenQuestionTitle(raw: string): {
   const tagged = text.match(/^(Q\d+|P\d+)\s*[·.•]\s*(.+)$/iu);
   const prefix = tagged ? `${tagged[1]!.toUpperCase()} · ` : "";
   const body = tagged ? tagged[2]!.trim() : text;
-
-  const colon = body.match(/^(.{4,36}?)[：:]\s+(.+)$/u);
-  if (colon) {
-    return {
-      title: clipQuestionTitle(`${prefix}${colon[1]!.trim()}`),
-      detail: colon[2]!.trim(),
-    };
-  }
-
-  const breakAt = body.search(/[。；]|(?:\s+附件)|(?:\s+资料仅)|(?:\s+仅称)/u);
-  const headline = breakAt >= 8 ? body.slice(0, breakAt).trim() : body;
-  const title = clipQuestionTitle(`${prefix}${headline}`);
-  const remainder = breakAt >= 8 ? body.slice(breakAt).trim() : body;
+  const picked = pickHeadline(body);
+  const detail = stripTitleFromBody(picked.detail || body, picked.title);
   return {
-    title,
-    detail: remainder && remainder !== headline ? remainder : text === title ? "" : text,
+    title: `${prefix}${picked.title}`.trim(),
+    detail: detail && detail !== picked.title ? detail : "",
   };
 }
