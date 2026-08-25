@@ -82,6 +82,8 @@ const ghostBtnClass =
   "inline-flex h-8 items-center justify-center rounded-lg border border-[rgba(78,66,57,0.16)] bg-transparent px-3 text-[12.5px] font-medium text-[#59625F] hover:bg-[rgba(78,66,57,0.04)] disabled:opacity-45";
 const primaryBtnClass =
   "inline-flex h-8 items-center justify-center rounded-lg bg-[#A06358] px-3 text-[12.5px] font-medium text-white disabled:opacity-45";
+const cardClass =
+  "rounded-xl border border-[rgba(78,66,57,0.08)] bg-white/80 px-4 py-3";
 
 export function InvestorCollabSection({
   projectId,
@@ -372,8 +374,8 @@ export function InvestorCollabSection({
     }
     setComposing(false);
     setEditingKey(null);
-    setDetailId(null);
     setEditingPublishedId(null);
+    setDetailId(it.id);
     setFollowUpId(it.id);
     setSourceText(
       `补充问询｜${it.title}${it.replyText ? `\n原答复：${it.replyText}` : ""}`,
@@ -588,8 +590,14 @@ export function InvestorCollabSection({
   };
 
   const openPublishedDetail = (it: CollabItem) => {
-    if (detailId === it.id && editingPublishedId !== it.id) {
+    const open =
+      detailId === it.id ||
+      editingPublishedId === it.id ||
+      followUpId === it.id;
+    if (open) {
       setDetailId(null);
+      setEditingPublishedId(null);
+      setFollowUpId(null);
       return;
     }
     setComposing(false);
@@ -652,7 +660,7 @@ export function InvestorCollabSection({
     sendLabel?: string;
     lead?: ReactNode;
   }) => (
-    <div className="mt-3 space-y-2 rounded-xl border border-[rgba(78,66,57,0.08)] bg-[rgba(248,243,238,0.55)] px-3 py-3">
+    <div className="space-y-2">
       {opts.lead}
       <input
         className="h-9 w-full rounded-lg border border-[rgba(78,66,57,0.12)] bg-white px-2 text-[13px]"
@@ -749,7 +757,7 @@ export function InvestorCollabSection({
     list.length === 0 ? (
       <p className="mt-4 text-[13px] text-[#969E9A]">暂无事项。</p>
     ) : (
-      <ul className="mt-4 space-y-3">
+      <ul className="mt-4 space-y-2">
         {list.map((it) => {
           const preview = previewCollabQuestion(it);
           const canFollowUp = canManage && hasCollaboratorReply(it);
@@ -757,170 +765,182 @@ export function InvestorCollabSection({
           const editing = canManage && editingPublishedId === it.id;
           const showingDetail =
             detailId === it.id && !editing && !followUpOpen;
+          const expanded = showingDetail || editing || followUpOpen;
           const suggest = followUpSuggests[it.id];
           const suggesting = suggestingId === it.id;
           const revisable = canManage && canReviseSent(it);
           return (
-            <li
-              key={it.id}
-              className="rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/80 px-4 py-3"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <button
-                  type="button"
-                  className="min-w-0 flex-1 text-left"
-                  onClick={() => openPublishedDetail(it)}
-                >
-                  <div className="font-semibold text-[#1F2423]">
-                    {canFollowUp ? (
-                      <span className="mr-1.5 text-[11px] font-medium text-[#A06358]">
-                        {collabStatusLabel(it.status)}
-                      </span>
-                    ) : null}
+            <li key={it.id} className={cardClass}>
+              {editing || followUpOpen ? (
+                <div className="flex items-center gap-4">
+                  <div className="min-w-0 flex-1 text-[13px] leading-relaxed text-[#1F2423]">
                     {preview.title}
                   </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      className={ghostBtnClass}
+                      onClick={() => {
+                        setEditingPublishedId(null);
+                        setFollowUpId(null);
+                        setDetailId(it.id);
+                      }}
+                    >
+                      收起
+                    </button>
+                    {editing ? (
+                      <button
+                        type="button"
+                        disabled={Boolean(busy) || !canSubmitWording}
+                        onClick={() => void onPublish(it)}
+                        className={primaryBtnClass}
+                      >
+                        {busy === "publish" ? "保存中…" : "保存修改"}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={
+                          Boolean(busy) || suggesting || !canSubmitWording
+                        }
+                        onClick={() => void onPublish()}
+                        className={primaryBtnClass}
+                      >
+                        {busy === "publish" ? "发送中…" : "发送"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="flex w-full cursor-pointer items-center gap-4 text-left"
+                  onClick={() => openPublishedDetail(it)}
+                >
+                  <div className="min-w-0 flex-1 text-[13px] leading-relaxed text-[#1F2423]">
+                    {preview.title}
+                  </div>
+                  <span className="shrink-0 text-[11.5px] text-[#A06358]">
+                    {collabStatusLabel(it.status)}
+                  </span>
                 </button>
-                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                  {!canFollowUp ? (
-                    <span className="text-[11.5px] text-[#A06358]">
-                      {collabStatusLabel(it.status)}
-                    </span>
+              )}
+              {expanded ? (
+                <div className="mt-3 space-y-3">
+                  {showingDetail ? (
+                    <div className="space-y-2 text-[13px] leading-relaxed text-[#1F2423]">
+                      {it.body.trim() ? (
+                        <p className="whitespace-pre-wrap">{it.body}</p>
+                      ) : preview.detail ? (
+                        <p className="whitespace-pre-wrap">{preview.detail}</p>
+                      ) : (
+                        <p className="text-[#969E9A]">暂无正文。</p>
+                      )}
+                      <p className="text-[12.5px] text-[#59625F]">
+                        截止日期：
+                        {it.dueAt ? it.dueAt.slice(0, 10) : "未设置"}
+                      </p>
+                      <p className="text-[12.5px] text-[#59625F]">
+                        接收账号：{issuerLabel(it.assignedTo)}
+                      </p>
+                      {it.replyText ? (
+                        <p>项目协作方答复：{it.replyText}</p>
+                      ) : null}
+                    </div>
                   ) : null}
-                  <button
-                    type="button"
-                    className={ghostBtnClass}
-                    onClick={() => openPublishedDetail(it)}
-                  >
-                    {showingDetail ? "收起" : "详情"}
-                  </button>
-                  {revisable ? (
-                    <>
+                  {editing ? wordingForm({ existing: it }) : null}
+                  {followUpOpen
+                    ? wordingForm({
+                        lead: suggesting ? (
+                          <p className="text-[12.5px] text-[#59625F]">
+                            判断中…
+                          </p>
+                        ) : suggest ? (
+                          <>
+                            <p className="text-[12.5px] leading-relaxed text-[#1F2423]">
+                              答复{suggest.complete ? "完整" : "不完整"}。
+                              {suggest.completeness}
+                            </p>
+                            <p className="text-[12.5px] leading-relaxed text-[#1F2423]">
+                              {suggest.shouldFollowUp
+                                ? "建议补充"
+                                : "可不补充"}
+                              。{suggest.followUpAdvice}
+                            </p>
+                          </>
+                        ) : null,
+                      })
+                    : null}
+                  {showingDetail ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {revisable ? (
+                        <>
+                          <button
+                            type="button"
+                            className={ghostBtnClass}
+                            onClick={() => openPublishedEdit(it)}
+                          >
+                            修改
+                          </button>
+                          <button
+                            type="button"
+                            disabled={Boolean(busy)}
+                            className={ghostBtnClass}
+                            onClick={() => void onWithdraw(it)}
+                          >
+                            {busy === it.id ? "撤回中…" : "撤回"}
+                          </button>
+                        </>
+                      ) : null}
+                      {canFollowUp ? (
+                        <button
+                          type="button"
+                          className={ghostBtnClass}
+                          onClick={() => void openFollowUp(it)}
+                        >
+                          补充问询
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className={ghostBtnClass}
-                        onClick={() => openPublishedEdit(it)}
+                        onClick={() => openPublishedDetail(it)}
                       >
-                        {editing ? "收起" : "修改"}
+                        收起
+                      </button>
+                    </div>
+                  ) : null}
+                  {canManage && showingDetail && it.status === "submitted" ? (
+                    <div className="flex flex-wrap gap-2">
+                      <input
+                        value={reviewNotes[it.id] ?? ""}
+                        onChange={(e) =>
+                          setReviewNotes((m) => ({
+                            ...m,
+                            [it.id]: e.target.value,
+                          }))
+                        }
+                        placeholder="退回说明（可选）"
+                        className="h-9 min-w-[180px] flex-1 rounded-lg border border-[rgba(78,66,57,0.12)] px-2 text-[12.5px]"
+                      />
+                      <button
+                        type="button"
+                        disabled={Boolean(busy)}
+                        onClick={() => void onReview(it.id, "confirm")}
+                        className="h-9 rounded-lg bg-[#5E9B75] px-3 text-[12.5px] text-white"
+                      >
+                        确认并回写
                       </button>
                       <button
                         type="button"
                         disabled={Boolean(busy)}
-                        className={ghostBtnClass}
-                        onClick={() => void onWithdraw(it)}
+                        onClick={() => void onReview(it.id, "reject")}
+                        className="h-9 rounded-lg border border-[rgba(160,99,88,0.3)] px-3 text-[12.5px] text-[#A06358]"
                       >
-                        {busy === it.id ? "撤回中…" : "撤回"}
+                        退回需补充
                       </button>
-                    </>
+                    </div>
                   ) : null}
-                  {canFollowUp ? (
-                    <>
-                      <button
-                        type="button"
-                        className={ghostBtnClass}
-                        onClick={() => void openFollowUp(it)}
-                      >
-                        {followUpOpen ? "收起" : "补充问询"}
-                      </button>
-                      {followUpOpen ? (
-                        <button
-                          type="button"
-                          disabled={
-                            Boolean(busy) ||
-                            suggesting ||
-                            !canSubmitWording
-                          }
-                          onClick={() => void onPublish()}
-                          className={primaryBtnClass}
-                        >
-                          {busy === "publish" ? "发送中…" : "发送"}
-                        </button>
-                      ) : null}
-                    </>
-                  ) : null}
-                  {editing ? (
-                    <button
-                      type="button"
-                      disabled={Boolean(busy) || !canSubmitWording}
-                      onClick={() => void onPublish(it)}
-                      className={primaryBtnClass}
-                    >
-                      {busy === "publish" ? "保存中…" : "保存修改"}
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-              {showingDetail ? (
-                <div className="mt-3 space-y-2 text-[13px] leading-relaxed text-[#1F2423]">
-                  {it.body.trim() ? (
-                    <p className="whitespace-pre-wrap">{it.body}</p>
-                  ) : preview.detail ? (
-                    <p className="whitespace-pre-wrap">{preview.detail}</p>
-                  ) : (
-                    <p className="text-[#969E9A]">暂无正文。</p>
-                  )}
-                  <p className="text-[12.5px] text-[#59625F]">
-                    截止日期：
-                    {it.dueAt ? it.dueAt.slice(0, 10) : "未设置"}
-                  </p>
-                  <p className="text-[12.5px] text-[#59625F]">
-                    接收账号：{issuerLabel(it.assignedTo)}
-                  </p>
-                </div>
-              ) : null}
-              {it.replyText ? (
-                <p className="mt-2 text-[13px] leading-relaxed text-[#1F2423]">
-                  项目协作方答复：{it.replyText}
-                </p>
-              ) : null}
-              {editing
-                ? wordingForm({
-                    existing: it,
-                  })
-                : null}
-              {followUpOpen
-                ? wordingForm({
-                    lead: suggesting ? (
-                      <p className="text-[12.5px] text-[#59625F]">判断中…</p>
-                    ) : suggest ? (
-                      <>
-                        <p className="text-[12.5px] leading-relaxed text-[#1F2423]">
-                          答复{suggest.complete ? "完整" : "不完整"}。
-                          {suggest.completeness}
-                        </p>
-                        <p className="text-[12.5px] leading-relaxed text-[#1F2423]">
-                          {suggest.shouldFollowUp ? "建议补充" : "可不补充"}。
-                          {suggest.followUpAdvice}
-                        </p>
-                      </>
-                    ) : null,
-                  })
-                : null}
-              {canManage && it.status === "submitted" ? (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <input
-                    value={reviewNotes[it.id] ?? ""}
-                    onChange={(e) =>
-                      setReviewNotes((m) => ({ ...m, [it.id]: e.target.value }))
-                    }
-                    placeholder="退回说明（可选）"
-                    className="h-9 min-w-[180px] flex-1 rounded-lg border border-[rgba(78,66,57,0.12)] px-2 text-[12.5px]"
-                  />
-                  <button
-                    type="button"
-                    disabled={Boolean(busy)}
-                    onClick={() => void onReview(it.id, "confirm")}
-                    className="h-9 rounded-lg bg-[#5E9B75] px-3 text-[12.5px] text-white"
-                  >
-                    确认并回写
-                  </button>
-                  <button
-                    type="button"
-                    disabled={Boolean(busy)}
-                    onClick={() => void onReview(it.id, "reject")}
-                    className="h-9 rounded-lg border border-[rgba(160,99,88,0.3)] px-3 text-[12.5px] text-[#A06358]"
-                  >
-                    退回需补充
-                  </button>
                 </div>
               ) : null}
             </li>
@@ -992,9 +1012,9 @@ export function InvestorCollabSection({
       {tab === "unsent" ? (
         <div className="mt-4">
           {canManage && composing ? (
-            <div className="mb-2 rounded-xl border border-[rgba(78,66,57,0.08)] bg-white/80 px-4 py-3">
+            <div className={cn("mb-2", cardClass)}>
               <div className="flex items-center gap-4">
-                <div className="min-w-0 flex-1 text-[13px] font-semibold leading-relaxed text-[#1F2423]">
+                <div className="min-w-0 flex-1 text-[13px] leading-relaxed text-[#1F2423]">
                   新增事项
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
@@ -1023,7 +1043,7 @@ export function InvestorCollabSection({
                   </button>
                 </div>
               </div>
-              {wordingForm({})}
+              <div className="mt-3">{wordingForm({})}</div>
             </div>
           ) : null}
           {unsentList.length === 0 && !composing ? (
@@ -1036,10 +1056,7 @@ export function InvestorCollabSection({
                   : extractOpenQuestionTitle(entry.text);
                 const expanded = editingKey === entry.key;
                 return (
-                  <li
-                    key={entry.key}
-                    className="rounded-xl border border-[rgba(78,66,57,0.08)] bg-white/80 px-4 py-3"
-                  >
+                  <li key={entry.key} className={cardClass}>
                     <div className="flex items-center gap-4">
                       <div className="min-w-0 flex-1 text-[13px] leading-relaxed text-[#1F2423]">
                         <span className="mr-1.5 text-[11px] text-[#A06358]">
@@ -1092,7 +1109,11 @@ export function InvestorCollabSection({
                         </div>
                       ) : null}
                     </div>
-                    {expanded ? wordingForm({ existing: entry.draft }) : null}
+                    {expanded ? (
+                      <div className="mt-3">
+                        {wordingForm({ existing: entry.draft })}
+                      </div>
+                    ) : null}
                   </li>
                 );
               })}
