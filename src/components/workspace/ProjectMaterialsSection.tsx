@@ -12,6 +12,10 @@ import {
   dismissIfBackdropClick,
   markBackdropPointerDown,
 } from "@/lib/backdrop-dismiss";
+import {
+  resolveParseUiStatus,
+  type ParseUiStatus,
+} from "@/lib/parse-ui-status";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
@@ -104,8 +108,6 @@ type ParseCacheEntry = {
   usedFor?: string[];
 };
 
-type ParseUiStatus = "unparsed" | "parsing" | "parsed" | "failed";
-
 function formatFileDate(iso: string): string {
   try {
     const d = new Date(iso);
@@ -189,13 +191,12 @@ function parseUiStatus(
   parsingId: string | null,
   dbParsed = false,
 ): ParseUiStatus {
-  if (parsingId === fileId) return "parsing";
-  const cached = parsedById[fileId];
-  if (cached?.status === "parsing") return "parsing";
-  if (cached?.status === "parsed") return "parsed";
-  if (cached?.status === "failed") return "failed";
-  if (dbParsed) return "parsed";
-  return "unparsed";
+  return resolveParseUiStatus({
+    fileId,
+    parsingId,
+    cacheStatus: parsedById[fileId]?.status,
+    dbParsed,
+  });
 }
 
 function tagsForFile(
@@ -1120,7 +1121,7 @@ export function ProjectMaterialsSection({
       if (ui === "parsing") summary = "正在调用大模型解析…";
       else if (cache?.status === "parsed") summary = cache.summary || "—";
       else if (cache?.status === "failed") summary = cache.summary || "解析失败";
-      else if (file.parsed) summary = "已解析，加载详情中…";
+      else if (file.parsed) summary = "加载详情中…";
       else if (file.scope === "package" && !canDownload) {
         summary = "当前权限受限，无法解析该文件";
       }
