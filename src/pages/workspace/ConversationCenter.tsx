@@ -2962,6 +2962,7 @@ export default function ConversationCenter() {
                 onClick={() => setSourcePanelOpen((open) => !open)}
                 className={cn(
                   sourcePanelOpen ? chatTextBtnSoft : chatTextBtnGhost,
+                  "text-[12px]",
                 )}
               >
                 项目源文件
@@ -2970,12 +2971,12 @@ export default function ConversationCenter() {
             <button
               type="button"
               onClick={() => setShowHistoryMenu((v) => !v)}
-              className={chatTextBtnGhost}
+              className={cn(chatTextBtnGhost, "text-[12px]")}
             >
               <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={1.8} />
               本对话文件
               {isLiveAiMode && conversationFileTreeItems.length > 0 ? (
-                <span className="rounded-lg bg-[hsl(var(--wine-deep)/0.1)] px-1 text-[13px] font-medium tabular-nums text-[hsl(var(--wine-deep))]">
+                <span className="rounded-lg bg-[hsl(var(--wine-deep)/0.1)] px-1 text-[11px] font-medium tabular-nums text-[hsl(var(--wine-deep))]">
                   {conversationFileTreeItems.length}
                 </span>
               ) : null}

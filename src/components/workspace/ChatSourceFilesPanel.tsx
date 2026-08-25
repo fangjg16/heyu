@@ -54,7 +54,7 @@ function SourceTreeNodes({
   return (
     <ul
       className={cn(
-        "space-y-0.5",
+        "space-y-1",
         depth > 0 && "ml-1.5 border-l border-[rgba(78,66,57,0.12)] pl-1.5",
       )}
     >
@@ -68,8 +68,8 @@ function SourceTreeNodes({
                 type="button"
                 onClick={() => onToggle(node.path)}
                 className={cn(
-                  "flex w-full items-center gap-1 rounded-lg py-0.5 pr-1.5 text-left hover:bg-white/80 hover:text-foreground",
-                  "text-[12px] leading-4 text-muted-foreground",
+                  "flex w-full items-center gap-1 rounded-lg py-1 pr-1.5 text-left hover:bg-white/80 hover:text-foreground",
+                  "text-[12px] leading-5 text-muted-foreground",
                   depth === 0 && "font-medium",
                 )}
               >
@@ -112,7 +112,7 @@ function SourceTreeNodes({
               }}
               onClick={() => onPickFile(node.file)}
               className={cn(
-                "flex w-full cursor-grab items-center gap-1 rounded-lg py-0.5 pr-1.5 text-left text-[12px] leading-4 active:cursor-grabbing",
+                "flex w-full cursor-grab items-center gap-1 rounded-lg py-1 pr-1.5 text-left text-[12px] leading-5 active:cursor-grabbing",
                 active
                   ? "bg-[hsl(var(--wine-deep)/0.1)] font-medium text-[hsl(var(--wine-deep))]"
                   : "text-muted-foreground hover:bg-white/80 hover:text-foreground",
