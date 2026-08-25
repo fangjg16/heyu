@@ -196,10 +196,17 @@ const CHAT_INPUT_MIN_PX = 32;
 /** 约 3 行正文，再高则框内滚动 */
 const CHAT_INPUT_MAX_PX = 72;
 
-const chatIconBtn =
-  "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-[transform,background-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))] active:scale-[0.97]";
-const chatTextBtn =
-  "inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium transition-[transform,background-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97]";
+/** 苹果式连续圆角：控件与卡片同一半径 */
+const chatR = "rounded-[10px] [corner-shape:squircle]";
+
+const chatIconBtn = cn(
+  "inline-flex h-8 w-8 shrink-0 items-center justify-center text-muted-foreground transition-[transform,background-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))] active:scale-[0.97]",
+  chatR,
+);
+const chatTextBtn = cn(
+  "inline-flex h-8 shrink-0 items-center justify-center gap-1.5 px-2.5 text-[13px] font-medium transition-[transform,background-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97]",
+  chatR,
+);
 const chatTextBtnGhost = cn(
   chatTextBtn,
   "border border-border/70 bg-white/80 text-muted-foreground hover:border-[hsl(var(--wine-deep)/0.22)] hover:text-foreground",
@@ -787,7 +794,7 @@ function MessageBubbleToolbar({
   };
 
   const actionBtnClass =
-    "rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100";
+    "rounded-[10px] [corner-shape:squircle] p-1.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100";
 
   return (
     <div className="mt-2 flex shrink-0 flex-col gap-0.5">
@@ -864,7 +871,7 @@ function UserBubble({
           />
           <div
             className={cn(
-              "inline-block max-w-[32ch] sm:max-w-[42ch] rounded-2xl rounded-br-md px-4 py-2.5 text-[13px] font-medium leading-relaxed text-wine-deep-foreground break-words whitespace-pre-line",
+              "inline-block max-w-[32ch] sm:max-w-[42ch] rounded-[10px] [corner-shape:squircle] px-4 py-2.5 text-[15px] font-medium leading-relaxed text-wine-deep-foreground break-words whitespace-pre-line",
               USER_MESSAGE_SHELL,
               "selection:bg-[hsl(var(--wine-muted))] selection:text-[hsl(var(--warm-charcoal))]",
             )}
@@ -873,7 +880,7 @@ function UserBubble({
           </div>
         </div>
         {displayTime ? (
-          <span className="mt-1 text-[12px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+          <span className="mt-1 text-[13px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
             {displayTime}
           </span>
         ) : null}
@@ -892,7 +899,7 @@ function ChatThinkingBadge({
   return (
     <div
       className={cn(
-        "inline-flex h-8 items-center gap-2 rounded-lg border border-border/70 bg-muted/20 px-2.5",
+        "inline-flex h-8 items-center gap-2 rounded-[10px] [corner-shape:squircle] border border-border/70 bg-muted/20 px-2.5",
         className,
       )}
     >
@@ -922,7 +929,7 @@ function AiShell({
         <div className="flex items-start gap-1.5">
           <div
             className={cn(
-              "max-w-[92%] rounded-2xl rounded-bl-md border border-border/70 bg-white px-4 py-3 text-[13px] leading-relaxed text-foreground",
+              "max-w-[92%] rounded-[10px] [corner-shape:squircle] border border-border/70 bg-white px-4 py-3 text-[15px] leading-relaxed text-foreground",
               "shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
               "selection:bg-[hsl(var(--wine-deep)/0.14)] selection:text-foreground",
             )}
@@ -936,7 +943,7 @@ function AiShell({
           />
         </div>
         {displayTime ? (
-          <span className="mt-1 text-[12px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+          <span className="mt-1 text-[13px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
             {displayTime}
           </span>
         ) : null}
@@ -962,7 +969,7 @@ function ChatSentFilesPanel({ files }: { files: readonly { name: string }[] }) {
   return (
     <div
       className={cn(
-        "w-full max-w-[min(100%,28rem)] rounded-2xl rounded-br-lg px-4 py-3",
+        "w-full max-w-[min(100%,28rem)] rounded-[10px] [corner-shape:squircle] px-4 py-3",
         USER_MESSAGE_SHELL,
       )}
     >
@@ -980,12 +987,12 @@ function ChatSentFilesPanel({ files }: { files: readonly { name: string }[] }) {
         {files.map((f) => (
           <div
             key={f.name}
-            className="flex h-8 items-center justify-between gap-2 rounded-lg bg-black/[0.1] px-2.5"
+            className="flex h-8 items-center justify-between gap-2 rounded-[10px] [corner-shape:squircle] bg-black/[0.1] px-2.5"
           >
             <span className="truncate text-[13px] text-wine-deep-foreground">
               {f.name}
             </span>
-            <span className="shrink-0 text-[12px] text-wine-muted">已送达</span>
+            <span className="shrink-0 text-[13px] text-wine-muted">已送达</span>
           </div>
         ))}
       </div>
@@ -1007,6 +1014,7 @@ export default function ConversationCenter() {
   const [userId, setUserId] = useState<string | null>(null);
   const [user, setUser] = useState<WorkspaceUser | null>(null);
   const [showUploadPanel, setShowUploadPanel] = useState(false);
+  const [composerDragActive, setComposerDragActive] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [referencedSourceFiles, setReferencedSourceFiles] = useState<
     ProjectFileRecord[]
@@ -1506,6 +1514,7 @@ export default function ConversationCenter() {
     setSelectedFiles([]);
     setReferencedSourceFiles([]);
     setShowUploadPanel(false);
+    setComposerDragActive(false);
     setQuoteDraft(null);
   }, [effectiveConversationId]);
 
@@ -1902,8 +1911,22 @@ export default function ConversationCenter() {
     }
   };
 
+  const handleComposerDragEnter = (e: DragEvent) => {
+    const types = Array.from(e.dataTransfer.types);
+    if (!types.includes("Files") && !types.includes(SOURCE_FILE_DRAG_TYPE)) return;
+    e.preventDefault();
+    setComposerDragActive(true);
+  };
+
+  const handleComposerDragLeave = (e: DragEvent) => {
+    const next = e.relatedTarget;
+    if (next instanceof Node && e.currentTarget.contains(next)) return;
+    setComposerDragActive(false);
+  };
+
   const handleComposerDrop = (e: DragEvent) => {
     const dragged = parseSourceFileDrag(e.dataTransfer);
+    setComposerDragActive(false);
     if (dragged) {
       e.preventDefault();
       addReferencedSourceFromDrag(dragged.id, dragged.filename);
@@ -2791,17 +2814,17 @@ export default function ConversationCenter() {
                 <button
                   type="button"
                   onClick={() => toggleProjectCollapsed(group.projectId)}
-                  className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left hover:bg-muted/50"
+                  className="flex w-full items-center gap-1.5 rounded-[10px] [corner-shape:squircle] px-2 py-1.5 text-left hover:bg-muted/50"
                 >
                   {collapsed ? (
                     <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   ) : (
                     <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   )}
-                  <span className="min-w-0 flex-1 text-[13px] font-medium leading-5 text-foreground">
+                  <span className="min-w-0 flex-1 text-[15px] font-medium leading-5 text-foreground">
                     {group.projectName}
                   </span>
-                  <span className="shrink-0 text-[12px] tabular-nums text-muted-foreground">
+                  <span className="shrink-0 text-[13px] tabular-nums text-muted-foreground">
                     {group.conversations.length}
                   </span>
                 </button>
@@ -2815,7 +2838,7 @@ export default function ConversationCenter() {
                         <div
                           key={conversation.id}
                           className={cn(
-                            "group/item relative ml-1.5 w-[calc(100%-0.375rem)] rounded-lg px-2 py-1.5 text-left transition-colors",
+                            "group/item relative ml-1.5 w-[calc(100%-0.375rem)] rounded-[10px] [corner-shape:squircle] px-2 py-1.5 text-left transition-colors",
                             conversation.id === newlyAddedConversationId &&
                               "animate-in fade-in slide-in-from-top-1 duration-200",
                             active
@@ -2845,9 +2868,9 @@ export default function ConversationCenter() {
                                   }
                                 }}
                                 onBlur={() => commitRenameConversation(conversation.id)}
-                                className="h-5 min-w-0 flex-1 rounded-md border border-[hsl(var(--wine-deep)/0.32)] bg-white px-1.5 text-[13px] leading-5 text-foreground outline-none"
+                                className="h-5 min-w-0 flex-1 rounded-[10px] [corner-shape:squircle] border border-[hsl(var(--wine-deep)/0.32)] bg-white px-1.5 text-[15px] leading-5 text-foreground outline-none"
                               />
-                              <span className="shrink-0 text-[12px] leading-5 tabular-nums text-muted-foreground">
+                              <span className="shrink-0 text-[13px] leading-5 tabular-nums text-muted-foreground">
                                 {formatSidebarDateLabel(conversation.updatedAt)}
                               </span>
                             </div>
@@ -2868,7 +2891,7 @@ export default function ConversationCenter() {
                               >
                                 <span
                                   className={cn(
-                                    "min-w-0 flex-1 truncate text-[13px] leading-5",
+                                    "min-w-0 flex-1 truncate text-[15px] leading-5",
                                     active
                                       ? "font-semibold text-[hsl(var(--wine-deep))]"
                                       : "text-foreground",
@@ -2876,7 +2899,7 @@ export default function ConversationCenter() {
                                 >
                                   {conversation.preview}
                                 </span>
-                                <span className="shrink-0 text-[12px] leading-5 tabular-nums text-muted-foreground">
+                                <span className="shrink-0 text-[13px] leading-5 tabular-nums text-muted-foreground">
                                   {formatSidebarDateLabel(conversation.updatedAt)}
                                 </span>
                               </button>
@@ -2896,7 +2919,7 @@ export default function ConversationCenter() {
                                     e.stopPropagation();
                                     startRenameConversation(conversation);
                                   }}
-                                  className="rounded-md p-1 text-muted-foreground hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
+                                  className="rounded-[10px] [corner-shape:squircle] p-1 text-muted-foreground hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
                                 >
                                   <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
                                 </button>
@@ -2904,7 +2927,7 @@ export default function ConversationCenter() {
                                   type="button"
                                   title="删除此对话"
                                   onClick={() => deleteConversation(conversation)}
-                                  className="rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                  className="rounded-[10px] [corner-shape:squircle] p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
                                 </button>
@@ -2919,13 +2942,6 @@ export default function ConversationCenter() {
             );
           })}
         </nav>
-        {permissionSidebarHint ? (
-          <div className="shrink-0 border-t border-border/60 px-3 py-2.5">
-            <p className="text-[12px] leading-snug text-muted-foreground">
-              当前权限：{permissionSidebarHint}
-            </p>
-          </div>
-        ) : null}
           </>
         ) : (
           <div className="hidden h-full flex-col items-center px-1 py-3 md:flex">
@@ -2947,9 +2963,14 @@ export default function ConversationCenter() {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[rgba(255,252,248,0.55)]">
         <header className="sticky top-0 z-10 flex min-h-[3.25rem] flex-wrap items-center justify-between gap-2 border-b border-border/50 bg-white/70 px-4 py-2 backdrop-blur-md md:px-6">
           <div className="min-w-0">
-            <h1 className="truncate text-[15px] font-semibold tracking-tight text-[#1F2423]">
+            <h1 className="truncate text-[17px] font-semibold tracking-tight text-[#1F2423]">
               {chatTitle}
             </h1>
+            {permissionSidebarHint ? (
+              <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
+                权限 {permissionSidebarHint}
+              </p>
+            ) : null}
           </div>
           <div
             ref={conversationFilesMenuRef}
@@ -2974,29 +2995,28 @@ export default function ConversationCenter() {
               <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={1.8} />
               本对话文件
               {isLiveAiMode && conversationFileTreeItems.length > 0 ? (
-                <span className="rounded-md bg-[hsl(var(--wine-deep)/0.1)] px-1 text-[12px] font-medium tabular-nums text-[hsl(var(--wine-deep))]">
+                <span className="rounded-[10px] [corner-shape:squircle] bg-[hsl(var(--wine-deep)/0.1)] px-1 text-[13px] font-medium tabular-nums text-[hsl(var(--wine-deep))]">
                   {conversationFileTreeItems.length}
                 </span>
               ) : null}
             </button>
             {showHistoryMenu ? (
-              <div className="absolute right-0 top-9 z-20 w-[17rem] rounded-xl border border-border/70 bg-white/95 p-2 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.28)] backdrop-blur-md">
-                <p className="px-2 py-1 text-[13px] font-medium text-foreground">
-                  本对话文件（{conversationFileTreeItems.length}）
+              <div className="absolute right-0 top-9 z-20 w-[17rem] rounded-[10px] [corner-shape:squircle] border border-border/70 bg-white/95 p-1.5 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.28)] backdrop-blur-md">
+                <p className="px-2 py-1.5 text-[13px] font-medium text-foreground">
+                  本对话文件
+                  {conversationFileTreeItems.length > 0
+                    ? ` · ${conversationFileTreeItems.length}`
+                    : ""}
                 </p>
-                <p className="px-2 pb-2 text-[12px] leading-snug text-muted-foreground">
-                  仅含当前对话内上传的附件。
-                  {isLiveAiMode ? " 点右侧可删除。" : ""}
-                </p>
-                <div className="max-h-52 overflow-y-auto rounded-lg border border-border/60 bg-background/50 p-1.5">
+                <div className="max-h-52 overflow-y-auto">
                   {conversationFilesLoading && isLiveAiMode ? (
-                    <p className="flex items-center gap-1.5 px-1 py-1.5 text-[13px] text-muted-foreground">
+                    <p className="flex items-center gap-1.5 px-2 py-2 text-[13px] text-muted-foreground">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                      加载附件列表…
+                      加载中…
                     </p>
                   ) : conversationFileTreeItems.length === 0 ? (
-                    <p className="px-1 py-1.5 text-[13px] text-muted-foreground">
-                      暂无文件。请用输入栏回形针上传。
+                    <p className="px-2 py-2 text-[13px] text-muted-foreground">
+                      暂无文件
                     </p>
                   ) : (
                     <ul className="space-y-0.5">
@@ -3005,7 +3025,7 @@ export default function ConversationCenter() {
                         return (
                           <li
                             key={item.key}
-                            className="rounded-lg px-1.5 py-1"
+                            className="rounded-[10px] [corner-shape:squircle] px-1.5 py-1"
                           >
                             <div className="flex items-center gap-1.5 text-[13px] text-foreground">
                               <FileText className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--wine-deep)/0.8)]" />
@@ -3038,7 +3058,7 @@ export default function ConversationCenter() {
                               ) : null}
                             </div>
                             {item.meta ? (
-                              <p className="pl-5 text-[12px] text-muted-foreground">
+                              <p className="pl-5 text-[13px] text-muted-foreground">
                                 {item.meta}
                               </p>
                             ) : null}
@@ -3058,14 +3078,14 @@ export default function ConversationCenter() {
           className="flex-1 space-y-5 overflow-y-auto px-4 py-5 md:px-6"
         >
           <div className="flex justify-center">
-            <span className="text-[12px] text-muted-foreground">
+            <span className="text-[13px] text-muted-foreground">
               {chatDayLabel}
             </span>
           </div>
           {isLiveAiMode ? (
             <>
               {liveMessages.length === 0 ? (
-                <p className="pt-8 text-center text-[13px] text-muted-foreground">
+                <p className="pt-8 text-center text-[15px] text-muted-foreground">
                   还没有消息。输入问题，或从右侧引用源文件。
                 </p>
               ) : (
@@ -3153,7 +3173,7 @@ export default function ConversationCenter() {
                       {m.content.trim() ? (
                         <div
                           className={cn(
-                            "text-[13px]",
+                            "text-[15px]",
                             m.isStreaming && "max-h-80 overflow-y-auto pr-1",
                           )}
                         >
@@ -3172,7 +3192,7 @@ export default function ConversationCenter() {
                           <ChatThinkingBadge>
                             {displayJobProgressLabel?.trim() || "正在生成，请稍候…"}
                           </ChatThinkingBadge>
-                          <p className="text-[12px] text-muted-foreground">
+                          <p className="text-[13px] text-muted-foreground">
                             可保持本页打开；刷新后会自动继续等待结果。
                           </p>
                         </div>
@@ -3181,7 +3201,7 @@ export default function ConversationCenter() {
                         <>
                           <KnowledgeNetworkPreview html={knPrepared.html} />
                           {typeof m.projectKnowledgeNetworkVersion === "number" ? (
-                            <p className="mt-2 text-[12px] font-medium text-primary">
+                            <p className="mt-2 text-[13px] font-medium text-primary">
                               已同步至项目知识网络 v{m.projectKnowledgeNetworkVersion}
                             </p>
                           ) : null}
@@ -3189,7 +3209,7 @@ export default function ConversationCenter() {
                       ) : /知识网络交付失败|未检测到 curl PUT|知识网络未通过 API/i.test(
                           m.content,
                         ) ? (
-                        <p className="mt-3 rounded-lg border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-[13px] leading-relaxed text-amber-950">
+                        <p className="mt-3 rounded-[10px] [corner-shape:squircle] border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-[13px] leading-relaxed text-amber-950">
                           请到项目知识网络页更新章节。
                         </p>
                       ) : null}
@@ -3206,7 +3226,7 @@ export default function ConversationCenter() {
           ) : (
             <div className="flex min-h-[40vh] flex-col items-center justify-center px-6 py-16 text-center">
               <p className="text-[15px] font-semibold text-foreground">空白对话</p>
-              <p className="mt-2 max-w-md text-[13px] leading-relaxed text-muted-foreground">
+              <p className="mt-2 max-w-md text-[15px] leading-relaxed text-muted-foreground">
                 真 AI 未接入。配置线上对话接口后，可在此发送消息与上传资料。
               </p>
             </div>
@@ -3215,7 +3235,9 @@ export default function ConversationCenter() {
 
         <footer
           className="relative shrink-0 border-t border-border/40 bg-[rgba(255,252,248,0.94)] px-4 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md md:px-6"
+          onDragEnter={handleComposerDragEnter}
           onDragOver={handleComposerDragOver}
+          onDragLeave={handleComposerDragLeave}
           onDrop={handleComposerDrop}
         >
           <input
@@ -3232,18 +3254,18 @@ export default function ConversationCenter() {
             }}
           />
           {chatSyncError ? (
-            <div className="mb-2 rounded-xl border border-amber-200/90 bg-amber-50/90 px-3 py-2 text-[13px] leading-relaxed text-amber-900">
+            <div className="mb-2 rounded-[10px] [corner-shape:squircle] border border-amber-200/90 bg-amber-50/90 px-3 py-2 text-[13px] leading-relaxed text-amber-900">
               {chatSyncError}
             </div>
           ) : null}
           {liveError ? (
-            <div className="mb-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[13px] leading-relaxed text-rose-700">
+            <div className="mb-2 rounded-[10px] [corner-shape:squircle] border border-rose-200 bg-rose-50 px-3 py-2 text-[13px] leading-relaxed text-rose-700">
               {liveError}
             </div>
           ) : null}
 
           {quoteDraft ? (
-            <div className="mb-2 flex items-start gap-2 rounded-xl border border-[hsl(var(--wine-deep)/0.2)] bg-[hsl(var(--wine-deep)/0.05)] px-3 py-2">
+            <div className="mb-2 flex items-start gap-2 rounded-[10px] [corner-shape:squircle] border border-[hsl(var(--wine-deep)/0.2)] bg-[hsl(var(--wine-deep)/0.05)] px-3 py-2">
               <Quote
                 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[hsl(var(--wine-deep))]"
                 strokeWidth={2}
@@ -3254,7 +3276,7 @@ export default function ConversationCenter() {
                   {quoteDraft.from === "assistant" ? "助手" : "我"}
                   的消息
                 </div>
-                <p className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-muted-foreground">
+                <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-muted-foreground">
                   {quoteDraft.excerpt}
                 </p>
               </div>
@@ -3275,7 +3297,7 @@ export default function ConversationCenter() {
               {selectedFiles.map((f, idx) => (
                 <span
                   key={`${f.name}-${f.size}-${f.lastModified}`}
-                  className="inline-flex h-8 max-w-full items-center gap-1 rounded-lg border border-border/70 bg-white pl-2.5 pr-1 text-[13px] text-foreground"
+                  className="inline-flex h-8 max-w-full items-center gap-1 rounded-[10px] [corner-shape:squircle] border border-border/70 bg-white pl-2.5 pr-1 text-[13px] text-foreground"
                 >
                   <UploadSelectedFileIcon name={f.name} />
                   <span className="min-w-0 truncate">{f.name}</span>
@@ -3293,7 +3315,7 @@ export default function ConversationCenter() {
               {referencedSourceFiles.map((file) => (
                 <span
                   key={file.id}
-                  className="inline-flex h-8 max-w-full items-center gap-1 rounded-lg border border-[hsl(var(--wine-deep)/0.2)] bg-[hsl(var(--wine-deep)/0.06)] pl-2.5 pr-1 text-[13px] text-[hsl(var(--wine-deep))]"
+                  className="inline-flex h-8 max-w-full items-center gap-1 rounded-[10px] [corner-shape:squircle] border border-[hsl(var(--wine-deep)/0.2)] bg-[hsl(var(--wine-deep)/0.06)] pl-2.5 pr-1 text-[13px] text-[hsl(var(--wine-deep))]"
                 >
                   <FileText className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
                   <span className="min-w-0 truncate">{file.filename}</span>
@@ -3316,8 +3338,10 @@ export default function ConversationCenter() {
 
           <div
             className={cn(
-              "flex w-full min-w-0 items-end gap-0.5 rounded-xl border border-black/[0.08] bg-white py-1 pl-3 pr-1 focus-within:border-[hsl(var(--wine-deep)/0.28)] focus-within:ring-1 focus-within:ring-[hsl(var(--wine-deep)/0.16)]",
+              "relative flex w-full min-w-0 items-end gap-0.5 rounded-[10px] [corner-shape:squircle] border border-black/[0.08] bg-white py-1 pl-3 pr-1 focus-within:border-[hsl(var(--wine-deep)/0.28)] focus-within:ring-1 focus-within:ring-[hsl(var(--wine-deep)/0.16)]",
               isCurrentConversationSending && "opacity-70",
+              composerDragActive &&
+                "border-[hsl(var(--wine-deep)/0.45)] bg-[hsl(var(--wine-deep)/0.04)]",
             )}
             onDragOver={handleComposerDragOver}
             onDrop={handleComposerDrop}
@@ -3355,7 +3379,7 @@ export default function ConversationCenter() {
               aria-label="对话输入"
               placeholder="输入消息并发送"
               className={cn(
-                "max-h-[72px] min-h-8 min-w-0 flex-1 resize-none overflow-x-hidden overflow-y-auto border-0 bg-transparent px-0 py-1 text-[13px] leading-5 break-words whitespace-pre-wrap [overflow-wrap:anywhere] placeholder:text-muted-foreground/55 focus-visible:outline-none focus-visible:ring-0",
+                "max-h-[72px] min-h-8 min-w-0 flex-1 resize-none overflow-x-hidden overflow-y-auto border-0 bg-transparent px-0 py-1 text-[15px] leading-5 break-words whitespace-pre-wrap [overflow-wrap:anywhere] placeholder:text-muted-foreground/55 focus-visible:outline-none focus-visible:ring-0",
                 draftMessage ? "text-foreground" : "text-muted-foreground",
               )}
             />
@@ -3388,7 +3412,7 @@ export default function ConversationCenter() {
                 {showUploadPanel ? (
                   <div
                     role="menu"
-                    className="absolute bottom-full right-0 z-30 mb-1.5 w-44 rounded-xl border border-border/70 bg-white p-1 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.28)]"
+                    className="absolute bottom-full right-0 z-30 mb-1.5 w-44 rounded-[10px] [corner-shape:squircle] border border-border/70 bg-white p-1 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.28)]"
                   >
                     <button
                       type="button"
@@ -3397,7 +3421,7 @@ export default function ConversationCenter() {
                         setShowUploadPanel(false);
                         fileInputRef.current?.click();
                       }}
-                      className="flex h-8 w-full items-center rounded-lg px-2.5 text-left text-[13px] text-foreground hover:bg-[hsl(var(--wine)/0.08)]"
+                      className="flex h-8 w-full items-center rounded-[10px] [corner-shape:squircle] px-2.5 text-left text-[13px] text-foreground hover:bg-[hsl(var(--wine)/0.08)]"
                     >
                       选择文件
                     </button>
@@ -3408,10 +3432,13 @@ export default function ConversationCenter() {
                         setShowUploadPanel(false);
                         setSourcePanelOpen(true);
                       }}
-                      className="flex h-8 w-full items-center rounded-lg px-2.5 text-left text-[13px] text-foreground hover:bg-[hsl(var(--wine)/0.08)]"
+                      className="flex h-8 w-full items-center rounded-[10px] [corner-shape:squircle] px-2.5 text-left text-[13px] text-foreground hover:bg-[hsl(var(--wine)/0.08)]"
                     >
                       从源文件选择
                     </button>
+                    <p className="px-2.5 py-1.5 text-[13px] leading-snug text-muted-foreground">
+                      也可拖到输入框
+                    </p>
                   </div>
                 ) : null}
                 </div>
@@ -3468,6 +3495,11 @@ export default function ConversationCenter() {
                   )}
                 </button>
             </div>
+            {composerDragActive ? (
+              <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[10px] [corner-shape:squircle] bg-white/92 text-[15px] font-medium text-[hsl(var(--wine-deep))]">
+                松开以添加
+              </div>
+            ) : null}
           </div>
         </footer>
       </div>

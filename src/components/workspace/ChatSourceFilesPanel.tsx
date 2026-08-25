@@ -63,7 +63,7 @@ function SourceTreeNodes({
                 type="button"
                 onClick={() => onToggle(node.path)}
                 style={{ paddingLeft: 8 + depth * 12 }}
-                className="flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-[13px] text-muted-foreground hover:bg-white/80 hover:text-foreground"
+                className="flex w-full items-center gap-1.5 rounded-[10px] [corner-shape:squircle] py-1 pr-2 text-left text-[15px] text-muted-foreground hover:bg-white/80 hover:text-foreground"
               >
                 {isOpen ? (
                   <ChevronDown className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
@@ -105,7 +105,7 @@ function SourceTreeNodes({
               onClick={() => onPickFile(node.file)}
               style={{ paddingLeft: 8 + depth * 12 }}
               className={cn(
-                "flex w-full cursor-grab items-center gap-1.5 rounded-md py-1 pr-2 text-left text-[13px] leading-5 active:cursor-grabbing",
+                "flex w-full cursor-grab items-center gap-1.5 rounded-[10px] [corner-shape:squircle] py-1 pr-2 text-left text-[15px] leading-5 active:cursor-grabbing",
                 active
                   ? "bg-[hsl(var(--wine-deep)/0.1)] font-medium text-[hsl(var(--wine-deep))]"
                   : "text-foreground hover:bg-white/80",
@@ -143,23 +143,23 @@ export function ChatSourceFilesPanel({
   return (
     <aside className="flex h-full min-h-0 w-full shrink-0 flex-col border-l border-[rgba(78,66,57,0.1)] bg-[rgba(248,243,238,0.92)] backdrop-blur-md md:w-[16.5rem]">
       <div className="flex h-[3.25rem] items-center gap-2 border-b border-[rgba(78,66,57,0.1)] px-3">
-        <p className="min-w-0 flex-1 truncate text-[15px] font-semibold tracking-tight text-[#1F2423]">
+        <p className="min-w-0 flex-1 truncate text-[17px] font-semibold tracking-tight text-[#1F2423]">
           项目源文件
         </p>
         <button
           type="button"
           title="关闭"
           onClick={onClose}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-[transform,background-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))] active:scale-[0.97]"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] [corner-shape:squircle] text-muted-foreground transition-[transform,background-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))] active:scale-[0.97]"
         >
           <X className="h-3.5 w-3.5" strokeWidth={1.8} />
         </button>
       </div>
       <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
         {loading ? (
-          <p className="px-2 py-3 text-[13px] text-muted-foreground">加载源文件…</p>
+          <p className="px-2 py-3 text-[15px] text-muted-foreground">加载源文件…</p>
         ) : visible.length === 0 ? (
-          <p className="px-2 py-3 text-[13px] leading-relaxed text-muted-foreground">
+          <p className="px-2 py-3 text-[15px] leading-relaxed text-muted-foreground">
             还没有项目源文件。可用回形针上传，或到源文件页添加。
           </p>
         ) : (
@@ -181,7 +181,7 @@ export function ChatSourceFilesPanel({
         )}
       </nav>
       <div className="shrink-0 border-t border-[rgba(78,66,57,0.1)] px-3 py-2.5">
-        <p className="mb-1.5 text-[12px] leading-snug text-muted-foreground">
+        <p className="mb-1.5 text-[13px] leading-snug text-muted-foreground">
           拖到输入框或点击即可引用
         </p>
         <Link

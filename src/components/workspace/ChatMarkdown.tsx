@@ -76,7 +76,7 @@ function TableCellContent({ children, userVariant }: { children: React.ReactNode
     return (
       <span
         className={cn(
-          "inline-flex max-w-full flex-wrap items-start gap-1 rounded-md border px-1.5 py-0.5 text-[12px] font-medium leading-snug",
+          "inline-flex max-w-full flex-wrap items-start gap-1 rounded-[10px] [corner-shape:squircle] border px-1.5 py-0.5 text-[13px] font-medium leading-snug",
           userVariant ? "border-white/20 bg-white/10 text-slate-100" : tone,
         )}
       >
@@ -165,7 +165,7 @@ function CitationMarker({
         ref={tipRef}
         role="tooltip"
         className={cn(
-          "pointer-events-none absolute z-30 w-max max-w-[min(22rem,calc(100vw-16px))] rounded-md border px-2 py-1.5 text-[12px] leading-snug shadow-lg",
+          "pointer-events-none absolute z-30 w-max max-w-[min(22rem,calc(100vw-16px))] rounded-[10px] [corner-shape:squircle] border px-2 py-1.5 text-[13px] leading-snug shadow-lg",
           "transition-[opacity,transform] duration-75 ease-out",
           placementX === "center" && "left-1/2 -translate-x-1/2",
           placementX === "left" && "left-0 translate-x-0",
@@ -223,7 +223,7 @@ export function ChatMarkdown({ text, variant }: ChatMarkdownProps) {
     h1: ({ children }) => (
       <h1
         className={cn(
-          "mb-2 mt-1 text-base font-bold",
+          "mb-2 mt-1 text-[17px] font-semibold",
           u ? "text-wine-deep-foreground" : "text-foreground",
         )}
       >
@@ -233,7 +233,7 @@ export function ChatMarkdown({ text, variant }: ChatMarkdownProps) {
     h2: ({ children }) => (
       <h2
         className={cn(
-          "mb-3 mt-5 border-b pb-2 text-[15px] font-bold tracking-tight first:mt-0",
+          "mb-3 mt-5 border-b pb-2 text-[17px] font-semibold tracking-tight first:mt-0",
           u ? "border-wine-deep-foreground/20 text-wine-deep-foreground" : "border-border/70 text-foreground",
         )}
       >
@@ -243,7 +243,7 @@ export function ChatMarkdown({ text, variant }: ChatMarkdownProps) {
     h3: ({ children }) => (
       <h3
         className={cn(
-          "mb-1.5 mt-1 text-[13px] font-semibold",
+          "mb-1.5 mt-1 text-[15px] font-semibold",
           u ? "text-wine-deep-foreground" : "text-foreground",
         )}
       >
@@ -253,7 +253,7 @@ export function ChatMarkdown({ text, variant }: ChatMarkdownProps) {
     h4: ({ children }) => (
       <h4
         className={cn(
-          "mb-1.5 mt-1 text-[13px] font-semibold",
+          "mb-1.5 mt-1 text-[15px] font-semibold",
           u ? "text-wine-deep-foreground" : "text-foreground",
         )}
       >
@@ -263,7 +263,7 @@ export function ChatMarkdown({ text, variant }: ChatMarkdownProps) {
     blockquote: ({ children }) => (
       <blockquote
         className={cn(
-          "my-3 rounded-lg border px-3 py-2.5 text-[13px] leading-relaxed",
+          "my-3 rounded-[10px] [corner-shape:squircle] border px-3 py-2.5 text-[15px] leading-relaxed",
           u
             ? "border-wine-deep-foreground/20 bg-black/10 text-wine-deep-foreground/90"
             : "border-primary/15 bg-primary/[0.04] text-foreground/85",
@@ -339,7 +339,7 @@ export function ChatMarkdown({ text, variant }: ChatMarkdownProps) {
           u ? "border-white/15" : "border-border/60 bg-white",
         )}
       >
-        <table className={cn("w-full min-w-[640px] border-collapse text-left text-[13px]", u && "text-slate-100")}>
+        <table className={cn("w-full min-w-[640px] border-collapse text-left text-[15px]", u && "text-slate-100")}>
           {children}
         </table>
       </div>
@@ -350,7 +350,7 @@ export function ChatMarkdown({ text, variant }: ChatMarkdownProps) {
     th: ({ children }) => (
       <th
         className={cn(
-          "whitespace-nowrap px-3 py-2.5 text-left text-[12px] font-semibold",
+          "whitespace-nowrap px-3 py-2.5 text-left text-[13px] font-semibold",
           u ? "text-slate-50" : "text-foreground/80",
         )}
       >
@@ -382,7 +382,7 @@ export function ChatMarkdown({ text, variant }: ChatMarkdownProps) {
   };
 
   if (!text.trim()) {
-    return <span className="text-[13px] text-muted-foreground">&nbsp;</span>;
+    return <span className="text-[15px] text-muted-foreground">&nbsp;</span>;
   }
 
   const normalized = normalizeMarkdownTables(normalizeLooseMarkdownBold(text));
@@ -390,7 +390,7 @@ export function ChatMarkdown({ text, variant }: ChatMarkdownProps) {
   return (
     <div
       className={cn(
-        "chat-markdown min-w-0 max-w-full break-words text-[13px] leading-relaxed",
+        "chat-markdown min-w-0 max-w-full break-words text-[15px] leading-relaxed",
         u
           ? "text-wine-deep-foreground selection:bg-[hsl(var(--wine-muted))] selection:text-[hsl(var(--warm-charcoal))]"
           : "text-foreground selection:bg-[hsl(var(--wine-deep)/0.14)] selection:text-foreground",
