@@ -1,7 +1,8 @@
 import type { AppDatabase } from "./app-database";
 import {
-  bumpChapterVersion,
+  nextChapterVersion,
   normalizeStoredChapterVersion,
+  researchChaptersComplete,
   type ChapterVersionBump,
 } from "./chapter-version";
 import { repairStoredChapterHtml } from "./chapter-revise-parse";
@@ -666,7 +667,7 @@ export async function publishDraftRunToLive(
     publishedBy: string;
     /** 仅发布这些章节；省略则发布全部 status=ok 的条目 */
     sectionIds?: string[] | null;
-    /** major=主版本；minor=次版本（默认）；首次发布恒为 1.0 */
+    /** patch=补丁；minor=次版本（默认）；major=主版本。未齐章时忽略，走 0.x / 1.0 */
     bump?: ChapterVersionBump;
   },
 ): Promise<{
@@ -737,7 +738,17 @@ export async function publishDraftRunToLive(
     throw new Error("没有可发布的章节");
   }
 
-  const newVersion = bumpChapterVersion(currentVersion, input.bump ?? "minor");
+  const liveAfter = await listProjectKnowledgeChapterHtml(
+    db,
+    input.run.projectId,
+  );
+  const allResearchComplete = researchChaptersComplete(
+    new Map(liveAfter.map((c) => [c.sectionId, c.html])),
+  );
+  const newVersion = nextChapterVersion(currentVersion, {
+    bump: input.bump ?? "minor",
+    allResearchComplete,
+  });
   const now = nowIso();
   await db
     .prepare(

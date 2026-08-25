@@ -181,9 +181,8 @@ function ProjectCard({
   const canManage = canUserManageProjectMetadata(userId, project);
   const roleLabel = isMember ? roleFootnote(role) : "未加入";
   const previewText =
-    role === "guest" || isIssuerRole(role)
-      ? project.guestSummary || "请进入协作工作台查看待确认事项与可上传资料。"
-      : project.summary;
+    project.summary.trim() ||
+    "请进入协作工作台查看待确认事项与可上传资料。";
   const owner = ownerDisplayName(project.createdBy);
   const cover = coverToneFor(project);
   const mark = (() => {

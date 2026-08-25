@@ -50,6 +50,7 @@ import {
   resolveChatReturnPath,
 } from "@/workspace/chat-return";
 import type { WorkspaceProject } from "@/workspace/projects";
+import { formatChapterVersionLabel } from "@/lib/chapter-version";
 import {
   canEnterChat,
   getProjectRole,
@@ -259,7 +260,9 @@ function ProjectWorkspaceLayout() {
     if (published == null) return;
     setKnowledgeRefreshKey((k) => k + 1);
     setOverviewRefreshKey((k) => k + 1);
-    setAllChaptersNotice(`已发布为正式版 v${published}`);
+    setAllChaptersNotice(
+      `已发布为正式版 ${formatChapterVersionLabel(published)}`,
+    );
     const fromConversation = fromConversationInState(locationState);
     // 清掉发布标记，避免重复触发刷新；保留从对话进来的返回地址
     navigate(pathname, {

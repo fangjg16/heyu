@@ -10,9 +10,9 @@ export type WorkspaceProject = {
   name: string;
   category: string;
   phase: ProjectPhase;
-  /** 总览卡片摘要（含可量化信息，供非 Guest 角色） */
+  /** 总览卡片与广场简介（未加入者也看这一段） */
   summary: string;
-  /** Guest 在卡片上仅见该句（不含具体机构/金额） */
+  /** 兼容旧字段，现与 summary 同步 */
   guestSummary: string;
   /** 目录可见性：partial=全开放；invite=仅成员可见 */
   openness?: ProjectOpenness;

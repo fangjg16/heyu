@@ -202,7 +202,7 @@ export function ProjectDetailDrawer({
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 pb-6 md:px-6">
           <>
             <p className="text-sm leading-relaxed text-foreground">
-              {detailTier === "guest" ? project.guestSummary : project.summary}
+              {project.summary}
             </p>
             <dl className="mt-5 space-y-2.5 rounded-2xl border border-border/70 bg-muted/30 p-4">
               <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">

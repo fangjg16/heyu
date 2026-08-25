@@ -1011,7 +1011,7 @@ export async function handlePublishChapterDraftRun(
   }
 
   let sectionIds: string[] | null = null;
-  let bump: "major" | "minor" = "minor";
+  let bump: "major" | "minor" | "patch" = "minor";
   try {
     const body = (await request.json().catch(() => null)) as {
       sectionIds?: unknown;
@@ -1024,7 +1024,11 @@ export async function handlePublishChapterDraftRun(
         .filter(Boolean);
       if (sectionIds.length === 0) sectionIds = null;
     }
-    if (body?.bump === "major" || body?.bump === "minor") {
+    if (
+      body?.bump === "major" ||
+      body?.bump === "minor" ||
+      body?.bump === "patch"
+    ) {
       bump = body.bump;
     }
   } catch {

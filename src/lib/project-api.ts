@@ -1536,7 +1536,7 @@ export async function publishChapterDraftRun(
   projectId: string,
   runId: string,
   userId: string,
-  options?: { sectionIds?: string[]; bump?: "major" | "minor" },
+  options?: { sectionIds?: string[]; bump?: "major" | "minor" | "patch" },
 ): Promise<{
   ok: true;
   newVersion: number;

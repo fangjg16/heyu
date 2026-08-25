@@ -144,7 +144,7 @@ export async function handleCreateProject(
   const summary =
     detail ||
     `${name} 已创建，可上传资料包并在对话中使用 Master Agent 分析。`;
-  const guestSummary = `${name} 项目在管推进中，详情按权限展示。`;
+  const guestSummary = summary;
   const createdBy = authUserId;
 
   try {
@@ -242,7 +242,6 @@ export async function handleUpdateProject(
     const project = await updateProject(env, projectId, {
       name: body.name?.trim(),
       summary: detail !== undefined ? detail || existing.summary : undefined,
-      guestSummary: body.guestSummary?.trim(),
       category: body.category?.trim(),
       phase: body.phase ? normalizeProjectPhase(body.phase) : undefined,
       openness:

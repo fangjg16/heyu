@@ -21,6 +21,7 @@ import {
   fetchChapterDraftRun,
   fetchProjectKnowledgeChapter,
   generateChapterDraftSection,
+  listProjectKnowledgeChapters,
   publishChapterDraftRun,
   reviseChapterDraftSection,
   saveChapterDraftSection,
@@ -29,6 +30,9 @@ import {
 import {
   bumpChapterVersion,
   formatChapterVersionLabel,
+  isPreReleaseChapterVersion,
+  nextChapterVersion,
+  researchChaptersCompleteFromFlags,
   type ChapterVersionBump,
 } from "@/lib/chapter-version";
 import {
@@ -164,6 +168,9 @@ export default function KnowledgeChapterDraftReviewPage() {
   const [busy, setBusy] = useState<"publish" | "discard" | null>(null);
   const [confirm, setConfirm] = useState<ConfirmMode>(null);
   const [publishBump, setPublishBump] = useState<ChapterVersionBump>("minor");
+  const [liveHasHtml, setLiveHasHtml] = useState<Record<string, boolean>>(
+    {},
+  );
   const [chapterBusy, setChapterBusy] = useState<string | null>(null);
   const [hasGraphDraft, setHasGraphDraft] = useState(false);
   const [graphDraftRaw, setGraphDraftRaw] = useState<string | null>(null);
@@ -296,6 +303,14 @@ export default function KnowledgeChapterDraftReviewPage() {
         setCurrentVersion(draft.currentVersion);
         setBaseVersion(draft.run.baseVersion);
         setRunStatus(draft.run.status);
+        try {
+          const listed = await listProjectKnowledgeChapters(projectId, userId);
+          const flags: Record<string, boolean> = {};
+          for (const c of listed.chapters) flags[c.sectionId] = c.hasHtml;
+          setLiveHasHtml(flags);
+        } catch {
+          setLiveHasHtml({});
+        }
 
         const reviewIdSet = new Set(REVIEWABLE_CHAPTERS.map((c) => c.id));
         const runSectionIds = draft.items
@@ -414,10 +429,24 @@ export default function KnowledgeChapterDraftReviewPage() {
   const changedRows = rows.filter((r) => isPublishableKind(r.kind));
   const changedCount = changedRows.length;
   const failedCount = rows.filter((r) => r.kind === "failed").length;
-  const nextVersion = bumpChapterVersion(currentVersion, publishBump);
+  const previewPublishIds =
+    confirm?.type === "one"
+      ? [confirm.sectionId]
+      : changedRows.map((r) => r.id);
+  const flagsAfterPublish = { ...liveHasHtml };
+  for (const id of previewPublishIds) {
+    const row = rows.find((r) => r.id === id);
+    if (row?.draftHtml?.trim()) flagsAfterPublish[id] = true;
+  }
+  const nextVersion = nextChapterVersion(currentVersion, {
+    bump: publishBump,
+    allResearchComplete:
+      researchChaptersCompleteFromFlags(flagsAfterPublish),
+  });
   const currentVersionLabel = formatChapterVersionLabel(currentVersion);
   const baseVersionLabel = formatChapterVersionLabel(baseVersion);
   const nextVersionLabel = formatChapterVersionLabel(nextVersion);
+  const preRelease = isPreReleaseChapterVersion(currentVersion);
   const addableChapters = REVIEWABLE_CHAPTERS.filter(
     (c) => !rows.some((r) => r.id === c.id),
   );
@@ -649,18 +678,16 @@ export default function KnowledgeChapterDraftReviewPage() {
     if (confirm.type === "one") {
       return {
         title: `确认发布「${confirm.label}」为 ${nextVersionLabel}？`,
-        body:
-          currentVersion <= 0
-            ? `首次发布将写入正式知识网络为 ${nextVersionLabel}。其他章节不受影响，可继续审核。`
-            : `仅将本章草案写入正式知识网络（${nextVersionLabel}），并把当前正式内容归档为 ${currentVersionLabel}。其他章节不受影响，可继续审核。`,
+        body: preRelease
+          ? `写入正式知识网络为 ${nextVersionLabel}。13 个研究章节未齐时为 0.x，第一次齐全后升为 1.0。其他章节不受影响，可继续审核。`
+          : `仅将本章草案写入正式知识网络（${nextVersionLabel}），并把当前正式内容归档为 ${currentVersionLabel}。其他章节不受影响，可继续审核。`,
       };
     }
     return {
       title: `确认发布全部 ${changedCount} 处变更为 ${nextVersionLabel}？`,
-      body:
-        currentVersion <= 0
-          ? `首次发布将写入正式知识网络为 ${nextVersionLabel}。失败与未变章节不会覆盖。`
-          : `将把所有「新增/变更」章节写入正式知识网络（${nextVersionLabel}），并把当前正式内容归档为 ${currentVersionLabel}。失败与未变章节不会覆盖。`,
+      body: preRelease
+        ? `写入正式知识网络为 ${nextVersionLabel}。13 个研究章节未齐时为 0.x，第一次齐全后升为 1.0。失败与未变章节不会覆盖。`
+        : `将把所有「新增/变更」章节写入正式知识网络（${nextVersionLabel}），并把当前正式内容归档为 ${currentVersionLabel}。失败与未变章节不会覆盖。`,
     };
   })();
 
@@ -1263,6 +1290,37 @@ export default function KnowledgeChapterDraftReviewPage() {
                     <div className="text-[12px] font-semibold text-[#59625F]">
                       版本递增
                     </div>
+                    {preRelease ? (
+                      <p className="rounded-lg border border-[rgba(78,66,57,0.1)] px-2.5 py-2 text-[12px] leading-relaxed text-[#59625F]">
+                        13 个研究章节尚未第一次全部发布时记为 0.x；齐全后升为
+                        1.0。本次将发布为{" "}
+                        <span className="font-medium text-[#1F2423]">
+                          {nextVersionLabel}
+                        </span>
+                        。
+                      </p>
+                    ) : (
+                      <>
+                    <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-[rgba(78,66,57,0.1)] px-2.5 py-2 text-[12px]">
+                      <input
+                        type="radio"
+                        name="publish-bump"
+                        className="mt-0.5"
+                        checked={publishBump === "patch"}
+                        onChange={() => setPublishBump("patch")}
+                      />
+                      <span>
+                        <span className="font-medium text-[#1F2423]">
+                          补丁
+                        </span>
+                        <span className="mt-0.5 block text-[11px] text-[#59625F]">
+                          局部修正 →{" "}
+                          {formatChapterVersionLabel(
+                            bumpChapterVersion(currentVersion, "patch"),
+                          )}
+                        </span>
+                      </span>
+                    </label>
                     <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-[rgba(78,66,57,0.1)] px-2.5 py-2 text-[12px]">
                       <input
                         type="radio"
@@ -1276,7 +1334,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                           次版本
                         </span>
                         <span className="mt-0.5 block text-[11px] text-[#59625F]">
-                          小改 →{" "}
+                          一批小改 →{" "}
                           {formatChapterVersionLabel(
                             bumpChapterVersion(currentVersion, "minor"),
                           )}
@@ -1296,13 +1354,15 @@ export default function KnowledgeChapterDraftReviewPage() {
                           主版本
                         </span>
                         <span className="mt-0.5 block text-[11px] text-[#59625F]">
-                          大改 →{" "}
+                          结构大改 →{" "}
                           {formatChapterVersionLabel(
                             bumpChapterVersion(currentVersion, "major"),
                           )}
                         </span>
                       </span>
                     </label>
+                      </>
+                    )}
                   </div>
 
                   {hasGraphDraft && selected?.id === "project-overview" ? (

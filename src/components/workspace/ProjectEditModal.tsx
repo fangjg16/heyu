@@ -68,7 +68,6 @@ export function ProjectEditModal({
   const [openness, setOpenness] = useState<ProjectOpenness>(
     normalizeOpenness(project.openness),
   );
-  const [guestSummary, setGuestSummary] = useState(project.guestSummary);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -86,7 +85,6 @@ export function ProjectEditModal({
     );
     setPhase(project.phase);
     setOpenness(normalizeOpenness(project.openness));
-    setGuestSummary(project.guestSummary);
     setError(null);
   }, [open, project]);
 
@@ -106,7 +104,6 @@ export function ProjectEditModal({
       category: formatIndustryCategory(industryTheme, industrySector),
       phase,
       openness,
-      guestSummary: guestSummary.trim(),
       userId,
     })
       .then((updated) => {
@@ -160,18 +157,6 @@ export function ProjectEditModal({
               rows={4}
               className="mt-1.5 w-full resize-y rounded-lg border border-border/70 px-3 py-2 text-sm"
             />
-          </label>
-          <label className="block text-sm">
-            <span className="font-medium text-foreground">未加入可见摘要</span>
-            <textarea
-              value={guestSummary}
-              onChange={(e) => setGuestSummary(e.target.value)}
-              rows={2}
-              className="mt-1.5 w-full resize-y rounded-lg border border-border/70 px-3 py-2 text-sm"
-            />
-            <span className="mt-1 block text-xs text-muted-foreground">
-              尚未加入本项目的人在广场卡片上看到的简介。
-            </span>
           </label>
           <div className="block text-sm">
             <IndustryCategoryFields

@@ -178,7 +178,7 @@ export async function createProject(
   const t = nowIso();
   const id = buildProjectId(input.name);
   const guestSummary =
-    (input.guestSummary ?? "").trim() ||
+    (input.guestSummary ?? "").trim() || input.summary.trim() ||
     "项目在管推进中，详情按权限展示。";
   const openness =
     input.openness !== undefined && String(input.openness).trim() !== ""
@@ -259,7 +259,7 @@ export async function updateProject(
   if (!name) throw new Error("项目名称不能为空");
 
   const summary = (input.summary ?? existing.summary).trim();
-  const guestSummary = (input.guestSummary ?? existing.guestSummary).trim();
+  const guestSummary = summary;
   const category = ((input.category ?? existing.category).trim() || "未分类");
   const phase = normalizeProjectPhase(input.phase ?? existing.phase);
   const openness =
