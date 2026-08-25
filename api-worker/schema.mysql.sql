@@ -257,7 +257,7 @@ CREATE TABLE IF NOT EXISTS project_collab_items (
   due_at VARCHAR(32) NULL COMMENT '截止日期 ISO',
   investor_note TEXT NULL COMMENT '投资人对外补充说明',
   file_reqs_json LONGTEXT NOT NULL COMMENT '待补充文件清单 JSON',
-  status VARCHAR(32) NOT NULL DEFAULT 'pending_reply' COMMENT 'pending_reply|saved|submitted|needs_more|confirmed',
+  status VARCHAR(32) NOT NULL DEFAULT 'pending_reply' COMMENT 'draft|pending_reply|saved|submitted|needs_more|confirmed',
   published_at VARCHAR(32) NOT NULL,
   published_by VARCHAR(128) NOT NULL,
   assigned_to VARCHAR(128) NULL COMMENT '接收方协作账号 user id；空=项目内全部协作方',

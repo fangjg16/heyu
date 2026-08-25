@@ -3,6 +3,7 @@ import type { AppDatabase } from "./app-database";
 export type CollabReplyMode = "text" | "file" | "both";
 export type CollabPriority = "P1" | "P2" | "P3";
 export type CollabItemStatus =
+  | "draft"
   | "pending_reply"
   | "saved"
   | "submitted"
@@ -103,6 +104,7 @@ export function parsePriority(raw: string | null | undefined): CollabPriority {
 
 export function parseStatus(raw: string | null | undefined): CollabItemStatus {
   if (
+    raw === "draft" ||
     raw === "pending_reply" ||
     raw === "saved" ||
     raw === "submitted" ||
@@ -112,6 +114,11 @@ export function parseStatus(raw: string | null | undefined): CollabItemStatus {
     return raw;
   }
   return "pending_reply";
+}
+
+/** 已发给协作方（草稿对协作方不可见） */
+export function isCollabSentToIssuer(status: CollabItemStatus): boolean {
+  return status !== "draft";
 }
 
 export function rowToPublic(
@@ -181,16 +188,18 @@ export async function insertCollabItem(
     fileReqs: CollabFileReq[];
     publishedBy: string;
     assignedTo?: string | null;
+    status?: CollabItemStatus;
   },
 ): Promise<CollabItemRow> {
   const now = new Date().toISOString();
+  const status = input.status ?? "pending_reply";
   try {
     await env.DB.prepare(
       `INSERT INTO project_collab_items (
          id, project_id, source_question_text, title, body, reply_mode, priority, due_at,
          investor_note, file_reqs_json, status, published_at, published_by, assigned_to,
          created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_reply', ?, ?, ?, ?, ?)`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
       .bind(
         input.id,
@@ -203,6 +212,7 @@ export async function insertCollabItem(
         input.dueAt,
         input.investorNote,
         JSON.stringify(input.fileReqs),
+        status,
         now,
         input.publishedBy,
         input.assignedTo ?? null,
@@ -217,7 +227,7 @@ export async function insertCollabItem(
          id, project_id, source_question_text, title, body, reply_mode, priority, due_at,
          investor_note, file_reqs_json, status, published_at, published_by,
          created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_reply', ?, ?, ?, ?)`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
       .bind(
         input.id,
@@ -230,6 +240,7 @@ export async function insertCollabItem(
         input.dueAt,
         input.investorNote,
         JSON.stringify(input.fileReqs),
+        status,
         now,
         input.publishedBy,
         now,
@@ -277,7 +288,8 @@ export async function listCollabItems(
          WHEN 'saved' THEN 2
          WHEN 'submitted' THEN 3
          WHEN 'confirmed' THEN 4
-         ELSE 5
+         WHEN 'draft' THEN 5
+         ELSE 6
        END,
        COALESCE(due_at, '9999') ASC,
        published_at DESC`;
@@ -333,6 +345,14 @@ export async function updateCollabItem(
   itemId: string,
   patch: Partial<{
     status: CollabItemStatus;
+    title: string;
+    body: string;
+    sourceQuestionText: string;
+    priority: CollabPriority;
+    dueAt: string | null;
+    assignedTo: string | null;
+    investorNote: string | null;
+    publishedAt: string;
     replyText: string | null;
     replySavedAt: string | null;
     replySubmittedAt: string | null;
@@ -345,44 +365,51 @@ export async function updateCollabItem(
   const now = new Date().toISOString();
   const sets: string[] = ["updated_at = ?"];
   const binds: unknown[] = [now];
-  if (patch.status !== undefined) {
-    sets.push("status = ?");
-    binds.push(patch.status);
+  const apply = (col: string, value: unknown) => {
+    sets.push(`${col} = ?`);
+    binds.push(value);
+  };
+  if (patch.status !== undefined) apply("status", patch.status);
+  if (patch.title !== undefined) apply("title", patch.title);
+  if (patch.body !== undefined) apply("body", patch.body);
+  if (patch.sourceQuestionText !== undefined) {
+    apply("source_question_text", patch.sourceQuestionText);
   }
-  if (patch.replyText !== undefined) {
-    sets.push("reply_text = ?");
-    binds.push(patch.replyText);
-  }
-  if (patch.replySavedAt !== undefined) {
-    sets.push("reply_saved_at = ?");
-    binds.push(patch.replySavedAt);
-  }
+  if (patch.priority !== undefined) apply("priority", patch.priority);
+  if (patch.dueAt !== undefined) apply("due_at", patch.dueAt);
+  if (patch.investorNote !== undefined) apply("investor_note", patch.investorNote);
+  if (patch.publishedAt !== undefined) apply("published_at", patch.publishedAt);
+  if (patch.replyText !== undefined) apply("reply_text", patch.replyText);
+  if (patch.replySavedAt !== undefined) apply("reply_saved_at", patch.replySavedAt);
   if (patch.replySubmittedAt !== undefined) {
-    sets.push("reply_submitted_at = ?");
-    binds.push(patch.replySubmittedAt);
+    apply("reply_submitted_at", patch.replySubmittedAt);
   }
-  if (patch.replyBy !== undefined) {
-    sets.push("reply_by = ?");
-    binds.push(patch.replyBy);
+  if (patch.replyBy !== undefined) apply("reply_by", patch.replyBy);
+  if (patch.reviewNote !== undefined) apply("review_note", patch.reviewNote);
+  if (patch.confirmedAt !== undefined) apply("confirmed_at", patch.confirmedAt);
+  if (patch.confirmedBy !== undefined) apply("confirmed_by", patch.confirmedBy);
+
+  const runUpdate = async (includeAssigned: boolean) => {
+    const nextSets = [...sets];
+    const nextBinds = [...binds];
+    if (includeAssigned && patch.assignedTo !== undefined) {
+      nextSets.push("assigned_to = ?");
+      nextBinds.push(patch.assignedTo);
+    }
+    nextBinds.push(itemId, projectId);
+    await env.DB.prepare(
+      `UPDATE project_collab_items SET ${nextSets.join(", ")} WHERE id = ? AND project_id = ?`,
+    )
+      .bind(...nextBinds)
+      .run();
+  };
+
+  try {
+    await runUpdate(true);
+  } catch (e) {
+    if (!isMissingAssignedTo(e) || patch.assignedTo === undefined) throw e;
+    await runUpdate(false);
   }
-  if (patch.reviewNote !== undefined) {
-    sets.push("review_note = ?");
-    binds.push(patch.reviewNote);
-  }
-  if (patch.confirmedAt !== undefined) {
-    sets.push("confirmed_at = ?");
-    binds.push(patch.confirmedAt);
-  }
-  if (patch.confirmedBy !== undefined) {
-    sets.push("confirmed_by = ?");
-    binds.push(patch.confirmedBy);
-  }
-  binds.push(itemId, projectId);
-  await env.DB.prepare(
-    `UPDATE project_collab_items SET ${sets.join(", ")} WHERE id = ? AND project_id = ?`,
-  )
-    .bind(...binds)
-    .run();
   return getCollabItem(env, projectId, itemId);
 }
 

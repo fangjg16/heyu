@@ -253,8 +253,9 @@ export default function HomeDashboard() {
       const { title, detail } = extractOpenQuestionTitle(item.text);
       const published = (publishedByProject[item.projectId] ?? []).find(
         (it) =>
-          it.sourceQuestionText === item.text ||
-          it.title === item.text.slice(0, 48),
+          it.status !== "draft" &&
+          (it.sourceQuestionText === item.text ||
+            it.title === item.text.slice(0, 48)),
       );
       return {
         id: item.id,

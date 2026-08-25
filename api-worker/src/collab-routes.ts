@@ -9,9 +9,13 @@ import {
   parseReplyMode,
   parsePriority,
   parseFileReqs,
+  parseStatus,
   summarizeCollabItems,
+  isCollabSentToIssuer,
   type CollabFileReq,
   type CollabItemPublic,
+  type CollabItemRow,
+  type CollabItemStatus,
 } from "./collab-db";
 import { appendConfirmedAnswerToQuestionsHtml, buildConfirmedWritebackBlock } from "./collab-writeback";
 import { getProjectById, listProjects } from "./projects-db";
@@ -59,9 +63,10 @@ async function listIssuerAccounts(
 }
 
 function visibleToIssuer(
-  row: { assigned_to?: string | null },
+  row: { assigned_to?: string | null; status?: string | null },
   userId: string,
 ): boolean {
+  if (parseStatus(row.status) === "draft") return false;
   const assigned = String(row.assigned_to ?? "").trim();
   return !assigned || assigned === userId;
 }
@@ -76,9 +81,10 @@ function json(data: unknown, status = 200): Response {
 function nextSuggestions(items: CollabItemPublic[]): string[] {
   const open = items.filter(
     (i) =>
-      i.status === "pending_reply" ||
-      i.status === "saved" ||
-      i.status === "needs_more",
+      isCollabSentToIssuer(i.status) &&
+      (i.status === "pending_reply" ||
+        i.status === "saved" ||
+        i.status === "needs_more"),
   );
   const rank = (p: string) => (p === "P1" ? 0 : p === "P2" ? 1 : 2);
   open.sort((a, b) => {
@@ -202,7 +208,9 @@ export async function handleGetCollabOverview(
     latestReplyAt: latest?.replySubmittedAt ?? latest?.replySavedAt ?? null,
     nearestDueAt:
       items
-        .filter((i) => i.dueAt && i.status !== "confirmed")
+        .filter(
+          (i) => i.dueAt && i.status !== "confirmed" && i.status !== "draft",
+        )
         .map((i) => i.dueAt!)
         .sort()[0] ?? null,
     itemCount: items.length,
@@ -291,10 +299,8 @@ export async function handlePublishCollabItem(
       return json({ error: "请选择该项目的协作方账号" }, 400);
     }
   }
-  const id = crypto.randomUUID();
-  const row = await insertCollabItem(env, {
-    id,
-    projectId,
+  const asDraft = String(body.status ?? "").trim() === "draft";
+  const payload = {
     sourceQuestionText: sourceQuestionText || title,
     title,
     body: content,
@@ -306,13 +312,159 @@ export async function handlePublishCollabItem(
       ...f,
       id: f.id || crypto.randomUUID(),
     })) as CollabFileReq[],
-    publishedBy: userId,
     assignedTo,
+  };
+
+  const existing = sourceQuestionText
+    ? (await listCollabItems(env, projectId)).find(
+        (r) => r.source_question_text === sourceQuestionText,
+      )
+    : undefined;
+  if (existing && parseStatus(existing.status) !== "draft") {
+    return json({ error: "该问题已发给协作方，请在待回复中修改或撤回" }, 409);
+  }
+  if (existing && parseStatus(existing.status) === "draft") {
+    const now = new Date().toISOString();
+    const next = await updateCollabItem(env, projectId, existing.id, {
+      ...payload,
+      status: asDraft ? "draft" : "pending_reply",
+      publishedAt: asDraft ? existing.published_at : now,
+    });
+    return json({ item: rowToPublic(next!, { includeInternal: true }) }, 200);
+  }
+
+  const id = crypto.randomUUID();
+  const row = await insertCollabItem(env, {
+    id,
+    projectId,
+    ...payload,
+    publishedBy: userId,
+    status: asDraft ? "draft" : "pending_reply",
   });
   return json({ item: rowToPublic(row, { includeInternal: true }) }, 201);
 }
 
-/** PATCH 项目协作方保存/提交 */
+function wordingFromBody(
+  body: Record<string, unknown>,
+  row: CollabItemRow,
+) {
+  const title = stripCitationMarkers(
+    String(body.title ?? row.title ?? "").trim(),
+  );
+  const content = stripCitationMarkers(
+    String(body.body ?? row.body ?? "").trim(),
+  );
+  return {
+    title,
+    content,
+    sourceQuestionText:
+      String(body.sourceQuestionText ?? row.source_question_text ?? "").trim() ||
+      title,
+    priority: parsePriority(String(body.priority ?? row.priority ?? "P2")),
+    dueAt:
+      body.dueAt === undefined
+        ? row.due_at
+        : String(body.dueAt ?? "").trim() || null,
+    assignedTo:
+      body.assignedTo === undefined
+        ? row.assigned_to ?? null
+        : String(body.assignedTo ?? "").trim() || null,
+    investorNote:
+      body.investorNote === undefined
+        ? row.investor_note
+        : String(body.investorNote ?? "").trim() || null,
+  };
+}
+
+const CAN_WITHDRAW: CollabItemStatus[] = [
+  "pending_reply",
+  "saved",
+  "needs_more",
+];
+
+async function handleInvestorManageCollabItem(
+  env: Env,
+  projectId: string,
+  itemId: string,
+  body: Record<string, unknown>,
+): Promise<Response> {
+  const row = await getCollabItem(env, projectId, itemId);
+  if (!row) return json({ error: "事项不存在" }, 404);
+  const status = parseStatus(row.status);
+  const action = String(body.action ?? "").trim();
+  const assignedToRaw =
+    body.assignedTo === undefined
+      ? undefined
+      : String(body.assignedTo ?? "").trim() || null;
+  if (assignedToRaw) {
+    const issuers = await listIssuerAccounts(env, projectId);
+    if (!issuers.some((i) => i.userId === assignedToRaw)) {
+      return json({ error: "请选择该项目的协作方账号" }, 400);
+    }
+  }
+
+  if (action === "withdraw") {
+    if (!CAN_WITHDRAW.includes(status)) {
+      return json({ error: "已提交或已确认的事项不能撤回" }, 400);
+    }
+    const next = await updateCollabItem(env, projectId, itemId, {
+      status: "draft",
+      replyText: null,
+      replySavedAt: null,
+      replySubmittedAt: null,
+      replyBy: null,
+      reviewNote: null,
+    });
+    return json({ item: rowToPublic(next!, { includeInternal: true }) });
+  }
+
+  if (action !== "update" && action !== "save_draft" && action !== "publish") {
+    return json({ error: "action 须为 update、save_draft、publish 或 withdraw" }, 400);
+  }
+  if (action === "save_draft" && status !== "draft") {
+    return json({ error: "已发出的事项请用修改或撤回，不能再存为草稿" }, 400);
+  }
+  if (status === "submitted" || status === "confirmed") {
+    return json({ error: "已提交或已确认的事项不能再改措辞" }, 400);
+  }
+
+  const wording = wordingFromBody(body, row);
+  if (!wording.title || !wording.content) {
+    return json({ error: "请填写对外标题与需确认内容" }, 400);
+  }
+
+  if (action === "publish") {
+    if (status !== "draft") {
+      return json({ error: "只有草稿可以发送给协作方" }, 400);
+    }
+    const next = await updateCollabItem(env, projectId, itemId, {
+      status: "pending_reply",
+      title: wording.title,
+      body: wording.content,
+      sourceQuestionText: wording.sourceQuestionText,
+      priority: wording.priority,
+      dueAt: wording.dueAt,
+      assignedTo: wording.assignedTo,
+      investorNote: wording.investorNote,
+      publishedAt: new Date().toISOString(),
+    });
+    return json({ item: rowToPublic(next!, { includeInternal: true }) });
+  }
+
+  const next = await updateCollabItem(env, projectId, itemId, {
+    status: action === "save_draft" ? "draft" : status,
+    title: wording.title,
+    body: wording.content,
+    sourceQuestionText: wording.sourceQuestionText,
+    priority: wording.priority,
+    dueAt: wording.dueAt,
+    assignedTo: wording.assignedTo,
+    investorNote: wording.investorNote,
+  });
+  return json({ item: rowToPublic(next!, { includeInternal: true }) });
+}
+
+/** PATCH 项目协作方保存/提交；投资人修改/撤回/发草稿 */
 export async function handleIssuerPatchCollabItem(
   request: Request,
   env: Env,
@@ -324,6 +476,18 @@ export async function handleIssuerPatchCollabItem(
   const project = await getProjectById(env, projectId);
   if (!project) return json({ error: "项目不存在" }, 404);
   const role = await resolveProjectRole(env, userId, projectId, project.createdBy);
+  let body: Record<string, unknown> = {};
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "请求体须为 JSON" }, 400);
+  }
+  if (
+    isInvestorRole(role) &&
+    (await canManageProjectCollab(env, userId, projectId, project.createdBy))
+  ) {
+    return handleInvestorManageCollabItem(env, projectId, itemId, body);
+  }
   if (!isIssuerRole(role)) {
     return json({ error: "仅项目协作方可保存或提交答复" }, 403);
   }
@@ -336,12 +500,6 @@ export async function handleIssuerPatchCollabItem(
   }
   if (row.status === "submitted") {
     return json({ error: "已提交待审核，请等待投资团队处理" }, 400);
-  }
-  let body: Record<string, unknown> = {};
-  try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
-    return json({ error: "请求体须为 JSON" }, 400);
   }
   const action = String(body.action ?? "").trim();
   const replyText =

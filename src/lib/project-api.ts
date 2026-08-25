@@ -1682,6 +1682,7 @@ export async function fetchKnowledgeChapterVersion(
 export type CollabReplyMode = "text" | "file" | "both";
 export type CollabPriority = "P1" | "P2" | "P3";
 export type CollabItemStatus =
+  | "draft"
   | "pending_reply"
   | "saved"
   | "submitted"
@@ -1756,6 +1757,8 @@ export function collabStatusLabel(
   view: "investor" | "issuer" = "investor",
 ): string {
   switch (status) {
+    case "draft":
+      return "草稿";
     case "pending_reply":
       return view === "issuer" ? "待你回复" : "待项目协作方回复";
     case "saved":
@@ -1769,6 +1772,10 @@ export function collabStatusLabel(
     default:
       return status;
   }
+}
+
+export function isCollabSentToIssuer(status: CollabItemStatus): boolean {
+  return status !== "draft";
 }
 
 export async function fetchCollabOverview(
@@ -1840,6 +1847,7 @@ export async function publishCollabItem(
     investorNote?: string | null;
     fileReqs?: CollabFileReq[];
     assignedTo?: string | null;
+    status?: "draft" | "pending_reply";
   },
 ): Promise<CollabItem> {
   const res = await jfoFetch(
@@ -1859,7 +1867,7 @@ export async function publishCollabItem(
   return data.item;
 }
 
-/** 按内部问题原文一键发给项目协作方（发布后冻结） */
+/** 按内部问题原文发给项目协作方 */
 export async function publishOpenQuestionToIssuer(
   projectId: string,
   question: {
@@ -1884,6 +1892,14 @@ export async function patchCollabItemReply(
   projectId: string,
   itemId: string,
   body: { action: "save" | "submit"; replyText?: string },
+): Promise<CollabItem> {
+  return patchCollabItem(projectId, itemId, body);
+}
+
+export async function patchCollabItem(
+  projectId: string,
+  itemId: string,
+  body: Record<string, unknown>,
 ): Promise<CollabItem> {
   const res = await jfoFetch(
     `/api/projects/${encodeURIComponent(projectId)}/collab/items/${encodeURIComponent(itemId)}`,

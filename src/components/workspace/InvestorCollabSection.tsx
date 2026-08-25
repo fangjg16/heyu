@@ -6,6 +6,7 @@ import {
   PROJECT_UPLOAD_FOLDER,
   publishCollabItem,
   publishOpenQuestionToIssuer,
+  patchCollabItem,
   reviewCollabItem,
   suggestCollabFollowUp,
   uploadProjectPackageFile,
@@ -45,6 +46,17 @@ const KIND_OPTIONS: { id: KindFilter; label: string }[] = [
   { id: "other", label: "其他" },
 ];
 
+type UnsentEntry = {
+  key: string;
+  text: string;
+  priority: CollabPriority;
+  draft?: CollabItem;
+};
+
+function dueInputValue(iso: string | null | undefined) {
+  return iso ? iso.slice(0, 10) : "";
+}
+
 function defaultAssignedTo(list: CollabIssuerAccount[]) {
   return list.length === 1 ? list[0].userId : "";
 }
@@ -57,6 +69,19 @@ function hasCollaboratorReply(it: CollabItem): boolean {
     it.status === "needs_more"
   );
 }
+
+function canReviseSent(it: CollabItem): boolean {
+  return (
+    it.status === "pending_reply" ||
+    it.status === "saved" ||
+    it.status === "needs_more"
+  );
+}
+
+const ghostBtnClass =
+  "inline-flex h-8 items-center justify-center rounded-lg border border-[rgba(78,66,57,0.16)] bg-transparent px-3 text-[12.5px] font-medium text-[#59625F] hover:bg-[rgba(78,66,57,0.04)] disabled:opacity-45";
+const primaryBtnClass =
+  "inline-flex h-8 items-center justify-center rounded-lg bg-[#A06358] px-3 text-[12.5px] font-medium text-white disabled:opacity-45";
 
 export function InvestorCollabSection({
   projectId,
@@ -76,6 +101,10 @@ export function InvestorCollabSection({
   const [tab, setTab] = useState<CollabTab>("unsent");
   const [kindFilter, setKindFilter] = useState<KindFilter>("all");
   const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [editingPublishedId, setEditingPublishedId] = useState<string | null>(
+    null,
+  );
   const [composing, setComposing] = useState(false);
 
   const [sourceText, setSourceText] = useState("");
@@ -146,14 +175,29 @@ export function InvestorCollabSection({
     const q = questions.find((x) => x.text === t);
     setTab("unsent");
     setComposing(false);
+    setDetailId(null);
+    setEditingPublishedId(null);
+    setFollowUpId(null);
     setEditingKey(t);
     setSourceText(t);
-    const formatted = formatOpenQuestionForIssuer(t);
-    setTitle(incomingDraft.title || formatted.title);
-    setBody(formatted.body);
-    setPriority(q?.priority ?? incomingDraft.priority ?? "P2");
-    setAssignedTo(defaultAssignedTo(issuers));
-  }, [incomingDraft, questions, issuers]);
+    const draft = items.find(
+      (d) => d.status === "draft" && d.sourceQuestionText === t,
+    );
+    if (draft) {
+      setTitle(incomingDraft.title || draft.title);
+      setBody(draft.body);
+      setAssignedTo(draft.assignedTo?.trim() || defaultAssignedTo(issuers));
+      setDueAt(dueInputValue(draft.dueAt));
+    } else {
+      const formatted = formatOpenQuestionForIssuer(t);
+      setTitle(incomingDraft.title || formatted.title);
+      setBody(formatted.body);
+      setAssignedTo(defaultAssignedTo(issuers));
+      setDueAt("");
+    }
+    setPriority(q?.priority ?? incomingDraft.priority ?? draft?.priority ?? "P2");
+    setIncomingDraft(null);
+  }, [incomingDraft, questions, issuers, items]);
 
   useEffect(() => {
     void load().catch((e) =>
@@ -169,14 +213,40 @@ export function InvestorCollabSection({
     followUpIdRef.current = followUpId;
   }, [followUpId]);
 
-  const unpublishedQuestions = questions.filter(
-    (q) => !items.some((it) => it.sourceQuestionText === q.text),
-  );
+  const sentItems = items.filter((it) => it.status !== "draft");
+  const draftItems = items.filter((it) => it.status === "draft");
 
   const matchKind = (text: string) =>
     kindFilter === "all" || inferQuestionKind(text) === kindFilter;
 
-  const unsentList = unpublishedQuestions.filter((q) => matchKind(q.text));
+  const unsentEntries: UnsentEntry[] = [
+    ...questions
+      .filter(
+        (q) => !sentItems.some((it) => it.sourceQuestionText === q.text),
+      )
+      .map((q) => ({
+        key: q.text,
+        text: q.text,
+        priority: q.priority,
+        draft: draftItems.find((d) => d.sourceQuestionText === q.text),
+      })),
+    ...draftItems
+      .filter(
+        (d) => !questions.some((q) => q.text === d.sourceQuestionText),
+      )
+      .map((d) => ({
+        key: `draft:${d.id}`,
+        text: d.sourceQuestionText || d.title,
+        priority: d.priority,
+        draft: d,
+      })),
+  ].filter(
+    (row) =>
+      matchKind(row.text) ||
+      (row.draft ? matchKind(`${row.draft.title} ${row.draft.body}`) : false),
+  );
+
+  const unsentList = unsentEntries;
   const pendingList = items.filter(
     (it) =>
       (it.status === "pending_reply" ||
@@ -210,32 +280,75 @@ export function InvestorCollabSection({
     setAssignedTo(defaultAssignedTo(issuers));
     setPriority("P2");
     setEditingKey(null);
+    setDetailId(null);
+    setEditingPublishedId(null);
     setComposing(false);
     setFollowUpId(null);
   };
 
-  const openEdit = (q: { text: string; priority: CollabPriority }) => {
-    if (editingKey === q.text) {
+  const fillWording = (entry: UnsentEntry) => {
+    setSourceText(entry.text);
+    setPriority(entry.priority);
+    if (entry.draft) {
+      setTitle(entry.draft.title);
+      setBody(entry.draft.body);
+      setAssignedTo(
+        entry.draft.assignedTo?.trim() || defaultAssignedTo(issuers),
+      );
+      setDueAt(dueInputValue(entry.draft.dueAt));
+      return;
+    }
+    const formatted = formatOpenQuestionForIssuer(entry.text);
+    setTitle(formatted.title);
+    setBody(formatted.body);
+    setAssignedTo(defaultAssignedTo(issuers));
+    setDueAt("");
+  };
+
+  const openEdit = (entry: UnsentEntry) => {
+    if (editingKey === entry.key) {
       setEditingKey(null);
       return;
     }
     setComposing(false);
     setFollowUpId(null);
-    setEditingKey(q.text);
-    setSourceText(q.text);
-    const formatted = formatOpenQuestionForIssuer(q.text);
-    setTitle(formatted.title);
-    setBody(formatted.body);
-    setPriority(q.priority);
-    setAssignedTo(defaultAssignedTo(issuers));
-    setDueAt("");
+    setDetailId(null);
+    setEditingPublishedId(null);
+    setEditingKey(entry.key);
+    fillWording(entry);
     setAttachFiles([]);
     setFileInputKey((k) => k + 1);
+  };
+
+  const wordingFields = () => ({
+    title:
+      stripCitationMarkers(title.trim()) ||
+      formatOpenQuestionForIssuer(sourceText).title,
+    body:
+      stripCitationMarkers(body.trim()) ||
+      formatOpenQuestionForIssuer(sourceText).body,
+    sourceQuestionText: sourceText,
+    replyMode: "both" as const,
+    priority,
+    dueAt: dueAt ? new Date(dueAt).toISOString() : null,
+    assignedTo: assignedTo || null,
+  });
+
+  const uploadAttachments = async (itemId: string) => {
+    for (const file of attachFiles) {
+      await uploadProjectPackageFile(projectId, userId, file, {
+        relativePath: PROJECT_UPLOAD_FOLDER,
+        collabItemId: itemId,
+        sourceKind: "investor_share",
+      });
+    }
   };
 
   const openCompose = () => {
     setTab("unsent");
     setEditingKey(null);
+    setDetailId(null);
+    setEditingPublishedId(null);
     setFollowUpId(null);
     setSourceText("");
     setTitle("");
@@ -259,6 +372,8 @@ export function InvestorCollabSection({
     }
     setComposing(false);
     setEditingKey(null);
+    setDetailId(null);
+    setEditingPublishedId(null);
     setFollowUpId(it.id);
     setSourceText(
       `补充问询｜${it.title}${it.replyText ? `\n原答复：${it.replyText}` : ""}`,
@@ -294,20 +409,32 @@ export function InvestorCollabSection({
     }
   };
 
-  const onSendQuestion = async (q: { text: string; priority: CollabPriority }) => {
+  const onSendQuestion = async (entry: UnsentEntry) => {
     if (!canManage) {
       setError("仅 Admin / Core 可发给项目协作方");
       return;
     }
-    setBusy(q.text);
+    setBusy(entry.key);
     setError(null);
     try {
-      await publishOpenQuestionToIssuer(projectId, {
-        text: q.text,
-        title: q.text.slice(0, 80),
-        priority: q.priority,
-      });
-      if (editingKey === q.text) resetCompose();
+      if (entry.draft) {
+        await patchCollabItem(projectId, entry.draft.id, {
+          action: "publish",
+          title: entry.draft.title,
+          body: entry.draft.body,
+          sourceQuestionText: entry.draft.sourceQuestionText || entry.text,
+          priority: entry.draft.priority,
+          dueAt: entry.draft.dueAt,
+          assignedTo: entry.draft.assignedTo,
+        });
+      } else {
+        await publishOpenQuestionToIssuer(projectId, {
+          text: entry.text,
+          title: extractOpenQuestionTitle(entry.text).title,
+          priority: entry.priority,
+        });
+      }
+      if (editingKey === entry.key) resetCompose();
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "发送失败");
@@ -325,12 +452,24 @@ export function InvestorCollabSection({
     setBusy("publish-all");
     setError(null);
     try {
-      for (const q of unsentList) {
-        await publishOpenQuestionToIssuer(projectId, {
-          text: q.text,
-          title: q.text.slice(0, 80),
-          priority: q.priority,
-        });
+      for (const entry of unsentList) {
+        if (entry.draft) {
+          await patchCollabItem(projectId, entry.draft.id, {
+            action: "publish",
+            title: entry.draft.title,
+            body: entry.draft.body,
+            sourceQuestionText: entry.draft.sourceQuestionText || entry.text,
+            priority: entry.draft.priority,
+            dueAt: entry.draft.dueAt,
+            assignedTo: entry.draft.assignedTo,
+          });
+        } else {
+          await publishOpenQuestionToIssuer(projectId, {
+            text: entry.text,
+            title: extractOpenQuestionTitle(entry.text).title,
+            priority: entry.priority,
+          });
+        }
       }
       resetCompose();
       await load();
@@ -341,7 +480,42 @@ export function InvestorCollabSection({
     }
   };
 
-  const onPublish = async () => {
+  const onSaveDraft = async (existing?: CollabItem) => {
+    if (!canManage) {
+      setError("仅 Admin / Core 可保存草稿");
+      return;
+    }
+    const fields = wordingFields();
+    if (!fields.title || !fields.body) {
+      setError("请先填写标题和需确认内容");
+      return;
+    }
+    setBusy("draft");
+    setError(null);
+    try {
+      let item: CollabItem;
+      if (existing) {
+        item = await patchCollabItem(projectId, existing.id, {
+          action: existing.status === "draft" ? "save_draft" : "update",
+          ...fields,
+        });
+      } else {
+        item = await publishCollabItem(projectId, {
+          ...fields,
+          status: "draft",
+        });
+      }
+      await uploadAttachments(item.id);
+      resetCompose();
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "保存失败");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const onPublish = async (existing?: CollabItem) => {
     if (!canManage) {
       setError("仅 Admin / Core 可发给项目协作方");
       return;
@@ -350,29 +524,25 @@ export function InvestorCollabSection({
       setError("请选择发送账号");
       return;
     }
+    const fields = wordingFields();
     setBusy("publish");
     setError(null);
     try {
-      const item = await publishCollabItem(projectId, {
-        title:
-          stripCitationMarkers(title.trim() || sourceText).slice(0, 80) ||
-          formatOpenQuestionForIssuer(sourceText).title,
-        body:
-          stripCitationMarkers(body.trim() || sourceText) ||
-          formatOpenQuestionForIssuer(sourceText).body,
-        sourceQuestionText: sourceText,
-        replyMode: "both",
-        priority,
-        dueAt: dueAt ? new Date(dueAt).toISOString() : null,
-        assignedTo: assignedTo || null,
-      });
-      for (const file of attachFiles) {
-        await uploadProjectPackageFile(projectId, userId, file, {
-          relativePath: PROJECT_UPLOAD_FOLDER,
-          collabItemId: item.id,
-          sourceKind: "investor_share",
+      let item: CollabItem;
+      if (existing?.status === "draft") {
+        item = await patchCollabItem(projectId, existing.id, {
+          action: "publish",
+          ...fields,
         });
+      } else if (existing) {
+        item = await patchCollabItem(projectId, existing.id, {
+          action: "update",
+          ...fields,
+        });
+      } else {
+        item = await publishCollabItem(projectId, fields);
       }
+      await uploadAttachments(item.id);
       resetCompose();
       await load();
     } catch (e) {
@@ -380,6 +550,78 @@ export function InvestorCollabSection({
     } finally {
       setBusy(null);
     }
+  };
+
+  const onWithdraw = async (it: CollabItem) => {
+    if (!canManage) {
+      setError("仅 Admin / Core 可撤回");
+      return;
+    }
+    if (
+      !window.confirm(
+        "撤回后协作方将看不到该事项，并退回「未发送」。确定撤回？",
+      )
+    ) {
+      return;
+    }
+    setBusy(it.id);
+    setError(null);
+    try {
+      await patchCollabItem(projectId, it.id, { action: "withdraw" });
+      resetCompose();
+      setTab("unsent");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "撤回失败");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const fillPublished = (it: CollabItem) => {
+    setSourceText(it.sourceQuestionText || it.title);
+    setTitle(it.title);
+    setBody(it.body);
+    setPriority(it.priority);
+    setAssignedTo(it.assignedTo?.trim() || defaultAssignedTo(issuers));
+    setDueAt(dueInputValue(it.dueAt));
+  };
+
+  const openPublishedDetail = (it: CollabItem) => {
+    if (detailId === it.id && editingPublishedId !== it.id) {
+      setDetailId(null);
+      return;
+    }
+    setComposing(false);
+    setEditingKey(null);
+    setFollowUpId(null);
+    setEditingPublishedId(null);
+    setDetailId(it.id);
+  };
+
+  const openPublishedEdit = (it: CollabItem) => {
+    if (!canManage) {
+      setError("仅 Admin / Core 可修改已发事项");
+      return;
+    }
+    if (editingPublishedId === it.id) {
+      setEditingPublishedId(null);
+      return;
+    }
+    setComposing(false);
+    setEditingKey(null);
+    setFollowUpId(null);
+    setDetailId(it.id);
+    setEditingPublishedId(it.id);
+    fillPublished(it);
+    setAttachFiles([]);
+    setFileInputKey((k) => k + 1);
+  };
+
+  const issuerLabel = (id?: string | null) => {
+    const uid = id?.trim();
+    if (!uid) return "未指定";
+    return issuers.find((a) => a.userId === uid)?.displayName ?? uid;
   };
 
   const onReview = async (id: string, action: "confirm" | "reject") => {
@@ -401,10 +643,17 @@ export function InvestorCollabSection({
   const canSubmitWording =
     Boolean(title.trim() && body.trim()) &&
     !(issuers.length > 0 && !assignedTo);
+  const canSaveDraft = Boolean(title.trim() && body.trim());
 
-  const wordingForm = (showSend: boolean, lead?: ReactNode) => (
+  const wordingForm = (opts: {
+    showSend?: boolean;
+    showDraftSave?: boolean;
+    existing?: CollabItem;
+    sendLabel?: string;
+    lead?: ReactNode;
+  }) => (
     <div className="mt-3 space-y-2 rounded-xl border border-[rgba(78,66,57,0.08)] bg-[rgba(248,243,238,0.55)] px-3 py-3">
-      {lead}
+      {opts.lead}
       <input
         className="h-9 w-full rounded-lg border border-[rgba(78,66,57,0.12)] bg-white px-2 text-[13px]"
         placeholder="对外中性标题"
@@ -467,15 +716,31 @@ export function InvestorCollabSection({
           }
         />
       </label>
-      {showSend ? (
-        <button
-          type="button"
-          disabled={Boolean(busy) || !canSubmitWording}
-          onClick={() => void onPublish()}
-          className="inline-flex h-9 items-center justify-center rounded-lg bg-[#A06358] px-3 text-[12.5px] font-medium leading-none text-white disabled:opacity-45"
-        >
-          {busy === "publish" ? "发送中…" : "发送"}
-        </button>
+      {opts.showDraftSave || opts.showSend ? (
+        <div className="flex flex-wrap gap-2">
+          {opts.showDraftSave ? (
+            <button
+              type="button"
+              disabled={Boolean(busy) || !canSaveDraft}
+              onClick={() => void onSaveDraft(opts.existing)}
+              className="inline-flex h-9 items-center justify-center rounded-lg border border-[rgba(78,66,57,0.16)] bg-white px-3 text-[12.5px] font-medium text-[#1F2423] disabled:opacity-45"
+            >
+              {busy === "draft" ? "保存中…" : "保存草稿"}
+            </button>
+          ) : null}
+          {opts.showSend ? (
+            <button
+              type="button"
+              disabled={Boolean(busy) || !canSubmitWording}
+              onClick={() => void onPublish(opts.existing)}
+              className="inline-flex h-9 items-center justify-center rounded-lg bg-[#A06358] px-3 text-[12.5px] font-medium leading-none text-white disabled:opacity-45"
+            >
+              {busy === "publish"
+                ? "发送中…"
+                : opts.sendLabel ?? "发送"}
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
@@ -488,16 +753,24 @@ export function InvestorCollabSection({
         {list.map((it) => {
           const preview = previewCollabQuestion(it);
           const canFollowUp = canManage && hasCollaboratorReply(it);
-          const expanded = canFollowUp && followUpId === it.id;
+          const followUpOpen = canFollowUp && followUpId === it.id;
+          const editing = canManage && editingPublishedId === it.id;
+          const showingDetail =
+            detailId === it.id && !editing && !followUpOpen;
           const suggest = followUpSuggests[it.id];
           const suggesting = suggestingId === it.id;
+          const revisable = canManage && canReviseSent(it);
           return (
             <li
               key={it.id}
               className="rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/80 px-4 py-3"
             >
               <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
+                <button
+                  type="button"
+                  className="min-w-0 flex-1 text-left"
+                  onClick={() => openPublishedDetail(it)}
+                >
                   <div className="font-semibold text-[#1F2423]">
                     {canFollowUp ? (
                       <span className="mr-1.5 text-[11px] font-medium text-[#A06358]">
@@ -506,46 +779,107 @@ export function InvestorCollabSection({
                     ) : null}
                     {preview.title}
                   </div>
-                </div>
-                {canFollowUp ? (
-                  <div className="flex shrink-0 items-center gap-2">
-                    <button
-                      type="button"
-                      className="inline-flex h-8 items-center justify-center rounded-lg border border-[rgba(78,66,57,0.16)] bg-transparent px-3 text-[12.5px] font-medium text-[#59625F] hover:bg-[rgba(78,66,57,0.04)]"
-                      onClick={() => void openFollowUp(it)}
-                    >
-                      {expanded ? "收起" : "补充问询"}
-                    </button>
-                    {expanded ? (
+                </button>
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                  {!canFollowUp ? (
+                    <span className="text-[11.5px] text-[#A06358]">
+                      {collabStatusLabel(it.status)}
+                    </span>
+                  ) : null}
+                  <button
+                    type="button"
+                    className={ghostBtnClass}
+                    onClick={() => openPublishedDetail(it)}
+                  >
+                    {showingDetail ? "收起" : "详情"}
+                  </button>
+                  {revisable ? (
+                    <>
                       <button
                         type="button"
-                        disabled={
-                          Boolean(busy) ||
-                          suggesting ||
-                          !canSubmitWording
-                        }
-                        onClick={() => void onPublish()}
-                        className="inline-flex h-8 items-center justify-center rounded-lg bg-[#A06358] px-3 text-[12.5px] font-medium text-white disabled:opacity-45"
+                        className={ghostBtnClass}
+                        onClick={() => openPublishedEdit(it)}
                       >
-                        {busy === "publish" ? "发送中…" : "发送"}
+                        {editing ? "收起" : "修改"}
                       </button>
-                    ) : null}
-                  </div>
-                ) : (
-                  <span className="shrink-0 text-[11.5px] text-[#A06358]">
-                    {collabStatusLabel(it.status)}
-                  </span>
-                )}
+                      <button
+                        type="button"
+                        disabled={Boolean(busy)}
+                        className={ghostBtnClass}
+                        onClick={() => void onWithdraw(it)}
+                      >
+                        {busy === it.id ? "撤回中…" : "撤回"}
+                      </button>
+                    </>
+                  ) : null}
+                  {canFollowUp ? (
+                    <>
+                      <button
+                        type="button"
+                        className={ghostBtnClass}
+                        onClick={() => void openFollowUp(it)}
+                      >
+                        {followUpOpen ? "收起" : "补充问询"}
+                      </button>
+                      {followUpOpen ? (
+                        <button
+                          type="button"
+                          disabled={
+                            Boolean(busy) ||
+                            suggesting ||
+                            !canSubmitWording
+                          }
+                          onClick={() => void onPublish()}
+                          className={primaryBtnClass}
+                        >
+                          {busy === "publish" ? "发送中…" : "发送"}
+                        </button>
+                      ) : null}
+                    </>
+                  ) : null}
+                  {editing ? (
+                    <button
+                      type="button"
+                      disabled={Boolean(busy) || !canSubmitWording}
+                      onClick={() => void onPublish(it)}
+                      className={primaryBtnClass}
+                    >
+                      {busy === "publish" ? "保存中…" : "保存修改"}
+                    </button>
+                  ) : null}
+                </div>
               </div>
+              {showingDetail ? (
+                <div className="mt-3 space-y-2 text-[13px] leading-relaxed text-[#1F2423]">
+                  {it.body.trim() ? (
+                    <p className="whitespace-pre-wrap">{it.body}</p>
+                  ) : preview.detail ? (
+                    <p className="whitespace-pre-wrap">{preview.detail}</p>
+                  ) : (
+                    <p className="text-[#969E9A]">暂无正文。</p>
+                  )}
+                  <p className="text-[12.5px] text-[#59625F]">
+                    截止日期：
+                    {it.dueAt ? it.dueAt.slice(0, 10) : "未设置"}
+                  </p>
+                  <p className="text-[12.5px] text-[#59625F]">
+                    接收账号：{issuerLabel(it.assignedTo)}
+                  </p>
+                </div>
+              ) : null}
               {it.replyText ? (
                 <p className="mt-2 text-[13px] leading-relaxed text-[#1F2423]">
                   项目协作方答复：{it.replyText}
                 </p>
               ) : null}
-              {expanded
-                ? wordingForm(
-                    false,
-                    suggesting ? (
+              {editing
+                ? wordingForm({
+                    existing: it,
+                  })
+                : null}
+              {followUpOpen
+                ? wordingForm({
+                    lead: suggesting ? (
                       <p className="text-[12.5px] text-[#59625F]">判断中…</p>
                     ) : suggest ? (
                       <>
@@ -559,7 +893,7 @@ export function InvestorCollabSection({
                         </p>
                       </>
                     ) : null,
-                  )
+                  })
                 : null}
               {canManage && it.status === "submitted" ? (
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -657,53 +991,108 @@ export function InvestorCollabSection({
 
       {tab === "unsent" ? (
         <div className="mt-4">
-          {canManage && composing ? wordingForm(true) : null}
+          {canManage && composing ? (
+            <div className="mb-2 rounded-xl border border-[rgba(78,66,57,0.08)] bg-white/80 px-4 py-3">
+              <div className="flex items-center gap-4">
+                <div className="min-w-0 flex-1 text-[13px] font-semibold leading-relaxed text-[#1F2423]">
+                  新增事项
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={Boolean(busy) || !canSaveDraft}
+                    onClick={() => void onSaveDraft()}
+                    className={ghostBtnClass}
+                  >
+                    {busy === "draft" ? "保存中…" : "保存草稿"}
+                  </button>
+                  <button
+                    type="button"
+                    className={ghostBtnClass}
+                    onClick={() => setComposing(false)}
+                  >
+                    收起
+                  </button>
+                  <button
+                    type="button"
+                    disabled={Boolean(busy) || !canSubmitWording}
+                    onClick={() => void onPublish()}
+                    className={primaryBtnClass}
+                  >
+                    {busy === "publish" ? "发送中…" : "发送"}
+                  </button>
+                </div>
+              </div>
+              {wordingForm({})}
+            </div>
+          ) : null}
           {unsentList.length === 0 && !composing ? (
             <p className="mt-4 text-[13px] text-[#969E9A]">暂无未发事项。</p>
           ) : (
             <ul className="space-y-2">
-              {unsentList.map((q) => {
-                const preview = extractOpenQuestionTitle(q.text);
-                const expanded = editingKey === q.text;
+              {unsentList.map((entry) => {
+                const preview = entry.draft
+                  ? previewCollabQuestion(entry.draft)
+                  : extractOpenQuestionTitle(entry.text);
+                const expanded = editingKey === entry.key;
                 return (
                   <li
-                    key={q.text}
+                    key={entry.key}
                     className="rounded-xl border border-[rgba(78,66,57,0.08)] bg-white/80 px-4 py-3"
                   >
                     <div className="flex items-center gap-4">
                       <div className="min-w-0 flex-1 text-[13px] leading-relaxed text-[#1F2423]">
                         <span className="mr-1.5 text-[11px] text-[#A06358]">
-                          {q.priority}
+                          {entry.priority}
                         </span>
+                        {entry.draft ? (
+                          <span className="mr-1.5 text-[11px] font-medium text-[#5E9B75]">
+                            草稿
+                          </span>
+                        ) : null}
                         {preview.title}
                       </div>
                       {canManage ? (
                         <div className="flex shrink-0 items-center gap-2">
+                          {expanded ? (
+                            <button
+                              type="button"
+                              disabled={Boolean(busy) || !canSaveDraft}
+                              onClick={() => void onSaveDraft(entry.draft)}
+                              className={ghostBtnClass}
+                            >
+                              {busy === "draft" ? "保存中…" : "保存草稿"}
+                            </button>
+                          ) : null}
                           <button
                             type="button"
-                            className="inline-flex h-8 items-center justify-center rounded-lg border border-[rgba(78,66,57,0.16)] bg-transparent px-3 text-[12.5px] font-medium text-[#59625F] hover:bg-[rgba(78,66,57,0.04)]"
-                            onClick={() => openEdit(q)}
+                            className={ghostBtnClass}
+                            onClick={() => openEdit(entry)}
                           >
                             {expanded ? "收起" : "编辑"}
                           </button>
                           <button
                             type="button"
                             disabled={
-                              Boolean(busy) || (expanded && !canSubmitWording)
+                              Boolean(busy) ||
+                              (expanded && !canSubmitWording)
                             }
                             onClick={() =>
-                              void (expanded ? onPublish() : onSendQuestion(q))
+                              void (expanded
+                                ? onPublish(entry.draft)
+                                : onSendQuestion(entry))
                             }
-                            className="inline-flex h-8 items-center justify-center rounded-lg bg-[#A06358] px-3 text-[12.5px] font-medium text-white disabled:opacity-45"
+                            className={primaryBtnClass}
                           >
-                            {busy === q.text || (expanded && busy === "publish")
+                            {busy === entry.key ||
+                            (expanded && busy === "publish")
                               ? "发送中…"
                               : "发送"}
                           </button>
                         </div>
                       ) : null}
                     </div>
-                    {expanded ? wordingForm(false) : null}
+                    {expanded ? wordingForm({ existing: entry.draft }) : null}
                   </li>
                 );
               })}
