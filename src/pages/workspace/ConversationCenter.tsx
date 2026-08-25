@@ -2690,7 +2690,7 @@ export default function ConversationCenter() {
                         <div
                           key={conversation.id}
                           className={cn(
-                            "group/item ml-2 w-[calc(100%-0.5rem)] rounded-xl border px-3 py-2.5 text-left transition-colors",
+                            "group/item relative ml-2 w-[calc(100%-0.5rem)] rounded-xl border px-3 py-2.5 text-left transition-colors",
                             conversation.id === newlyAddedConversationId &&
                               "animate-in fade-in slide-in-from-top-1 duration-200",
                             active
@@ -2698,7 +2698,7 @@ export default function ConversationCenter() {
                               : "border-transparent bg-white/70 hover:border-border/80 hover:bg-white",
                           )}
                         >
-                          <div className="flex items-start gap-1">
+                          <div className="flex items-start">
                             {renaming ? (
                               <div className="flex min-w-0 flex-1 items-start justify-between gap-2">
                                 <input
@@ -2734,7 +2734,12 @@ export default function ConversationCenter() {
                                   saveLastChatProjectId(conversation.projectId);
                                   navigate(conversationPath(conversation));
                                 }}
-                                className="min-w-0 flex-1 text-left"
+                                className={cn(
+                                  "min-w-0 flex-1 text-left transition-[padding]",
+                                  active
+                                    ? "pr-12"
+                                    : "group-hover/item:pr-12 group-focus-within/item:pr-12",
+                                )}
                               >
                                 <div className="flex items-start justify-between gap-2">
                                   <p
@@ -2754,7 +2759,14 @@ export default function ConversationCenter() {
                               </button>
                             )}
                             {renaming ? null : (
-                              <>
+                              <div
+                                className={cn(
+                                  "absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center transition-opacity",
+                                  active
+                                    ? "opacity-100"
+                                    : "pointer-events-none opacity-0 group-hover/item:pointer-events-auto group-hover/item:opacity-100 group-focus-within/item:pointer-events-auto group-focus-within/item:opacity-100",
+                                )}
+                              >
                                 <button
                                   type="button"
                                   title="重命名此对话"
@@ -2763,12 +2775,7 @@ export default function ConversationCenter() {
                                     e.stopPropagation();
                                     startRenameConversation(conversation);
                                   }}
-                                  className={cn(
-                                    "shrink-0 rounded-md p-1 text-muted-foreground transition-opacity hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]",
-                                    active
-                                      ? "opacity-100"
-                                      : "opacity-0 group-hover/item:opacity-100",
-                                  )}
+                                  className="rounded-md p-1 text-muted-foreground hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
                                 >
                                   <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
                                 </button>
@@ -2776,16 +2783,11 @@ export default function ConversationCenter() {
                                   type="button"
                                   title="删除此对话"
                                   onClick={() => deleteConversation(conversation)}
-                                  className={cn(
-                                    "shrink-0 rounded-md p-1 text-muted-foreground transition-opacity hover:bg-destructive/10 hover:text-destructive",
-                                    active
-                                      ? "opacity-100"
-                                      : "opacity-0 group-hover/item:opacity-100",
-                                  )}
+                                  className="rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
                                 </button>
-                              </>
+                              </div>
                             )}
                           </div>
                         </div>
