@@ -107,6 +107,16 @@ export function previewCollabQuestion(input: {
 const CLAIM_END =
   "未确认|未提供|未核实|未验证|未披露|全未提供|待核实|待验证|待确认";
 
+/** 标题停在连词/助词上，说明是被字数裁断，不是完整小标题 */
+const DANGLE_END =
+  /(?:与|及|和|或|且|但|而|的|了|在|从|对|将|把|被|是|为|以|其|并|等|、|，)$/u;
+
+function isDanglingHeadline(title: string): boolean {
+  const t = title.trim();
+  if (t.length < 4) return true;
+  return DANGLE_END.test(t);
+}
+
 function shareTitleTokens(a: string, b: string): boolean {
   const toks = (s: string) =>
     s
@@ -147,37 +157,81 @@ export function stripTitleFromBody(text: string, title: string): string {
 }
 
 function pickHeadline(body: string): { title: string; detail: string } {
-  const colon = body.match(/^(.{4,40}?)[：:]\s+(.+)$/u);
-  if (colon) {
+  const colon = body.match(/^(.{4,80}?)[：:]\s+(.+)$/u);
+  if (colon && !isDanglingHeadline(colon[1]!)) {
     return { title: colon[1]!.trim(), detail: colon[2]!.trim() };
   }
 
   const claim = body.match(
-    new RegExp(`^(.{4,40}?(?:${CLAIM_END}))(?=\\s|[。；;，,]|$)`, "u"),
+    new RegExp(`^(.{4,80}?(?:${CLAIM_END}))(?=\\s|[。；;，,]|$)`, "u"),
   );
-  if (claim) {
+  if (claim && !isDanglingHeadline(claim[1]!)) {
     const title = claim[1]!.trim();
     return { title, detail: stripTitleFromBody(body, title) };
+  }
+
+  const question = body.match(/^(.{8,100}?[？?])\s*(.*)$/u);
+  if (question && !isDanglingHeadline(question[1]!)) {
+    return {
+      title: question[1]!.trim(),
+      detail: (question[2] ?? "").trim(),
+    };
   }
 
   const breakAt = body.search(
     /[。；]|(?:\s+附件)|(?:\s+资料仅)|(?:\s+仅称)|(?:\s*(?:→|->|——)\s*)/u,
   );
-  if (breakAt >= 8 && breakAt <= 48) {
+  if (breakAt >= 8 && breakAt <= 80) {
     const title = body.slice(0, breakAt).replace(/[：:\s]+$/u, "").trim();
-    return { title, detail: stripTitleFromBody(body, title) };
+    if (!isDanglingHeadline(title)) {
+      return { title, detail: stripTitleFromBody(body, title) };
+    }
   }
 
-  const compact = body.match(/^(.{6,28})\s+(.{12,})$/u);
-  if (compact && !/[。；：:]/u.test(compact[1]!)) {
-    const title = compact[1]!.trim();
-    return { title, detail: stripTitleFromBody(body, title) };
+  const paren = body.match(/^(.{8,100}?)(?:\s*)[（(]([^（()）]+)[）)]\s*$/u);
+  if (paren && !isDanglingHeadline(paren[1]!)) {
+    return { title: paren[1]!.trim(), detail: paren[2]!.trim() };
+  }
+
+  if (body.length <= 80) {
+    return { title: body, detail: "" };
   }
 
   return {
-    title: body.length <= 40 ? body : body.slice(0, 40).trim(),
+    title: completeFallbackTitle(body),
     detail: body,
   };
+}
+
+function completeFallbackTitle(body: string, max = 72): string {
+  const window = body.slice(0, Math.min(body.length, max + 28));
+  const stop = window.search(/[。？?；]/u);
+  if (stop >= 8) {
+    return body.slice(0, stop).trim();
+  }
+  let cut = -1;
+  for (const mark of ["，", "、"]) {
+    const at = window.lastIndexOf(mark, max);
+    if (at > cut && at >= 16) cut = at;
+  }
+  if (cut >= 16) {
+    const title = body.slice(0, cut).trim();
+    if (!isDanglingHeadline(title)) return title;
+  }
+  if (body.length <= 110) return body.trim();
+  let end = Math.min(max, body.length);
+  let title = body.slice(0, end).trim();
+  while (isDanglingHeadline(title) && end < body.length && end < 110) {
+    const rest = body.slice(end);
+    const next = rest.search(/[\s，。；、？?]/u);
+    if (next < 0) {
+      title = body.trim();
+      break;
+    }
+    end += next + 1;
+    title = body.slice(0, end).trim();
+  }
+  return title.replace(/[、，\s]+$/u, "").trim();
 }
 
 /**

@@ -829,13 +829,12 @@ export function InvestorCollabSection({
                 <div className="mt-3 space-y-3">
                   {showingDetail ? (
                     <div className="space-y-2 text-[13px] leading-relaxed text-[#1F2423]">
-                      {it.body.trim() ? (
-                        <p className="whitespace-pre-wrap">{it.body}</p>
-                      ) : preview.detail ? (
+                      {preview.detail && preview.detail !== preview.title ? (
                         <p className="whitespace-pre-wrap">{preview.detail}</p>
-                      ) : (
-                        <p className="text-[#969E9A]">暂无正文。</p>
-                      )}
+                      ) : it.body.trim() &&
+                        it.body.trim() !== preview.title ? (
+                        <p className="whitespace-pre-wrap">{it.body}</p>
+                      ) : null}
                       <p className="text-[12.5px] text-[#59625F]">
                         截止日期：
                         {it.dueAt ? it.dueAt.slice(0, 10) : "未设置"}
