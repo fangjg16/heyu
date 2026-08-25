@@ -55,7 +55,7 @@ function SourceTreeNodes({
     <ul
       className={cn(
         "space-y-0.5",
-        depth > 0 && "ml-2.5 border-l border-[rgba(78,66,57,0.14)] pl-2",
+        depth > 0 && "ml-1.5 border-l border-[rgba(78,66,57,0.12)] pl-1.5",
       )}
     >
       {nodes.map((node) => {
@@ -68,18 +68,17 @@ function SourceTreeNodes({
                 type="button"
                 onClick={() => onToggle(node.path)}
                 className={cn(
-                  "flex w-full items-center gap-1.5 rounded-lg py-1 pr-2 text-left hover:bg-white/80 hover:text-foreground",
-                  depth === 0
-                    ? "text-[12px] font-medium text-muted-foreground"
-                    : "text-[12px] text-muted-foreground",
+                  "flex w-full items-center gap-1 rounded-lg py-0.5 pr-1.5 text-left hover:bg-white/80 hover:text-foreground",
+                  "text-[12px] leading-4 text-muted-foreground",
+                  depth === 0 && "font-medium",
                 )}
               >
                 {isOpen ? (
-                  <ChevronDown className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
+                  <ChevronDown className="h-3 w-3 shrink-0" strokeWidth={1.8} />
                 ) : (
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
+                  <ChevronRight className="h-3 w-3 shrink-0" strokeWidth={1.8} />
                 )}
-                <Folder className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
+                <Folder className="h-3 w-3 shrink-0" strokeWidth={1.8} />
                 <span className="min-w-0 truncate">{node.name}</span>
               </button>
               {isOpen && hasKids ? (
@@ -113,14 +112,14 @@ function SourceTreeNodes({
               }}
               onClick={() => onPickFile(node.file)}
               className={cn(
-                "flex w-full cursor-grab items-center gap-1.5 rounded-lg py-1 pr-2 text-left text-[13px] leading-5 active:cursor-grabbing",
+                "flex w-full cursor-grab items-center gap-1 rounded-lg py-0.5 pr-1.5 text-left text-[12px] leading-4 active:cursor-grabbing",
                 active
                   ? "bg-[hsl(var(--wine-deep)/0.1)] font-medium text-[hsl(var(--wine-deep))]"
-                  : "text-foreground hover:bg-white/80",
+                  : "text-muted-foreground hover:bg-white/80 hover:text-foreground",
               )}
             >
-              <span className="inline-block h-3.5 w-3.5 shrink-0" aria-hidden />
-              <FileText className="h-3.5 w-3.5 shrink-0 opacity-70" strokeWidth={1.8} />
+              <span className="inline-block h-3 w-3 shrink-0" aria-hidden />
+              <FileText className="h-3 w-3 shrink-0 opacity-70" strokeWidth={1.8} />
               <span className="min-w-0 truncate">{node.name}</span>
             </button>
           </li>
@@ -150,7 +149,7 @@ export function ChatSourceFilesPanel({
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
 
   return (
-    <aside className="flex h-full min-h-0 w-full shrink-0 flex-col border-l border-[rgba(78,66,57,0.1)] bg-[rgba(248,243,238,0.92)] backdrop-blur-md md:w-[16.5rem]">
+    <aside className="flex h-full min-h-0 w-full shrink-0 flex-col border-l border-[rgba(78,66,57,0.1)] bg-[rgba(248,243,238,0.92)] backdrop-blur-md md:w-[14.5rem]">
       <div className="flex h-[3.25rem] items-center gap-2 border-b border-[rgba(78,66,57,0.1)] px-3">
         <p className="min-w-0 flex-1 truncate text-[15px] font-semibold tracking-tight text-[#1F2423]">
           项目源文件

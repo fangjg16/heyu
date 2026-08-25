@@ -2735,7 +2735,7 @@ export default function ConversationCenter() {
           className={cn(
             "shrink-0 flex-col overflow-hidden border-[rgba(78,66,57,0.1)] bg-[rgba(248,243,238,0.92)] backdrop-blur-md md:border-b-0 md:border-r",
             chatListOpen
-              ? "flex w-full border-b md:w-[17rem]"
+              ? "flex w-full border-b md:w-[14.5rem]"
               : "hidden md:flex md:w-12",
           )}
         >
@@ -2823,7 +2823,7 @@ export default function ConversationCenter() {
                         <div
                           key={conversation.id}
                           className={cn(
-                            "group/item relative ml-7 w-[calc(100%-1.75rem)] rounded-lg px-2.5 py-2 text-left transition-colors",
+                            "group/item relative ml-5 w-[calc(100%-1.25rem)] rounded-lg px-2 py-1 text-left transition-colors",
                             conversation.id === newlyAddedConversationId &&
                               "animate-in fade-in slide-in-from-top-1 duration-200",
                             active
@@ -2832,7 +2832,7 @@ export default function ConversationCenter() {
                           )}
                         >
                           {renaming ? (
-                            <div className="flex min-h-8 min-w-0 items-center gap-2">
+                            <div className="flex min-h-6 min-w-0 items-center gap-1.5">
                               <input
                                 ref={renameInputRef}
                                 value={renameDraft}
@@ -2853,9 +2853,9 @@ export default function ConversationCenter() {
                                   }
                                 }}
                                 onBlur={() => commitRenameConversation(conversation.id)}
-                                className="h-8 min-w-0 flex-1 rounded-lg border border-[hsl(var(--wine-deep)/0.32)] bg-white px-1.5 text-[14px] leading-5 text-foreground outline-none"
+                                className="h-6 min-w-0 flex-1 rounded-lg border border-[hsl(var(--wine-deep)/0.32)] bg-white px-1.5 text-[13px] leading-4 text-foreground outline-none"
                               />
-                              <span className="shrink-0 text-[12px] leading-5 tabular-nums text-muted-foreground">
+                              <span className="shrink-0 text-[11px] leading-4 tabular-nums text-muted-foreground">
                                 {formatSidebarDateLabel(conversation.updatedAt)}
                               </span>
                             </div>
@@ -2868,7 +2868,7 @@ export default function ConversationCenter() {
                                   navigate(conversationPath(conversation));
                                 }}
                                 className={cn(
-                                  "flex min-h-8 w-full min-w-0 items-center gap-2 text-left transition-[padding]",
+                                  "flex min-h-6 w-full min-w-0 items-center gap-1.5 text-left transition-[padding]",
                                   active
                                     ? "pr-11"
                                     : "group-hover/item:pr-11 group-focus-within/item:pr-11",
@@ -2876,7 +2876,7 @@ export default function ConversationCenter() {
                               >
                                 <span
                                   className={cn(
-                                    "min-w-0 flex-1 truncate text-[14px] leading-5",
+                                    "min-w-0 flex-1 truncate text-[13px] leading-4",
                                     active
                                       ? "font-medium text-[hsl(var(--wine-deep))]"
                                       : "text-foreground",
@@ -2884,7 +2884,7 @@ export default function ConversationCenter() {
                                 >
                                   {conversation.preview}
                                 </span>
-                                <span className="shrink-0 text-[12px] leading-5 tabular-nums text-muted-foreground">
+                                <span className="shrink-0 text-[11px] leading-4 tabular-nums text-muted-foreground">
                                   {formatSidebarDateLabel(conversation.updatedAt)}
                                 </span>
                               </button>
