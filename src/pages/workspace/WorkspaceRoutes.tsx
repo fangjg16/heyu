@@ -12,6 +12,7 @@ import {
 } from "react-router-dom";
 import { WorkspaceErrorBoundary } from "@/components/workspace/WorkspaceErrorBoundary";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
+import { cn } from "@/lib/utils";
 import {
   KnowledgeDraftGeneratingDialog,
   type DraftGeneratingProgress,
@@ -20,7 +21,6 @@ import { ProjectKnowledgeNetworkSection } from "@/components/workspace/ProjectKn
 import { ProjectMaterialsSection } from "@/components/workspace/ProjectMaterialsSection";
 import { ProjectOverviewPanel } from "@/components/workspace/ProjectOverviewPanel";
 import { InvestorCollabSection } from "@/components/workspace/InvestorCollabSection";
-import { ProjectJoinRequestsSection } from "@/components/workspace/ProjectJoinRequestsSection";
 import { ProjectWorkspaceHeader } from "@/components/workspace/ProjectWorkspaceHeader";
 import {
   canDownloadProjectMaterials,
@@ -775,9 +775,18 @@ function ProjectWorkspaceLayout() {
     }
   };
 
+  const materialsTab = tab === "materials";
+
   return (
-    <WorkspaceShell contentClassName="!overflow-y-auto">
-      <div>
+    <WorkspaceShell
+      fillHeight={materialsTab}
+      contentClassName={materialsTab ? undefined : "!overflow-y-auto"}
+    >
+      <div
+        className={cn(
+          materialsTab && "flex min-h-0 flex-1 flex-col overflow-hidden",
+        )}
+      >
         <ProjectWorkspaceHeader
           project={project}
           userId={userId}
@@ -792,7 +801,7 @@ function ProjectWorkspaceLayout() {
         />
 
         {overviewError ? (
-          <div className="mx-auto max-w-[1600px] px-8 pt-3 md:px-10">
+          <div className="mx-auto max-w-[1600px] shrink-0 px-8 pt-3 md:px-10">
             <p className="rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
               {overviewError}
             </p>
@@ -804,7 +813,7 @@ function ProjectWorkspaceLayout() {
           allChaptersProgress?.phase === "done" &&
           !draftDialogOpen) ||
         (persistedActiveRunId && !draftDialogOpen) ? (
-          <div className="mx-auto max-w-[1600px] px-8 pt-3 md:px-10">
+          <div className="mx-auto max-w-[1600px] shrink-0 px-8 pt-3 md:px-10">
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[rgba(94,155,117,0.28)] bg-[rgba(94,155,117,0.08)] px-3.5 py-2 text-[12.5px] text-[#2F6B4F]">
               <p>
                 {allChaptersNotice ??
@@ -825,7 +834,14 @@ function ProjectWorkspaceLayout() {
           </div>
         ) : null}
 
-        <div className="mx-auto max-w-[1600px] px-8 py-6 pb-12 md:px-10">
+        <div
+          className={cn(
+            "mx-auto max-w-[1600px] px-8 md:px-10",
+            materialsTab
+              ? "flex min-h-0 flex-1 flex-col overflow-hidden py-6"
+              : "py-6 pb-12",
+          )}
+        >
           <Outlet
             context={{
               overviewRefreshKey,
@@ -889,18 +905,13 @@ function ProjectOverviewTab() {
     overviewRefreshKey?: number;
   }>();
   if (!project) return null;
-  const role = getProjectRole(userId, projectId, project.createdBy);
-  const canReviewJoins = role === "admin";
   return (
-    <div className="space-y-8">
+    <div>
       <ProjectOverviewPanel
         project={project}
         userId={userId}
         refreshKey={overviewRefreshKey}
       />
-      {canReviewJoins ? (
-        <ProjectJoinRequestsSection project={project} userId={userId} />
-      ) : null}
     </div>
   );
 }
@@ -956,12 +967,15 @@ function ProjectMaterialsTab() {
   const project = getMergedProjects().find((p) => p.id === projectId);
   if (!project) return null;
   return (
-    <ProjectMaterialsSection
-      projectId={projectId}
-      userId={userId}
-      canManage={canManageProjectUploads(userId, project)}
-      canDownload={canDownloadProjectMaterials(userId, project)}
-    />
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <ProjectMaterialsSection
+        projectId={projectId}
+        projectName={project.name}
+        userId={userId}
+        canManage={canManageProjectUploads(userId, project)}
+        canDownload={canDownloadProjectMaterials(userId, project)}
+      />
+    </div>
   );
 }
 

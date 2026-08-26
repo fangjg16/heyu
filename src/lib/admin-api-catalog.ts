@@ -57,6 +57,15 @@ export const API_CATALOG: ApiCatalogEntry[] = [
 
   // Me
   {
+    id: "me-profile",
+    group: "我的",
+    method: "PATCH",
+    pathTemplate: "/api/me/profile",
+    summary: "修改本人昵称与头像（登录名只读）",
+    risk: "write",
+    sampleBody: '{"displayName":"示例昵称"}',
+  },
+  {
     id: "me-join",
     group: "我的",
     method: "GET",

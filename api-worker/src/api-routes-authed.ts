@@ -85,6 +85,7 @@ import {
   handleShareDocumentWithIssuer,
   handleSuggestCollabFollowUp,
 } from "./collab-routes";
+import { handlePatchMyProfile } from "./auth-routes";
 import { decodePathProjectId } from "./projects-resolve";
 import { reconcileActiveAgentJobsForUser } from "./agent-jobs";
 import {
@@ -549,6 +550,10 @@ export async function routeAuthedApi(
   if (/^\/api\/projects\/[^/]+\/citations$/u.test(path) && request.method === "GET") {
     const projectId = decodePathProjectId(path.split("/")[3] ?? "");
     return handlers.handleCitations(projectId);
+  }
+
+  if (path === "/api/me/profile" && request.method === "PATCH") {
+    return handlePatchMyProfile(request, env, authUserId);
   }
 
   if (path === "/api/me/join-requests" && request.method === "GET") {

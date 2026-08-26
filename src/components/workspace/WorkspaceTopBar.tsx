@@ -7,15 +7,17 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { Bell, LogOut, Search } from "lucide-react";
+import { Bell, Loader2, LogOut, Search, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logoutRemote } from "@/lib/api-auth";
 import { signOutClerkBrowser } from "@/lib/clerk-enabled";
 import { getMergedProjects } from "@/workspace/project-registry";
 import { clearSession, loadSessionUserId } from "@/workspace/session";
-import { getUserById } from "@/workspace/workspace-users";
+import { getUserById, subscribeUserCache } from "@/workspace/workspace-users";
 import { useJoinReviews } from "@/hooks/use-join-reviews";
 import { UserAvatar } from "@/components/workspace/UserAvatar";
+import { ProfileDialog } from "@/components/workspace/ProfileDialog";
+import { topBarUploadLabel, useUploadQueue } from "@/workspace/upload-queue";
 
 export type BreadcrumbItem = {
   label: string;
@@ -81,14 +83,18 @@ export function WorkspaceTopBar({
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const userId = loadSessionUserId();
+  const [, setUserTick] = useState(0);
   const user = getUserById(userId);
   const notifActive = pathname.startsWith("/app/notifications");
   const onLibrary = isProjectLibraryPath(pathname);
   const { pendingCount } = useJoinReviews();
+  useUploadQueue();
+  const uploadLabel = topBarUploadLabel();
 
   const urlQuery = onLibrary ? (searchParams.get("q") ?? "") : "";
   const [query, setQuery] = useState(urlQuery);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const avatarBtnRef = useRef<HTMLButtonElement>(null);
   const menuPanelRef = useRef<HTMLDivElement>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({
@@ -99,6 +105,8 @@ export function WorkspaceTopBar({
   useEffect(() => {
     setQuery(urlQuery);
   }, [urlQuery, pathname]);
+
+  useEffect(() => subscribeUserCache(() => setUserTick((n) => n + 1)), []);
 
   useLayoutEffect(() => {
     if (!menuOpen) return;
@@ -218,6 +226,16 @@ export function WorkspaceTopBar({
         />
       </form>
 
+      {uploadLabel ? (
+        <span
+          className="hidden max-w-[240px] items-center gap-1.5 truncate text-[12px] font-medium text-emerald-800 sm:inline-flex"
+          title={uploadLabel}
+        >
+          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
+          {uploadLabel}
+        </span>
+      ) : null}
+
       <Link
         to="/app/notifications"
         className={cn(
@@ -267,6 +285,20 @@ export function WorkspaceTopBar({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  setMenuOpen(false);
+                  setProfileOpen(true);
+                }}
+                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] font-medium text-[#1F2423] transition-colors hover:bg-[rgba(160,99,88,0.06)] hover:text-[#A06358]"
+              >
+                <UserRound className="h-4 w-4 shrink-0" strokeWidth={1.8} />
+                个人资料
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   logout();
                 }}
                 className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] font-medium text-[#1F2423] transition-colors hover:bg-[rgba(160,99,88,0.06)] hover:text-[#A06358]"
@@ -278,6 +310,12 @@ export function WorkspaceTopBar({
             document.body,
           )
         : null}
+
+      <ProfileDialog
+        open={profileOpen}
+        user={user}
+        onClose={() => setProfileOpen(false)}
+      />
     </header>
   );
 }

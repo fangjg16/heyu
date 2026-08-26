@@ -29,6 +29,7 @@ const AI_CHAT_ENDPOINT =
 
 export type AuthUserProfile = WorkspaceUser & {
   isPlatformAdmin: boolean;
+  username?: string;
 };
 
 function apiBase(): string {
@@ -61,6 +62,7 @@ function normalizeAuthUser(user: AuthUserProfile): AuthUserProfile {
   return {
     ...user,
     orgTitle: stripOrgRoleLabel(user.orgTitle),
+    username: (user.username ?? "").trim(),
   };
 }
 
@@ -131,6 +133,28 @@ export async function loginWithClerkToken(
   const user = normalizeAuthUser(data.user);
   saveSessionAuth(data.token, user.id, user);
   applyProfile(user);
+  return user;
+}
+
+export async function patchMyProfile(input: {
+  displayName?: string;
+  avatarUrl?: string;
+}): Promise<AuthUserProfile> {
+  const res = await apiFetch("/api/me/profile", {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    user?: AuthUserProfile;
+  };
+  if (!res.ok || !data.user) {
+    throw new Error(data.error || `保存失败（${res.status}）`);
+  }
+  const token = loadSessionToken();
+  const user = normalizeAuthUser(data.user);
+  applyProfile(user);
+  if (token) saveSessionAuth(token, user.id, user);
   return user;
 }
 
