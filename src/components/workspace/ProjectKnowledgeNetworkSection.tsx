@@ -107,6 +107,15 @@ function resolveSectionLocation(sectionRaw: string | null): {
   return null;
 }
 
+function formatVersionTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${d.getMonth() + 1}月${d.getDate()}日 ${hh}:${mm}`;
+}
+
 const VIEW_TABS: { id: KnowledgeView; label: string }[] = [
   { id: "chapters", label: "章节" },
   { id: "sources", label: "引用来源" },
@@ -359,7 +368,7 @@ export function ProjectKnowledgeNetworkSection({
     if (version === currentBundleVersion) return;
     if (
       !window.confirm(
-        `将正式知识网络回滚到 ${formatChapterVersionLabel(version)}？当前内容会归档为新版本。`,
+        `回滚到 ${formatChapterVersionLabel(version)}？`,
       )
     ) {
       return;
@@ -1046,7 +1055,7 @@ export function ProjectKnowledgeNetworkSection({
                           ? "本章正在生成草案"
                           : !canUpdateChapter
                             ? "本章尚无内容，请先「更新全部章节」生成"
-                            : "生成本章更新草案（正式版本不会被覆盖），审核后再发布"
+                            : "更新本章"
                       }
                       className="h-9 w-full whitespace-nowrap rounded-[9px] border border-[rgba(160,99,88,0.3)] bg-transparent px-2.5 text-[12px] font-medium text-[#A06358] transition-colors hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -1091,10 +1100,6 @@ export function ProjectKnowledgeNetworkSection({
                             </button>
                           </div>
                         )}
-                        <p className="text-[11px] leading-relaxed text-[#969E9A]">
-                          「更新本章」生成 AI 草案，「编辑本章」把修改写入草案。项目管理员在审核页直接发布；Core
-                          在审核页提交审批。
-                        </p>
                       </div>
                     ) : null}
                   </div>
@@ -1387,29 +1392,29 @@ export function ProjectKnowledgeNetworkSection({
                 dangerouslySetInnerHTML={{ __html: browsingHtml }}
               />
             ) : (
-              <p className="text-[13px] text-[#969E9A]">该版本无此章节归档内容</p>
+              <p className="text-[13px] text-[#969E9A]">该版本没有此章节</p>
             )}
           </div>
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.76)]">
-          <div className="border-b border-[rgba(78,66,57,0.1)] px-8 py-7">
-            <div className="text-[11px] tracking-wide text-[#A06358]">
-              版本记录
+          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[rgba(78,66,57,0.1)] px-6 py-5 md:px-8">
+            <div>
+              <div className="text-[11px] tracking-wide text-[#A06358]">
+                知识网络
+              </div>
+              <div className="mt-1.5 font-[family-name:var(--font-serif,serif)] text-[24px] font-semibold text-[#1F2423]">
+                版本记录
+              </div>
             </div>
-            <div className="mt-2 font-[family-name:var(--font-serif,serif)] text-[27px] font-semibold text-[#1F2423]">
-              知识网络与项目概览
-            </div>
-            <p className="mt-2.5 max-w-[820px] text-[13px] leading-[1.75] text-[#59625F]">
-              知识网络 13 章与项目概览分开编号。概览每条记录会标明它对应哪一版知识网络。当前知识网络{" "}
-              {formatChapterVersionLabel(currentBundleVersion)}
+            <p className="text-[12.5px] text-[#59625F]">
+              知识网络 {formatChapterVersionLabel(currentBundleVersion)}
               {currentOverviewVersion > 0
-                ? `，当前概览 ${formatOverviewVersionLabel(currentOverviewVersion)}`
+                ? ` · 项目概览 ${formatOverviewVersionLabel(currentOverviewVersion)}`
                 : ""}
-              。
             </p>
           </div>
-          <div className="px-6 py-5">
+          <div className="px-4 py-4 md:px-6">
             {versionsError ? (
               <p className="mb-4 rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
                 {versionsError}
@@ -1422,121 +1427,119 @@ export function ProjectKnowledgeNetworkSection({
             ) : versionMetas.length === 0 && overviewVersionMetas.length === 0 ? (
               <div className="flex min-h-[200px] items-center justify-center px-8 py-12">
                 <p className="text-center text-[13px] text-[#969E9A]">
-                  尚无归档版本。发布知识网络章节或项目概览后，将在此分别显示。
+                  还没有版本记录
                 </p>
               </div>
             ) : (
-              <div className="space-y-8">
-                <section>
-                  <h3 className="px-2 text-[13px] font-semibold text-[#59625F]">
-                    知识网络版本
+              <div className="grid grid-cols-1 lg:grid-cols-2 lg:divide-x lg:divide-[rgba(78,66,57,0.08)]">
+                <section className="min-w-0 px-2 pb-6 lg:pr-6 lg:pb-2">
+                  <h3 className="px-1 text-[13px] font-semibold text-[#1F2423]">
+                    知识网络
                   </h3>
                   {versionMetas.length === 0 ? (
-                    <p className="mt-3 px-2 text-[12.5px] text-[#969E9A]">
-                      尚无知识网络归档。使用「更新全部章节」发布后显示。
-                    </p>
-                  ) : (
-              <ul className="mt-2 divide-y divide-[rgba(78,66,57,0.08)]">
-                {versionMetas.map((v, idx) => {
-                  const older = versionMetas[idx + 1];
-                  const changeHint = older
-                    ? `相对上一版 ${formatChapterVersionLabel(older.version)} · 本版归档 ${v.sectionCount} 章`
-                    : `归档 ${v.sectionCount} 章`;
-                  return (
-                    <li key={v.version}>
-                      <div className="flex w-full flex-wrap items-center justify-between gap-3 px-2 py-3.5">
-                        <button
-                          type="button"
-                          onClick={() => void openVersionBrowse(v.version)}
-                          className="min-w-0 flex-1 text-left transition-colors hover:opacity-80"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="text-[15px] font-semibold text-[#1F2423]">
-                              {formatChapterVersionLabel(v.version)}
-                            </span>
-                            {v.isCurrent ||
-                            v.version === currentBundleVersion ? (
-                              <span className="rounded bg-[rgba(47,107,79,0.12)] px-1.5 py-0.5 text-[11px] font-medium text-[#2F6B4F]">
-                                当前版本
-                              </span>
-                            ) : null}
-                          </div>
-                          <p className="mt-1 text-[12.5px] text-[#59625F]">
-                            {changeHint}
-                            {v.archivedBy ? ` · ${v.archivedBy}` : ""}
-                          </p>
-                        </button>
-                        <div className="flex shrink-0 items-center gap-2 text-right text-[12px] text-[#969E9A]">
-                          <div>
-                            {v.archivedAt
-                              ? new Date(v.archivedAt).toLocaleString("zh-CN")
-                              : "—"}
-                            <div className="mt-0.5 text-[#A06358]">查看</div>
-                          </div>
-                          {canPublish &&
-                          v.version !== currentBundleVersion &&
-                          !v.isCurrent ? (
-                            <button
-                              type="button"
-                              disabled={rollbackBusy != null}
-                              onClick={() => void onRollbackVersion(v.version)}
-                              className="h-8 rounded-lg border border-[rgba(160,99,88,0.3)] px-2.5 text-[12px] font-medium text-[#A06358] hover:bg-[#EFE7E6] disabled:opacity-50"
-                            >
-                              {rollbackBusy === v.version ? "回滚中…" : "回滚"}
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-                  )}
-                </section>
-                <section>
-                  <h3 className="px-2 text-[13px] font-semibold text-[#59625F]">
-                    项目概览版本
-                  </h3>
-                  {overviewVersionMetas.length === 0 ? (
-                    <p className="mt-3 px-2 text-[12.5px] text-[#969E9A]">
-                      尚无概览归档。发布「更新概览」后显示，并标注对应的知识网络版号。
+                    <p className="mt-4 px-1 text-[12.5px] text-[#969E9A]">
+                      暂无记录
                     </p>
                   ) : (
                     <ul className="mt-2 divide-y divide-[rgba(78,66,57,0.08)]">
-                      {overviewVersionMetas.map((v) => (
-                        <li key={`ov-${v.version}`}>
-                          <button
-                            type="button"
-                            onClick={() => void openOverviewBrowse(v.version)}
-                            className="flex w-full flex-wrap items-center justify-between gap-3 px-2 py-3.5 text-left transition-colors hover:opacity-80"
-                          >
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[15px] font-semibold text-[#1F2423]">
-                                  {formatOverviewVersionLabel(v.version)}
-                                </span>
-                                {v.isCurrent ||
-                                v.version === currentOverviewVersion ? (
-                                  <span className="rounded bg-[rgba(47,107,79,0.12)] px-1.5 py-0.5 text-[11px] font-medium text-[#2F6B4F]">
-                                    当前概览
+                      {versionMetas.map((v) => {
+                        const isCurrent =
+                          v.isCurrent || v.version === currentBundleVersion;
+                        return (
+                          <li key={v.version} className="py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[15px] font-semibold text-[#1F2423]">
+                                    {formatChapterVersionLabel(v.version)}
                                   </span>
+                                  {isCurrent ? (
+                                    <span className="rounded-md bg-[rgba(47,107,79,0.12)] px-1.5 py-0.5 text-[11px] font-medium text-[#2F6B4F]">
+                                      当前
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <p className="mt-1 truncate text-[12px] text-[#969E9A]">
+                                  {formatVersionTime(v.archivedAt)}
+                                  {v.archivedBy ? ` · ${v.archivedBy}` : ""}
+                                </p>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => void openVersionBrowse(v.version)}
+                                  className="h-8 rounded-lg px-2.5 text-[12px] font-medium text-[#A06358] hover:bg-[#EFE7E6]"
+                                >
+                                  查看
+                                </button>
+                                {canPublish && !isCurrent ? (
+                                  <button
+                                    type="button"
+                                    disabled={rollbackBusy != null}
+                                    onClick={() => void onRollbackVersion(v.version)}
+                                    className="h-8 rounded-lg border border-[rgba(160,99,88,0.3)] px-2.5 text-[12px] font-medium text-[#A06358] hover:bg-[#EFE7E6] disabled:opacity-50"
+                                  >
+                                    {rollbackBusy === v.version
+                                      ? "回滚中…"
+                                      : "回滚"}
+                                  </button>
                                 ) : null}
                               </div>
-                              <p className="mt-1 text-[12.5px] text-[#59625F]">
-                                对应知识网络{" "}
-                                {formatChapterVersionLabel(v.knVersion)}
-                                {v.archivedBy ? ` · ${v.archivedBy}` : ""}
-                              </p>
                             </div>
-                            <div className="shrink-0 text-right text-[12px] text-[#969E9A]">
-                              {v.archivedAt
-                                ? new Date(v.archivedAt).toLocaleString("zh-CN")
-                                : "—"}
-                              <div className="mt-0.5 text-[#A06358]">查看</div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </section>
+                <section className="min-w-0 border-t border-[rgba(78,66,57,0.08)] px-2 pt-6 lg:border-t-0 lg:pl-6 lg:pt-0">
+                  <h3 className="px-1 text-[13px] font-semibold text-[#1F2423]">
+                    项目概览
+                  </h3>
+                  {overviewVersionMetas.length === 0 ? (
+                    <p className="mt-4 px-1 text-[12.5px] text-[#969E9A]">
+                      暂无记录
+                    </p>
+                  ) : (
+                    <ul className="mt-2 divide-y divide-[rgba(78,66,57,0.08)]">
+                      {overviewVersionMetas.map((v) => {
+                        const isCurrent =
+                          v.isCurrent || v.version === currentOverviewVersion;
+                        return (
+                          <li key={`ov-${v.version}`} className="py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-[15px] font-semibold text-[#1F2423]">
+                                    {formatOverviewVersionLabel(v.version)}
+                                  </span>
+                                  {isCurrent ? (
+                                    <span className="rounded-md bg-[rgba(47,107,79,0.12)] px-1.5 py-0.5 text-[11px] font-medium text-[#2F6B4F]">
+                                      当前
+                                    </span>
+                                  ) : null}
+                                  {v.knVersion > 0 ? (
+                                    <span className="text-[11px] text-[#969E9A]">
+                                      {formatChapterVersionLabel(v.knVersion)}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <p className="mt-1 truncate text-[12px] text-[#969E9A]">
+                                  {formatVersionTime(v.archivedAt)}
+                                  {v.archivedBy ? ` · ${v.archivedBy}` : ""}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => void openOverviewBrowse(v.version)}
+                                className="h-8 shrink-0 rounded-lg px-2.5 text-[12px] font-medium text-[#A06358] hover:bg-[#EFE7E6]"
+                              >
+                                查看
+                              </button>
                             </div>
-                          </button>
-                        </li>
-                      ))}
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </section>
@@ -1580,7 +1583,7 @@ export function ProjectKnowledgeNetworkSection({
                     确认更新全部章节
                   </h3>
                   <p className="mt-2 text-[12.5px] leading-relaxed text-[#59625F]">
-                    将生成全部知识网络章节的更新草案。正式版本不会被覆盖，生成完成后可进入审核页对照差异再发布。耗时可能较长。确定开始？
+                    将更新全部章节，可能需要几分钟。确定开始？
                   </p>
                 </div>
                 <div className="flex justify-end gap-2 px-5 py-3">

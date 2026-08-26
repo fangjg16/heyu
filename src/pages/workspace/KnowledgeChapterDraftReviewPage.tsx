@@ -735,28 +735,22 @@ export default function KnowledgeChapterDraftReviewPage() {
     if (confirm.type === "one") {
       return {
         title: overviewOnlyPreview
-          ? `确认发布「${confirm.label}」为 ${nextOverviewLabel}？`
+          ? `确认发布「${confirm.label}」？`
           : `确认发布「${confirm.label}」为 ${nextVersionLabel}？`,
         body: overviewOnlyPreview
-          ? `写入正式项目概览为 ${nextOverviewLabel}，对应当前知识网络 ${knForOverviewLabel}。知识网络版号不会因此增加。`
-          : preRelease
-          ? `写入正式知识网络为 ${nextVersionLabel}。13 个研究章节未齐时为 0.x，第一次齐全后升为 1.0。其他章节不受影响，可继续审核。`
-          : `仅将本章草案写入正式知识网络（${nextVersionLabel}），并把当前正式内容归档为 ${currentVersionLabel}。其他章节不受影响，可继续审核。`,
+          ? `将发布为 ${nextOverviewLabel}。`
+          : `将发布为 ${nextVersionLabel}。其他章节不受影响。`,
       };
     }
     return {
       title: overviewOnlyPreview
-        ? `确认发布项目概览为 ${nextOverviewLabel}？`
+        ? "确认发布项目概览？"
         : mixedPreview
-          ? `确认发布知识网络 ${nextVersionLabel} 并发布概览 ${nextOverviewLabel}？`
+          ? `确认发布为 ${nextVersionLabel}？`
           : `确认发布全部 ${changedCount} 处变更为 ${nextVersionLabel}？`,
       body: overviewOnlyPreview
-        ? `写入正式项目概览为 ${nextOverviewLabel}，对应当前知识网络 ${knForOverviewLabel}。知识网络版号不会因此增加。`
-        : mixedPreview
-        ? `知识网络升为 ${nextVersionLabel}；项目概览独立编号为 ${nextOverviewLabel}，对应本次知识网络 ${nextVersionLabel}。失败与未变章节不会覆盖。`
-        : preRelease
-        ? `写入正式知识网络为 ${nextVersionLabel}。13 个研究章节未齐时为 0.x，第一次齐全后升为 1.0。失败与未变章节不会覆盖。`
-        : `将把所有「新增/变更」章节写入正式知识网络（${nextVersionLabel}），并把当前正式内容归档为 ${currentVersionLabel}。失败与未变章节不会覆盖。`,
+        ? `将发布为 ${nextOverviewLabel}。`
+        : `将发布为 ${nextVersionLabel}。未改动的章节保持原样。`,
     };
   })();
 
@@ -810,9 +804,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                 : "审核章节更新草案"}
             </h1>
             <p className="mt-1.5 max-w-3xl text-[13px] text-[#59625F]">
-              对照当前正式版 {currentVersionLabel}（草案基于{" "}
-              {baseVersionLabel}
-              ）与待审核草案；确认差异后再发布。草稿本身不占用正式版号。
+              对照当前正式版与本次更新，确认后再发布。
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -1385,12 +1377,10 @@ export default function KnowledgeChapterDraftReviewPage() {
                     </div>
                     {preRelease ? (
                       <p className="rounded-lg border border-[rgba(78,66,57,0.1)] px-2.5 py-2 text-[12px] leading-relaxed text-[#59625F]">
-                        13 个研究章节尚未第一次全部发布时记为 0.x；齐全后升为
-                        1.0。本次将发布为{" "}
+                        本次将发布为{" "}
                         <span className="font-medium text-[#1F2423]">
                           {nextVersionLabel}
                         </span>
-                        。
                       </p>
                     ) : (
                       <>
@@ -1457,23 +1447,18 @@ export default function KnowledgeChapterDraftReviewPage() {
                       </>
                     )}
                       </>
-                    ) : overviewOnlyDraft && canPublish ? (
-                      <p className="rounded-lg border border-[rgba(78,66,57,0.1)] px-2.5 py-2 text-[12px] leading-relaxed text-[#59625F]">
-                        概览独立编号为 {nextOverviewLabel}，对应当前知识网络{" "}
-                        {knForOverviewLabel}。发布概览不会增加知识网络版号。
-                      </p>
                     ) : null}
                   </div>
 
                   {hasGraphDraft && selected?.id === "project-overview" ? (
-                    <p className="mt-3 rounded-lg border border-[rgba(94,155,117,0.25)] bg-[rgba(94,155,117,0.08)] px-2.5 py-2 text-[12px] leading-relaxed text-[#2F6B4F]">
-                      草案含关系图更新；发布本章时将一并写入正式版。
+                    <p className="mt-3 text-[12px] leading-relaxed text-[#59625F]">
+                      含关系图
                     </p>
                   ) : null}
 
                   {!canPublish && canUpdate ? (
                     <p className="mt-4 text-[12px] leading-relaxed text-[#59625F]">
-                      改写完成后点击「提交审批」，项目管理员会在通知里收到本草案。发布须由项目管理员操作。
+                      改完后点「提交审批」。
                     </p>
                   ) : !canUpdate ? (
                     <p className="mt-4 text-[12px] leading-relaxed text-[#969E9A]">

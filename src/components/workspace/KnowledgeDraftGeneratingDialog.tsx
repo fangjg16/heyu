@@ -84,7 +84,7 @@ export function KnowledgeDraftGeneratingDialog({
 
         <div className="px-7 pb-6 pt-7">
           <div className="text-[11px] font-medium tracking-wide text-[#A06358]">
-            生成知识网络更新草案
+            生成更新
           </div>
           <h2
             id="kn-draft-dialog-title"
@@ -97,23 +97,13 @@ export function KnowledgeDraftGeneratingDialog({
                 : "正在准备全部章节更新"}
           </h2>
           <p className="mt-2.5 text-[13px] leading-[1.7] text-[#59625F]">
-            {mode === "section" ? (
-              <>
-                正在生成「{chapterName}」的待审核草案。
-                <span className="font-medium text-[#1F2423]">
-                  当前正式版本不会被覆盖
-                </span>
-                ；完成后可进入审核页对照差异。正式版须由项目管理员发布。点「后台继续」可关闭本窗口，生成仍会继续。
-              </>
-            ) : (
-              <>
-                正在生成 13 个研究章节的待审核草案。
-                <span className="font-medium text-[#1F2423]">
-                  当前正式版本不会被覆盖
-                </span>
-                ；全部完成后可进入审核页对照差异。正式版须由项目管理员发布。点「后台继续」可关闭本窗口，生成仍会继续。
-              </>
-            )}
+            {finished
+              ? mode === "section"
+                ? `「${chapterName}」已生成，可以去审核。`
+                : "全部章节已生成，可以去审核。"
+              : mode === "section"
+                ? `正在生成「${chapterName}」。可关闭此窗口，完成后在审核页查看。`
+                : "正在生成全部章节。可关闭此窗口，完成后在审核页查看。"}
           </p>
 
           <div className="mt-5 rounded-[12px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.9)] px-4 py-3.5">
@@ -177,7 +167,7 @@ export function KnowledgeDraftGeneratingDialog({
               onClick={onClose}
               className="inline-flex h-10 items-center rounded-[11px] border border-[rgba(78,66,57,0.18)] bg-transparent px-4 text-[13.5px] font-medium text-[#1F2423] hover:bg-[rgba(78,66,57,0.04)]"
             >
-              {finished ? "稍后处理" : "后台继续"}
+              {finished ? "关闭" : "后台进行"}
             </button>
             <button
               type="button"
