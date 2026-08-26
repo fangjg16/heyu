@@ -1272,13 +1272,16 @@ export function ProjectMaterialsSection({
     facet,
   ]);
 
-  const folderShareFiles = useMemo(() => {
+  const folderFiles = useMemo(() => {
     if (selection.kind !== "folder" || !selectedFolder) return [];
     return selectedFolder.children
       .filter((c): c is FileTreeFileNode => c.kind === "file")
-      .map((c) => c.file)
-      .filter((f) => canShareWithIssuer(f));
+      .map((c) => c.file);
   }, [selection, selectedFolder]);
+  const folderShareFiles = useMemo(
+    () => folderFiles.filter((f) => canShareWithIssuer(f)),
+    [folderFiles],
+  );
   const folderShareCount = folderShareFiles.filter((f) => f.sharedWithIssuer).length;
   const folderShareAll =
     folderShareFiles.length > 0 && folderShareCount === folderShareFiles.length;
@@ -1452,106 +1455,192 @@ export function ProjectMaterialsSection({
             </div>
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.78)] shadow-[0_10px_30px_rgba(102,80,60,0.07)]">
-              <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-[30px] py-7 [scrollbar-gutter:stable]">
-              <div className="flex items-start justify-between gap-5">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-1.5 text-[11.5px] text-[hsl(var(--warm-charcoal-muted))]">
-                    {detail.trail.map((p, i) => (
-                      <span key={`${p.path}-${i}`} className="inline-flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          className={cn(
-                            i === detail.trail.length - 1
-                              ? "cursor-default text-[hsl(var(--warm-charcoal-muted))]"
-                              : "text-[hsl(var(--wine))] hover:underline",
-                          )}
-                          onClick={() => {
-                            if (i === detail.trail.length - 1) return;
-                            if (p.path.startsWith("file:")) return;
-                            setSelection({ kind: "folder", path: p.path });
-                          }}
-                        >
-                          {p.label}
-                        </button>
-                        {i < detail.trail.length - 1 ? (
-                          <span className="text-[rgba(78,66,57,0.3)]">/</span>
-                        ) : null}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="mt-2.5 truncate font-display text-2xl font-semibold" title={detail.title}>
-                    {detail.title}
-                  </div>
+              <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-5 py-4 [scrollbar-gutter:stable]">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 pt-0.5">
+                  {detail.trail.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
+                      {detail.trail.map((p, i) => {
+                        const last = i === detail.trail.length - 1;
+                        return (
+                          <span key={`${p.path}-${i}`} className="inline-flex min-w-0 items-center gap-1.5">
+                            <button
+                              type="button"
+                              className={cn(
+                                "min-w-0 truncate",
+                                last
+                                  ? "cursor-default text-[15px] font-semibold text-[#1F2423]"
+                                  : "text-[hsl(var(--wine))] hover:underline",
+                              )}
+                              title={p.label}
+                              onClick={() => {
+                                if (last) return;
+                                if (p.path.startsWith("file:")) return;
+                                setSelection({ kind: "folder", path: p.path });
+                              }}
+                            >
+                              {p.label}
+                            </button>
+                            {!last ? (
+                              <span className="text-[rgba(78,66,57,0.3)]">/</span>
+                            ) : null}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="truncate text-[15px] font-semibold text-[#1F2423]" title={detail.title}>
+                      {detail.title}
+                    </div>
+                  )}
                 </div>
-                {detail.isFile && detail.file ? (
-                <div className="flex shrink-0 items-center gap-3">
-                  {canShareWithIssuer(detail.file) ? (
+                <div className="flex max-w-full shrink-0 flex-wrap items-center justify-end gap-2">
+                  {!detail.isFile && canManage && folderShareFiles.length > 0 ? (
+                    <IssuerShareTick
+                      shared={folderShareAll}
+                      indeterminate={folderShareMixed}
+                      disabled={busy || sharingFolder || sharingId !== null}
+                      onChange={(next) =>
+                        void onShareFolderFiles(folderShareFiles, next)
+                      }
+                    />
+                  ) : null}
+                  {detail.isFile && detail.file && canShareWithIssuer(detail.file) ? (
                     <IssuerShareTick
                       shared={Boolean(detail.file.sharedWithIssuer)}
                       disabled={!canManage || busy || sharingId === detail.file.id}
                       onChange={(next) => void onShareFile(detail.file!, next)}
                     />
                   ) : null}
+                  {detail.isFile && detail.file ? (
                     <button
                       type="button"
                       disabled={!detail.canPreview}
                       onClick={() => openPreview(detail.file!.id)}
-                      className="inline-flex h-[38px] shrink-0 items-center gap-2 whitespace-nowrap rounded-[10px] border border-[rgba(160,99,88,0.3)] bg-transparent px-[15px] text-[13px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-[rgba(160,99,88,0.3)] bg-transparent px-3 text-[12.5px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <Eye className="h-4 w-4" strokeWidth={1.8} aria-hidden />
-                      预览文件
+                      <Eye className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden />
+                      预览
                     </button>
+                  ) : null}
+                  {detail.canCreateSubfolder ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        void onCreateFolder(
+                          selection.kind === "folder" ? selection.path : "",
+                        )
+                      }
+                      className="h-8 rounded-lg border border-[rgba(160,99,88,0.3)] bg-transparent px-3 text-[12.5px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:opacity-50"
+                    >
+                      新建文件夹
+                    </button>
+                  ) : null}
+                  {detail.canDeleteFolder ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        if (selection.kind === "folder") {
+                          void onDeleteFolder(selection.path);
+                        }
+                      }}
+                      className="h-8 rounded-lg border border-[rgba(78,66,57,0.16)] bg-transparent px-3 text-[12.5px] font-medium text-[hsl(var(--warm-charcoal-muted))] hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
+                    >
+                      删除文件夹
+                    </button>
+                  ) : null}
+                  {useLive && canManage && detail.canUploadHere ? (
+                    <UploadMenu
+                      compact
+                      disabled={folderBusy}
+                      uploading={uploading}
+                      label="上传到此"
+                      onSelectFiles={() =>
+                        triggerFilePicker(selection.kind === "folder" ? selection.path : "")
+                      }
+                      onSelectFolder={() =>
+                        triggerFolderPicker(selection.kind === "folder" ? selection.path : "")
+                      }
+                    />
+                  ) : null}
+                  {detail.isFile &&
+                  detail.file &&
+                  canManage &&
+                  fileSourceBucket(detail.file) !== "issuer" ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void onDeleteFile(detail.file!)}
+                      className="h-8 rounded-lg border border-[rgba(78,66,57,0.16)] bg-transparent px-3 text-[12.5px] font-medium text-[hsl(var(--warm-charcoal-muted))] hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
+                    >
+                      删除
+                    </button>
+                  ) : null}
+                  {detail.isFile && detail.file ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openChatAskAboutFile(projectId, {
+                          id: detail.file!.id,
+                          filename: detail.file!.filename,
+                        })
+                      }
+                      className="h-8 rounded-lg bg-[hsl(var(--wine))] px-3 text-[12.5px] font-medium text-white hover:bg-[hsl(var(--wine-hover))]"
+                    >
+                      在对话中追问
+                    </button>
+                  ) : null}
                 </div>
-                ) : null}
               </div>
 
               {detail.isFile ? (
-                <p className="mt-2 text-[13px] text-[hsl(var(--warm-charcoal-muted))]">
+                <p className="mt-1.5 text-[12.5px] text-[hsl(var(--warm-charcoal-muted))]">
                   {[detail.status, detail.perm].filter(Boolean).join(" · ")}
                 </p>
               ) : null}
 
-              {!detail.isFile && folderShareFiles.length > 0 ? (
-                <div className="mt-6 divide-y divide-[rgba(78,66,57,0.08)] border-y border-[rgba(78,66,57,0.08)]">
-                  {canManage ? (
-                    <div className="flex items-center gap-3 py-2.5">
-                      <span className="min-w-0 flex-1 text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
-                        本文件夹
-                      </span>
-                      <IssuerShareTick
-                        shared={folderShareAll}
-                        indeterminate={folderShareMixed}
-                        disabled={busy || sharingFolder || sharingId !== null}
-                        onChange={(next) =>
-                          void onShareFolderFiles(folderShareFiles, next)
-                        }
-                      />
-                    </div>
-                  ) : null}
-                  {folderShareFiles.map((file) => (
-                    <div key={file.id} className="flex items-center gap-3 py-2.5">
-                      <button
-                        type="button"
-                        className="min-w-0 flex-1 truncate text-left text-[13px] text-[#1F2423] hover:text-[hsl(var(--wine))]"
-                        onClick={() => selectFile(file)}
-                      >
-                        {file.filename}
-                      </button>
-                      {canManage ? (
-                        <IssuerShareTick
-                          shared={Boolean(file.sharedWithIssuer)}
-                          disabled={
-                            busy || sharingFolder || sharingId === file.id
-                          }
-                          onChange={(next) => void onShareFile(file, next)}
-                        />
-                      ) : (
-                        <span className="shrink-0 text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
-                          {file.sharedWithIssuer ? "协作方可见" : ""}
-                        </span>
-                      )}
-                    </div>
-                  ))}
+              {!detail.isFile && folderFiles.length > 0 ? (
+                <div className="mt-4">
+                  <div className="mb-1 flex items-center gap-3 px-0.5 text-[11px] text-[hsl(var(--warm-charcoal-muted))]">
+                    <span className="min-w-0 flex-1">文件</span>
+                    {canManage && folderShareFiles.length > 0 ? (
+                      <span className="w-[4.5rem] shrink-0 text-right">协作方可见</span>
+                    ) : null}
+                  </div>
+                  <div className="divide-y divide-[rgba(78,66,57,0.08)] border-y border-[rgba(78,66,57,0.08)]">
+                    {folderFiles.map((file) => (
+                      <div key={file.id} className="flex h-8 items-center gap-3">
+                        <button
+                          type="button"
+                          className="min-w-0 flex-1 truncate text-left text-[13px] text-[#1F2423] hover:text-[hsl(var(--wine))]"
+                          onClick={() => selectFile(file)}
+                        >
+                          {file.filename}
+                        </button>
+                        {canManage && canShareWithIssuer(file) ? (
+                          <span className="flex w-[4.5rem] shrink-0 justify-end">
+                            <IssuerShareTick
+                              compact
+                              showLabel={false}
+                              shared={Boolean(file.sharedWithIssuer)}
+                              disabled={
+                                busy || sharingFolder || sharingId === file.id
+                              }
+                              onChange={(next) => void onShareFile(file, next)}
+                            />
+                          </span>
+                        ) : file.sharedWithIssuer ? (
+                          <span className="w-[4.5rem] shrink-0 text-right text-[11px] text-[hsl(var(--warm-charcoal-muted))]">
+                            可见
+                          </span>
+                        ) : (
+                          <span className="w-[4.5rem] shrink-0" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : null}
 
@@ -1601,81 +1690,6 @@ export function ProjectMaterialsSection({
                 </div>
               ) : null}
 
-              {(detail.canCreateSubfolder ||
-              detail.canDeleteFolder ||
-              detail.canUploadHere ||
-              detail.isFile) ? (
-              <div className="mt-6 flex flex-wrap gap-2.5">
-                {detail.canCreateSubfolder ? (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() =>
-                      void onCreateFolder(
-                        selection.kind === "folder" ? selection.path : "",
-                      )
-                    }
-                    className="h-[38px] rounded-[10px] border border-[rgba(160,99,88,0.3)] bg-transparent px-4 text-[13px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:opacity-50"
-                  >
-                    新建文件夹
-                  </button>
-                ) : null}
-                {detail.isFile &&
-                detail.file &&
-                canManage &&
-                fileSourceBucket(detail.file) !== "issuer" ? (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void onDeleteFile(detail.file!)}
-                    className="h-[38px] rounded-[10px] border border-[rgba(78,66,57,0.16)] bg-transparent px-4 text-[13px] font-medium text-[hsl(var(--warm-charcoal-muted))] hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
-                  >
-                    删除
-                  </button>
-                ) : null}
-                {detail.canDeleteFolder ? (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      if (selection.kind === "folder") {
-                        void onDeleteFolder(selection.path);
-                      }
-                    }}
-                    className="h-[38px] rounded-[10px] border border-[rgba(78,66,57,0.16)] bg-transparent px-4 text-[13px] font-medium text-[hsl(var(--warm-charcoal-muted))] hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
-                  >
-                    删除文件夹
-                  </button>
-                ) : null}
-                {useLive && canManage && detail.canUploadHere ? (
-                  <UploadMenu
-                    disabled={folderBusy}
-                    uploading={uploading}
-                    label="上传到此"
-                    onSelectFiles={() =>
-                      triggerFilePicker(selection.kind === "folder" ? selection.path : "")
-                    }
-                    onSelectFolder={() =>
-                      triggerFolderPicker(selection.kind === "folder" ? selection.path : "")
-                    }
-                  />
-                ) : null}
-                {detail.isFile && detail.file ? (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      openChatAskAboutFile(projectId, {
-                        id: detail.file!.id,
-                        filename: detail.file!.filename,
-                      })
-                    }
-                    className="h-[38px] rounded-[10px] bg-[hsl(var(--wine))] px-4 text-[13px] font-medium text-white hover:bg-[hsl(var(--wine-hover))]"
-                  >
-                    在对话中追问
-                  </button>
-                ) : null}
-              </div>
-              ) : null}
               </div>
             </div>
           </div>
@@ -1736,11 +1750,15 @@ function IssuerShareTick({
   shared,
   indeterminate,
   disabled,
+  compact,
+  showLabel = true,
   onChange,
 }: {
   shared: boolean;
   indeterminate?: boolean;
   disabled?: boolean;
+  compact?: boolean;
+  showLabel?: boolean;
   onChange: (shared: boolean) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -1752,7 +1770,8 @@ function IssuerShareTick({
   return (
     <label
       className={cn(
-        "inline-flex h-[38px] shrink-0 items-center gap-1.5 text-[13px] text-[#1F2423]",
+        "inline-flex shrink-0 items-center gap-1.5 text-[#1F2423]",
+        compact ? "h-8 text-[12px]" : "h-8 text-[12.5px]",
         disabled ? "cursor-default opacity-50" : "cursor-pointer",
       )}
     >
@@ -1765,7 +1784,7 @@ function IssuerShareTick({
         aria-label={indeterminate ? "本文件夹部分文件协作方可见" : "协作方可见"}
         onChange={(e) => onChange(e.target.checked)}
       />
-      协作方可见
+      {showLabel ? "协作方可见" : null}
     </label>
   );
 }
@@ -1773,12 +1792,14 @@ function IssuerShareTick({
 function UploadMenu({
   disabled,
   uploading,
+  compact,
   label = "上传资料",
   onSelectFiles,
   onSelectFolder,
 }: {
   disabled?: boolean;
   uploading?: boolean;
+  compact?: boolean;
   label?: string;
   onSelectFiles: () => void;
   onSelectFolder: () => void;
@@ -1804,7 +1825,10 @@ function UploadMenu({
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "inline-flex h-[38px] items-center gap-1.5 rounded-[10px] bg-[hsl(var(--wine))] px-3.5 text-[12.5px] font-medium text-white hover:bg-[hsl(var(--wine-hover))]",
+          "inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--wine))] font-medium text-white hover:bg-[hsl(var(--wine-hover))]",
+          compact
+            ? "h-8 px-3 text-[12.5px]"
+            : "h-[38px] rounded-[10px] px-3.5 text-[12.5px]",
           disabled && "pointer-events-none opacity-60",
         )}
         aria-expanded={open}

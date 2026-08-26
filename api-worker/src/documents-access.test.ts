@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  LIST_FILES_LIMIT,
   LIST_FILES_SQL,
   LIST_FILES_SQL_LEGACY,
   LIST_FILES_SQL_NO_BYTE_SIZE,
@@ -18,6 +19,16 @@ const LIST_SQLS = [
   LIST_FILES_SQL_NO_PARSE,
   LIST_FILES_SQL_NO_BYTE_SIZE,
 ];
+
+describe("LIST_FILES_LIMIT", () => {
+  it("keeps enough rows that early numbered folders are not dropped by recency", () => {
+    expect(LIST_FILES_LIMIT).toBeGreaterThanOrEqual(2000);
+    for (const sql of LIST_SQLS) {
+      expect(sql).toMatch(new RegExp(`LIMIT\\s+${LIST_FILES_LIMIT}\\s*$`, "m"));
+      expect(sql).not.toMatch(/LIMIT\s+200\s*$/m);
+    }
+  });
+});
 
 describe("listFilesSqlWithSessionVisibility", () => {
   it("keeps own-session filter for non-admin listing", () => {

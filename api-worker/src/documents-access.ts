@@ -78,6 +78,10 @@ export function listFilesSqlWithSessionVisibility(
     bindUserId: false,
   };
 }
+
+/** 源文件树需要完整资料包。200 会按 created_at 丢掉最早上传的文件夹。 */
+export const LIST_FILES_LIMIT = 5000;
+
 export const LIST_FILES_SQL = `
   SELECT d.id, d.filename, d.relative_path, d.scope, d.conversation_id, d.mime, d.byte_size, d.created_at, d.uploaded_by,
          d.source_kind, d.shared_with_issuer, d.file_category,
@@ -88,7 +92,7 @@ export const LIST_FILES_SQL = `
     AND (d.deleted_at IS NULL OR d.deleted_at = '')
     AND (d.scope = 'package' OR (d.scope = 'session' AND d.uploaded_by = ?))
   ORDER BY d.created_at DESC
-  LIMIT 200
+  LIMIT ${LIST_FILES_LIMIT}
 `;
 
 /** 无 source_kind / shared_with_issuer / file_category（migration 0026 前） */
@@ -101,7 +105,7 @@ export const LIST_FILES_SQL_NO_COLLAB = `
     AND (d.deleted_at IS NULL OR d.deleted_at = '')
     AND (d.scope = 'package' OR (d.scope = 'session' AND d.uploaded_by = ?))
   ORDER BY d.created_at DESC
-  LIMIT 200
+  LIMIT ${LIST_FILES_LIMIT}
 `;
 
 /** 迁移前兼容：无 relative_path 列时的列表 SQL */
@@ -115,7 +119,7 @@ export const LIST_FILES_SQL_LEGACY = `
     AND (d.deleted_at IS NULL OR d.deleted_at = '')
     AND (d.scope = 'package' OR (d.scope = 'session' AND d.uploaded_by = ?))
   ORDER BY d.created_at DESC
-  LIMIT 200
+  LIMIT ${LIST_FILES_LIMIT}
 `;
 
 /** 无 deleted_at 列时的列表 SQL（migration 0013 前） */
@@ -128,7 +132,7 @@ export const LIST_FILES_SQL_NO_SOFT_DELETE = `
   WHERE d.project_id = ?
     AND (d.scope = 'package' OR (d.scope = 'session' AND d.uploaded_by = ?))
   ORDER BY d.created_at DESC
-  LIMIT 200
+  LIMIT ${LIST_FILES_LIMIT}
 `;
 
 /** 无 document_parse_results 表时的列表 SQL */
@@ -142,7 +146,7 @@ export const LIST_FILES_SQL_NO_PARSE = `
     AND (d.deleted_at IS NULL OR d.deleted_at = '')
     AND (d.scope = 'package' OR (d.scope = 'session' AND d.uploaded_by = ?))
   ORDER BY d.created_at DESC
-  LIMIT 200
+  LIMIT ${LIST_FILES_LIMIT}
 `;
 
 /** 无 byte_size 列时的列表 SQL（migration 0015 前） */
@@ -156,7 +160,7 @@ export const LIST_FILES_SQL_NO_BYTE_SIZE = `
     AND (d.deleted_at IS NULL OR d.deleted_at = '')
     AND (d.scope = 'package' OR (d.scope = 'session' AND d.uploaded_by = ?))
   ORDER BY d.created_at DESC
-  LIMIT 200
+  LIMIT ${LIST_FILES_LIMIT}
 `;
 
 /** 对话 RAG：项目资料包（共享）+ 当前用户当前对话的 session（排除软删） */
