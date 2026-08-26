@@ -50,6 +50,8 @@ const KIND_SWATCHES = [
   { label: "技术/产品", re: /技术|产品|平台/, color: "#3F6F63" },
   { label: "资本", re: /资本|投资|基金|创投|股东/, color: "#D59A2F" },
   { label: "人物", re: /人物|团队|个人|创始/, color: "#2F3D34" },
+  { label: "竞品/替代", re: /竞品|替代/, color: "#C4A35A" },
+  { label: "监管/政策", re: /监管|政策/, color: "#7A8794" },
 ] as const;
 
 function statusText(status?: string): string {
@@ -103,9 +105,19 @@ function resolveNodeKind(node: ProjectGraphNode): string {
   return canonicalKind(node.kind) || node.kind?.trim() || guessed || "主体";
 }
 
-function legendColorForKind(kind: string): string {
-  const cat = canonicalKind(kind);
-  const swatch = KIND_SWATCHES.find((c) => c.label === (cat ?? kind.trim()));
+function legendColorForKind(
+  kind: string,
+  legend?: { label: string; color: string }[],
+): string {
+  const resolved = kind.trim();
+  const fromLegend = legend?.find(
+    (item) =>
+      item.label === resolved ||
+      canonicalKind(item.label) === canonicalKind(resolved),
+  );
+  if (fromLegend?.color) return fromLegend.color;
+  const cat = canonicalKind(resolved);
+  const swatch = KIND_SWATCHES.find((c) => c.label === (cat ?? resolved));
   return swatch?.color ?? KIND_SWATCHES[0].color;
 }
 
@@ -138,9 +150,12 @@ function displayLegend(
     });
 }
 
-function nodeKindDot(node: ProjectGraphNode): string {
+function nodeKindDot(
+  node: ProjectGraphNode,
+  legend?: { label: string; color: string }[],
+): string {
   if (node.status === "conflict") return "#A06358";
-  return legendColorForKind(resolveNodeKind(node));
+  return legendColorForKind(resolveNodeKind(node), legend);
 }
 
 function clampPct(n: number, min: number, max: number): number {
@@ -730,7 +745,7 @@ export function ProjectRelationGraph({
               <span
                 className="h-2 w-2 shrink-0 rounded-full"
                 style={{
-                  background: nodeKindDot(node),
+                  background: nodeKindDot(node, data.legend),
                 }}
               />
               {node.label}

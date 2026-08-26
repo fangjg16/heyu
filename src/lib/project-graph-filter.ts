@@ -25,7 +25,9 @@ export function graphFilterCategory(kind: string): string {
   if (/技术|产品|平台/u.test(k)) return "技术";
   if (/资本|投资|基金|创投|股东/u.test(k)) return "资本";
   if (/人物|团队|个人|创始/u.test(k)) return "人物";
-  if (/主体|公司|实体|机构|监管/u.test(k)) return "主体";
+  if (/竞品|替代/u.test(k)) return "竞品";
+  if (/监管|政策/u.test(k)) return "监管";
+  if (/主体|公司|实体/u.test(k)) return "主体";
   return k;
 }
 
@@ -74,6 +76,30 @@ export function nodeMatchesGraphFilter(
   return filterOk && queryOk;
 }
 
+/** 当前项目：布局中心。切 tab 时始终留下它和连到可见节点的边。 */
+export function pickCurrentProjectHub<
+  N extends GraphFilterNode,
+  E extends GraphFilterEdge,
+>(nodes: N[], edges: E[]): N | undefined {
+  const typed = nodes.find((n) => n.type === "project" || n.type === "entity");
+  if (typed) return typed;
+  if (nodes.length < 3) return undefined;
+  const degree = (id: string) =>
+    edges.filter((e) => e.from === id || e.to === id).length;
+  const ranked = [...nodes].sort((a, b) => degree(b.id) - degree(a.id));
+  const top = ranked[0];
+  const second = ranked[1];
+  if (
+    top &&
+    second &&
+    degree(top.id) >= 2 &&
+    degree(top.id) >= degree(second.id) + 2
+  ) {
+    return top;
+  }
+  return undefined;
+}
+
 export function filterProjectGraphView<
   N extends GraphFilterNode,
   E extends GraphFilterEdge,
@@ -93,8 +119,12 @@ export function filterProjectGraphView<
     nodeMatchesGraphFilter(node, filter, query, kinds),
   );
   const ids = new Set(visible.map((n) => n.id));
+  if (filter !== "全部") {
+    const hub = pickCurrentProjectHub(nodes, edges);
+    if (hub) ids.add(hub.id);
+  }
   return {
-    nodes: visible,
+    nodes: nodes.filter((n) => ids.has(n.id)),
     edges: edges.filter((e) => ids.has(e.from) && ids.has(e.to)),
   };
 }
