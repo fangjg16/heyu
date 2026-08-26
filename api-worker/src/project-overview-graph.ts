@@ -43,6 +43,7 @@ export type ProjectGraphData = {
 
 const DEFAULT_LEGEND = [
   { label: "主体", color: "#A3262C" },
+  { label: "项目", color: "#A3262C" },
   { label: "技术/产品", color: "#3F6F63" },
   { label: "资本", color: "#D59A2F" },
   { label: "人物", color: "#2F3D34" },
@@ -135,7 +136,8 @@ function canonicalLegendLabel(label: string): string | null {
   const hit = DEFAULT_LEGEND.find(
     (c) =>
       c.label === k ||
-      (c.label === "主体" && /主体|公司|项目|实体/u.test(k)) ||
+      (c.label === "主体" && /主体|公司|实体/u.test(k) && !/^项目/u.test(k)) ||
+      (c.label === "项目" && (k === "项目" || k === "项目/资产" || /^项目\b/u.test(k))) ||
       (c.label === "技术/产品" && /技术|产品|平台/u.test(k)) ||
       (c.label === "资本" && /资本|投资|基金|创投|股东/u.test(k)) ||
       (c.label === "人物" && /人物|团队|个人|创始/u.test(k)),
@@ -161,9 +163,8 @@ function stabilizeGraphLegend(
   return legend.length ? legend : fromDefault;
 }
 
-function guessKindFromLabel(label: string, type?: string): string | null {
+function guessKindFromLabel(label: string): string | null {
   const t = label.trim();
-  if (type === "project") return "主体";
   if (
     /[（(](CEO|CFO|CTO|COO|联创|创始人|创始|董事|合伙人)[）)]/iu.test(t) ||
     /(CEO|CFO|CTO|COO|联创|创始人|董事|合伙人)/iu.test(t)
@@ -180,7 +181,9 @@ function coerceNodeKind(
   nodes: ProjectGraphNode[],
   edges: ProjectGraphEdge[],
 ): string {
-  const guessed = guessKindFromLabel(node.label, node.type);
+  const raw = node.kind?.trim();
+  if (raw) return canonicalLegendLabel(raw) || raw;
+  const guessed = guessKindFromLabel(node.label);
   if (guessed) return guessed;
   if (nodes.length >= 3) {
     const degree = (id: string) =>
@@ -193,7 +196,7 @@ function coerceNodeKind(
       return "主体";
     }
   }
-  return canonicalLegendLabel(node.kind) || node.kind?.trim() || "主体";
+  return "主体";
 }
 
 function clampPct(n: number, min: number, max: number): number {
@@ -493,7 +496,7 @@ export function normalizeProjectGraphData(
     );
   });
   const typedNodes = coercedNodes.map((n) =>
-    hub && n.id === hub.id ? { ...n, type: "project", kind: "主体" } : n,
+    hub && n.id === hub.id ? { ...n, type: "project" } : n,
   );
 
   const filters = [
