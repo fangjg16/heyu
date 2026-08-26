@@ -459,6 +459,7 @@ export function ProjectMaterialsSection({
   });
   const [facet, setFacet] = useState<"source" | "topic">("source");
   const [sharingId, setSharingId] = useState<string | null>(null);
+  const [sharingFolder, setSharingFolder] = useState(false);
   const [query, setQuery] = useState("");
   const [kindFilter, setKindFilter] = useState<FileKindFilter>("all");
   const [parseFilter, setParseFilter] = useState<ParseFilter>("all");
@@ -863,6 +864,50 @@ export function ProjectMaterialsSection({
     }
   };
 
+  const onShareFolderFiles = async (
+    files: ProjectFileRecord[],
+    shared: boolean,
+  ) => {
+    if (!canManage) return;
+    const targets = files.filter(
+      (f) => canShareWithIssuer(f) && Boolean(f.sharedWithIssuer) !== shared,
+    );
+    if (targets.length === 0) return;
+    setSharingFolder(true);
+    setError(null);
+    try {
+      const results = await Promise.allSettled(
+        targets.map((f) =>
+          shareFileWithIssuer(projectId, f.id, shared, "investor_share"),
+        ),
+      );
+      const okIds = new Set(
+        targets
+          .filter((_, i) => results[i]?.status === "fulfilled")
+          .map((f) => f.id),
+      );
+      if (okIds.size > 0) {
+        setLiveFiles((prev) =>
+          (prev ?? []).map((f) =>
+            okIds.has(f.id)
+              ? {
+                  ...f,
+                  sharedWithIssuer: shared,
+                  sourceKind: shared ? "investor_share" : null,
+                }
+              : f,
+          ),
+        );
+      }
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) {
+        setError(`${failed} 个文件未能更新协作方可见`);
+      }
+    } finally {
+      setSharingFolder(false);
+    }
+  };
+
   const onMoveFile = useCallback(
     async (file: ProjectFileRecord, targetFolder: string) => {
       if (!useLive || !canManage) return;
@@ -1206,6 +1251,11 @@ export function ProjectMaterialsSection({
       .map((c) => c.file)
       .filter((f) => canShareWithIssuer(f));
   }, [selection, selectedFolder]);
+  const folderShareCount = folderShareFiles.filter((f) => f.sharedWithIssuer).length;
+  const folderShareAll =
+    folderShareFiles.length > 0 && folderShareCount === folderShareFiles.length;
+  const folderShareMixed =
+    folderShareCount > 0 && folderShareCount < folderShareFiles.length;
 
   const openPreview = (fileId: string) => {
     if (!canDownload) {
@@ -1443,6 +1493,21 @@ export function ProjectMaterialsSection({
 
               {!detail.isFile && folderShareFiles.length > 0 ? (
                 <div className="mt-6 divide-y divide-[rgba(78,66,57,0.08)] border-y border-[rgba(78,66,57,0.08)]">
+                  {canManage ? (
+                    <div className="flex items-center gap-3 py-2.5">
+                      <span className="min-w-0 flex-1 text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
+                        本文件夹
+                      </span>
+                      <IssuerShareTick
+                        shared={folderShareAll}
+                        indeterminate={folderShareMixed}
+                        disabled={busy || sharingFolder || sharingId !== null}
+                        onChange={(next) =>
+                          void onShareFolderFiles(folderShareFiles, next)
+                        }
+                      />
+                    </div>
+                  ) : null}
                   {folderShareFiles.map((file) => (
                     <div key={file.id} className="flex items-center gap-3 py-2.5">
                       <button
@@ -1455,7 +1520,9 @@ export function ProjectMaterialsSection({
                       {canManage ? (
                         <IssuerShareTick
                           shared={Boolean(file.sharedWithIssuer)}
-                          disabled={busy || sharingId === file.id}
+                          disabled={
+                            busy || sharingFolder || sharingId === file.id
+                          }
                           onChange={(next) => void onShareFile(file, next)}
                         />
                       ) : (
@@ -1643,13 +1710,21 @@ export function ProjectMaterialsSection({
 
 function IssuerShareTick({
   shared,
+  indeterminate,
   disabled,
   onChange,
 }: {
   shared: boolean;
+  indeterminate?: boolean;
   disabled?: boolean;
   onChange: (shared: boolean) => void;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.indeterminate = Boolean(indeterminate);
+    }
+  }, [indeterminate]);
   return (
     <label
       className={cn(
@@ -1658,10 +1733,12 @@ function IssuerShareTick({
       )}
     >
       <input
+        ref={inputRef}
         type="checkbox"
         className="h-3.5 w-3.5 accent-[hsl(var(--wine))]"
         checked={shared}
         disabled={disabled}
+        aria-label={indeterminate ? "本文件夹部分文件协作方可见" : "协作方可见"}
         onChange={(e) => onChange(e.target.checked)}
       />
       协作方可见
@@ -1732,7 +1809,7 @@ function UploadMenu({
                 setOpen(false);
               }}
             >
-              选择文件…
+              选择文件
             </button>
           </li>
           <li role="none">
@@ -1745,7 +1822,7 @@ function UploadMenu({
                 setOpen(false);
               }}
             >
-              选择文件夹（可连续添加）…
+              选择文件夹
             </button>
           </li>
           {uploading ? (
@@ -2141,13 +2218,6 @@ function FilePreviewModal({
           >
             <X className="h-4 w-4" />
           </button>
-        </div>
-        <div className="flex h-9 items-center justify-center gap-3.5 border-b border-[rgba(78,66,57,0.08)] text-[11.5px] text-[hsl(var(--warm-charcoal-muted))]">
-          <span>第 1 / 1 页</span>
-          <span className="h-3.5 w-px bg-[rgba(78,66,57,0.18)]" />
-          <span>−</span>
-          <span>100%</span>
-          <span>+</span>
         </div>
         <div className="min-h-0 flex-1 overflow-auto bg-[rgba(248,243,238,0.45)] p-5">
           {loading ? (
