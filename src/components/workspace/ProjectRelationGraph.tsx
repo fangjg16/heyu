@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { filterProjectGraphView } from "@/lib/project-graph-filter";
 import { cn } from "@/lib/utils";
 import {
   dismissIfBackdropClick,
@@ -44,7 +45,8 @@ type ProjectRelationGraphProps = {
 };
 
 const KIND_SWATCHES = [
-  { label: "主体", re: /主体|公司|项目|实体/, color: "#A3262C" },
+  { label: "主体", re: /主体|公司|实体/, color: "#A3262C" },
+  { label: "项目", re: /^项目/, color: "#A3262C" },
   { label: "技术/产品", re: /技术|产品|平台/, color: "#3F6F63" },
   { label: "资本", re: /资本|投资|基金|创投|股东/, color: "#D59A2F" },
   { label: "人物", re: /人物|团队|个人|创始/, color: "#2F3D34" },
@@ -67,9 +69,8 @@ function canonicalKind(kind: string): string | null {
   return KIND_SWATCHES.find((c) => c.label === k || c.re.test(k))?.label ?? null;
 }
 
-function guessKindFromLabel(label: string, type?: string): string | null {
+function guessKindFromLabel(label: string): string | null {
   const t = label.trim();
-  if (type === "project") return "主体";
   if (
     /[（(](CEO|CFO|CTO|COO|联创|创始人|创始|董事|合伙人)[）)]/iu.test(t) ||
     /(CEO|CFO|CTO|COO|联创|创始人|董事|合伙人)/iu.test(t)
@@ -96,15 +97,10 @@ function isGraphHub(
     .every((n) => degree(n.id) < mine);
 }
 
-function resolveNodeKind(
-  node: ProjectGraphNode,
-  nodes: ProjectGraphNode[] = [],
-  edges: ProjectGraphEdge[] = [],
-): string {
-  const guessed = guessKindFromLabel(node.label, node.type);
-  if (guessed) return guessed;
-  if (isGraphHub(node, nodes, edges)) return "主体";
-  return canonicalKind(node.kind) || node.kind?.trim() || "主体";
+function resolveNodeKind(node: ProjectGraphNode): string {
+  const guessed = guessKindFromLabel(node.label);
+  if (guessed && !node.kind?.trim()) return guessed;
+  return canonicalKind(node.kind) || node.kind?.trim() || guessed || "主体";
 }
 
 function legendColorForKind(kind: string): string {
@@ -119,7 +115,7 @@ function displayLegend(
 ): { label: string; color: string }[] {
   const used = new Set<string>();
   for (const n of nodes) {
-    const guessed = guessKindFromLabel(n.label, n.type);
+    const guessed = guessKindFromLabel(n.label);
     if (guessed) used.add(guessed);
     const cat = canonicalKind(n.kind);
     if (cat) used.add(cat);
@@ -142,13 +138,9 @@ function displayLegend(
     });
 }
 
-function nodeKindDot(
-  node: ProjectGraphNode,
-  nodes: ProjectGraphNode[],
-  edges: ProjectGraphEdge[],
-): string {
+function nodeKindDot(node: ProjectGraphNode): string {
   if (node.status === "conflict") return "#A06358";
-  return legendColorForKind(resolveNodeKind(node, nodes, edges));
+  return legendColorForKind(resolveNodeKind(node));
 }
 
 function clampPct(n: number, min: number, max: number): number {
@@ -449,11 +441,7 @@ function GraphNodeDrawer({
           <div className="min-w-0">
             <div className="text-[11.5px] font-medium text-[#A06358]">
               项目关系 ·{" "}
-              {resolveNodeKind(
-                node,
-                Object.values(nodeById).filter(Boolean) as ProjectGraphNode[],
-                edges,
-              )}
+              {resolveNodeKind(node)}
             </div>
             <h2
               id="graph-node-drawer-title"
@@ -561,39 +549,27 @@ export function ProjectRelationGraph({
     [data.legend, data.nodes],
   );
 
+  const laidOutNodes = useMemo(
+    () => layoutGraphByStructure(data.nodes, data.edges),
+    [data.nodes, data.edges],
+  );
+
+  const laidOutById = useMemo(
+    () => Object.fromEntries(laidOutNodes.map((n) => [n.id, n])),
+    [laidOutNodes],
+  );
+
   const { visibleNodes, visibleEdges, nodeById } = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const matches = data.nodes.filter((node) => {
-      const displayKind = resolveNodeKind(node, data.nodes, data.edges);
-      const filterMatch =
-        filter === "全部" ||
-        node.kind === filter ||
-        displayKind === filter ||
-        canonicalKind(node.kind) === filter ||
-        canonicalKind(displayKind) === filter;
-      const queryMatch =
-        !q ||
-        [node.label, node.kind, node.summary ?? ""]
-          .join(" ")
-          .toLowerCase()
-          .includes(q);
-      return filterMatch && queryMatch;
-    });
-    const ids = new Set(matches.map((n) => n.id));
-    if ((filter !== "全部" || q) && matches.length) {
-      const root = data.nodes.find(
-        (n) => n.type === "project" || n.type === "entity",
-      );
-      if (root) ids.add(root.id);
-    }
-    const subset = data.nodes.filter((n) => ids.has(n.id));
-    const subsetEdges = data.edges.filter(
-      (e) => ids.has(e.from) && ids.has(e.to),
+    const { nodes, edges } = filterProjectGraphView(
+      laidOutNodes,
+      data.edges,
+      filter,
+      query,
+      data.filters,
     );
-    const visibleNodes = layoutGraphByStructure(subset, subsetEdges);
-    const nodeById = Object.fromEntries(visibleNodes.map((n) => [n.id, n]));
-    return { visibleNodes, visibleEdges: subsetEdges, nodeById };
-  }, [data, filter, query]);
+    const nodeById = Object.fromEntries(nodes.map((n) => [n.id, n]));
+    return { visibleNodes: nodes, visibleEdges: edges, nodeById };
+  }, [laidOutNodes, data.edges, data.filters, filter, query]);
 
   const coverage = (data.coverageText ?? "").trim();
   const showCoverage =
@@ -601,8 +577,11 @@ export function ProjectRelationGraph({
     !/连线不代表已独立核验|节点与关系来自项目资料/u.test(coverage);
 
   const active = activeId
-    ? (data.nodes.find((n) => n.id === activeId) ?? null)
+    ? (laidOutById[activeId] ?? data.nodes.find((n) => n.id === activeId) ?? null)
     : null;
+  const activeVisible = Boolean(
+    active && visibleNodes.some((n) => n.id === active.id),
+  );
 
   return (
     <section className="mt-8 border-t border-[rgba(78,66,57,0.12)] pt-7">
@@ -751,7 +730,7 @@ export function ProjectRelationGraph({
               <span
                 className="h-2 w-2 shrink-0 rounded-full"
                 style={{
-                  background: nodeKindDot(node, data.nodes, data.edges),
+                  background: nodeKindDot(node),
                 }}
               />
               {node.label}
@@ -774,11 +753,11 @@ export function ProjectRelationGraph({
         ) : null}
       </div>
 
-      {active ? (
+      {active && activeVisible ? (
         <GraphNodeDrawer
           node={active}
           edges={data.edges}
-          nodeById={nodeById}
+          nodeById={laidOutById}
           projectId={projectId}
           onClose={() => setActiveId(null)}
         />
