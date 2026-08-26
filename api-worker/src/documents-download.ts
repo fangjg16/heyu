@@ -108,7 +108,7 @@ export async function handleDownloadProjectFile(
         project.createdBy,
       );
       if (!allowed) {
-        return json({ error: "仅 Admin、Core 或项目创建人可下载资料包文件" }, 403);
+        return json({ error: "仅项目 Admin / Core 可下载资料包文件" }, 403);
       }
     }
   }

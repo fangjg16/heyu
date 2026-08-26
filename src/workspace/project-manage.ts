@@ -44,7 +44,7 @@ export function canManageProjectPermissions(
   return getProjectRole(uid, project.id, project.createdBy) === "admin";
 }
 
-/** 下载项目资料包：Admin / Core / 创建人 */
+/** 下载项目资料原文件：仅项目 Admin / Core（创建人在本项目已是 Admin） */
 export function canDownloadProjectMaterials(
   userId: string,
   project: Pick<WorkspaceProject, "id" | "createdBy">,
@@ -52,9 +52,7 @@ export function canDownloadProjectMaterials(
   const uid = userId.trim();
   if (!uid) return false;
   const role = getProjectRole(uid, project.id, project.createdBy);
-  if (role === "admin" || role === "core") return true;
-  const creator = (project.createdBy ?? "").trim();
-  return Boolean(creator && creator === uid);
+  return role === "admin" || role === "core";
 }
 
 /** 项目上传：Admin / Core 可上传、移动、删除 */

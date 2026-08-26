@@ -146,7 +146,12 @@ export async function canManageProjectUploads(
   return roleCanManageProjectUploads(role);
 }
 
-/** 下载项目资料包原文件：admin / core / 项目创建人 */
+/** 下载项目资料原文件：仅项目 Admin / Core（创建人在本项目已是 Admin） */
+export function roleCanDownloadProjectFile(role: WorkspaceRole): boolean {
+  return role === "admin" || role === "core";
+}
+
+/** 下载项目资料包原文件：admin / core */
 export async function canDownloadProjectFile(
   env: RoleEnv,
   userId: string,
@@ -156,9 +161,7 @@ export async function canDownloadProjectFile(
   const uid = userId.trim();
   if (!uid) return false;
   const role = await resolveProjectRole(env, uid, projectId, createdBy);
-  if (role === "admin" || role === "core") return true;
-  const creator = (createdBy ?? "").trim();
-  return Boolean(creator && creator === uid);
+  return roleCanDownloadProjectFile(role);
 }
 
 export async function canEnterProjectChat(
