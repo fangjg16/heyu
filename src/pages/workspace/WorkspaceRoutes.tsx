@@ -784,7 +784,7 @@ function ProjectWorkspaceLayout() {
     >
       <div
         className={cn(
-          materialsTab && "flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          materialsTab && "flex h-full min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden",
         )}
       >
         <ProjectWorkspaceHeader
@@ -801,7 +801,7 @@ function ProjectWorkspaceLayout() {
         />
 
         {overviewError ? (
-          <div className="mx-auto max-w-[1600px] shrink-0 px-8 pt-3 md:px-10">
+          <div className="mx-auto w-full max-w-[1600px] shrink-0 px-8 pt-3 md:px-10">
             <p className="rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
               {overviewError}
             </p>
@@ -813,7 +813,7 @@ function ProjectWorkspaceLayout() {
           allChaptersProgress?.phase === "done" &&
           !draftDialogOpen) ||
         (persistedActiveRunId && !draftDialogOpen) ? (
-          <div className="mx-auto max-w-[1600px] shrink-0 px-8 pt-3 md:px-10">
+          <div className="mx-auto w-full max-w-[1600px] shrink-0 px-8 pt-3 md:px-10">
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[rgba(94,155,117,0.28)] bg-[rgba(94,155,117,0.08)] px-3.5 py-2 text-[12.5px] text-[#2F6B4F]">
               <p>
                 {allChaptersNotice ??
@@ -836,7 +836,7 @@ function ProjectWorkspaceLayout() {
 
         <div
           className={cn(
-            "mx-auto max-w-[1600px] px-8 md:px-10",
+            "mx-auto w-full max-w-[1600px] px-8 md:px-10",
             materialsTab
               ? "flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden py-6"
               : "py-6 pb-12",
@@ -967,7 +967,7 @@ function ProjectMaterialsTab() {
   const project = getMergedProjects().find((p) => p.id === projectId);
   if (!project) return null;
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+    <div className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
       <ProjectMaterialsSection
         projectId={projectId}
         projectName={project.name}

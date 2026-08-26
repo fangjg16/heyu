@@ -1220,7 +1220,7 @@ export function ProjectMaterialsSection({
 
   return (
     <section
-      className="mt-1 flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+      className="mt-1 flex h-full min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden"
       aria-labelledby="project-materials-heading"
       onDragOver={(e) => {
         if (!canManage || !useLive) return;
@@ -1306,7 +1306,7 @@ export function ProjectMaterialsSection({
             </p>
           ) : null}
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-[18px] overflow-hidden lg:flex-row lg:items-stretch">
+          <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col gap-[18px] overflow-hidden lg:flex-row lg:items-stretch">
             <div
               className={cn(
                 "flex h-[min(38vh,20rem)] min-h-0 w-full min-w-0 shrink-0 flex-col overflow-hidden rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.78)] px-2.5 py-3 shadow-[0_10px_30px_rgba(102,80,60,0.07)] lg:h-full lg:w-[340px] lg:min-w-[340px] lg:max-w-[340px]",
