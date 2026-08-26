@@ -43,6 +43,8 @@ import {
   fetchProjectFiles,
   moveProjectFile,
   PROJECT_UPLOAD_FOLDER,
+  renameProjectFile,
+  renameProjectFolder,
   shareFileWithIssuer,
   type ProjectFileRecord,
 } from "@/lib/project-api";
@@ -87,6 +89,16 @@ import {
 import { openChatAskAboutFile } from "@/workspace/chat-ask-source";
 
 const DND_DOC_MIME = "application/x-taizi-document";
+
+function keepOriginalExtension(oldName: string, nextName: string): string {
+  const trimmed = nextName.trim();
+  const lastDot = oldName.lastIndexOf(".");
+  const ext = lastDot > 0 ? oldName.slice(lastDot) : "";
+  if (!ext) return trimmed;
+  if (trimmed.toLowerCase().endsWith(ext.toLowerCase())) return trimmed;
+  if (/\.[A-Za-z0-9]{1,8}$/u.test(trimmed)) return trimmed;
+  return `${trimmed}${ext}`;
+}
 
 type ProjectMaterialsSectionProps = {
   projectId: string;
@@ -841,6 +853,80 @@ export function ProjectMaterialsSection({
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const onRenameFile = async (file: ProjectFileRecord) => {
+    if (!useLive || !canManage) return;
+    if (fileSourceBucket(file) === "issuer") return;
+    if (file.scope !== "package" && file.scope !== "session") return;
+    const nextRaw = window.prompt("重命名文件", file.filename)?.trim();
+    if (!nextRaw || nextRaw === file.filename) return;
+    if (/[/\\]/.test(nextRaw) || nextRaw === "." || nextRaw === "..") {
+      setError("文件名不能包含 / 或 \\");
+      return;
+    }
+    const nextName = keepOriginalExtension(file.filename, nextRaw);
+    setFolderBusy(true);
+    setError(null);
+    try {
+      await renameProjectFile(projectId, file.id, userId, nextName);
+      setUploadHint(`已重命名为「${nextName}」`);
+      await reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setFolderBusy(false);
+    }
+  };
+
+  const onRenameFolder = async (folderPath: string) => {
+    if (
+      !useLive ||
+      !canManage ||
+      !folderPath ||
+      isSourceRootPath(folderPath) ||
+      isTopicPath(folderPath) ||
+      sourceBucketFromVirtualPath(folderPath) !== "project"
+    ) {
+      return;
+    }
+    const folderName =
+      findFolder(fullTree, folderPath)?.name ||
+      folderPath.split("/").pop() ||
+      folderPath;
+    const nextName = window.prompt("重命名文件夹", folderName)?.trim();
+    if (!nextName || nextName === folderName) return;
+    if (/[/\\]/.test(nextName) || nextName === "." || nextName === "..") {
+      setError("文件夹名称不能包含 / 或 \\");
+      return;
+    }
+    const physical = toPhysicalFolder(folderPath);
+    const virtualParent = folderPath.includes("/")
+      ? folderPath.slice(0, folderPath.lastIndexOf("/"))
+      : PROJECT_SOURCE_PATH;
+    setFolderBusy(true);
+    setError(null);
+    try {
+      await renameProjectFolder(
+        projectId,
+        userId,
+        physical,
+        nextName,
+      );
+      const virtualFull = joinRelativePath(virtualParent, nextName);
+      setExpanded((prev) => ({
+        ...prev,
+        [virtualFull]: true,
+        [virtualParent]: true,
+      }));
+      setSelection({ kind: "folder", path: virtualFull });
+      setUploadHint(`已重命名为「${nextName}」`);
+      await reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setFolderBusy(false);
     }
   };
 
@@ -1627,6 +1713,19 @@ export function ProjectMaterialsSection({
                   <button
                     type="button"
                     disabled={busy}
+                    onClick={() => void onRenameFile(detail.file!)}
+                    className="h-[38px] rounded-[10px] border border-[rgba(160,99,88,0.3)] bg-transparent px-4 text-[13px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:opacity-50"
+                  >
+                    重命名
+                  </button>
+                ) : null}
+                {detail.isFile &&
+                detail.file &&
+                canManage &&
+                fileSourceBucket(detail.file) !== "issuer" ? (
+                  <button
+                    type="button"
+                    disabled={busy}
                     onClick={() => void onDeleteFile(detail.file!)}
                     className="h-[38px] rounded-[10px] border border-[rgba(78,66,57,0.16)] bg-transparent px-4 text-[13px] font-medium text-[hsl(var(--warm-charcoal-muted))] hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
                   >
@@ -1634,18 +1733,32 @@ export function ProjectMaterialsSection({
                   </button>
                 ) : null}
                 {detail.canDeleteFolder ? (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      if (selection.kind === "folder") {
-                        void onDeleteFolder(selection.path);
-                      }
-                    }}
-                    className="h-[38px] rounded-[10px] border border-[rgba(78,66,57,0.16)] bg-transparent px-4 text-[13px] font-medium text-[hsl(var(--warm-charcoal-muted))] hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
-                  >
-                    删除文件夹
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        if (selection.kind === "folder") {
+                          void onRenameFolder(selection.path);
+                        }
+                      }}
+                      className="h-[38px] rounded-[10px] border border-[rgba(160,99,88,0.3)] bg-transparent px-4 text-[13px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:opacity-50"
+                    >
+                      重命名
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        if (selection.kind === "folder") {
+                          void onDeleteFolder(selection.path);
+                        }
+                      }}
+                      className="h-[38px] rounded-[10px] border border-[rgba(78,66,57,0.16)] bg-transparent px-4 text-[13px] font-medium text-[hsl(var(--warm-charcoal-muted))] hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
+                    >
+                      删除文件夹
+                    </button>
+                  </>
                 ) : null}
                 {useLive && canManage && detail.canUploadHere ? (
                   <UploadMenu

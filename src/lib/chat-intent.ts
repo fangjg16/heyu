@@ -43,11 +43,14 @@ export function isDeepSkillMessage(message: string): boolean {
   return DEEP_SKILL_PATTERNS.some((re) => re.test(m));
 }
 
+import { stripAssistantThinkTags } from "@/lib/chat-think-tags";
+
 /** 流式生成中：隐藏未闭合的 ```html 大块，避免气泡里刷源码 */
 export function streamingAssistantDisplayText(content: string, isStreaming: boolean): string {
-  if (!isStreaming) return content;
-  const open = /```html\b/i.exec(content);
-  if (!open) return content;
-  const before = content.slice(0, open.index).trim();
+  const stripped = stripAssistantThinkTags(content, isStreaming);
+  if (!isStreaming) return stripped;
+  const open = /```html\b/i.exec(stripped);
+  if (!open) return stripped;
+  const before = stripped.slice(0, open.index).trim();
   return before || "正在生成内容，请稍候…";
 }

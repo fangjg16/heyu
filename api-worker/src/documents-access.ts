@@ -203,3 +203,42 @@ export function documentAccessError(
   if (row.uploaded_by !== userId) return "文档不存在或无权访问";
   return null;
 }
+
+const MAX_FILENAME_LEN = 240;
+
+/** 文件/文件夹名：去掉路径分隔符，拒绝空名与 .keep */
+export function sanitizeDocumentFilename(raw: string | null | undefined): string | null {
+  const original = String(raw ?? "").trim();
+  if (/[/\\]/u.test(original)) return null;
+  const name = original.trim();
+  if (!name || name === "." || name === ".." || name === ".keep") return null;
+  if (name.length > MAX_FILENAME_LEN) return name.slice(0, MAX_FILENAME_LEN);
+  return name;
+}
+
+export function isUnderFolderPath(
+  relativePath: string | null | undefined,
+  folderPath: string,
+): boolean {
+  const current = sanitizeRelativePath(relativePath);
+  const folder = sanitizeRelativePath(folderPath);
+  if (!folder) return false;
+  return current === folder || current.startsWith(`${folder}/`);
+}
+
+/** 文件夹改名后，把子文件的 relative_path 从 fromPath 前缀换成 toPath */
+export function remapRelativePathAfterFolderRename(
+  relativePath: string | null | undefined,
+  fromPath: string,
+  toPath: string,
+): string {
+  const current = sanitizeRelativePath(relativePath);
+  const from = sanitizeRelativePath(fromPath);
+  const to = sanitizeRelativePath(toPath);
+  if (!from || from === to) return current;
+  if (current === from) return to;
+  if (current.startsWith(`${from}/`)) {
+    return `${to}${current.slice(from.length)}`;
+  }
+  return current;
+}

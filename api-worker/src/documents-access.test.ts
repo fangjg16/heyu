@@ -8,6 +8,8 @@ import {
   LIST_FILES_SQL_NO_SOFT_DELETE,
   documentAccessError,
   listFilesSqlWithSessionVisibility,
+  remapRelativePathAfterFolderRename,
+  sanitizeDocumentFilename,
 } from "./documents-access";
 
 const LIST_SQLS = [
@@ -62,5 +64,40 @@ describe("documentAccessError", () => {
     expect(
       documentAccessError({ scope: "session", uploaded_by: "b" }, "b"),
     ).toBeNull();
+  });
+});
+
+describe("sanitizeDocumentFilename", () => {
+  it("rejects empty, path separators, and .keep", () => {
+    expect(sanitizeDocumentFilename("  ")).toBeNull();
+    expect(sanitizeDocumentFilename("a/b.pdf")).toBeNull();
+    expect(sanitizeDocumentFilename(".keep")).toBeNull();
+    expect(sanitizeDocumentFilename("访谈纪要.pdf")).toBe("访谈纪要.pdf");
+  });
+});
+
+describe("remapRelativePathAfterFolderRename", () => {
+  it("rewrites the folder and nested children", () => {
+    expect(
+      remapRelativePathAfterFolderRename(
+        "项目上传的/旧文件夹",
+        "项目上传的/旧文件夹",
+        "项目上传的/新文件夹",
+      ),
+    ).toBe("项目上传的/新文件夹");
+    expect(
+      remapRelativePathAfterFolderRename(
+        "项目上传的/旧文件夹/子",
+        "项目上传的/旧文件夹",
+        "项目上传的/新文件夹",
+      ),
+    ).toBe("项目上传的/新文件夹/子");
+    expect(
+      remapRelativePathAfterFolderRename(
+        "项目上传的/别的",
+        "项目上传的/旧文件夹",
+        "项目上传的/新文件夹",
+      ),
+    ).toBe("项目上传的/别的");
   });
 });

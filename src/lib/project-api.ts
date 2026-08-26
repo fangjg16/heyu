@@ -1016,6 +1016,60 @@ export async function moveProjectFile(
   if (!res.ok) throw new Error(data.error || `移动失败（${res.status}）`);
 }
 
+/** 重命名资料文件（不含路径） */
+export async function renameProjectFile(
+  projectId: string,
+  documentId: string,
+  userId: string,
+  filename: string,
+): Promise<void> {
+  const q = new URLSearchParams({ userId });
+  let res: Response;
+  try {
+    res = await jfoFetch(
+      `/api/projects/${encodeURIComponent(projectId)}/files/${encodeURIComponent(documentId)}?${q}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename }),
+      },
+    );
+  } catch {
+    throw new Error("无法连接 API。请确认 Worker 已部署最新版后强刷页面。");
+  }
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) throw new Error(data.error || `重命名失败（${res.status}）`);
+}
+
+/** 重命名资料包文件夹（含子目录 relative_path 前缀） */
+export async function renameProjectFolder(
+  projectId: string,
+  userId: string,
+  fromPath: string,
+  newName: string,
+): Promise<{ toPath: string }> {
+  const q = new URLSearchParams({ userId });
+  let res: Response;
+  try {
+    res = await jfoFetch(
+      `/api/projects/${encodeURIComponent(projectId)}/folders/rename?${q}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromPath, newName }),
+      },
+    );
+  } catch {
+    throw new Error("无法连接 API。请确认 Worker 已部署最新版后强刷页面。");
+  }
+  const data = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    toPath?: string;
+  };
+  if (!res.ok) throw new Error(data.error || `重命名失败（${res.status}）`);
+  return { toPath: data.toPath ?? fromPath };
+}
+
 export type ProjectKnowledgeChapterResponse = {
   ok: boolean;
   projectId: string;

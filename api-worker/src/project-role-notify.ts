@@ -90,7 +90,7 @@ export async function notifyProjectUploadOp(
     projectName: string;
     createdBy?: string | null;
     actorUserId: string;
-    action: "upload" | "move" | "delete";
+    action: "upload" | "move" | "delete" | "rename";
     filename: string;
   },
 ): Promise<void> {
@@ -99,13 +99,15 @@ export async function notifyProjectUploadOp(
       ? "上传"
       : input.action === "move"
         ? "移动"
-        : "删除";
-  const kind =
+        : input.action === "rename"
+          ? "重命名"
+          : "删除";
+  const kind: ProjectNoticeKind =
     input.action === "upload"
       ? "file_upload"
-      : input.action === "move"
-        ? "file_move"
-        : "file_delete";
+      : input.action === "delete"
+        ? "file_delete"
+        : "file_move";
   try {
     await notifyProjectAdminsAndCores(env, {
       projectId: input.projectId,

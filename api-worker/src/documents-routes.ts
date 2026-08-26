@@ -3,6 +3,9 @@ import type { AppDatabase } from "./app-database";
 import { invalidateChunkCache } from "./chunk-cache";
 import {
   documentAccessError,
+  isUnderFolderPath,
+  remapRelativePathAfterFolderRename,
+  sanitizeDocumentFilename,
   sanitizeRelativePath,
   type DocumentRow,
 } from "./documents-access";
@@ -195,7 +198,9 @@ export async function handleDeleteProjectFile(
 
 /**
  * PATCH /api/projects/:projectId/files/:docId
- * body: { relativePath?: string } — 资料包内移动到目标父目录（空串=根）
+ * body: { relativePath?: string, filename?: string }
+ * — relativePath：资料包内移动到目标父目录（空串=根）
+ * — filename：重命名（不含路径）
  */
 export async function handlePatchProjectFile(
   request: Request,
@@ -211,18 +216,30 @@ export async function handlePatchProjectFile(
   const id = docId.trim();
   if (!id) return json({ error: "缺少 documentId" }, 400);
 
-  let body: { relativePath?: unknown } = {};
+  let body: { relativePath?: unknown; filename?: unknown } = {};
   try {
-    body = (await request.json()) as { relativePath?: unknown };
+    body = (await request.json()) as { relativePath?: unknown; filename?: unknown };
   } catch {
     return json({ error: "请求体须为 JSON" }, 400);
   }
-  if (!("relativePath" in body)) {
-    return json({ error: "缺少 relativePath" }, 400);
+  const hasMove = "relativePath" in body;
+  const hasRename = "filename" in body;
+  if (!hasMove && !hasRename) {
+    return json({ error: "请提供 filename 或 relativePath" }, 400);
   }
-  const relativePath = sanitizeRelativePath(
-    typeof body.relativePath === "string" ? body.relativePath : "",
-  );
+
+  let nextFilename: string | null = null;
+  if (hasRename) {
+    nextFilename = sanitizeDocumentFilename(
+      typeof body.filename === "string" ? body.filename : "",
+    );
+    if (!nextFilename) return json({ error: "文件名无效" }, 400);
+  }
+  const relativePath = hasMove
+    ? sanitizeRelativePath(
+        typeof body.relativePath === "string" ? body.relativePath : "",
+      )
+    : null;
 
   const project = await getProjectById(env, projectId);
   if (!project) return json({ error: "项目不存在" }, 404);
@@ -255,7 +272,7 @@ export async function handlePatchProjectFile(
     return json({ error: "文件不存在或已删除" }, 404);
   }
 
-  if (row.scope !== "package") {
+  if (hasMove && row.scope !== "package") {
     return json({ error: "仅项目资料包文件可移动目录" }, 400);
   }
 
@@ -265,41 +282,64 @@ export async function handlePatchProjectFile(
   if (accessErr) return json({ error: accessErr }, 403);
 
   if (!(await canDeleteDocument(env, row, userId, project))) {
-    return json({ error: "仅项目管理员、Core 或该文件上传者可移动" }, 403);
+    return json({ error: "仅项目管理员、Core 或该文件上传者可修改" }, 403);
   }
 
-  const current = sanitizeRelativePath(row.relative_path ?? "");
-  if (current === relativePath) {
+  const currentPath = sanitizeRelativePath(row.relative_path ?? "");
+  const destPath = relativePath ?? currentPath;
+  const destName = nextFilename ?? row.filename;
+  const unchanged =
+    destPath === currentPath && destName === row.filename;
+  if (unchanged) {
     return json({
       ok: true,
       documentId: id,
-      relativePath,
+      relativePath: destPath,
+      filename: destName,
       unchanged: true,
     });
   }
 
+  if (destName !== row.filename || destPath !== currentPath) {
+    const clash = await findSameNameDocument(
+      env,
+      projectId,
+      destName,
+      destPath,
+      id,
+    );
+    if (clash) return json({ error: "同目录下已有同名文件" }, 409);
+  }
+
   try {
     await env.DB.prepare(
-      `UPDATE documents SET relative_path = ? WHERE id = ? AND project_id = ?
+      `UPDATE documents SET relative_path = ?, filename = ? WHERE id = ? AND project_id = ?
        AND (deleted_at IS NULL OR deleted_at = '')`,
     )
-      .bind(relativePath, id, projectId)
+      .bind(destPath, destName, id, projectId)
       .run();
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (/Unknown column ['`]?deleted_at['`]?/i.test(msg) || /no such column:\s*deleted_at/i.test(msg)) {
       await env.DB.prepare(
-        `UPDATE documents SET relative_path = ? WHERE id = ? AND project_id = ?`,
+        `UPDATE documents SET relative_path = ?, filename = ? WHERE id = ? AND project_id = ?`,
       )
-        .bind(relativePath, id, projectId)
+        .bind(destPath, destName, id, projectId)
         .run();
     } else if (/Unknown column ['`]?relative_path['`]?/i.test(msg) || /no such column:\s*relative_path/i.test(msg)) {
-      return json(
-        { error: "relative_path 列未迁移，请先执行 migration 0011" },
-        503,
-      );
+      if (hasMove) {
+        return json(
+          { error: "relative_path 列未迁移，请先执行 migration 0011" },
+          503,
+        );
+      }
+      await env.DB.prepare(
+        `UPDATE documents SET filename = ? WHERE id = ? AND project_id = ?`,
+      )
+        .bind(destName, id, projectId)
+        .run();
     } else {
-      return json({ error: `移动失败：${msg}` }, 500);
+      return json({ error: `更新失败：${msg}` }, 500);
     }
   }
 
@@ -308,19 +348,228 @@ export async function handlePatchProjectFile(
     await invalidateChunkCache(projectId, row.uploaded_by, undefined);
   }
 
+  if (row.scope !== "session") {
+    await notifyProjectUploadOp(env, {
+      projectId,
+      projectName: project.name,
+      createdBy: project.createdBy,
+      actorUserId: userId,
+      action: destName !== row.filename ? "rename" : "move",
+      filename: destName,
+    });
+  }
+
+  return json({
+    ok: true,
+    documentId: id,
+    relativePath: destPath,
+    filename: destName,
+  });
+}
+
+type FolderDocRow = {
+  id: string;
+  filename: string;
+  relative_path?: string | null;
+  mime: string | null;
+  scope: string;
+  uploaded_by: string | null;
+};
+
+async function findSameNameDocument(
+  env: Env,
+  projectId: string,
+  filename: string,
+  relativePath: string,
+  exceptId?: string,
+): Promise<boolean> {
+  try {
+    const row = await env.DB.prepare(
+      `SELECT id FROM documents
+       WHERE project_id = ?
+         AND filename = ?
+         AND COALESCE(relative_path, '') = ?
+         AND (deleted_at IS NULL OR deleted_at = '')
+         ${exceptId ? "AND id <> ?" : ""}
+       LIMIT 1`,
+    )
+      .bind(
+        ...(exceptId
+          ? [projectId, filename, relativePath, exceptId]
+          : [projectId, filename, relativePath]),
+      )
+      .first<{ id: string }>();
+    return Boolean(row?.id);
+  } catch {
+    const row = await env.DB.prepare(
+      `SELECT id FROM documents
+       WHERE project_id = ?
+         AND filename = ?
+         AND COALESCE(relative_path, '') = ?
+         ${exceptId ? "AND id <> ?" : ""}
+       LIMIT 1`,
+    )
+      .bind(
+        ...(exceptId
+          ? [projectId, filename, relativePath, exceptId]
+          : [projectId, filename, relativePath]),
+      )
+      .first<{ id: string }>();
+    return Boolean(row?.id);
+  }
+}
+
+/**
+ * POST /api/projects/:projectId/folders/rename
+ * body: { fromPath: string, newName: string }
+ */
+export async function handleRenameProjectFolder(
+  request: Request,
+  env: Env,
+  pathProjectId: string,
+): Promise<Response> {
+  const url = new URL(request.url);
+  const userId = normalizeUserId(url.searchParams.get("userId"));
+  if (!userId) return json({ error: "缺少 userId 查询参数" }, 400);
+
+  const projectId = decodePathProjectId(pathProjectId);
+  let body: { fromPath?: unknown; newName?: unknown } = {};
+  try {
+    body = (await request.json()) as { fromPath?: unknown; newName?: unknown };
+  } catch {
+    return json({ error: "请求体须为 JSON" }, 400);
+  }
+
+  const fromPath = sanitizeRelativePath(
+    typeof body.fromPath === "string" ? body.fromPath : "",
+  );
+  const newName = sanitizeDocumentFilename(
+    typeof body.newName === "string" ? body.newName : "",
+  );
+  if (!fromPath) return json({ error: "缺少文件夹路径" }, 400);
+  if (!newName) return json({ error: "文件夹名称无效" }, 400);
+  if (!fromPath.includes("/")) {
+    return json({ error: "不能重命名资料根目录" }, 400);
+  }
+
+  const parts = fromPath.split("/").filter(Boolean);
+  const oldName = parts[parts.length - 1] ?? "";
+  const parent = parts.slice(0, -1).join("/");
+  const toPath = parent ? `${parent}/${newName}` : newName;
+  if (fromPath === toPath) {
+    return json({ ok: true, fromPath, toPath, unchanged: true, updated: 0 });
+  }
+
+  const project = await getProjectById(env, projectId);
+  if (!project) return json({ error: "项目不存在" }, 404);
+
+  if (!(await canManageProjectUploads(env, userId, project.id, project.createdBy))) {
+    const can = await canManageProjectRecord(
+      env,
+      project as import("./projects-db").ProjectJson,
+      userId,
+    );
+    if (!can) return json({ error: "仅项目管理员或 Core 可重命名文件夹" }, 403);
+  }
+
+  let rows: FolderDocRow[] = [];
+  try {
+    const listed = await env.DB.prepare(
+      `SELECT id, filename, relative_path, mime, scope, uploaded_by
+       FROM documents
+       WHERE project_id = ?
+         AND (deleted_at IS NULL OR deleted_at = '')`,
+    )
+      .bind(projectId)
+      .all<FolderDocRow>();
+    rows = listed.results ?? [];
+  } catch {
+    const listed = await env.DB.prepare(
+      `SELECT id, filename, relative_path, mime, scope, uploaded_by
+       FROM documents WHERE project_id = ?`,
+    )
+      .bind(projectId)
+      .all<FolderDocRow>();
+    rows = listed.results ?? [];
+  }
+
+  const under = rows.filter(
+    (r) => r.scope === "package" && isUnderFolderPath(r.relative_path, fromPath),
+  );
+  if (under.length === 0) {
+    return json({ error: "文件夹不存在或为空" }, 404);
+  }
+
+  const destClash = rows.some((r) => {
+    if (r.scope !== "package") return false;
+    if (under.some((u) => u.id === r.id)) return false;
+    const path = sanitizeRelativePath(r.relative_path);
+    return path === toPath || path.startsWith(`${toPath}/`);
+  });
+  if (destClash) {
+    return json({ error: `已存在文件夹「${newName}」` }, 409);
+  }
+
+  let updated = 0;
+  try {
+    for (const row of under) {
+      const nextPath = remapRelativePathAfterFolderRename(
+        row.relative_path,
+        fromPath,
+        toPath,
+      );
+      if (nextPath === sanitizeRelativePath(row.relative_path)) continue;
+      try {
+        await env.DB.prepare(
+          `UPDATE documents SET relative_path = ? WHERE id = ? AND project_id = ?
+           AND (deleted_at IS NULL OR deleted_at = '')`,
+        )
+          .bind(nextPath, row.id, projectId)
+          .run();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (/Unknown column ['`]?deleted_at['`]?/i.test(msg) || /no such column:\s*deleted_at/i.test(msg)) {
+          await env.DB.prepare(
+            `UPDATE documents SET relative_path = ? WHERE id = ? AND project_id = ?`,
+          )
+            .bind(nextPath, row.id, projectId)
+            .run();
+        } else {
+          throw e;
+        }
+      }
+      updated += 1;
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return json({ error: `重命名失败：${msg}` }, 500);
+  }
+
+  await invalidateChunkCache(projectId, userId, undefined);
+
+  await recordOperationLog(env.DB, {
+    actorUserId: userId,
+    category: "file",
+    action: "rename-folder",
+    targetKind: "folder",
+    targetId: fromPath,
+    targetLabel: toPath,
+    summary: `将「${project.name}」中的文件夹 ${oldName} 重命名为 ${newName}`,
+  });
+
   await notifyProjectUploadOp(env, {
     projectId,
     projectName: project.name,
     createdBy: project.createdBy,
     actorUserId: userId,
-    action: "move",
-    filename: row.filename,
+    action: "rename",
+    filename: newName,
   });
 
   return json({
     ok: true,
-    documentId: id,
-    relativePath,
-    filename: row.filename,
+    fromPath,
+    toPath,
+    updated,
   });
 }

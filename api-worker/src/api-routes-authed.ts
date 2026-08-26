@@ -9,6 +9,7 @@ import {
 import {
   handleDeleteProjectFile,
   handlePatchProjectFile,
+  handleRenameProjectFolder,
 } from "./documents-routes";
 import { handleDownloadProjectFile } from "./documents-download";
 import { handleParseProjectFileSummary } from "./documents-parse-summary";
@@ -704,6 +705,14 @@ export async function routeAuthedApi(
     }
     if (request.method === "PUT") {
       return handlePutProjectPermissions(request, env, projectId, authUserId);
+    }
+    return json({ error: "Method Not Allowed" }, 405);
+  }
+
+  if (/^\/api\/projects\/[^/]+\/folders\/rename$/u.test(path)) {
+    const projectId = decodePathProjectId(path.split("/")[3] ?? "");
+    if (request.method === "POST") {
+      return handleRenameProjectFolder(request, env, projectId);
     }
     return json({ error: "Method Not Allowed" }, 405);
   }

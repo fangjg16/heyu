@@ -72,6 +72,7 @@ import {
   topicFromFirstUserMessage,
 } from "@/lib/conversation-topic";
 import { isDeepSkillMessage, streamingAssistantDisplayText } from "@/lib/chat-intent";
+import { stripAssistantThinkTags } from "@/lib/chat-think-tags";
 import type { LiveChatMessage } from "@/workspace/chat-types";
 import {
   loadChatStateForUser,
@@ -908,12 +909,14 @@ function ChatThinkingBadge({
   return (
     <div
       className={cn(
-        "inline-flex h-8 items-center gap-2 rounded-lg border border-border/70 bg-muted/20 px-2.5",
+        "inline-flex h-8 w-max max-w-full shrink-0 items-center gap-2 rounded-lg border border-border/70 bg-muted/20 px-2.5",
         className,
       )}
     >
       <TypingLoader size="sm" className="[&>div]:bg-[hsl(var(--wine-deep)/0.7)]" />
-      <span className="text-[13px] text-muted-foreground">{children}</span>
+      <span className="max-w-full truncate whitespace-nowrap text-[13px] text-muted-foreground">
+        {children}
+      </span>
     </div>
   );
 }
@@ -2243,12 +2246,37 @@ export default function ConversationCenter() {
   const handleStopCurrentTask = async () => {
     if (!effectiveConversationId || !userId || !AI_CHAT_ENDPOINT) return;
 
+    const settleStreamingAssistant = () => {
+      setLiveMessagesByConversation((prev) => {
+        const list = prev[effectiveConversationId] ?? [];
+        const streaming = [...list]
+          .reverse()
+          .find((m) => m.role === "assistant" && m.isStreaming);
+        if (!streaming) return prev;
+        return {
+          ...prev,
+          [effectiveConversationId]: list.map((m) =>
+            m.id === streaming.id
+              ? {
+                  ...m,
+                  content: stripAssistantThinkTags(m.content, false),
+                  isStreaming: false,
+                  streamStatusLabel: undefined,
+                }
+              : m,
+          ),
+        };
+      });
+    };
+
     if (isCurrentConversationSending && chatSendAbortRef.current) {
       chatSendAbortRef.current.abort();
       chatSendAbortRef.current = null;
       setSendingConversationId((cur) =>
         cur === effectiveConversationId ? null : cur,
       );
+      settleStreamingAssistant();
+      flushChatPersist();
       return;
     }
 
@@ -2608,7 +2636,7 @@ export default function ConversationCenter() {
                 .projectKnowledgeNetworkVersion
             : undefined;
         updateLiveMessage(effectiveConversationId, assistantId, {
-          content: prepared.displayContent,
+          content: stripAssistantThinkTags(prepared.displayContent, false),
           knowledgeNetworkHtml: prepared.html || undefined,
           projectKnowledgeNetworkVersion: knVerStream,
           isStreaming: false,
@@ -2720,7 +2748,7 @@ export default function ConversationCenter() {
       setLiveError(null);
       if (streamAssistantId) {
         updateLiveMessage(effectiveConversationId, streamAssistantId, {
-          content: prepared.displayContent,
+          content: stripAssistantThinkTags(prepared.displayContent, false),
           knowledgeNetworkHtml: prepared.html || undefined,
           projectKnowledgeNetworkVersion: knVerJson,
           isStreaming: false,
@@ -2739,6 +2767,14 @@ export default function ConversationCenter() {
       flushChatPersist();
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
+        if (streamAssistantId) {
+          updateLiveMessage(sendConversationId, streamAssistantId, {
+            content: stripAssistantThinkTags(streamAccumulated, false),
+            isStreaming: false,
+            streamStatusLabel: undefined,
+          });
+          if (streamAccumulated.trim()) flushChatPersist();
+        }
         return;
       }
       const raw =
