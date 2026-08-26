@@ -784,7 +784,7 @@ function ProjectWorkspaceLayout() {
     >
       <div
         className={cn(
-          materialsTab && "flex min-h-0 flex-1 flex-col overflow-hidden",
+          materialsTab && "flex h-full min-h-0 flex-1 flex-col overflow-hidden",
         )}
       >
         <ProjectWorkspaceHeader
@@ -838,7 +838,7 @@ function ProjectWorkspaceLayout() {
           className={cn(
             "mx-auto max-w-[1600px] px-8 md:px-10",
             materialsTab
-              ? "flex min-h-0 flex-1 flex-col overflow-hidden py-6"
+              ? "flex h-full min-h-0 flex-1 flex-col overflow-hidden py-6"
               : "py-6 pb-12",
           )}
         >
@@ -967,7 +967,7 @@ function ProjectMaterialsTab() {
   const project = getMergedProjects().find((p) => p.id === projectId);
   if (!project) return null;
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       <ProjectMaterialsSection
         projectId={projectId}
         projectName={project.name}
