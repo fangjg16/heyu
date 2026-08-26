@@ -10,10 +10,10 @@ export function stripAssistantThinkTags(
 ): string {
   let s = content.replace(THINK_BLOCK_RE, "");
   s = s.replace(THINK_CLOSE_RE, "");
-  const open = THINK_OPEN_RE.exec(s);
-  if (open) {
+  const openIndex = s.search(THINK_OPEN_RE);
+  if (openIndex >= 0) {
     if (isStreaming) {
-      s = s.slice(0, open.index);
+      s = s.slice(0, openIndex);
     } else {
       s = s.replace(/<think\b[^>]*>[\s\S]*$/gi, "");
     }

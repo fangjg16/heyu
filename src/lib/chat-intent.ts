@@ -1,4 +1,5 @@
 import { isKnowledgeNetworkDeliveryIntent } from "@/lib/knowledge-network-intent";
+import { stripAssistantThinkTags } from "@/lib/chat-think-tags";
 
 /**
  * 与 api-worker chat-modes INTENT_RULES 对齐：非 standard 即深度/专项交付。
@@ -42,8 +43,6 @@ export function isDeepSkillMessage(message: string): boolean {
   if (isKnowledgeNetworkDeliveryIntent(m)) return true;
   return DEEP_SKILL_PATTERNS.some((re) => re.test(m));
 }
-
-import { stripAssistantThinkTags } from "@/lib/chat-think-tags";
 
 /** 流式生成中：隐藏未闭合的 ```html 大块，避免气泡里刷源码 */
 export function streamingAssistantDisplayText(content: string, isStreaming: boolean): string {

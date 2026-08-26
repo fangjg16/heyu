@@ -8,6 +8,7 @@ import {
   LIST_FILES_SQL_NO_SOFT_DELETE,
   documentAccessError,
   listFilesSqlWithSessionVisibility,
+  isUnderFolderPath,
   remapRelativePathAfterFolderRename,
   sanitizeDocumentFilename,
 } from "./documents-access";
@@ -73,6 +74,21 @@ describe("sanitizeDocumentFilename", () => {
     expect(sanitizeDocumentFilename("a/b.pdf")).toBeNull();
     expect(sanitizeDocumentFilename(".keep")).toBeNull();
     expect(sanitizeDocumentFilename("访谈纪要.pdf")).toBe("访谈纪要.pdf");
+  });
+});
+
+
+describe("isUnderFolderPath", () => {
+  it("matches the folder itself and nested children only", () => {
+    expect(isUnderFolderPath("项目上传的/旧文件夹", "项目上传的/旧文件夹")).toBe(
+      true,
+    );
+    expect(
+      isUnderFolderPath("项目上传的/旧文件夹/子", "项目上传的/旧文件夹"),
+    ).toBe(true);
+    expect(isUnderFolderPath("项目上传的/别的", "项目上传的/旧文件夹")).toBe(
+      false,
+    );
   });
 });
 
