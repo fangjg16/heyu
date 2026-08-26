@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  roleCanDownloadProjectFile,
   roleCanManageProjectUploads,
   roleCanPublishKnowledgeNetwork,
   roleCanUpdateKnowledgeNetwork,
@@ -35,11 +36,12 @@ describe("Admin / Core knowledge-network and file permissions", () => {
     expect(roleCanUpdateKnowledgeNetwork("mid")).toBe(false);
   });
 
-  it("lets Admin and Core manage 项目上传 files", () => {
-    expect(roleCanManageProjectUploads("admin")).toBe(true);
-    expect(roleCanManageProjectUploads("core")).toBe(true);
-    expect(roleCanManageProjectUploads("low")).toBe(false);
-    expect(roleCanManageProjectUploads("issuer")).toBe(false);
+  it("lets only Admin and Core download original files", () => {
+    expect(roleCanDownloadProjectFile("admin")).toBe(true);
+    expect(roleCanDownloadProjectFile("core")).toBe(true);
+    expect(roleCanDownloadProjectFile("low")).toBe(false);
+    expect(roleCanDownloadProjectFile("mid")).toBe(false);
+    expect(roleCanDownloadProjectFile("issuer")).toBe(false);
   });
 
   it("lets only Admin see everyone's 对话上传 files", () => {

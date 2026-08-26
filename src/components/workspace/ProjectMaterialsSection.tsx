@@ -32,6 +32,7 @@ import {
   X,
 } from "lucide-react";
 import { ChatMarkdown } from "@/components/workspace/ChatMarkdown";
+import { PdfCanvasPreview } from "@/components/workspace/PdfCanvasPreview";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-auth";
 import {
@@ -1682,8 +1683,7 @@ export function ProjectMaterialsSection({
           file={findFile(fullTree, previewFileId)?.file ?? null}
           onClose={() => setPreviewFileId(null)}
           onDownload={
-            canDownload ||
-            findFile(fullTree, previewFileId)?.file.scope === "session"
+            canDownload
               ? async () => {
                   const node = findFile(fullTree, previewFileId);
                   if (!node) return;
@@ -2127,18 +2127,17 @@ function FilePreviewModal({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState<string | null>(null);
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
   const [mode, setMode] = useState<"text" | "pdf" | "other">("other");
 
   useEffect(() => {
     if (!file) return;
     let cancelled = false;
-    let objectUrl: string | null = null;
     const run = async () => {
       setLoading(true);
       setError(null);
       setText(null);
-      setBlobUrl(null);
+      setPdfData(null);
       try {
         const { blob } = await downloadFileBlob(
           projectId,
@@ -2154,13 +2153,12 @@ function FilePreviewModal({
           setMode("text");
           setText(raw.length > 200_000 ? `${raw.slice(0, 200_000)}\n\n…（已截断）` : raw);
         } else if (kind === "pdf") {
-          objectUrl = URL.createObjectURL(blob);
+          const buf = await blob.arrayBuffer();
+          if (cancelled) return;
           setMode("pdf");
-          setBlobUrl(objectUrl);
+          setPdfData(buf);
         } else {
-          objectUrl = URL.createObjectURL(blob);
           setMode("other");
-          setBlobUrl(objectUrl);
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
@@ -2171,7 +2169,6 @@ function FilePreviewModal({
     void run();
     return () => {
       cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [file, projectId, userId]);
 
@@ -2219,7 +2216,14 @@ function FilePreviewModal({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-auto bg-[rgba(248,243,238,0.45)] p-5">
+        <div
+          className={cn(
+            "min-h-0 flex-1",
+            mode === "pdf" && pdfData && !loading && !error
+              ? "flex flex-col overflow-hidden"
+              : "overflow-auto bg-[rgba(248,243,238,0.45)] p-5",
+          )}
+        >
           {loading ? (
             <div className="flex h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -2259,18 +2263,16 @@ function FilePreviewModal({
               )}
             </div>
           ) : null}
-          {!loading && !error && mode === "pdf" && blobUrl ? (
-            <iframe
-              title={file.filename}
-              src={blobUrl}
-              className="h-[min(70vh,720px)] w-full rounded-xl border border-[rgba(78,66,57,0.1)] bg-white"
-            />
+          {!loading && !error && mode === "pdf" && pdfData ? (
+            <PdfCanvasPreview data={pdfData} />
           ) : null}
           {!loading && !error && mode === "other" ? (
             <div className="mx-auto max-w-lg rounded-xl border border-[rgba(78,66,57,0.1)] bg-white px-6 py-10 text-center">
               <FolderPlus className="mx-auto h-8 w-8 text-[hsl(var(--warm-charcoal-muted))]" />
               <p className="mt-4 text-sm text-[hsl(var(--warm-charcoal-muted))]">
-                该类型暂不支持内联预览，请下载后查看。
+                {onDownload
+                  ? "该类型暂不支持内联预览，请下载后查看。"
+                  : "该类型暂不支持内联预览。"}
               </p>
               {onDownload ? (
                 <button
