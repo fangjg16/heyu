@@ -23,6 +23,7 @@ import {
   insertReviseInstructionLog,
 } from "./chapter-revise-logs-db";
 import {
+  ensureChapterBundle,
   getDraftItem,
   getDraftRun,
   refreshDraftRunProgress,
@@ -339,12 +340,16 @@ export async function handleListProjectKnowledgeChapters(
     env.DB,
     projectId,
   );
+  const bundle = await ensureChapterBundle(env.DB, projectId, userId);
 
   return json({
     ok: true,
     projectId,
     totalSections: TOTAL_SECTIONS,
     populatedCount,
+    currentVersion: bundle.version,
+    overviewVersion: bundle.overviewVersion,
+    overviewKnVersion: bundle.overviewKnVersion,
     chapters: chapters.map((c) => ({
       sectionId: c.sectionId,
       hasHtml: Boolean(c.html.trim()),
@@ -1214,6 +1219,85 @@ export async function handleReviseProjectKnowledgeChapter(
     title,
     html: saved.html,
     reviseNote,
+    source: saved.source,
+    llmBackend: saved.llmBackend,
+    updatedAt: saved.updatedAt,
+    updatedBy: saved.updatedBy,
+  });
+}
+
+/** PUT /api/projects/:id/knowledge-chapters/:sectionId  项目管理员人工保存正式版 HTML */
+export async function handlePutProjectKnowledgeChapter(
+  request: Request,
+  env: Env,
+  projectId: string,
+  sectionIdRaw: string,
+  userIdRaw: string | null,
+): Promise<Response> {
+  const userId = normalizeUserId(userIdRaw);
+  if (!userId) return json({ error: "缺少 userId" }, 400);
+
+  const sectionId = normalizeSectionId(sectionIdRaw);
+  if (!sectionId) return json({ error: "无效的章节 id" }, 400);
+  if (
+    sectionId === "sources" ||
+    sectionId === "glossary" ||
+    sectionId === "project-graph"
+  ) {
+    return json(
+      { error: "引用来源、名词解释与关系图请通过章节/概览更新维护" },
+      400,
+    );
+  }
+
+  const project = await getProjectById(env, projectId);
+  if (!project) return json({ error: "项目不存在" }, 404);
+
+  const denied = await assertCanPublishLive(
+    env,
+    userId,
+    projectId,
+    project.createdBy,
+  );
+  if (denied) return denied;
+
+  let body: { html?: string };
+  try {
+    body = (await request.json()) as { html?: string };
+  } catch {
+    return json({ error: "请求体须为 JSON：{ html }" }, 400);
+  }
+  const html = typeof body.html === "string" ? body.html : "";
+  if (!html.trim()) {
+    return json({ error: "html 不能为空" }, 400);
+  }
+
+  const existing = await getProjectKnowledgeChapterHtml(
+    env.DB,
+    projectId,
+    sectionId,
+  );
+  if (!existing?.html.trim()) {
+    return json(
+      { error: "本章尚无内容，请先生成后再人工编辑", code: "NO_HTML" },
+      400,
+    );
+  }
+
+  const saved = await upsertProjectKnowledgeChapterHtml(env.DB, {
+    projectId,
+    sectionId,
+    html: repairStoredChapterHtml(html),
+    source: "revise",
+    llmBackend: existing.llmBackend,
+    updatedBy: userId,
+  });
+
+  return json({
+    ok: true,
+    projectId,
+    sectionId,
+    html: saved.html,
     source: saved.source,
     llmBackend: saved.llmBackend,
     updatedAt: saved.updatedAt,

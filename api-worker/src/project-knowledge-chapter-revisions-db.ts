@@ -1,5 +1,6 @@
 import type { AppDatabase } from "./app-database";
 import {
+  isResearchChapterId,
   nextChapterVersion,
   normalizeStoredChapterVersion,
   researchChaptersComplete,
@@ -26,6 +27,8 @@ export type DraftItemStatus = "pending" | "ok" | "failed" | "revising";
 export type ChapterBundle = {
   projectId: string;
   version: number;
+  overviewVersion: number;
+  overviewKnVersion: number;
   updatedAt: string;
   updatedBy: string | null;
 };
@@ -65,6 +68,26 @@ export type ChapterVersionMeta = {
   sectionCount: number;
 };
 
+export type OverviewVersionMeta = {
+  projectId: string;
+  version: number;
+  knVersion: number;
+  archivedAt: string;
+  archivedBy: string | null;
+};
+
+export type OverviewVersionDetail = OverviewVersionMeta & {
+  html: string;
+  graphHtml: string | null;
+};
+
+function missingOverviewCols(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? "");
+  return /overview_version|overview_kn_version|project_overview_versions/i.test(
+    msg,
+  );
+}
+
 function nowIso(): string {
   return new Date().toISOString();
 }
@@ -78,25 +101,56 @@ export async function ensureChapterBundle(
   projectId: string,
   userId?: string | null,
 ): Promise<ChapterBundle> {
-  const existing = await db
-    .prepare(
-      `SELECT project_id, version, updated_at, updated_by
-       FROM project_knowledge_chapter_bundle WHERE project_id = ?`,
-    )
-    .bind(projectId)
-    .first<{
-      project_id: string;
-      version: number;
-      updated_at: string;
-      updated_by: string | null;
-    }>();
-  if (existing) {
-    return {
-      projectId: existing.project_id,
-      version: normalizeStoredChapterVersion(existing.version),
-      updatedAt: existing.updated_at,
-      updatedBy: existing.updated_by,
-    };
+  const mapRow = (row: {
+    project_id: string;
+    version: number;
+    overview_version?: number | null;
+    overview_kn_version?: number | null;
+    updated_at: string;
+    updated_by: string | null;
+  }): ChapterBundle => ({
+    projectId: row.project_id,
+    version: normalizeStoredChapterVersion(row.version),
+    overviewVersion: Math.max(0, Math.trunc(Number(row.overview_version) || 0)),
+    overviewKnVersion: normalizeStoredChapterVersion(
+      row.overview_kn_version ?? 0,
+    ),
+    updatedAt: row.updated_at,
+    updatedBy: row.updated_by,
+  });
+
+  try {
+    const existing = await db
+      .prepare(
+        `SELECT project_id, version, overview_version, overview_kn_version,
+                updated_at, updated_by
+         FROM project_knowledge_chapter_bundle WHERE project_id = ?`,
+      )
+      .bind(projectId)
+      .first<{
+        project_id: string;
+        version: number;
+        overview_version: number | null;
+        overview_kn_version: number | null;
+        updated_at: string;
+        updated_by: string | null;
+      }>();
+    if (existing) return mapRow(existing);
+  } catch (e) {
+    if (!missingOverviewCols(e)) throw e;
+    const existing = await db
+      .prepare(
+        `SELECT project_id, version, updated_at, updated_by
+         FROM project_knowledge_chapter_bundle WHERE project_id = ?`,
+      )
+      .bind(projectId)
+      .first<{
+        project_id: string;
+        version: number;
+        updated_at: string;
+        updated_by: string | null;
+      }>();
+    if (existing) return mapRow(existing);
   }
   const now = nowIso();
   await db
@@ -111,6 +165,8 @@ export async function ensureChapterBundle(
   return {
     projectId,
     version: 0,
+    overviewVersion: 0,
+    overviewKnVersion: 0,
     updatedAt: now,
     updatedBy: userId ?? null,
   };
@@ -632,6 +688,10 @@ export async function archiveLiveChaptersAsVersion(
   let n = 0;
   for (const ch of live) {
     if (!ch.html?.trim()) continue;
+    // 概览与关系图走独立版号，不写入知识网络归档
+    if (ch.sectionId === "project-overview" || ch.sectionId === "project-graph") {
+      continue;
+    }
     await db
       .prepare(
         `INSERT INTO project_knowledge_chapter_versions
@@ -670,8 +730,12 @@ export async function publishDraftRunToLive(
     /** patch=补丁；minor=次版本（默认）；major=主版本。未齐章时忽略，走 0.x / 1.0 */
     bump?: ChapterVersionBump;
   },
-): Promise<{
+  ): Promise<{
   newVersion: number;
+  overviewVersion: number;
+  overviewKnVersion: number;
+  publishedKnowledge: boolean;
+  publishedOverview: boolean;
   appliedSections: string[];
   runClosed: boolean;
 }> {
@@ -681,8 +745,42 @@ export async function publishDraftRunToLive(
     input.publishedBy,
   );
   const currentVersion = normalizeStoredChapterVersion(bundle.version);
-  // 若当前已有正式版且尚未归档，先归档
-  if (currentVersion > 0) {
+
+  const items = await listDraftItems(db, input.run.id);
+  const filterSet =
+    input.sectionIds && input.sectionIds.length > 0
+      ? new Set(input.sectionIds)
+      : null;
+  // 发布研究章时同步 meta：sources/glossary；发布概览时再带上关系图
+  if (filterSet) {
+    const hasResearch = [...filterSet].some((id) => isResearchChapterId(id));
+    if (hasResearch) {
+      filterSet.add("sources");
+      filterSet.add("glossary");
+    }
+    if (filterSet.has("project-overview")) {
+      filterSet.add("project-graph");
+    }
+  }
+
+  const willApply = items.filter(
+    (item) =>
+      item.status === "ok" &&
+      Boolean(item.html?.trim()) &&
+      (!filterSet || filterSet.has(item.sectionId)),
+  );
+  if (willApply.length === 0) {
+    throw new Error("没有可发布的章节");
+  }
+  const publishedKnowledge = willApply.some((item) =>
+    isResearchChapterId(item.sectionId),
+  );
+  const publishedOverview = willApply.some(
+    (item) => item.sectionId === "project-overview",
+  );
+
+  // 仅知识网络升版时才归档当前正式章；只发概览不碰知识网络版号
+  if (publishedKnowledge && currentVersion > 0) {
     const archivedCount = await db
       .prepare(
         `SELECT COUNT(*) AS cnt FROM project_knowledge_chapter_versions
@@ -699,82 +797,80 @@ export async function publishDraftRunToLive(
     }
   }
 
-  const items = await listDraftItems(db, input.run.id);
-  const filterSet =
-    input.sectionIds && input.sectionIds.length > 0
-      ? new Set(input.sectionIds)
-      : null;
-  // 发布主章时同步 meta：sources/glossary；发布概览时再带上关系图
-  if (filterSet) {
-    const hasPrimary = [...filterSet].some(
-      (id) =>
-        id !== "sources" && id !== "glossary" && id !== "project-graph",
-    );
-    if (hasPrimary) {
-      filterSet.add("sources");
-      filterSet.add("glossary");
-    }
-    if (filterSet.has("project-overview")) {
-      filterSet.add("project-graph");
-    }
-  }
-
   const applied: string[] = [];
-  for (const item of items) {
-    if (item.status !== "ok" || !item.html?.trim()) continue;
-    if (filterSet && !filterSet.has(item.sectionId)) continue;
+  for (const item of willApply) {
     await upsertProjectKnowledgeChapterHtml(db, {
       projectId: input.run.projectId,
       sectionId: item.sectionId,
-      html: repairStoredChapterHtml(item.html),
+      html: repairStoredChapterHtml(item.html ?? ""),
       source: "generate",
       llmBackend: item.llmBackend,
       updatedBy: input.publishedBy,
     });
     applied.push(item.sectionId);
   }
-
-  if (applied.length === 0) {
-    throw new Error("没有可发布的章节");
-  }
-
-  const liveAfter = await listProjectKnowledgeChapterHtml(
-    db,
-    input.run.projectId,
-  );
-  const allResearchComplete = researchChaptersComplete(
-    new Map(liveAfter.map((c) => [c.sectionId, c.html])),
-  );
-  const newVersion = nextChapterVersion(currentVersion, {
-    bump: input.bump ?? "minor",
-    allResearchComplete,
-  });
   const now = nowIso();
-  await db
-    .prepare(
-      `UPDATE project_knowledge_chapter_bundle
-       SET version = ?, updated_at = ?, updated_by = ?
-       WHERE project_id = ?`,
-    )
-    .bind(newVersion, now, input.publishedBy, input.run.projectId)
-    .run();
+  let newVersion = currentVersion;
+  let overviewVersion = bundle.overviewVersion;
+  let overviewKnVersion = bundle.overviewKnVersion;
 
-  try {
-    await syncProjectSourcesFromPublishedChapters(
+  if (publishedKnowledge) {
+    const liveAfter = await listProjectKnowledgeChapterHtml(
       db,
       input.run.projectId,
-      input.publishedBy,
     );
-  } catch {
-    /* 正式章节已发布；来源表回填失败不阻断归档 */
+    const allResearchComplete = researchChaptersComplete(
+      new Map(liveAfter.map((c) => [c.sectionId, c.html])),
+    );
+    newVersion = nextChapterVersion(currentVersion, {
+      bump: input.bump ?? "minor",
+      allResearchComplete,
+    });
+    await db
+      .prepare(
+        `UPDATE project_knowledge_chapter_bundle
+         SET version = ?, updated_at = ?, updated_by = ?
+         WHERE project_id = ?`,
+      )
+      .bind(newVersion, now, input.publishedBy, input.run.projectId)
+      .run();
+    try {
+      await syncProjectSourcesFromPublishedChapters(
+        db,
+        input.run.projectId,
+        input.publishedBy,
+      );
+    } catch {
+      /* 正式章节已发布；来源表回填失败不阻断归档 */
+    }
+    await archiveLiveChaptersAsVersion(db, {
+      projectId: input.run.projectId,
+      version: newVersion,
+      archivedBy: input.publishedBy,
+    });
+  } else if (publishedOverview) {
+    try {
+      await syncProjectSourcesFromPublishedChapters(
+        db,
+        input.run.projectId,
+        input.publishedBy,
+      );
+    } catch {
+      /* 概览发布时来源回填失败不阻断 */
+    }
   }
 
-  // 新正式版也立刻归档一份，便于版本列表浏览「当前」
-  await archiveLiveChaptersAsVersion(db, {
-    projectId: input.run.projectId,
-    version: newVersion,
-    archivedBy: input.publishedBy,
-  });
+  if (publishedOverview) {
+    overviewVersion = (bundle.overviewVersion || 0) + 1;
+    overviewKnVersion = newVersion;
+    await saveOverviewBundleAndArchive(db, {
+      projectId: input.run.projectId,
+      overviewVersion,
+      knVersion: overviewKnVersion,
+      archivedBy: input.publishedBy,
+      at: now,
+    });
+  }
 
   const researchOk = items.filter(
     (i) =>
@@ -809,7 +905,84 @@ export async function publishDraftRunToLive(
     await setDraftRunStatus(db, input.run.id, "ready");
   }
 
-  return { newVersion, appliedSections: applied, runClosed };
+  return {
+    newVersion,
+    overviewVersion,
+    overviewKnVersion,
+    publishedKnowledge,
+    publishedOverview,
+    appliedSections: applied,
+    runClosed,
+  };
+}
+
+async function saveOverviewBundleAndArchive(
+  db: AppDatabase,
+  input: {
+    projectId: string;
+    overviewVersion: number;
+    knVersion: number;
+    archivedBy: string;
+    at: string;
+  },
+): Promise<void> {
+  try {
+    await db
+      .prepare(
+        `UPDATE project_knowledge_chapter_bundle
+         SET overview_version = ?, overview_kn_version = ?,
+             updated_at = ?, updated_by = ?
+         WHERE project_id = ?`,
+      )
+      .bind(
+        input.overviewVersion,
+        input.knVersion,
+        input.at,
+        input.archivedBy,
+        input.projectId,
+      )
+      .run();
+  } catch (e) {
+    if (!missingOverviewCols(e)) throw e;
+  }
+
+  const overview = await getProjectKnowledgeChapterHtml(
+    db,
+    input.projectId,
+    "project-overview",
+  );
+  const graph = await getProjectKnowledgeChapterHtml(
+    db,
+    input.projectId,
+    "project-graph",
+  );
+  if (!overview?.html?.trim()) return;
+  try {
+    await db
+      .prepare(
+        `INSERT INTO project_overview_versions
+           (project_id, version, kn_version, html, graph_html, archived_at, archived_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           kn_version = VALUES(kn_version),
+           html = VALUES(html),
+           graph_html = VALUES(graph_html),
+           archived_at = VALUES(archived_at),
+           archived_by = VALUES(archived_by)`,
+      )
+      .bind(
+        input.projectId,
+        input.overviewVersion,
+        input.knVersion,
+        overview.html,
+        graph?.html ?? null,
+        input.at,
+        input.archivedBy,
+      )
+      .run();
+  } catch (e) {
+    if (!missingOverviewCols(e)) throw e;
+  }
 }
 
 export async function listChapterVersionMetas(
@@ -840,6 +1013,78 @@ export async function listChapterVersionMetas(
     archivedBy: r.archived_by,
     sectionCount: Number(r.section_count) || 0,
   }));
+}
+
+export async function listOverviewVersionMetas(
+  db: AppDatabase,
+  projectId: string,
+): Promise<OverviewVersionMeta[]> {
+  try {
+    const q = await db
+      .prepare(
+        `SELECT project_id, version, kn_version, archived_at, archived_by
+         FROM project_overview_versions
+         WHERE project_id = ?
+         ORDER BY version DESC`,
+      )
+      .bind(projectId)
+      .all<{
+        project_id: string;
+        version: number;
+        kn_version: number;
+        archived_at: string;
+        archived_by: string | null;
+      }>();
+    return (q.results ?? []).map((r) => ({
+      projectId: r.project_id,
+      version: Math.trunc(Number(r.version) || 0),
+      knVersion: normalizeStoredChapterVersion(r.kn_version),
+      archivedAt: r.archived_at,
+      archivedBy: r.archived_by,
+    }));
+  } catch (e) {
+    if (missingOverviewCols(e)) return [];
+    throw e;
+  }
+}
+
+export async function getOverviewVersion(
+  db: AppDatabase,
+  projectId: string,
+  version: number,
+): Promise<OverviewVersionDetail | null> {
+  try {
+    const row = await db
+      .prepare(
+        `SELECT project_id, version, kn_version, html, graph_html,
+                archived_at, archived_by
+         FROM project_overview_versions
+         WHERE project_id = ? AND version = ?`,
+      )
+      .bind(projectId, version)
+      .first<{
+        project_id: string;
+        version: number;
+        kn_version: number;
+        html: string;
+        graph_html: string | null;
+        archived_at: string;
+        archived_by: string | null;
+      }>();
+    if (!row) return null;
+    return {
+      projectId: row.project_id,
+      version: Math.trunc(Number(row.version) || 0),
+      knVersion: normalizeStoredChapterVersion(row.kn_version),
+      html: row.html,
+      graphHtml: row.graph_html,
+      archivedAt: row.archived_at,
+      archivedBy: row.archived_by,
+    };
+  } catch (e) {
+    if (missingOverviewCols(e)) return null;
+    throw e;
+  }
 }
 
 export async function listChapterVersionHtml(
@@ -919,6 +1164,9 @@ export async function rollbackLiveChaptersToVersion(
   const restored: string[] = [];
   for (const ch of chapters) {
     if (!ch.html?.trim()) continue;
+    if (ch.sectionId === "project-overview" || ch.sectionId === "project-graph") {
+      continue;
+    }
     await upsertProjectKnowledgeChapterHtml(db, {
       projectId: input.projectId,
       sectionId: ch.sectionId,

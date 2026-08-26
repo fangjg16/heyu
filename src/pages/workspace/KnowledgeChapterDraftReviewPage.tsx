@@ -31,6 +31,8 @@ import {
 import {
   bumpChapterVersion,
   formatChapterVersionLabel,
+  formatOverviewVersionLabel,
+  isOverviewOnlyPublish,
   isPreReleaseChapterVersion,
   nextChapterVersion,
   researchChaptersCompleteFromFlags,
@@ -164,6 +166,8 @@ export default function KnowledgeChapterDraftReviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [currentVersion, setCurrentVersion] = useState(1);
+  const [overviewVersion, setOverviewVersion] = useState(0);
+  const [overviewKnVersion, setOverviewKnVersion] = useState(0);
   const [baseVersion, setBaseVersion] = useState(1);
   const [runStatus, setRunStatus] = useState<string>("");
   const [rows, setRows] = useState<ReviewRow[]>([]);
@@ -307,6 +311,8 @@ export default function KnowledgeChapterDraftReviewPage() {
       try {
         const draft = await fetchChapterDraftRun(projectId, runId, userId);
         setCurrentVersion(draft.currentVersion);
+        setOverviewVersion(draft.overviewVersion ?? 0);
+        setOverviewKnVersion(draft.overviewKnVersion ?? 0);
         setBaseVersion(draft.run.baseVersion);
         setRunStatus(draft.run.status);
         try {
@@ -449,9 +455,21 @@ export default function KnowledgeChapterDraftReviewPage() {
     allResearchComplete:
       researchChaptersCompleteFromFlags(flagsAfterPublish),
   });
+  const overviewOnlyDraft =
+    rows.length > 0 && isOverviewOnlyPublish(rows.map((r) => r.id));
+  const overviewOnlyPreview = isOverviewOnlyPublish(previewPublishIds);
+  const mixedPreview =
+    previewPublishIds.includes("project-overview") &&
+    previewPublishIds.some((id) => id !== "project-overview");
+  const nextOverviewLabel = formatOverviewVersionLabel(overviewVersion + 1);
+  const knForOverviewLabel = formatChapterVersionLabel(
+    mixedPreview ? nextVersion : currentVersion,
+  );
   const currentVersionLabel = formatChapterVersionLabel(currentVersion);
   const baseVersionLabel = formatChapterVersionLabel(baseVersion);
-  const nextVersionLabel = formatChapterVersionLabel(nextVersion);
+  const nextVersionLabel = overviewOnlyPreview
+    ? `${nextOverviewLabel}（对应 ${knForOverviewLabel}）`
+    : formatChapterVersionLabel(nextVersion);
   const preRelease = isPreReleaseChapterVersion(currentVersion);
   const addableChapters = REVIEWABLE_CHAPTERS.filter(
     (c) => !rows.some((r) => r.id === c.id),
@@ -641,20 +659,30 @@ export default function KnowledgeChapterDraftReviewPage() {
       });
       setConfirm(null);
       if (res.runClosed) {
-        const publishedOverview = sectionIds.includes("project-overview");
+        const publishedOverview = Boolean(res.publishedOverview);
         navigate(
           publishedOverview
             ? `/app/projects/${projectId}/overview`
             : `/app/projects/${projectId}/knowledge`,
           {
             replace: true,
-            state: { knowledgePublishedVersion: res.newVersion },
+            state: {
+              knowledgePublishedVersion: res.publishedKnowledge
+                ? res.newVersion
+                : undefined,
+              overviewPublishedVersion: res.publishedOverview
+                ? res.overviewVersion
+                : undefined,
+              overviewKnVersion: res.overviewKnVersion,
+            },
           },
         );
         return;
       }
       setNotice(
-        `已发布 ${res.appliedSections.filter((id) => id !== "sources" && id !== "glossary").length} 章为 ${formatChapterVersionLabel(res.newVersion)}。其余变更可继续审核发布。`,
+        res.publishedOverview && !res.publishedKnowledge
+          ? `已发布项目概览 ${formatOverviewVersionLabel(res.overviewVersion)}（对应知识网络 ${formatChapterVersionLabel(res.overviewKnVersion ?? res.newVersion)}）。`
+          : `已发布 ${res.appliedSections.filter((id) => id !== "sources" && id !== "glossary").length} 章为 ${formatChapterVersionLabel(res.newVersion)}。其余变更可继续审核发布。`,
       );
       await loadReview({ keepSelection: true });
     } catch (e) {
@@ -706,15 +734,27 @@ export default function KnowledgeChapterDraftReviewPage() {
     if (!confirm) return { title: "", body: "" };
     if (confirm.type === "one") {
       return {
-        title: `确认发布「${confirm.label}」为 ${nextVersionLabel}？`,
-        body: preRelease
+        title: overviewOnlyPreview
+          ? `确认发布「${confirm.label}」为 ${nextOverviewLabel}？`
+          : `确认发布「${confirm.label}」为 ${nextVersionLabel}？`,
+        body: overviewOnlyPreview
+          ? `写入正式项目概览为 ${nextOverviewLabel}，对应当前知识网络 ${knForOverviewLabel}。知识网络版号不会因此增加。`
+          : preRelease
           ? `写入正式知识网络为 ${nextVersionLabel}。13 个研究章节未齐时为 0.x，第一次齐全后升为 1.0。其他章节不受影响，可继续审核。`
           : `仅将本章草案写入正式知识网络（${nextVersionLabel}），并把当前正式内容归档为 ${currentVersionLabel}。其他章节不受影响，可继续审核。`,
       };
     }
     return {
-      title: `确认发布全部 ${changedCount} 处变更为 ${nextVersionLabel}？`,
-      body: preRelease
+      title: overviewOnlyPreview
+        ? `确认发布项目概览为 ${nextOverviewLabel}？`
+        : mixedPreview
+          ? `确认发布知识网络 ${nextVersionLabel} 并发布概览 ${nextOverviewLabel}？`
+          : `确认发布全部 ${changedCount} 处变更为 ${nextVersionLabel}？`,
+      body: overviewOnlyPreview
+        ? `写入正式项目概览为 ${nextOverviewLabel}，对应当前知识网络 ${knForOverviewLabel}。知识网络版号不会因此增加。`
+        : mixedPreview
+        ? `知识网络升为 ${nextVersionLabel}；项目概览独立编号为 ${nextOverviewLabel}，对应本次知识网络 ${nextVersionLabel}。失败与未变章节不会覆盖。`
+        : preRelease
         ? `写入正式知识网络为 ${nextVersionLabel}。13 个研究章节未齐时为 0.x，第一次齐全后升为 1.0。失败与未变章节不会覆盖。`
         : `将把所有「新增/变更」章节写入正式知识网络（${nextVersionLabel}），并把当前正式内容归档为 ${currentVersionLabel}。失败与未变章节不会覆盖。`,
     };
@@ -1309,14 +1349,36 @@ export default function KnowledgeChapterDraftReviewPage() {
                       <dt className="text-[#59625F]">基于版本</dt>
                       <dd className="font-semibold">{baseVersionLabel}</dd>
                     </div>
+                    {overviewOnlyDraft ? (
+                      <>
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-[#59625F]">当前概览</dt>
+                      <dd className="font-semibold">
+                        {formatOverviewVersionLabel(overviewVersion)}
+                        {overviewKnVersion > 0
+                          ? ` · ${formatChapterVersionLabel(overviewKnVersion)}`
+                          : ""}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-[#59625F]">对应知识网络</dt>
+                      <dd className="font-semibold">{knForOverviewLabel}</dd>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-[#59625F]">下次发布</dt>
+                      <dd className="font-semibold">{nextOverviewLabel}</dd>
+                    </div>
+                      </>
+                    ) : (
                     <div className="flex justify-between gap-2">
                       <dt className="text-[#59625F]">下次发布</dt>
                       <dd className="font-semibold">{nextVersionLabel}</dd>
                     </div>
+                    )}
                   </dl>
 
                   <div className="mt-4 space-y-1.5">
-                    {canPublish ? (
+                    {canPublish && !overviewOnlyDraft ? (
                       <>
                     <div className="text-[12px] font-semibold text-[#59625F]">
                       版本递增
@@ -1395,6 +1457,11 @@ export default function KnowledgeChapterDraftReviewPage() {
                       </>
                     )}
                       </>
+                    ) : overviewOnlyDraft && canPublish ? (
+                      <p className="rounded-lg border border-[rgba(78,66,57,0.1)] px-2.5 py-2 text-[12px] leading-relaxed text-[#59625F]">
+                        概览独立编号为 {nextOverviewLabel}，对应当前知识网络{" "}
+                        {knForOverviewLabel}。发布概览不会增加知识网络版号。
+                      </p>
                     ) : null}
                   </div>
 

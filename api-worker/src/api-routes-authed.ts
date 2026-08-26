@@ -37,6 +37,7 @@ import {
   handleGenerateProjectKnowledgeChapter,
   handleGetProjectKnowledgeChapter,
   handleListProjectKnowledgeChapters,
+  handlePutProjectKnowledgeChapter,
   handleReviseProjectKnowledgeChapter,
 } from "./project-knowledge-chapters-routes";
 import {
@@ -46,6 +47,7 @@ import {
   handleGenerateChapterDraftSection,
   handleGetActiveChapterDraftRun,
   handleGetChapterDraftRun,
+  handleGetOverviewVersion,
   handleGetKnowledgeChapterVersion,
   handleListKnowledgeChapterVersions,
   handleListMyChapterDraftRuns,
@@ -454,6 +456,16 @@ export async function routeAuthedApi(
   }
 
   if (
+    /^\/api\/projects\/[^/]+\/overview-versions\/[^/]+$/u.test(path) &&
+    request.method === "GET"
+  ) {
+    const parts = path.split("/");
+    const projectId = decodePathProjectId(parts[3] ?? "");
+    const version = parts[5] ?? "";
+    return handleGetOverviewVersion(env, projectId, version, authUserId);
+  }
+
+  if (
     /^\/api\/projects\/[^/]+\/knowledge-chapter-versions$/u.test(path) &&
     request.method === "GET"
   ) {
@@ -497,6 +509,15 @@ export async function routeAuthedApi(
     const sectionId = path.split("/")[5] ?? "";
     if (request.method === "GET") {
       return handleGetProjectKnowledgeChapter(
+        env,
+        projectId,
+        sectionId,
+        authUserId,
+      );
+    }
+    if (request.method === "PUT") {
+      return handlePutProjectKnowledgeChapter(
+        request,
         env,
         projectId,
         sectionId,

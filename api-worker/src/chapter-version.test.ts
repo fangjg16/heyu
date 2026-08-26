@@ -3,6 +3,8 @@ import {
   bumpChapterVersion,
   formatChapterVersion,
   formatChapterVersionLabel,
+  formatOverviewVersionLabel,
+  isOverviewOnlyPublish,
   nextChapterVersion,
   parseChapterVersion,
   researchChaptersComplete,
@@ -78,5 +80,13 @@ describe("chapter-version", () => {
       framework: "<p>a</p>",
     };
     expect(researchChaptersComplete(full)).toBe(true);
+  });
+
+  it("treats overview-only publish separately from knowledge network bump", () => {
+    expect(formatOverviewVersionLabel(3)).toBe("ov-3");
+    expect(isOverviewOnlyPublish(["project-overview", "project-graph"])).toBe(
+      true,
+    );
+    expect(isOverviewOnlyPublish(["snapshot", "project-overview"])).toBe(false);
   });
 });

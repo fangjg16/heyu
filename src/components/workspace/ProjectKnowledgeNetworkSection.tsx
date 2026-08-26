@@ -14,15 +14,22 @@ import {
   createChapterDraftRun,
   discardChapterDraftRun,
   fetchKnowledgeChapterVersion,
+  fetchOverviewVersion,
   fetchProjectKnowledgeChapter,
   listKnowledgeChapterVersions,
   reviseProjectKnowledgeChapter,
   rollbackKnowledgeChapterVersion,
+  saveLiveKnowledgeChapter,
   waitForDraftRunSettled,
   type KnowledgeChapterVersionMeta,
+  type OverviewVersionMeta,
 } from "@/lib/project-api";
 import { stripAuthoringHintsFromHtml } from "@/lib/strip-authoring-hints";
-import { formatChapterVersionLabel } from "@/lib/chapter-version";
+import { formatChapterVersionLabel, formatOverviewVersionLabel } from "@/lib/chapter-version";
+import {
+  ProjectRelationGraph,
+  parseProjectGraphHtml,
+} from "@/components/workspace/ProjectRelationGraph";
 import { extractOpenQuestionTitle } from "@/lib/kn-citations";
 import {
   parseOpenQuestionsFromHtml,
@@ -191,6 +198,23 @@ export function ProjectKnowledgeNetworkSection({
   const [versionDetailLoading, setVersionDetailLoading] = useState(false);
   const [rollbackBusy, setRollbackBusy] = useState<number | null>(null);
   const [versionRefresh, setVersionRefresh] = useState(0);
+  const [overviewVersionMetas, setOverviewVersionMetas] = useState<
+    OverviewVersionMeta[]
+  >([]);
+  const [currentOverviewVersion, setCurrentOverviewVersion] = useState(0);
+  const [browsingOverviewVersion, setBrowsingOverviewVersion] = useState<
+    number | null
+  >(null);
+  const [overviewBrowseHtml, setOverviewBrowseHtml] = useState<string | null>(
+    null,
+  );
+  const [overviewBrowseKnVersion, setOverviewBrowseKnVersion] = useState(0);
+  const [overviewBrowseGraph, setOverviewBrowseGraph] = useState<
+    ReturnType<typeof parseProjectGraphHtml>
+  >(null);
+  const [liveEditing, setLiveEditing] = useState(false);
+  const [liveEditBusy, setLiveEditBusy] = useState(false);
+  const chapterPaneRef = useRef<HTMLDivElement>(null);
   const [allChaptersConfirm, setAllChaptersConfirm] = useState(false);
   useBodyScrollLock(allChaptersConfirm);
 
@@ -231,6 +255,8 @@ export function ProjectKnowledgeNetworkSection({
         if (cancelled) return;
         setVersionMetas(data.versions);
         setCurrentBundleVersion(data.currentVersion);
+        setOverviewVersionMetas(data.overviewVersions);
+        setCurrentOverviewVersion(data.overviewVersion);
       } catch (e) {
         if (!cancelled) {
           setVersionsError(
@@ -249,6 +275,7 @@ export function ProjectKnowledgeNetworkSection({
 
   const openVersionBrowse = async (version: number) => {
     if (!projectId || !userId.trim()) return;
+    setBrowsingOverviewVersion(null);
     setBrowsingVersion(version);
     setVersionDetailLoading(true);
     setVersionsError(null);
@@ -270,6 +297,28 @@ export function ProjectKnowledgeNetworkSection({
       setVersionsError(e instanceof Error ? e.message : "版本内容加载失败");
       setBrowsingVersion(null);
       setVersionChapters([]);
+    } finally {
+      setVersionDetailLoading(false);
+    }
+  };
+
+  const openOverviewBrowse = async (version: number) => {
+    if (!projectId || !userId.trim()) return;
+    setBrowsingVersion(null);
+    setVersionChapters([]);
+    setBrowsingOverviewVersion(version);
+    setVersionDetailLoading(true);
+    setVersionsError(null);
+    try {
+      const data = await fetchOverviewVersion(projectId, version, userId);
+      setOverviewBrowseHtml(data.html);
+      setOverviewBrowseKnVersion(data.knVersion);
+      setOverviewBrowseGraph(parseProjectGraphHtml(data.graphHtml));
+    } catch (e) {
+      setVersionsError(e instanceof Error ? e.message : "概览版本加载失败");
+      setBrowsingOverviewVersion(null);
+      setOverviewBrowseHtml(null);
+      setOverviewBrowseGraph(null);
     } finally {
       setVersionDetailLoading(false);
     }
@@ -336,6 +385,50 @@ export function ProjectKnowledgeNetworkSection({
   const sectionBusy =
     busyBySection[sectionId] ??
     (updatingChapterIds.includes(sectionId) ? "generate" : null);
+
+  useEffect(() => {
+    setLiveEditing(false);
+  }, [sectionId]);
+
+  useEffect(() => {
+    if (!liveEditing || !chapterPaneRef.current || !html) return;
+    chapterPaneRef.current.innerHTML = html;
+  }, [liveEditing]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startLiveEdit = () => {
+    if (!canPublish || !hasHtml || sectionBusy) return;
+    setLiveEditing(true);
+    setError(null);
+  };
+
+  const cancelLiveEdit = () => {
+    setLiveEditing(false);
+  };
+
+  const saveLiveEdit = async () => {
+    if (!canPublish || !chapterPaneRef.current) return;
+    const next = chapterPaneRef.current.innerHTML ?? "";
+    if (!next.trim()) {
+      setError("内容不能为空");
+      return;
+    }
+    setLiveEditBusy(true);
+    setError(null);
+    try {
+      const saved = await saveLiveKnowledgeChapter(
+        projectId,
+        sectionId,
+        userId,
+        next,
+      );
+      setHtml(saved.html?.trim() ? saved.html : next);
+      setLiveEditing(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "保存失败");
+    } finally {
+      setLiveEditBusy(false);
+    }
+  };
 
   const relatedQuestions = useMemo(() => {
     if (sectionId === "questions") return [];
@@ -802,7 +895,7 @@ export function ProjectKnowledgeNetworkSection({
               onChange={(e) => setInstruction(e.target.value)}
               rows={2}
               disabled={
-                !hasHtml || !canPublish || sectionBusy !== null
+                !hasHtml || !canPublish || sectionBusy !== null || liveEditing
               }
               placeholder={
                 hasHtml
@@ -818,6 +911,7 @@ export function ProjectKnowledgeNetworkSection({
                 !hasHtml ||
                 !canPublish ||
                 sectionBusy !== null ||
+                liveEditing ||
                 !instruction.trim()
               }
               className="h-10 shrink-0 rounded-[9px] bg-[#A06358] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#8F564C] disabled:cursor-not-allowed disabled:opacity-50"
@@ -903,16 +997,25 @@ export function ProjectKnowledgeNetworkSection({
                   </div>
                 ) : hasHtml ? (
                   <div
+                    ref={chapterPaneRef}
                     role="presentation"
-                    onClick={onChapterHtmlClick}
+                    onClick={liveEditing ? undefined : onChapterHtmlClick}
+                    contentEditable={liveEditing}
+                    suppressContentEditableWarning
                     className={cn(
                       "kn-chapter-html text-[13.5px] leading-[1.75] text-[#1F2423] [&_a.kn-cite]:cursor-pointer [&_h2]:mb-3 [&_h2]:mt-6 [&_h2]:text-[18px] [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:mt-5 [&_h3]:text-[15px] [&_h3]:font-semibold [&_p]:my-2 [&_table]:my-3 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[rgba(78,66,57,0.12)] [&_td]:px-3 [&_td]:py-2 [&_th]:whitespace-nowrap [&_th]:border [&_th]:border-[rgba(78,66,57,0.12)] [&_th]:bg-[rgba(78,66,57,0.05)] [&_th]:px-3 [&_th]:py-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5",
                       sectionId === "snapshot" &&
                         "[&_tbody_td:first-child]:whitespace-nowrap [&_tbody_td:first-child]:font-medium",
+                      liveEditing &&
+                        "outline outline-2 outline-[rgba(160,99,88,0.25)] outline-offset-[-2px]",
                     )}
-                    dangerouslySetInnerHTML={{
-                      __html: stripAuthoringHintsFromHtml(html!),
-                    }}
+                    {...(liveEditing
+                      ? {}
+                      : {
+                          dangerouslySetInnerHTML: {
+                            __html: stripAuthoringHintsFromHtml(html!),
+                          },
+                        })}
                   />
                 ) : (
                   <div className="flex min-h-[280px] items-center justify-center px-8 py-16">
@@ -934,7 +1037,8 @@ export function ProjectKnowledgeNetworkSection({
                       disabled={
                         !canUpdateChapter ||
                         !canUpdate ||
-                        sectionBusy !== null
+                        sectionBusy !== null ||
+                        liveEditing
                       }
                       title={
                         sectionBusy
@@ -951,6 +1055,42 @@ export function ProjectKnowledgeNetworkSection({
                           ? "重试本章"
                           : "更新本章"}
                     </button>
+                    {canPublish && hasHtml ? (
+                      <div className="mt-2 flex flex-col gap-1.5">
+                        {!liveEditing ? (
+                          <button
+                            type="button"
+                            disabled={sectionBusy !== null}
+                            onClick={startLiveEdit}
+                            className="h-9 w-full rounded-[9px] border border-[rgba(78,66,57,0.18)] text-[12px] font-medium text-[#1F2423] hover:bg-[rgba(78,66,57,0.04)] disabled:opacity-50"
+                          >
+                            编辑本章
+                          </button>
+                        ) : (
+                          <div className="flex gap-1.5">
+                            <button
+                              type="button"
+                              disabled={liveEditBusy}
+                              onClick={cancelLiveEdit}
+                              className="h-9 flex-1 rounded-[9px] border border-[rgba(78,66,57,0.18)] text-[12px] font-medium text-[#1F2423] disabled:opacity-50"
+                            >
+                              取消
+                            </button>
+                            <button
+                              type="button"
+                              disabled={liveEditBusy}
+                              onClick={() => void saveLiveEdit()}
+                              className="h-9 flex-1 rounded-[9px] bg-[#A06358] text-[12px] font-medium text-white hover:bg-[#8F564C] disabled:opacity-50"
+                            >
+                              {liveEditBusy ? "保存中…" : "保存"}
+                            </button>
+                          </div>
+                        )}
+                        <p className="text-[11px] leading-relaxed text-[#969E9A]">
+                          「更新本章」生成 AI 草案，发布后知识网络升版。「编辑本章」直接改正式版，不增加版号。
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className="flex items-start justify-between gap-2.5">
@@ -1116,6 +1256,60 @@ export function ProjectKnowledgeNetworkSection({
             )}
           </div>
         </div>
+      ) : browsingOverviewVersion != null ? (
+        <div className="overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.76)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(78,66,57,0.1)] px-6 py-4">
+            <div>
+              <div className="text-[11px] tracking-wide text-[#A06358]">
+                项目概览版本（只读）
+              </div>
+              <div className="mt-1 font-[family-name:var(--font-serif,serif)] text-[22px] font-semibold text-[#1F2423]">
+                {formatOverviewVersionLabel(browsingOverviewVersion)}
+                {browsingOverviewVersion === currentOverviewVersion ? (
+                  <span className="ml-2 align-middle text-[12px] font-medium text-[#2F6B4F]">
+                    当前概览
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1 text-[12.5px] text-[#59625F]">
+                对应知识网络 {formatChapterVersionLabel(overviewBrowseKnVersion)}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setBrowsingOverviewVersion(null);
+                setOverviewBrowseHtml(null);
+                setOverviewBrowseGraph(null);
+              }}
+              className="h-9 rounded-[9px] border border-[rgba(78,66,57,0.18)] px-3.5 text-[13px] font-medium text-[#1F2423] hover:bg-[rgba(78,66,57,0.04)]"
+            >
+              返回版本列表
+            </button>
+          </div>
+          <div className="px-6 py-6">
+            {versionDetailLoading ? (
+              <p className="text-[13px] text-[#969E9A]">加载中…</p>
+            ) : (
+              <div className="space-y-4">
+                {overviewBrowseHtml?.trim() ? (
+                  <div
+                    className="kn-project-overview-html text-[13px] leading-[1.65] text-[#1F2423] [&_#project-graph-slot]:hidden [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[rgba(78,66,57,0.12)] [&_td]:px-3.5 [&_td]:py-3.5 [&_th]:border [&_th]:border-[rgba(78,66,57,0.12)] [&_th]:bg-[rgba(78,66,57,0.05)] [&_th]:px-3.5 [&_th]:py-3"
+                    dangerouslySetInnerHTML={{ __html: overviewBrowseHtml }}
+                  />
+                ) : (
+                  <p className="text-[13px] text-[#969E9A]">该概览版本无内容</p>
+                )}
+                {overviewBrowseGraph ? (
+                  <ProjectRelationGraph
+                    data={overviewBrowseGraph}
+                    projectId={projectId}
+                  />
+                ) : null}
+              </div>
+            )}
+          </div>
+        </div>
       ) : browsingVersion != null ? (
         <div className="overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.76)]">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(78,66,57,0.1)] px-6 py-4">
@@ -1195,14 +1389,18 @@ export function ProjectKnowledgeNetworkSection({
         <div className="overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.76)]">
           <div className="border-b border-[rgba(78,66,57,0.1)] px-8 py-7">
             <div className="text-[11px] tracking-wide text-[#A06358]">
-              知识网络版本
-            </div>
-            <div className="mt-2 font-[family-name:var(--font-serif,serif)] text-[27px] font-semibold text-[#1F2423]">
               版本记录
             </div>
+            <div className="mt-2 font-[family-name:var(--font-serif,serif)] text-[27px] font-semibold text-[#1F2423]">
+              知识网络与项目概览
+            </div>
             <p className="mt-2.5 max-w-[820px] text-[13px] leading-[1.75] text-[#59625F]">
-              查看「更新全部章节」审核发布后的正式版本归档。当前正式版为 v
-              {currentBundleVersion}。
+              知识网络 13 章与项目概览分开编号。概览每条记录会标明它对应哪一版知识网络。当前知识网络{" "}
+              {formatChapterVersionLabel(currentBundleVersion)}
+              {currentOverviewVersion > 0
+                ? `，当前概览 ${formatOverviewVersionLabel(currentOverviewVersion)}`
+                : ""}
+              。
             </p>
           </div>
           <div className="px-6 py-5">
@@ -1215,14 +1413,24 @@ export function ProjectKnowledgeNetworkSection({
               <div className="flex min-h-[200px] items-center justify-center">
                 <p className="text-[13px] text-[#969E9A]">加载中…</p>
               </div>
-            ) : versionMetas.length === 0 ? (
+            ) : versionMetas.length === 0 && overviewVersionMetas.length === 0 ? (
               <div className="flex min-h-[200px] items-center justify-center px-8 py-12">
                 <p className="text-center text-[13px] text-[#969E9A]">
-                  尚无归档版本。使用「更新全部章节」生成草案并发布后，将在此显示版本记录。
+                  尚无归档版本。发布知识网络章节或项目概览后，将在此分别显示。
                 </p>
               </div>
             ) : (
-              <ul className="divide-y divide-[rgba(78,66,57,0.08)]">
+              <div className="space-y-8">
+                <section>
+                  <h3 className="px-2 text-[13px] font-semibold text-[#59625F]">
+                    知识网络版本
+                  </h3>
+                  {versionMetas.length === 0 ? (
+                    <p className="mt-3 px-2 text-[12.5px] text-[#969E9A]">
+                      尚无知识网络归档。使用「更新全部章节」发布后显示。
+                    </p>
+                  ) : (
+              <ul className="mt-2 divide-y divide-[rgba(78,66,57,0.08)]">
                 {versionMetas.map((v, idx) => {
                   const older = versionMetas[idx + 1];
                   const changeHint = older
@@ -1277,6 +1485,56 @@ export function ProjectKnowledgeNetworkSection({
                   );
                 })}
               </ul>
+                  )}
+                </section>
+                <section>
+                  <h3 className="px-2 text-[13px] font-semibold text-[#59625F]">
+                    项目概览版本
+                  </h3>
+                  {overviewVersionMetas.length === 0 ? (
+                    <p className="mt-3 px-2 text-[12.5px] text-[#969E9A]">
+                      尚无概览归档。发布「更新概览」后显示，并标注对应的知识网络版号。
+                    </p>
+                  ) : (
+                    <ul className="mt-2 divide-y divide-[rgba(78,66,57,0.08)]">
+                      {overviewVersionMetas.map((v) => (
+                        <li key={`ov-${v.version}`}>
+                          <button
+                            type="button"
+                            onClick={() => void openOverviewBrowse(v.version)}
+                            className="flex w-full flex-wrap items-center justify-between gap-3 px-2 py-3.5 text-left transition-colors hover:opacity-80"
+                          >
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[15px] font-semibold text-[#1F2423]">
+                                  {formatOverviewVersionLabel(v.version)}
+                                </span>
+                                {v.isCurrent ||
+                                v.version === currentOverviewVersion ? (
+                                  <span className="rounded bg-[rgba(47,107,79,0.12)] px-1.5 py-0.5 text-[11px] font-medium text-[#2F6B4F]">
+                                    当前概览
+                                  </span>
+                                ) : null}
+                              </div>
+                              <p className="mt-1 text-[12.5px] text-[#59625F]">
+                                对应知识网络{" "}
+                                {formatChapterVersionLabel(v.knVersion)}
+                                {v.archivedBy ? ` · ${v.archivedBy}` : ""}
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-right text-[12px] text-[#969E9A]">
+                              {v.archivedAt
+                                ? new Date(v.archivedAt).toLocaleString("zh-CN")
+                                : "—"}
+                              <div className="mt-0.5 text-[#A06358]">查看</div>
+                            </div>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              </div>
             )}
           </div>
         </div>

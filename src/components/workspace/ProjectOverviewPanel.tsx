@@ -7,7 +7,8 @@ import {
 } from "@/components/workspace/ProjectRelationGraph";
 import { linkifyCitationMarkersHtml } from "@/lib/kn-citations";
 import { stripAuthoringHintsFromHtml } from "@/lib/strip-authoring-hints";
-import { fetchProjectKnowledgeChapter } from "@/lib/project-api";
+import { fetchProjectKnowledgeChapter, listProjectKnowledgeChapters } from "@/lib/project-api";
+import { formatChapterVersionLabel, formatOverviewVersionLabel } from "@/lib/chapter-version";
 import { cn } from "@/lib/utils";
 import type { WorkspaceProject } from "@/workspace/projects";
 
@@ -28,6 +29,9 @@ export function ProjectOverviewPanel({
   const [graph, setGraph] = useState<ProjectGraphData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [overviewVersion, setOverviewVersion] = useState(0);
+  const [overviewKnVersion, setOverviewKnVersion] = useState(0);
+  const [knVersion, setKnVersion] = useState(0);
 
   const load = useCallback(async () => {
     if (!project.id || !userId.trim()) {
@@ -38,14 +42,18 @@ export function ProjectOverviewPanel({
     setLoading(true);
     setError(null);
     try {
-      const [overview, graphRow] = await Promise.all([
+      const [overview, graphRow, listed] = await Promise.all([
         fetchProjectKnowledgeChapter(project.id, "project-overview", userId),
         fetchProjectKnowledgeChapter(project.id, "project-graph", userId).catch(
           () => null,
         ),
+        listProjectKnowledgeChapters(project.id, userId).catch(() => null),
       ]);
       setHtml(overview.html?.trim() ? overview.html : null);
       setGraph(parseProjectGraphHtml(graphRow?.html ?? null));
+      setOverviewVersion(listed?.overviewVersion ?? 0);
+      setOverviewKnVersion(listed?.overviewKnVersion ?? 0);
+      setKnVersion(listed?.currentVersion ?? 0);
     } catch (e) {
       setHtml(null);
       setGraph(null);
@@ -112,6 +120,19 @@ export function ProjectOverviewPanel({
 
   return (
     <div className="space-y-2">
+      {html?.trim() || graph ? (
+        <p className="text-[12.5px] leading-relaxed text-[#59625F]">
+          项目概览 {formatOverviewVersionLabel(overviewVersion)}
+          {overviewKnVersion > 0
+            ? ` · 对应知识网络 ${formatChapterVersionLabel(overviewKnVersion)}`
+            : ""}
+          {knVersion > 0 &&
+          overviewKnVersion > 0 &&
+          knVersion !== overviewKnVersion
+            ? `。当前知识网络已是 ${formatChapterVersionLabel(knVersion)}，建议更新概览以对齐。`
+            : ""}
+        </p>
+      ) : null}
       {displayHtml ? (
         <div
           className={cn(

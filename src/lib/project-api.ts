@@ -1022,6 +1022,9 @@ export type ProjectKnowledgeChaptersListResponse = {
   projectId: string;
   totalSections: number;
   populatedCount: number;
+  currentVersion?: number;
+  overviewVersion?: number;
+  overviewKnVersion?: number;
   chapters: {
     sectionId: string;
     hasHtml: boolean;
@@ -1045,6 +1048,28 @@ export async function fetchProjectKnowledgeChapter(
     error?: string;
   };
   if (!res.ok) throw new Error(data.error || `章节加载失败（${res.status}）`);
+  return data;
+}
+
+export async function saveLiveKnowledgeChapter(
+  projectId: string,
+  sectionId: string,
+  userId: string,
+  html: string,
+): Promise<ProjectKnowledgeChapterResponse> {
+  const q = new URLSearchParams({ userId });
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/knowledge-chapters/${encodeURIComponent(sectionId)}?${q}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ html }),
+    },
+  );
+  const data = (await res.json().catch(() => ({}))) as ProjectKnowledgeChapterResponse & {
+    error?: string;
+  };
+  if (!res.ok) throw new Error(data.error || `保存失败（${res.status}）`);
   return data;
 }
 
@@ -1294,6 +1319,8 @@ export type GetChapterDraftRunResponse = {
   ok: true;
   projectId: string;
   currentVersion: number;
+  overviewVersion?: number;
+  overviewKnVersion?: number;
   run: ChapterDraftRun;
   items: ChapterDraftItem[];
 };
@@ -1565,6 +1592,10 @@ export async function publishChapterDraftRun(
 ): Promise<{
   ok: true;
   newVersion: number;
+  overviewVersion?: number;
+  overviewKnVersion?: number;
+  publishedKnowledge?: boolean;
+  publishedOverview?: boolean;
   appliedSections: string[];
   runClosed: boolean;
   partial: boolean;
@@ -1584,6 +1615,10 @@ export async function publishChapterDraftRun(
   const data = (await res.json().catch(() => ({}))) as {
     ok?: boolean;
     newVersion?: number;
+    overviewVersion?: number;
+    overviewKnVersion?: number;
+    publishedKnowledge?: boolean;
+    publishedOverview?: boolean;
     appliedSections?: string[];
     runClosed?: boolean;
     partial?: boolean;
@@ -1593,6 +1628,10 @@ export async function publishChapterDraftRun(
   return {
     ok: true,
     newVersion: data.newVersion ?? 0,
+    overviewVersion: data.overviewVersion,
+    overviewKnVersion: data.overviewKnVersion,
+    publishedKnowledge: data.publishedKnowledge,
+    publishedOverview: data.publishedOverview,
     appliedSections: data.appliedSections ?? [],
     runClosed: Boolean(data.runClosed),
     partial: Boolean(data.partial),
@@ -1639,12 +1678,23 @@ export type KnowledgeChapterVersionMeta = {
   isCurrent: boolean;
 };
 
+export type OverviewVersionMeta = {
+  version: number;
+  knVersion: number;
+  archivedAt: string;
+  archivedBy: string | null;
+  isCurrent: boolean;
+};
+
 export async function listKnowledgeChapterVersions(
   projectId: string,
   userId: string,
 ): Promise<{
   currentVersion: number;
+  overviewVersion: number;
+  overviewKnVersion: number;
   versions: KnowledgeChapterVersionMeta[];
+  overviewVersions: OverviewVersionMeta[];
 }> {
   const q = new URLSearchParams({ userId });
   const res = await jfoFetch(
@@ -1653,13 +1703,19 @@ export async function listKnowledgeChapterVersions(
   const data = (await res.json().catch(() => ({}))) as {
     ok?: boolean;
     currentVersion?: number;
+    overviewVersion?: number;
+    overviewKnVersion?: number;
     versions?: KnowledgeChapterVersionMeta[];
+    overviewVersions?: OverviewVersionMeta[];
     error?: string;
   };
   if (!res.ok) throw new Error(data.error || `版本列表加载失败（${res.status}）`);
   return {
     currentVersion: data.currentVersion ?? 1,
+    overviewVersion: data.overviewVersion ?? 0,
+    overviewKnVersion: data.overviewKnVersion ?? 0,
     versions: data.versions ?? [],
+    overviewVersions: data.overviewVersions ?? [],
   };
 }
 
@@ -1719,6 +1775,39 @@ export async function fetchKnowledgeChapterVersion(
     isCurrent: Boolean(data.isCurrent),
     currentVersion: data.currentVersion ?? version,
     chapters: data.chapters ?? [],
+  };
+}
+
+export async function fetchOverviewVersion(
+  projectId: string,
+  version: number,
+  userId: string,
+): Promise<{
+  version: number;
+  knVersion: number;
+  isCurrent: boolean;
+  html: string;
+  graphHtml: string | null;
+}> {
+  const q = new URLSearchParams({ userId });
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/overview-versions/${encodeURIComponent(String(version))}?${q}`,
+  );
+  const data = (await res.json().catch(() => ({}))) as {
+    version?: number;
+    knVersion?: number;
+    isCurrent?: boolean;
+    html?: string;
+    graphHtml?: string | null;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(data.error || `概览版本加载失败（${res.status}）`);
+  return {
+    version: data.version ?? version,
+    knVersion: data.knVersion ?? 0,
+    isCurrent: Boolean(data.isCurrent),
+    html: data.html ?? "",
+    graphHtml: data.graphHtml ?? null,
   };
 }
 

@@ -171,3 +171,29 @@ export function bumpChapterVersion(
     allResearchComplete: parsed.major >= 1,
   });
 }
+
+export const OVERVIEW_SECTION_ID = "project-overview";
+
+export function formatOverviewVersionLabel(
+  version: number | null | undefined,
+): string {
+  const v = Math.trunc(Number(version) || 0);
+  return v > 0 ? `ov-${v}` : "未发布";
+}
+
+export function isResearchChapterId(id: string): boolean {
+  return (RESEARCH_CHAPTER_IDS as readonly string[]).includes(id);
+}
+
+export function primaryPublishSectionIds(ids: string[]): string[] {
+  return ids.filter(
+    (id) => id !== "sources" && id !== "glossary" && id !== "project-graph",
+  );
+}
+
+export function isOverviewOnlyPublish(ids: string[]): boolean {
+  const primary = primaryPublishSectionIds(ids);
+  return (
+    primary.length > 0 && primary.every((id) => id === OVERVIEW_SECTION_ID)
+  );
+}

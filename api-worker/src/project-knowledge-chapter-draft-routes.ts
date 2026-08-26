@@ -31,7 +31,9 @@ import {
   listChapterVersionHtml,
   listChapterVersionMetas,
   listDraftItems,
+  listOverviewVersionMetas,
   listResearchSectionIdsForRun,
+  getOverviewVersion,
   publishDraftRunToLive,
   refreshDraftRunProgress,
   setDraftRunStatus,
@@ -664,6 +666,8 @@ export async function handleGetChapterDraftRun(
     ok: true,
     projectId,
     currentVersion: bundle.version,
+    overviewVersion: bundle.overviewVersion,
+    overviewKnVersion: bundle.overviewKnVersion,
     run: latestRun,
     items: items.map((i) => ({
       sectionId: i.sectionId,
@@ -1157,6 +1161,10 @@ export async function handlePublishChapterDraftRun(
       runId,
       newVersion: result.newVersion,
       currentVersion: bundle.version,
+      overviewVersion: result.overviewVersion,
+      overviewKnVersion: result.overviewKnVersion,
+      publishedKnowledge: result.publishedKnowledge,
+      publishedOverview: result.publishedOverview,
       appliedSections: result.appliedSections,
       runClosed: result.runClosed,
       partial: Boolean(sectionIds) && !result.runClosed,
@@ -1294,16 +1302,26 @@ export async function handleListKnowledgeChapterVersions(
 
   const bundle = await ensureChapterBundle(env.DB, projectId, userId);
   const versions = await listChapterVersionMetas(env.DB, projectId);
+  const overviewVersions = await listOverviewVersionMetas(env.DB, projectId);
   return json({
     ok: true,
     projectId,
     currentVersion: bundle.version,
+    overviewVersion: bundle.overviewVersion,
+    overviewKnVersion: bundle.overviewKnVersion,
     versions: versions.map((v) => ({
       version: v.version,
       archivedAt: v.archivedAt,
       archivedBy: v.archivedBy,
       sectionCount: v.sectionCount,
       isCurrent: v.version === bundle.version,
+    })),
+    overviewVersions: overviewVersions.map((v) => ({
+      version: v.version,
+      knVersion: v.knVersion,
+      archivedAt: v.archivedAt,
+      archivedBy: v.archivedBy,
+      isCurrent: v.version === bundle.overviewVersion,
     })),
   });
 }
@@ -1354,6 +1372,50 @@ export async function handleGetKnowledgeChapterVersion(
       archivedAt: c.updatedAt,
       archivedBy: c.updatedBy,
     })),
+  });
+}
+
+/** GET /api/projects/:id/overview-versions/:version */
+export async function handleGetOverviewVersion(
+  env: Env,
+  projectId: string,
+  versionRaw: string,
+  userIdRaw: string | null,
+): Promise<Response> {
+  const userId = normalizeUserId(userIdRaw);
+  if (!userId) return json({ error: "缺少 userId" }, 400);
+
+  const version = Number(versionRaw);
+  if (!Number.isFinite(version) || version < 1) {
+    return json({ error: "无效的概览版本号" }, 400);
+  }
+
+  const project = await getProjectById(env, projectId);
+  if (!project) return json({ error: "项目不存在" }, 404);
+
+  const denied = await assertCanRead(
+    env,
+    userId,
+    projectId,
+    project.createdBy,
+  );
+  if (denied) return denied;
+
+  const bundle = await ensureChapterBundle(env.DB, projectId, userId);
+  const row = await getOverviewVersion(env.DB, projectId, version);
+  if (!row) {
+    return json({ error: "该概览版本不存在" }, 404);
+  }
+  return json({
+    ok: true,
+    projectId,
+    version: row.version,
+    knVersion: row.knVersion,
+    isCurrent: row.version === bundle.overviewVersion,
+    html: row.html,
+    graphHtml: row.graphHtml,
+    archivedAt: row.archivedAt,
+    archivedBy: row.archivedBy,
   });
 }
 
