@@ -447,10 +447,14 @@ export async function handleCreateChapterDraftRun(
 
   let scope: "full" | "section" = "full";
   let sectionId: string | null = null;
+  let mode: "generate" | "manual" = "generate";
+  let manualHtml = "";
   try {
     const body = (await request.json().catch(() => null)) as {
       scope?: unknown;
       sectionId?: unknown;
+      mode?: unknown;
+      html?: unknown;
     } | null;
     if (body?.scope === "section" || body?.scope === "full") {
       scope = body.scope;
@@ -458,8 +462,30 @@ export async function handleCreateChapterDraftRun(
     if (typeof body?.sectionId === "string") {
       sectionId = body.sectionId.trim() || null;
     }
+    if (body?.mode === "manual") {
+      mode = "manual";
+    }
+    if (typeof body?.html === "string") {
+      manualHtml = body.html;
+    }
   } catch {
     /* 无 body 时默认 full */
+  }
+
+  if (mode === "manual") {
+    if (scope !== "section" || !sectionId) {
+      return json(
+        {
+          error: "人工编辑需指定单个章节",
+          code: "INVALID_SECTION",
+        },
+        400,
+      );
+    }
+    if (!manualHtml.trim()) {
+      return json({ error: "html 不能为空", code: "EMPTY_HTML" }, 400);
+    }
+    manualHtml = repairStoredChapterHtml(manualHtml);
   }
 
   if (scope === "section") {
@@ -494,6 +520,36 @@ export async function handleCreateChapterDraftRun(
         : primaryIds.length === 1 && primaryIds[0] === sectionId);
 
     if (sameScope) {
+      if (mode === "manual") {
+        if (active.status === "generating") {
+          return json(
+            {
+              error: "该章正在生成 AI 草案，请完成或放弃后再人工编辑",
+              code: "STILL_GENERATING",
+              activeRunId: active.id,
+              activeScope: active.scope,
+            },
+            409,
+          );
+        }
+        await upsertDraftItem(env.DB, {
+          runId: active.id,
+          sectionId: sectionId!,
+          status: "ok",
+          html: manualHtml,
+          error: null,
+          llmBackend: null,
+        });
+        const latestRun = await refreshDraftRunProgress(env.DB, active.id);
+        const latest = await listDraftItems(env.DB, active.id);
+        return json({
+          ok: true,
+          reused: true,
+          run: latestRun,
+          items: mapRunItems(latest),
+          sectionIds: [sectionId!],
+        });
+      }
       if (active.status === "generating" || active.status === "failed") {
         await requeueFailedDraftSections(env, active.id, items);
         kickDraftRunGeneration(env, ctx, projectId, active.id, userId);
@@ -535,6 +591,25 @@ export async function handleCreateChapterDraftRun(
     scope,
     sectionIds: wantedIds,
   });
+  if (mode === "manual" && sectionId) {
+    await upsertDraftItem(env.DB, {
+      runId: run.id,
+      sectionId,
+      status: "ok",
+      html: manualHtml,
+      error: null,
+      llmBackend: null,
+    });
+    const ready = await refreshDraftRunProgress(env.DB, run.id);
+    const items = await listDraftItems(env.DB, run.id);
+    return json({
+      ok: true,
+      reused: false,
+      run: ready,
+      items: mapRunItems(items),
+      sectionIds: wantedIds,
+    });
+  }
   kickDraftRunGeneration(env, ctx, projectId, run.id, userId);
   const items = await listDraftItems(env.DB, run.id);
   return json({

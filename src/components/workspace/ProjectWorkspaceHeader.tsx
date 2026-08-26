@@ -192,7 +192,7 @@ export function ProjectWorkspaceHeader({
     confirmKind === "overview"
       ? {
           title: "确认更新概览",
-          body: "将根据已上传资料生成项目概览更新草案。正式版本不会被覆盖，需审核后再发布。确定开始？",
+          body: "将根据当前知识网络生成项目概览更新草案，版式仍用现有概览结构。正式版本不会被覆盖，需审核后再发布。确定开始？",
           confirmLabel: "开始更新概览",
         }
       : null;

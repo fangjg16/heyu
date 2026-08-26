@@ -30,6 +30,7 @@ import {
   upsertDraftItem,
 } from "./project-knowledge-chapter-revisions-db";
 import { buildChapterGenerateMaterials } from "./project-knowledge-chapters-digest";
+import { buildKnowledgeNetworkSourceBlock } from "./overview-from-knowledge-network";
 import {
   formatNamedSubjectsBlock,
   missingNamedSubjects,
@@ -598,6 +599,20 @@ export async function handleGenerateProjectKnowledgeChapter(
   }
 
   const isOverview = sectionId === "project-overview";
+  let overviewKnBlock = "";
+  let overviewFromKnowledge = false;
+  if (isOverview) {
+    const [bundle, liveChapters] = await Promise.all([
+      ensureChapterBundle(env.DB, projectId, userId),
+      listProjectKnowledgeChapterHtml(env.DB, projectId),
+    ]);
+    const kn = buildKnowledgeNetworkSourceBlock({
+      version: bundle.version,
+      chapters: liveChapters,
+    });
+    overviewKnBlock = kn.block;
+    overviewFromKnowledge = kn.hasResearch;
+  }
   const skillMethod = await buildChapterSkillMethodBlock(
     sectionId,
     env.DB,
@@ -618,7 +633,9 @@ export async function handleGenerateProjectKnowledgeChapter(
     `版式锁定：${formatHint}`,
     "",
     isOverview
-      ? "任务：基于附件生成项目概览 HTML（含时间轴），并输出关系图 JSON；增量补充引用来源与非常用名词。"
+      ? overviewFromKnowledge
+        ? "任务：根据下方「当前知识网络正式版」填写项目概览 HTML（含时间轴）并输出关系图 JSON；保持现有概览版式，不要把 13 章揉成一篇。附件仅供核对引用。增量补充引用来源与非常用名词。"
+        : "任务：知识网络尚无正式研究章节。可暂按附件生成项目概览 HTML（含时间轴）并输出关系图 JSON；缺处标「待补」。增量补充引用来源与非常用名词。"
       : "任务：基于下方「项目上传附件」按模板生成本章内容；===GRAPH=== 写 NONE；并仅增量补充引用来源与非常用名词。",
     "",
     "【章节 Markdown 模板】",
@@ -639,6 +656,7 @@ export async function handleGenerateProjectKnowledgeChapter(
     "【名词解释新增行骨架（仅非常用词，放在 ===GLOSSARY_ADD===）】",
     GLOSSARY_TABLE_SKELETON,
     "",
+    overviewKnBlock,
     digest.trim() ||
       "【项目上传附件】\n（暂无可用资料；请在对应位置标注「待补」。）",
     namedSubjectsBlock,

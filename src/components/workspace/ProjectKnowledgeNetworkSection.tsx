@@ -19,7 +19,6 @@ import {
   listKnowledgeChapterVersions,
   reviseProjectKnowledgeChapter,
   rollbackKnowledgeChapterVersion,
-  saveLiveKnowledgeChapter,
   waitForDraftRunSettled,
   type KnowledgeChapterVersionMeta,
   type OverviewVersionMeta,
@@ -396,7 +395,7 @@ export function ProjectKnowledgeNetworkSection({
   }, [liveEditing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startLiveEdit = () => {
-    if (!canPublish || !hasHtml || sectionBusy) return;
+    if (!canUpdate || !hasHtml || sectionBusy) return;
     setLiveEditing(true);
     setError(null);
   };
@@ -406,7 +405,7 @@ export function ProjectKnowledgeNetworkSection({
   };
 
   const saveLiveEdit = async () => {
-    if (!canPublish || !chapterPaneRef.current) return;
+    if (!canUpdate || !chapterPaneRef.current) return;
     const next = chapterPaneRef.current.innerHTML ?? "";
     if (!next.trim()) {
       setError("内容不能为空");
@@ -415,16 +414,18 @@ export function ProjectKnowledgeNetworkSection({
     setLiveEditBusy(true);
     setError(null);
     try {
-      const saved = await saveLiveKnowledgeChapter(
-        projectId,
+      const created = await createChapterDraftRun(projectId, userId, {
+        scope: "section",
         sectionId,
-        userId,
-        next,
-      );
-      setHtml(saved.html?.trim() ? saved.html : next);
+        mode: "manual",
+        html: next,
+      });
       setLiveEditing(false);
+      navigate(
+        `/app/projects/${projectId}/knowledge/review/${created.run.id}`,
+      );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "保存失败");
+      setError(e instanceof Error ? e.message : "保存草案失败");
     } finally {
       setLiveEditBusy(false);
     }
@@ -1055,7 +1056,7 @@ export function ProjectKnowledgeNetworkSection({
                           ? "重试本章"
                           : "更新本章"}
                     </button>
-                    {canPublish && hasHtml ? (
+                    {canUpdate && hasHtml ? (
                       <div className="mt-2 flex flex-col gap-1.5">
                         {!liveEditing ? (
                           <button
@@ -1082,12 +1083,17 @@ export function ProjectKnowledgeNetworkSection({
                               onClick={() => void saveLiveEdit()}
                               className="h-9 flex-1 rounded-[9px] bg-[#A06358] text-[12px] font-medium text-white hover:bg-[#8F564C] disabled:opacity-50"
                             >
-                              {liveEditBusy ? "保存中…" : "保存"}
+                              {liveEditBusy
+                                ? "保存中…"
+                                : canPublish
+                                  ? "保存，去发布"
+                                  : "保存，去提交审批"}
                             </button>
                           </div>
                         )}
                         <p className="text-[11px] leading-relaxed text-[#969E9A]">
-                          「更新本章」生成 AI 草案，发布后知识网络升版。「编辑本章」直接改正式版，不增加版号。
+                          「更新本章」生成 AI 草案，「编辑本章」把修改写入草案。项目管理员在审核页直接发布；Core
+                          在审核页提交审批。
                         </p>
                       </div>
                     ) : null}

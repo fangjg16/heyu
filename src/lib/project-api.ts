@@ -1183,7 +1183,12 @@ export class DraftRunDiscardedError extends Error {
 export async function createChapterDraftRun(
   projectId: string,
   userId: string,
-  options?: { scope?: "full" | "section"; sectionId?: string },
+  options?: {
+    scope?: "full" | "section";
+    sectionId?: string;
+    mode?: "generate" | "manual";
+    html?: string;
+  },
 ): Promise<CreateChapterDraftRunResponse> {
   const q = new URLSearchParams({ userId });
   const res = await jfoFetch(
@@ -1194,6 +1199,8 @@ export async function createChapterDraftRun(
       body: JSON.stringify({
         scope: options?.scope ?? "full",
         sectionId: options?.sectionId,
+        mode: options?.mode,
+        html: options?.html,
       }),
     },
   );
