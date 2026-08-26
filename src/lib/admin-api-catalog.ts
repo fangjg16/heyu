@@ -301,6 +301,15 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     autoProbe: true,
   },
   {
+    id: "taxonomy",
+    group: "项目",
+    method: "GET",
+    pathTemplate: "/api/taxonomy",
+    summary: "行业一二级分类白名单（taxonomy.md）",
+    risk: "safe",
+    autoProbe: true,
+  },
+  {
     id: "admin-skills",
     group: "Admin",
     method: "GET",

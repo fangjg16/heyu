@@ -1,4 +1,13 @@
-import { INDUSTRY_TAXONOMY, sectorsForTheme, UNCATEGORIZED_LABEL } from "@/workspace/industry-taxonomy";
+import { useId } from "react";
+import { Link } from "react-router-dom";
+import {
+  INDUSTRY_TAXONOMY,
+  isKnownSector,
+  isKnownTheme,
+  sectorsForTheme,
+  UNCATEGORIZED_LABEL,
+  type IndustryTheme,
+} from "@/workspace/industry-taxonomy";
 
 export function RequiredMark() {
   return (
@@ -13,10 +22,12 @@ type IndustryCategoryFieldsProps = {
   sector: string;
   onThemeChange: (theme: string) => void;
   onSectorChange: (sector: string) => void;
-  /** 旧自由文本分类，无法映射到新树时提示 */
+  taxonomy?: IndustryTheme[];
+  /** 旧自由文本分类，无法映射到树时提示 */
   legacyLabel?: string | null;
   className?: string;
   themeRequired?: boolean;
+  editorHref?: string | null;
 };
 
 export function IndustryCategoryFields({
@@ -24,11 +35,18 @@ export function IndustryCategoryFields({
   sector,
   onThemeChange,
   onSectorChange,
+  taxonomy = INDUSTRY_TAXONOMY,
   legacyLabel,
   className,
   themeRequired = false,
+  editorHref = null,
 }: IndustryCategoryFieldsProps) {
-  const sectors = sectorsForTheme(theme);
+  const uid = useId();
+  const themeListId = `${uid}-theme`;
+  const sectorListId = `${uid}-sector`;
+  const sectors = sectorsForTheme(theme, taxonomy);
+  const customTheme = Boolean(theme) && !isKnownTheme(theme, taxonomy);
+  const customSector = Boolean(sector) && !isKnownSector(theme, sector, taxonomy);
 
   return (
     <div className={className}>
@@ -38,48 +56,74 @@ export function IndustryCategoryFields({
             一级分类
             {themeRequired ? <RequiredMark /> : null}
           </span>
-          <select
+          <input
+            list={themeListId}
             value={theme}
             onChange={(e) => {
-              onThemeChange(e.target.value);
-              onSectorChange("");
+              const next = e.target.value;
+              onThemeChange(next);
+              const nextSectors = sectorsForTheme(next, taxonomy);
+              if (sector && nextSectors.length > 0 && !nextSectors.includes(sector)) {
+                onSectorChange("");
+              }
             }}
             className="mt-1.5 w-full rounded-lg border border-border/70 px-3 py-2 text-sm"
             aria-label="一级分类"
             required={themeRequired}
-          >
-            <option value="">{UNCATEGORIZED_LABEL}</option>
-            {INDUSTRY_TAXONOMY.map((item) => (
-              <option key={item.theme} value={item.theme}>
-                {item.theme}
-              </option>
+            placeholder={UNCATEGORIZED_LABEL}
+            autoComplete="off"
+          />
+          <datalist id={themeListId}>
+            {taxonomy.map((item) => (
+              <option key={item.theme} value={item.theme} />
             ))}
-          </select>
+          </datalist>
         </label>
         <label className="block text-sm">
           <span className="font-medium text-foreground">二级分类</span>
-          <select
+          <input
+            list={sectorListId}
             value={sector}
             onChange={(e) => onSectorChange(e.target.value)}
             disabled={!theme}
             className="mt-1.5 w-full rounded-lg border border-border/70 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-55"
             aria-label="二级分类"
-          >
-            <option value="">{theme ? "二级分类（选填）" : "先选一级分类"}</option>
+            placeholder={theme ? "二级分类（选填，可手动输入）" : "先填一级分类"}
+            autoComplete="off"
+          />
+          <datalist id={sectorListId}>
             {sectors.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
+              <option key={s} value={s} />
             ))}
-          </select>
+          </datalist>
         </label>
       </div>
+      <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+        可从列表选择，也可直接输入不在白名单中的分类。
+        {editorHref ? (
+          <>
+            {" "}
+            管理员可
+            <Link
+              to={editorHref}
+              className="mx-0.5 font-medium text-[hsl(var(--wine))] underline-offset-2 hover:underline"
+            >
+              编辑 taxonomy.md
+            </Link>
+            更新列表。
+          </>
+        ) : null}
+      </p>
+      {customTheme || customSector ? (
+        <p className="mt-1 text-[11px] leading-relaxed text-amber-800/90">
+          当前分类不在 taxonomy.md 白名单中，将按你输入的文字保存。
+        </p>
+      ) : null}
       {legacyLabel ? (
-        <p className="mt-1.5 text-[11px] leading-relaxed text-amber-800/90">
-          原分类「{legacyLabel}」不在新目录中，请重新选择后保存。
+        <p className="mt-1 text-[11px] leading-relaxed text-amber-800/90">
+          原分类「{legacyLabel}」已按自定义内容载入，可改选列表或继续手动编辑后保存。
         </p>
       ) : null}
     </div>
   );
 }
-

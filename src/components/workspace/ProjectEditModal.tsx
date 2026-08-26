@@ -9,6 +9,8 @@ import {
   parseIndustryCategory,
   UNCATEGORIZED_LABEL,
 } from "@/workspace/industry-taxonomy";
+import { useIndustryTaxonomy } from "@/workspace/use-industry-taxonomy";
+import { isPlatformAdminUser } from "@/workspace/workspace-users";
 import {
   PROJECT_PHASES,
   projectPhaseLabel,
@@ -64,6 +66,8 @@ export function ProjectEditModal({
   const [industryTheme, setIndustryTheme] = useState("");
   const [industrySector, setIndustrySector] = useState("");
   const [legacyCategory, setLegacyCategory] = useState<string | null>(null);
+  const industryTaxonomy = useIndustryTaxonomy();
+  const canEditTaxonomyMd = isPlatformAdminUser(userId);
   const [phase, setPhase] = useState<ProjectPhase>(project.phase);
   const [openness, setOpenness] = useState<ProjectOpenness>(
     normalizeOpenness(project.openness),
@@ -75,11 +79,11 @@ export function ProjectEditModal({
     if (!open) return;
     setName(project.name);
     setDetail(project.summary);
-    const parsed = parseIndustryCategory(project.category);
+    const parsed = parseIndustryCategory(project.category, industryTaxonomy);
     setIndustryTheme(parsed.theme);
     setIndustrySector(parsed.sector);
     setLegacyCategory(
-      parsed.legacy && project.category.trim() && project.category !== UNCATEGORIZED_LABEL
+      parsed.custom && project.category.trim() && project.category !== UNCATEGORIZED_LABEL
         ? project.category.trim()
         : null,
     );
@@ -170,8 +174,10 @@ export function ProjectEditModal({
                 setIndustrySector(s);
                 setLegacyCategory(null);
               }}
+              taxonomy={industryTaxonomy}
               legacyLabel={legacyCategory}
               themeRequired
+              editorHref={canEditTaxonomyMd ? "/app/admin/taxonomy" : null}
             />
           </div>
           <label className="block text-sm">

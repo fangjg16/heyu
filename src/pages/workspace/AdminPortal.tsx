@@ -7,6 +7,7 @@ import { AdminLlmSettingsSection } from "@/components/workspace/AdminLlmSettings
 import { AdminOperationLogsSection } from "@/components/workspace/AdminOperationLogsSection";
 import { AdminReviseLogsSection } from "@/components/workspace/AdminReviseLogsSection";
 import { AdminSkillsSection } from "@/components/workspace/AdminSkillsSection";
+import { AdminTaxonomySection } from "@/components/workspace/AdminTaxonomySection";
 import { AdminUsersSection } from "@/components/workspace/AdminUsersSection";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import { loadSessionUserId } from "@/workspace/session";
@@ -15,6 +16,7 @@ import { isPlatformAdminUser } from "@/workspace/workspace-users";
 const ADMIN_TABS: { id: string; label: string; to: string }[] = [
   { id: "users", label: "用户与权限", to: "/app/admin/users" },
   { id: "skills", label: "Hermes Skills", to: "/app/admin/skills" },
+  { id: "taxonomy", label: "行业分类", to: "/app/admin/taxonomy" },
   { id: "kn-templates", label: "知识网络 MD", to: "/app/admin/kn-templates" },
   { id: "llm", label: "模型与密钥", to: "/app/admin/llm" },
   { id: "api-probe", label: "API 测试", to: "/app/admin/api-probe" },
@@ -25,6 +27,7 @@ const ADMIN_TABS: { id: string; label: string; to: string }[] = [
 
 function activeAdminTab(pathname: string): string {
   if (pathname.includes("/admin/skills")) return "skills";
+  if (pathname.includes("/admin/taxonomy")) return "taxonomy";
   if (pathname.includes("/admin/kn-templates")) return "kn-templates";
   if (pathname.includes("/admin/llm")) return "llm";
   if (pathname.includes("/admin/api-probe")) return "api-probe";
@@ -103,6 +106,12 @@ export function AdminSkillsTab() {
   const { allowed } = useAdminGate();
   if (!allowed) return <Navigate to="/app/admin" replace />;
   return <AdminSkillsSection />;
+}
+
+export function AdminTaxonomyTab() {
+  const { allowed } = useAdminGate();
+  if (!allowed) return <Navigate to="/app/admin" replace />;
+  return <AdminTaxonomySection />;
 }
 
 export function AdminKnTemplatesTab() {

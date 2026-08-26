@@ -97,6 +97,25 @@ export async function fetchProjectsFromApi(
   return (data.projects ?? []).map(mapApiProject);
 }
 
+export async function fetchIndustryTaxonomy(): Promise<
+  import("@/workspace/industry-taxonomy").IndustryTheme[]
+> {
+  if (!apiBaseFromChatEndpoint(AI_CHAT_ENDPOINT)) return [];
+  const res = await jfoFetch("/api/taxonomy");
+  if (!res.ok) return [];
+  const data = (await res.json()) as {
+    themes?: Array<{ theme?: string; sectors?: string[] }>;
+  };
+  return (data.themes ?? [])
+    .map((row) => ({
+      theme: String(row.theme ?? "").trim(),
+      sectors: Array.isArray(row.sectors)
+        ? row.sectors.map((s) => String(s).trim()).filter(Boolean)
+        : [],
+    }))
+    .filter((row) => row.theme);
+}
+
 export async function fetchProjectByIdFromApi(
   projectId: string,
   _chatEndpoint = AI_CHAT_ENDPOINT,

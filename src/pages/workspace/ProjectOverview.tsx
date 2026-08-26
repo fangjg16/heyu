@@ -13,6 +13,7 @@ import {
   displayIndustryCategory,
   parseIndustryCategory,
 } from "@/workspace/industry-taxonomy";
+import { useIndustryTaxonomy } from "@/workspace/use-industry-taxonomy";
 import {
   normalizeProjectPhase,
   projectPhaseLabel,
@@ -51,6 +52,7 @@ import {
   getUserById,
   isIssuerOnlyUser,
   isIssuerRole,
+  isPlatformAdminUser,
   listCachedWorkspaceUsers,
   projectEntryPath,
   roleLabelForProject,
@@ -349,6 +351,8 @@ export default function ProjectOverview() {
   const [deletingProject, setDeletingProject] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const industryTaxonomy = useIndustryTaxonomy();
+  const canEditTaxonomyMd = isPlatformAdminUser(userId);
 
   useBodyScrollLock(
     Boolean(showCreateModal || createHint || editProject || deleteProject),
@@ -480,8 +484,8 @@ export default function ProjectOverview() {
       setCreateHint("请先填写项目名称。");
       return;
     }
-    if (!newIndustryTheme) {
-      setCreateHint("请选择一级分类。");
+    if (!newIndustryTheme.trim()) {
+      setCreateHint("请填写一级分类。");
       return;
     }
     if (!ENABLE_LIVE_CHAT) {
@@ -878,7 +882,9 @@ export default function ProjectOverview() {
                   sector={newIndustrySector}
                   onThemeChange={setNewIndustryTheme}
                   onSectorChange={setNewIndustrySector}
+                  taxonomy={industryTaxonomy}
                   themeRequired
+                  editorHref={canEditTaxonomyMd ? "/app/admin/taxonomy" : null}
                 />
               </div>
 

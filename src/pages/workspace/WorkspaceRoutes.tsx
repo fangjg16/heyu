@@ -63,6 +63,7 @@ import AdminPortal, {
   AdminLlmSettingsTab,
   AdminReviseLogsTab,
   AdminSkillsTab,
+  AdminTaxonomyTab,
   AdminUsersTab,
 } from "@/pages/workspace/AdminPortal";
 import ConversationCenter from "@/pages/workspace/ConversationCenter";
@@ -1062,6 +1063,7 @@ export default function WorkspaceRoutes() {
             <Route index element={<Navigate to="users" replace />} />
             <Route path="users" element={<AdminUsersTab />} />
             <Route path="skills" element={<AdminSkillsTab />} />
+            <Route path="taxonomy" element={<AdminTaxonomyTab />} />
             <Route path="kn-templates" element={<AdminKnTemplatesTab />} />
             <Route path="llm" element={<AdminLlmSettingsTab />} />
             <Route path="api-probe" element={<AdminApiProbeTab />} />

@@ -108,6 +108,7 @@ import {
   handleAdminSyncOneSkill,
   handleAdminSyncSkills,
 } from "./skills-admin-routes";
+import { handleGetTaxonomy } from "./taxonomy-routes";
 
 type Env = {
   DB: AppDatabase;
@@ -550,6 +551,10 @@ export async function routeAuthedApi(
   if (/^\/api\/projects\/[^/]+\/citations$/u.test(path) && request.method === "GET") {
     const projectId = decodePathProjectId(path.split("/")[3] ?? "");
     return handlers.handleCitations(projectId);
+  }
+
+  if (path === "/api/taxonomy" && request.method === "GET") {
+    return handleGetTaxonomy(env);
   }
 
   if (path === "/api/me/profile" && request.method === "PATCH") {
