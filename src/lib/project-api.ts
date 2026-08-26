@@ -385,10 +385,23 @@ export type CollabSubmitNotice = {
   replySubmittedAt: string | null;
 };
 
+export type ProjectNoticeItem = {
+  id: string;
+  projectId: string;
+  projectName: string;
+  actorUserId: string;
+  kind: string;
+  title: string;
+  summary: string;
+  href: string | null;
+  createdAt: string;
+};
+
 export type InboxPayload = {
   pending: ProjectJoinRequest[];
   reviewed: ProjectJoinRequest[];
   collabSubmitted: CollabSubmitNotice[];
+  projectNotices: ProjectNoticeItem[];
 };
 
 function mapCollabSubmitNotice(row: {
@@ -413,13 +426,14 @@ function mapCollabSubmitNotice(row: {
 
 export async function fetchMyInbox(): Promise<InboxPayload> {
   if (!apiBaseFromChatEndpoint(AI_CHAT_ENDPOINT)) {
-    return { pending: [], reviewed: [], collabSubmitted: [] };
+    return { pending: [], reviewed: [], collabSubmitted: [], projectNotices: [] };
   }
   const res = await jfoFetch("/api/me/join-reviews");
   const data = (await res.json().catch(() => ({}))) as {
     requests?: Parameters<typeof mapJoinRequest>[0][];
     reviewed?: Parameters<typeof mapJoinRequest>[0][];
     collabSubmitted?: Parameters<typeof mapCollabSubmitNotice>[0][];
+    projectNotices?: ProjectNoticeItem[];
     error?: string;
   };
   if (!res.ok) {
@@ -429,6 +443,17 @@ export async function fetchMyInbox(): Promise<InboxPayload> {
     pending: (data.requests ?? []).map(mapJoinRequest),
     reviewed: (data.reviewed ?? []).map(mapJoinRequest),
     collabSubmitted: (data.collabSubmitted ?? []).map(mapCollabSubmitNotice),
+    projectNotices: (data.projectNotices ?? []).map((n) => ({
+      id: n.id ?? "",
+      projectId: n.projectId ?? "",
+      projectName: n.projectName ?? "项目",
+      actorUserId: n.actorUserId ?? "",
+      kind: n.kind ?? "",
+      title: n.title ?? "",
+      summary: n.summary ?? "",
+      href: n.href ?? null,
+      createdAt: n.createdAt ?? "",
+    })),
   };
 }
 
@@ -1676,6 +1701,29 @@ export async function fetchKnowledgeChapterVersion(
     isCurrent: Boolean(data.isCurrent),
     currentVersion: data.currentVersion ?? version,
     chapters: data.chapters ?? [],
+  };
+}
+
+export async function rollbackKnowledgeChapterVersion(
+  projectId: string,
+  version: number,
+  userId: string,
+): Promise<{ newVersion: number; restoredFrom: number }> {
+  const q = new URLSearchParams({ userId });
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/knowledge-chapter-versions/${encodeURIComponent(String(version))}/rollback?${q}`,
+    { method: "POST" },
+  );
+  const data = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    newVersion?: number;
+    restoredFrom?: number;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(data.error || `回滚失败（${res.status}）`);
+  return {
+    newVersion: data.newVersion ?? version,
+    restoredFrom: data.restoredFrom ?? version,
   };
 }
 

@@ -24,8 +24,8 @@ import { ProjectJoinRequestsSection } from "@/components/workspace/ProjectJoinRe
 import { ProjectWorkspaceHeader } from "@/components/workspace/ProjectWorkspaceHeader";
 import {
   canDownloadProjectMaterials,
-  canManageProjectPermissions,
-  canPublishProjectKnowledgeNetwork,
+  canManageProjectUploads,
+  canUpdateProjectKnowledgeNetwork,
 } from "@/workspace/project-manage";
 import {
   ActiveDraftExistsError,
@@ -399,7 +399,7 @@ function ProjectWorkspaceLayout() {
     return <Navigate to={`/app/collab/${project.id}`} replace />;
   }
   const chatOk = canEnterChat(role);
-  const canUpdateOverview = canPublishProjectKnowledgeNetwork(userId, project);
+  const canUpdateOverview = canUpdateProjectKnowledgeNetwork(userId, project);
   const tab = pathname.includes("/knowledge")
     ? "knowledge"
     : pathname.includes("/materials")
@@ -945,7 +945,7 @@ function ProjectMaterialsTab() {
     <ProjectMaterialsSection
       projectId={projectId}
       userId={userId}
-      canManage={canManageProjectPermissions(userId, project)}
+      canManage={canManageProjectUploads(userId, project)}
       canDownload={canDownloadProjectMaterials(userId, project)}
     />
   );

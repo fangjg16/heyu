@@ -15,6 +15,7 @@ import {
   deletePendingJoinRequestByApplicant,
 } from "./project-join-db";
 import { listCollabItemsForProjects } from "./collab-db";
+import { listProjectNoticesForUser } from "./project-notices-db";
 import { canManageProjectCollab, resolveProjectRole } from "./workspace-roles";
 import {
   getWorkspaceUserById,
@@ -258,10 +259,33 @@ export async function handleListMyJoinReviews(
       collabSubmitted = [];
     }
 
-    return json({ requests, reviewed, collabSubmitted });
+    let projectNotices: Record<string, unknown>[] = [];
+    try {
+      const rows = await listProjectNoticesForUser(env.DB, userId, 40);
+      projectNotices = rows.map((n) => ({
+        id: n.id,
+        projectId: n.projectId,
+        projectName: byId.get(n.projectId)?.name ?? n.projectId,
+        actorUserId: n.actorUserId,
+        kind: n.kind,
+        title: n.title,
+        summary: n.summary,
+        href: n.href,
+        createdAt: n.createdAt,
+      }));
+    } catch {
+      projectNotices = [];
+    }
+
+    return json({ requests, reviewed, collabSubmitted, projectNotices });
   } catch (e) {
     if (isMissingJoinTable(e)) {
-      return json({ requests: [], reviewed: [], collabSubmitted: [] });
+      return json({
+        requests: [],
+        reviewed: [],
+        collabSubmitted: [],
+        projectNotices: [],
+      });
     }
     throw e;
   }

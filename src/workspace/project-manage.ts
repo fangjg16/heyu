@@ -57,7 +57,29 @@ export function canDownloadProjectMaterials(
   return Boolean(creator && creator === uid);
 }
 
-/** 项目详情：上传/覆盖知识网络 HTML（与 Worker canPublishProjectKnowledgeNetwork 对齐） */
+/** 项目上传：Admin / Core 可上传、移动、删除 */
+export function canManageProjectUploads(
+  userId: string,
+  project: Pick<WorkspaceProject, "id" | "createdBy">,
+): boolean {
+  const uid = userId.trim();
+  if (!uid) return false;
+  const role = getProjectRole(uid, project.id, project.createdBy);
+  return role === "admin" || role === "core";
+}
+
+/** 生成知识网络草案：Admin / Core */
+export function canUpdateProjectKnowledgeNetwork(
+  userId: string,
+  project: Pick<WorkspaceProject, "id" | "createdBy"> | null | undefined,
+): boolean {
+  const uid = userId.trim();
+  if (!uid || !project?.id) return false;
+  const role = getProjectRole(uid, project.id, project.createdBy);
+  return role === "admin" || role === "core";
+}
+
+/** 审核/发布/回滚知识网络正式版：仅 Admin（与 Worker 对齐） */
 export function canPublishProjectKnowledgeNetwork(
   userId: string,
   project: Pick<WorkspaceProject, "id" | "createdBy"> | null | undefined,
@@ -65,7 +87,5 @@ export function canPublishProjectKnowledgeNetwork(
   const uid = userId.trim();
   if (!uid || !project?.id) return false;
   const role = getProjectRole(uid, project.id, project.createdBy);
-  if (role === "admin" || role === "core") return true;
-  const creator = (project.createdBy ?? "").trim();
-  return Boolean(creator && creator === uid);
+  return role === "admin";
 }

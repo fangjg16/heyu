@@ -64,6 +64,20 @@ export function sessionR2Key(
 }
 
 /** 网站列表：项目资料包（共享）+ 该用户的对话临时文件（排除软删） */
+const LIST_FILES_SESSION_OWN =
+  "(d.scope = 'package' OR (d.scope = 'session' AND d.uploaded_by = ?))";
+const LIST_FILES_SESSION_ALL = "(d.scope = 'package' OR d.scope = 'session')";
+
+export function listFilesSqlWithSessionVisibility(
+  sql: string,
+  viewAllSession: boolean,
+): { sql: string; bindUserId: boolean } {
+  if (!viewAllSession) return { sql, bindUserId: true };
+  return {
+    sql: sql.replaceAll(LIST_FILES_SESSION_OWN, LIST_FILES_SESSION_ALL),
+    bindUserId: false,
+  };
+}
 export const LIST_FILES_SQL = `
   SELECT d.id, d.filename, d.relative_path, d.scope, d.conversation_id, d.mime, d.byte_size, d.created_at, d.uploaded_by,
          d.source_kind, d.shared_with_issuer, d.file_category,
@@ -181,8 +195,10 @@ export function isPackageScope(scope: string): boolean {
 export function documentAccessError(
   row: Pick<DocumentRow, "scope" | "uploaded_by">,
   userId: string | null,
+  opts?: { viewAllSession?: boolean },
 ): string | null {
   if (isPackageScope(row.scope)) return null;
+  if (opts?.viewAllSession) return null;
   if (!userId) return "缺少 userId（对话临时文件须指定上传者）";
   if (row.uploaded_by !== userId) return "文档不存在或无权访问";
   return null;

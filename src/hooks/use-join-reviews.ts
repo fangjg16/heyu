@@ -6,6 +6,7 @@ import {
   type CollabSubmitNotice,
   type JoinApproveRole,
   type ProjectJoinRequest,
+  type ProjectNoticeItem,
 } from "@/lib/project-api";
 
 const JOIN_REVIEWS_EVENT = "hy-join-reviews-changed";
@@ -18,6 +19,7 @@ export function useJoinReviews(): {
   requests: ProjectJoinRequest[];
   reviewed: ProjectJoinRequest[];
   collabSubmitted: CollabSubmitNotice[];
+  projectNotices: ProjectNoticeItem[];
   pendingCount: number;
   loading: boolean;
   error: string | null;
@@ -34,6 +36,7 @@ export function useJoinReviews(): {
   const [collabSubmitted, setCollabSubmitted] = useState<CollabSubmitNotice[]>(
     [],
   );
+  const [projectNotices, setProjectNotices] = useState<ProjectNoticeItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -43,6 +46,7 @@ export function useJoinReviews(): {
       setRequests([]);
       setReviewed([]);
       setCollabSubmitted([]);
+      setProjectNotices([]);
       return;
     }
     setLoading(true);
@@ -52,12 +56,14 @@ export function useJoinReviews(): {
         setRequests(inbox.pending);
         setReviewed(inbox.reviewed);
         setCollabSubmitted(inbox.collabSubmitted);
+        setProjectNotices(inbox.projectNotices);
       })
       .catch((e) => {
         setError(e instanceof Error ? e.message : "加载通知失败");
         setRequests([]);
         setReviewed([]);
         setCollabSubmitted([]);
+        setProjectNotices([]);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -102,7 +108,9 @@ export function useJoinReviews(): {
     requests,
     reviewed,
     collabSubmitted,
-    pendingCount: requests.length + collabSubmitted.length,
+    projectNotices,
+    pendingCount:
+      requests.length + collabSubmitted.length + projectNotices.length,
     loading,
     error,
     busyId,

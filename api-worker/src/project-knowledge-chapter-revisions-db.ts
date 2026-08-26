@@ -874,3 +874,85 @@ export async function listChapterVersionHtml(
     updatedBy: r.archived_by,
   }));
 }
+
+export async function rollbackLiveChaptersToVersion(
+  db: AppDatabase,
+  input: {
+    projectId: string;
+    version: number;
+    rolledBackBy: string;
+  },
+): Promise<{ newVersion: number; restoredSections: string[] }> {
+  const chapters = await listChapterVersionHtml(
+    db,
+    input.projectId,
+    input.version,
+  );
+  if (chapters.length === 0) {
+    throw new Error("该版本不存在或尚无归档内容");
+  }
+  const bundle = await ensureChapterBundle(
+    db,
+    input.projectId,
+    input.rolledBackBy,
+  );
+  const currentVersion = normalizeStoredChapterVersion(bundle.version);
+  if (input.version === currentVersion) {
+    throw new Error("已经是当前正式版");
+  }
+  if (currentVersion > 0) {
+    const archivedCount = await db
+      .prepare(
+        `SELECT COUNT(*) AS cnt FROM project_knowledge_chapter_versions
+         WHERE project_id = ? AND version = ?`,
+      )
+      .bind(input.projectId, currentVersion)
+      .first<{ cnt: number | string }>();
+    if (!(Number(archivedCount?.cnt ?? 0) > 0)) {
+      await archiveLiveChaptersAsVersion(db, {
+        projectId: input.projectId,
+        version: currentVersion,
+        archivedBy: input.rolledBackBy,
+      });
+    }
+  }
+  const restored: string[] = [];
+  for (const ch of chapters) {
+    if (!ch.html?.trim()) continue;
+    await upsertProjectKnowledgeChapterHtml(db, {
+      projectId: input.projectId,
+      sectionId: ch.sectionId,
+      html: repairStoredChapterHtml(ch.html),
+      source: ch.source,
+      llmBackend: ch.llmBackend,
+      updatedBy: input.rolledBackBy,
+    });
+    restored.push(ch.sectionId);
+  }
+  if (restored.length === 0) {
+    throw new Error("该版本没有可回滚的章节内容");
+  }
+  const liveAfter = await listProjectKnowledgeChapterHtml(db, input.projectId);
+  const allResearchComplete = researchChaptersComplete(
+    new Map(liveAfter.map((c) => [c.sectionId, c.html])),
+  );
+  const newVersion = nextChapterVersion(currentVersion, {
+    bump: "minor",
+    allResearchComplete,
+  });
+  const now = nowIso();
+  await db
+    .prepare(
+      `UPDATE project_knowledge_chapter_bundle
+       SET version = ?, updated_at = ?, updated_by = ?
+       WHERE project_id = ?`,
+    )
+    .bind(newVersion, now, input.rolledBackBy, input.projectId)
+    .run();
+  await archiveLiveChaptersAsVersion(db, {
+    projectId: input.projectId,
+    version: newVersion,
+    archivedBy: input.rolledBackBy,
+  });
+  return { newVersion, restoredSections: restored };
+}

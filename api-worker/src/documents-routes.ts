@@ -10,6 +10,12 @@ import { canManageProjectRecord } from "./projects-auth";
 import { getProjectById } from "./projects-db";
 import { decodePathProjectId } from "./projects-resolve";
 import { recordOperationLog } from "./operation-logs-db";
+import { notifyProjectUploadOp } from "./project-role-notify";
+import {
+  canManageProjectUploads,
+  resolveProjectRole,
+  roleCanViewAllSessionUploads,
+} from "./workspace-roles";
 
 type Env = { DB: AppDatabase; FILES: AppObjectStorage };
 
@@ -40,8 +46,27 @@ async function canDeleteDocument(
   ) {
     return true;
   }
+  if (doc.scope !== "session") {
+    if (await canManageProjectUploads(env, userId, project.id, project.createdBy)) {
+      return true;
+    }
+  }
   if (doc.uploaded_by && doc.uploaded_by === userId) return true;
   return false;
+}
+
+async function viewAllSessionFor(
+  env: Env,
+  userId: string,
+  project: { id: string; createdBy: string | null },
+): Promise<boolean> {
+  const role = await resolveProjectRole(
+    env,
+    userId,
+    project.id,
+    project.createdBy,
+  );
+  return roleCanViewAllSessionUploads(role);
 }
 
 export async function handleDeleteProjectFile(
@@ -82,7 +107,9 @@ export async function handleDeleteProjectFile(
     return json({ error: "文件不存在或已删除" }, 404);
   }
 
-  const accessErr = documentAccessError(row, userId);
+  const accessErr = documentAccessError(row, userId, {
+    viewAllSession: await viewAllSessionFor(env, userId, project),
+  });
   if (accessErr) return json({ error: accessErr }, 403);
 
   const conversationId = (url.searchParams.get("conversationId") ?? "").trim();
@@ -96,7 +123,7 @@ export async function handleDeleteProjectFile(
   }
 
   if (!(await canDeleteDocument(env, row, userId, project))) {
-    return json({ error: "仅项目创建人、平台管理员或该文件上传者可删除" }, 403);
+    return json({ error: "仅项目管理员、Core 或该文件上传者可删除" }, 403);
   }
 
   try {
@@ -142,6 +169,17 @@ export async function handleDeleteProjectFile(
       targetLabel: row.filename,
       summary: `删除「${project.name}」中的文件 ${row.filename}`,
     });
+
+    if (row.scope !== "session") {
+      await notifyProjectUploadOp(env, {
+        projectId,
+        projectName: project.name,
+        createdBy: project.createdBy,
+        actorUserId: userId,
+        action: "delete",
+        filename: row.filename,
+      });
+    }
 
     return json({
       ok: true,
@@ -221,11 +259,13 @@ export async function handlePatchProjectFile(
     return json({ error: "仅项目资料包文件可移动目录" }, 400);
   }
 
-  const accessErr = documentAccessError(row, userId);
+  const accessErr = documentAccessError(row, userId, {
+    viewAllSession: await viewAllSessionFor(env, userId, project),
+  });
   if (accessErr) return json({ error: accessErr }, 403);
 
   if (!(await canDeleteDocument(env, row, userId, project))) {
-    return json({ error: "仅项目创建人、平台管理员或该文件上传者可移动" }, 403);
+    return json({ error: "仅项目管理员、Core 或该文件上传者可移动" }, 403);
   }
 
   const current = sanitizeRelativePath(row.relative_path ?? "");
@@ -267,6 +307,15 @@ export async function handlePatchProjectFile(
   if (row.uploaded_by && row.uploaded_by !== userId) {
     await invalidateChunkCache(projectId, row.uploaded_by, undefined);
   }
+
+  await notifyProjectUploadOp(env, {
+    projectId,
+    projectName: project.name,
+    createdBy: project.createdBy,
+    actorUserId: userId,
+    action: "move",
+    filename: row.filename,
+  });
 
   return json({
     ok: true,

@@ -10,7 +10,7 @@ import { decodePathProjectId } from "./projects-resolve";
 import { chunkPlainText } from "./search";
 import { canonicalizeFileTopic } from "./file-topic";
 import { extractSpreadsheetPlainText } from "./spreadsheet-text";
-import { canDownloadProjectFile } from "./workspace-roles";
+import { canDownloadProjectFile, resolveProjectRole, roleCanViewAllSessionUploads } from "./workspace-roles";
 import {
   extractSummaryField,
   looksLikeRawParseJson,
@@ -513,7 +513,15 @@ export async function handleParseProjectFileSummary(
     });
   }
 
-  const accessErr = documentAccessError(row, userId);
+  const role = await resolveProjectRole(
+    env,
+    userId,
+    projectId,
+    project.createdBy,
+  );
+  const accessErr = documentAccessError(row, userId, {
+    viewAllSession: roleCanViewAllSessionUploads(role),
+  });
   if (accessErr) return json({ error: accessErr }, 403);
 
   if (row.scope === "package") {

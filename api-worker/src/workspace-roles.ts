@@ -68,6 +68,26 @@ export async function resolveProjectRole(
   return roleWithCreatorFloor(uid, creator, override);
 }
 
+/** 上传/覆盖项目知识网络正式版：仅 admin（审核、发布、回滚） */
+export function roleCanPublishKnowledgeNetwork(role: WorkspaceRole): boolean {
+  return role === "admin";
+}
+
+/** 更新知识网络（生成草案 / 改写）：admin / core，发布须 admin */
+export function roleCanUpdateKnowledgeNetwork(role: WorkspaceRole): boolean {
+  return role === "admin" || role === "core";
+}
+
+/** 项目上传资料：admin / core 可上传、查看、移动、删除 */
+export function roleCanManageProjectUploads(role: WorkspaceRole): boolean {
+  return role === "admin" || role === "core";
+}
+
+/** 对话上传：仅 admin 可看全员；其他人只看自己的 */
+export function roleCanViewAllSessionUploads(role: WorkspaceRole): boolean {
+  return role === "admin";
+}
+
 export async function canViewProjectKnowledgeNetwork(
   env: RoleEnv,
   userId: string,
@@ -93,7 +113,18 @@ export async function canListProjectFiles(
   return isInvestorRole(role);
 }
 
-/** 上传/覆盖项目知识网络 HTML：admin / core */
+/** 生成知识网络草案：admin / core */
+export async function canUpdateProjectKnowledgeNetwork(
+  env: RoleEnv,
+  userId: string,
+  projectId: string,
+  createdBy?: string | null,
+): Promise<boolean> {
+  const role = await resolveProjectRole(env, userId, projectId, createdBy);
+  return roleCanUpdateKnowledgeNetwork(role);
+}
+
+/** 发布/回滚知识网络正式版：仅 admin */
 export async function canPublishProjectKnowledgeNetwork(
   env: RoleEnv,
   userId: string,
@@ -101,7 +132,18 @@ export async function canPublishProjectKnowledgeNetwork(
   createdBy?: string | null,
 ): Promise<boolean> {
   const role = await resolveProjectRole(env, userId, projectId, createdBy);
-  return role === "admin" || role === "core";
+  return roleCanPublishKnowledgeNetwork(role);
+}
+
+/** 项目上传 CRUD：admin / core */
+export async function canManageProjectUploads(
+  env: RoleEnv,
+  userId: string,
+  projectId: string,
+  createdBy?: string | null,
+): Promise<boolean> {
+  const role = await resolveProjectRole(env, userId, projectId, createdBy);
+  return roleCanManageProjectUploads(role);
 }
 
 /** 下载项目资料包原文件：admin / core / 项目创建人 */

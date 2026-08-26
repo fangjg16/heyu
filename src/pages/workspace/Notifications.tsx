@@ -24,6 +24,7 @@ export default function Notifications() {
     requests,
     reviewed,
     collabSubmitted,
+    projectNotices,
     pendingCount,
     loading,
     error,
@@ -32,7 +33,10 @@ export default function Notifications() {
   } = useJoinReviews();
   const [tab, setTab] = useState<"pending" | "history">("pending");
 
-  const pendingEmpty = requests.length === 0 && collabSubmitted.length === 0;
+  const pendingEmpty =
+    requests.length === 0 &&
+    collabSubmitted.length === 0 &&
+    projectNotices.length === 0;
 
   return (
     <WorkspaceShell>
@@ -93,10 +97,44 @@ export default function Notifications() {
         ) : tab === "pending" ? (
           pendingEmpty ? (
             <div className="heyu-card mt-8 border border-[rgba(255,255,255,0.65)] bg-[rgba(255,252,248,0.88)] px-6 py-10 text-center text-sm text-[hsl(var(--warm-charcoal-muted))] shadow-[0_8px_24px_rgba(102,80,60,0.06)]">
-              加入申请与协作方提交的资料，会显示在这里。
+              加入申请、协作提交、项目资料操作与知识网络待审，会显示在这里。
             </div>
           ) : (
             <div className="mt-8 space-y-8">
+              {projectNotices.length > 0 ? (
+                <section>
+                  <h2 className="text-[13px] font-semibold tracking-wide text-[#59625F]">
+                    项目动态
+                  </h2>
+                  <ul className="mt-3 space-y-3">
+                    {projectNotices.map((item) => (
+                      <li
+                        key={item.id}
+                        className="heyu-card border border-[rgba(255,255,255,0.65)] bg-[rgba(255,252,248,0.88)] px-5 py-4 shadow-[0_8px_24px_rgba(102,80,60,0.06)]"
+                      >
+                        <div className="text-[15px] font-semibold text-[#1F2423]">
+                          {item.title}
+                        </div>
+                        <div className="mt-1 text-[13px] text-[#1F2423]">
+                          {item.summary}
+                        </div>
+                        <div className="mt-1 text-[12.5px] text-[#969E9A]">
+                          {formatWhen(item.createdAt)}
+                        </div>
+                        {item.href ? (
+                          <Link
+                            to={item.href}
+                            className="mt-3 inline-flex h-8 items-center text-[13px] text-[hsl(var(--warm-charcoal-muted))] transition-colors hover:text-[hsl(var(--wine))]"
+                          >
+                            查看 →
+                          </Link>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+
               {collabSubmitted.length > 0 ? (
                 <section>
                   <h2 className="text-[13px] font-semibold tracking-wide text-[#59625F]">

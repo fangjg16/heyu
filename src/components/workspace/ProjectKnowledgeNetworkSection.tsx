@@ -17,6 +17,7 @@ import {
   fetchProjectKnowledgeChapter,
   listKnowledgeChapterVersions,
   reviseProjectKnowledgeChapter,
+  rollbackKnowledgeChapterVersion,
   waitForDraftRunSettled,
   type KnowledgeChapterVersionMeta,
 } from "@/lib/project-api";
@@ -27,7 +28,7 @@ import {
   parseOpenQuestionsFromHtml,
   pickRelatedOpenQuestions,
 } from "@/lib/open-questions-parse";
-import { canPublishProjectKnowledgeNetwork } from "@/workspace/project-manage";
+import { canPublishProjectKnowledgeNetwork, canUpdateProjectKnowledgeNetwork } from "@/workspace/project-manage";
 import {
   dismissIfBackdropClick,
   markBackdropPointerDown,
@@ -188,6 +189,8 @@ export function ProjectKnowledgeNetworkSection({
     CHAPTER_GROUPS[0]!.sections[0]!.id,
   );
   const [versionDetailLoading, setVersionDetailLoading] = useState(false);
+  const [rollbackBusy, setRollbackBusy] = useState<number | null>(null);
+  const [versionRefresh, setVersionRefresh] = useState(0);
   const [allChaptersConfirm, setAllChaptersConfirm] = useState(false);
   useBodyScrollLock(allChaptersConfirm);
 
@@ -242,7 +245,7 @@ export function ProjectKnowledgeNetworkSection({
     return () => {
       cancelled = true;
     };
-  }, [view, projectId, userId, isGuest, refreshKey]);
+  }, [view, projectId, userId, isGuest, refreshKey, versionRefresh]);
 
   const openVersionBrowse = async (version: number) => {
     if (!projectId || !userId.trim()) return;
@@ -289,12 +292,43 @@ export function ProjectKnowledgeNetworkSection({
     return sectionId;
   }, [sectionId]);
 
+  const canUpdate = useMemo(() => {
+    if (isGuest || !userId.trim()) return false;
+    const p = project as Pick<WorkspaceProject, "id" | "createdBy"> | undefined;
+    if (!p?.id) return false;
+    return canUpdateProjectKnowledgeNetwork(userId, p);
+  }, [isGuest, project, userId]);
+
   const canPublish = useMemo(() => {
     if (isGuest || !userId.trim()) return false;
     const p = project as Pick<WorkspaceProject, "id" | "createdBy"> | undefined;
     if (!p?.id) return false;
     return canPublishProjectKnowledgeNetwork(userId, p);
   }, [isGuest, project, userId]);
+
+  const onRollbackVersion = async (version: number) => {
+    if (!canPublish || rollbackBusy != null) return;
+    if (version === currentBundleVersion) return;
+    if (
+      !window.confirm(
+        `将正式知识网络回滚到 ${formatChapterVersionLabel(version)}？当前内容会归档为新版本。`,
+      )
+    ) {
+      return;
+    }
+    setRollbackBusy(version);
+    setVersionsError(null);
+    try {
+      await rollbackKnowledgeChapterVersion(projectId, version, userId);
+      setBrowsingVersion(null);
+      setVersionChapters([]);
+      setVersionRefresh((n) => n + 1);
+    } catch (e) {
+      setVersionsError(e instanceof Error ? e.message : "回滚失败");
+    } finally {
+      setRollbackBusy(null);
+    }
+  };
 
   const hasHtml = Boolean(html?.trim());
   const canRetryFailed = failedChapterIds.includes(sectionId);
@@ -484,7 +518,7 @@ export function ProjectKnowledgeNetworkSection({
     const targetSectionId = sectionId;
     const targetLabel = sectionLabel;
     if (
-      !canPublish ||
+      !canUpdate ||
       busyBySection[targetSectionId] ||
       updatingChapterIds.includes(targetSectionId) ||
       !canUpdateChapter ||
@@ -737,7 +771,7 @@ export function ProjectKnowledgeNetworkSection({
             );
           })}
         </div>
-        {canUpdateAllChapters || canPublish ? (
+        {canUpdateAllChapters || canUpdate ? (
           <button
             type="button"
             onClick={() => setAllChaptersConfirm(true)}
@@ -760,6 +794,7 @@ export function ProjectKnowledgeNetworkSection({
 
       {view === "chapters" ? (
         <div className="space-y-3">
+          {canPublish ? (
           <div className="flex items-end gap-2.5 rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.9)] p-3">
             <textarea
               ref={chatRef}
@@ -790,6 +825,11 @@ export function ProjectKnowledgeNetworkSection({
               {sectionBusy === "revise" ? "改写中…" : "发送"}
             </button>
           </div>
+          ) : canUpdate ? (
+            <p className="rounded-xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.9)] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-[#59625F]">
+              更新本章会生成草案并通知项目管理员审核，不会直接改正式版。
+            </p>
+          ) : null}
 
           {error ? (
             <p className="rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
@@ -893,7 +933,7 @@ export function ProjectKnowledgeNetworkSection({
                       onClick={() => void onGenerate()}
                       disabled={
                         !canUpdateChapter ||
-                        !canPublish ||
+                        !canUpdate ||
                         sectionBusy !== null
                       }
                       title={
@@ -1092,16 +1132,29 @@ export function ProjectKnowledgeNetworkSection({
                 ) : null}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setBrowsingVersion(null);
-                setVersionChapters([]);
-              }}
-              className="h-9 rounded-[9px] border border-[rgba(78,66,57,0.18)] px-3.5 text-[13px] font-medium text-[#1F2423] hover:bg-[rgba(78,66,57,0.04)]"
-            >
-              返回版本列表
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {canPublish &&
+              browsingVersion !== currentBundleVersion ? (
+                <button
+                  type="button"
+                  disabled={rollbackBusy != null}
+                  onClick={() => void onRollbackVersion(browsingVersion)}
+                  className="h-9 rounded-[9px] border border-[rgba(160,99,88,0.3)] px-3.5 text-[13px] font-medium text-[#A06358] hover:bg-[#EFE7E6] disabled:opacity-50"
+                >
+                  {rollbackBusy === browsingVersion ? "回滚中…" : "回滚到此版本"}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  setBrowsingVersion(null);
+                  setVersionChapters([]);
+                }}
+                className="h-9 rounded-[9px] border border-[rgba(78,66,57,0.18)] px-3.5 text-[13px] font-medium text-[#1F2423] hover:bg-[rgba(78,66,57,0.04)]"
+              >
+                返回版本列表
+              </button>
+            </div>
           </div>
           {versionsError ? (
             <p className="mx-6 mt-4 rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
@@ -1177,12 +1230,12 @@ export function ProjectKnowledgeNetworkSection({
                     : `归档 ${v.sectionCount} 章`;
                   return (
                     <li key={v.version}>
-                      <button
-                        type="button"
-                        onClick={() => void openVersionBrowse(v.version)}
-                        className="flex w-full flex-wrap items-center justify-between gap-3 px-2 py-3.5 text-left transition-colors hover:bg-[rgba(78,66,57,0.04)]"
-                      >
-                        <div>
+                      <div className="flex w-full flex-wrap items-center justify-between gap-3 px-2 py-3.5">
+                        <button
+                          type="button"
+                          onClick={() => void openVersionBrowse(v.version)}
+                          className="min-w-0 flex-1 text-left transition-colors hover:opacity-80"
+                        >
                           <div className="flex items-center gap-2">
                             <span className="text-[15px] font-semibold text-[#1F2423]">
                               {formatChapterVersionLabel(v.version)}
@@ -1198,14 +1251,28 @@ export function ProjectKnowledgeNetworkSection({
                             {changeHint}
                             {v.archivedBy ? ` · ${v.archivedBy}` : ""}
                           </p>
+                        </button>
+                        <div className="flex shrink-0 items-center gap-2 text-right text-[12px] text-[#969E9A]">
+                          <div>
+                            {v.archivedAt
+                              ? new Date(v.archivedAt).toLocaleString("zh-CN")
+                              : "—"}
+                            <div className="mt-0.5 text-[#A06358]">查看</div>
+                          </div>
+                          {canPublish &&
+                          v.version !== currentBundleVersion &&
+                          !v.isCurrent ? (
+                            <button
+                              type="button"
+                              disabled={rollbackBusy != null}
+                              onClick={() => void onRollbackVersion(v.version)}
+                              className="h-8 rounded-lg border border-[rgba(160,99,88,0.3)] px-2.5 text-[12px] font-medium text-[#A06358] hover:bg-[#EFE7E6] disabled:opacity-50"
+                            >
+                              {rollbackBusy === v.version ? "回滚中…" : "回滚"}
+                            </button>
+                          ) : null}
                         </div>
-                        <div className="text-right text-[12px] text-[#969E9A]">
-                          {v.archivedAt
-                            ? new Date(v.archivedAt).toLocaleString("zh-CN")
-                            : "—"}
-                          <div className="mt-0.5 text-[#A06358]">查看</div>
-                        </div>
-                      </button>
+                      </div>
                     </li>
                   );
                 })}

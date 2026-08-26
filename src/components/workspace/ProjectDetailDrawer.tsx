@@ -13,6 +13,7 @@ import { ProjectPermissionsSection } from "@/components/workspace/ProjectPermiss
 import {
   canDownloadProjectMaterials,
   canManageProjectPermissions,
+  canManageProjectUploads,
   canUserManageProjectMetadata,
   formatProjectCreatedAt,
 } from "@/workspace/project-manage";
@@ -238,7 +239,7 @@ export function ProjectDetailDrawer({
               <ProjectMaterialsSection
                 projectId={project.id}
                 userId={userId}
-                canManage={chatOk}
+                canManage={canManageProjectUploads(userId, project)}
                 canDownload={canDownloadMaterials}
               />
             ) : null}

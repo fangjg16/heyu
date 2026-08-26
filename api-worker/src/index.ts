@@ -75,11 +75,12 @@ import {
   LIST_FILES_SQL_NO_PARSE,
   LIST_FILES_SQL_NO_BYTE_SIZE,
   LIST_FILES_SQL_NO_COLLAB,
+  listFilesSqlWithSessionVisibility,
   packageR2Key,
   sanitizeRelativePath,
   sessionR2Key,
 } from "./documents-access";
-import { tryHandleHermesRoutes } from "./hermes-bridge";
+import { notifyProjectUploadOp } from "./project-role-notify";
 import {
   handleCreateProject,
   handleDeleteProject,
@@ -133,9 +134,11 @@ import { decodePathProjectId } from "./projects-resolve";
 import {
   canEnterProjectChat,
   canListProjectFiles,
+  canManageProjectUploads,
   isInvestorRole,
   isIssuerRole,
   resolveProjectRole,
+  roleCanViewAllSessionUploads,
 } from "./workspace-roles";
 import {
   assertValidHermesBaseUrl,
@@ -366,6 +369,14 @@ async function handleListFiles(
   if (!(await canListProjectFiles(env, userId, projectId, project.createdBy))) {
     return json({ error: "当前权限无法查看项目资料" }, 403);
   }
+  const role = await resolveProjectRole(env, userId, projectId, project.createdBy);
+  const viewAllSession = roleCanViewAllSessionUploads(role);
+  const bindList = (sql: string) => {
+    const vis = listFilesSqlWithSessionVisibility(sql, viewAllSession);
+    return vis.bindUserId
+      ? env.DB.prepare(vis.sql).bind(projectId, userId)
+      : env.DB.prepare(vis.sql).bind(projectId);
+  };
   type Row = {
     id: string;
     filename: string;
@@ -385,7 +396,7 @@ async function handleListFiles(
 
   let results: Row[] | null = null;
   try {
-    const q = await env.DB.prepare(LIST_FILES_SQL).bind(projectId, userId).all<Row>();
+    const q = await bindList(LIST_FILES_SQL).all<Row>();
     results = q.results ?? [];
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -395,15 +406,11 @@ async function handleListFiles(
       /Unknown column ['`]?file_category['`]?/i.test(msg) ||
       /no such column:\s*(source_kind|shared_with_issuer|file_category)/i.test(msg)
     ) {
-      const q = await env.DB.prepare(LIST_FILES_SQL_NO_COLLAB)
-        .bind(projectId, userId)
-        .all<Row>();
+      const q = await bindList(LIST_FILES_SQL_NO_COLLAB).all<Row>();
       results = q.results ?? [];
     } else if (/Unknown column ['`]?byte_size['`]?/i.test(msg) || /no such column:\s*byte_size/i.test(msg)) {
       try {
-        const q = await env.DB.prepare(LIST_FILES_SQL_NO_BYTE_SIZE)
-          .bind(projectId, userId)
-          .all<Row>();
+        const q = await bindList(LIST_FILES_SQL_NO_BYTE_SIZE).all<Row>();
         results = q.results ?? [];
       } catch (e2) {
         const msg2 = e2 instanceof Error ? e2.message : String(e2);
@@ -411,9 +418,7 @@ async function handleListFiles(
           /Unknown table ['`]?document_parse_results['`]?/i.test(msg2) ||
           /no such table:\s*document_parse_results/i.test(msg2)
         ) {
-          const q = await env.DB.prepare(LIST_FILES_SQL_NO_PARSE)
-            .bind(projectId, userId)
-            .all<Row>();
+          const q = await bindList(LIST_FILES_SQL_NO_PARSE).all<Row>();
           results = q.results ?? [];
         } else {
           throw e2;
@@ -423,19 +428,13 @@ async function handleListFiles(
       /Unknown table ['`]?document_parse_results['`]?/i.test(msg) ||
       /no such table:\s*document_parse_results/i.test(msg)
     ) {
-      const q = await env.DB.prepare(LIST_FILES_SQL_NO_PARSE)
-        .bind(projectId, userId)
-        .all<Row>();
+      const q = await bindList(LIST_FILES_SQL_NO_PARSE).all<Row>();
       results = q.results ?? [];
     } else if (/Unknown column ['`]?deleted_at['`]?/i.test(msg) || /no such column:\s*deleted_at/i.test(msg)) {
-      const q = await env.DB.prepare(LIST_FILES_SQL_NO_SOFT_DELETE)
-        .bind(projectId, userId)
-        .all<Row>();
+      const q = await bindList(LIST_FILES_SQL_NO_SOFT_DELETE).all<Row>();
       results = q.results ?? [];
     } else if (/Unknown column ['`]?relative_path['`]?/i.test(msg) || /no such column:\s*relative_path/i.test(msg)) {
-      const q = await env.DB.prepare(LIST_FILES_SQL_LEGACY)
-        .bind(projectId, userId)
-        .all<Row>();
+      const q = await bindList(LIST_FILES_SQL_LEGACY).all<Row>();
       results = q.results ?? [];
     } else {
       throw e;
@@ -508,10 +507,20 @@ async function handleUpload(
   if (!isInvestorRole(role) && !isIssuerRole(role)) {
     return json({ error: "当前权限无法上传资料" }, 403);
   }
-
-  const scope = isIssuerRole(role)
+  const requestedScope = isIssuerRole(role)
     ? "package"
     : String(form.get("scope") || "package");
+  if (
+    requestedScope !== "session" &&
+    isInvestorRole(role) &&
+    !(await canManageProjectUploads(env, uploadedBy, projectId, project.createdBy))
+  ) {
+    return json(
+      { error: "仅 Admin / Core 可上传项目资料", code: "UPLOAD_FORBIDDEN" },
+      403,
+    );
+  }
+  const scope = requestedScope;
   const conversationId = form.get("conversationId")
     ? String(form.get("conversationId"))
     : null;
@@ -677,6 +686,21 @@ async function handleUpload(
     } catch {
       /* 未迁移 0026 时忽略元数据 */
     }
+  }
+
+  if (
+    scopeVal === "package" &&
+    !isIssuerRole(role) &&
+    requestedKind !== "ai_generated"
+  ) {
+    await notifyProjectUploadOp(env, {
+      projectId,
+      projectName: project.name,
+      createdBy: project.createdBy,
+      actorUserId: uploadedBy,
+      action: "upload",
+      filename: baseName,
+    });
   }
 
   if (isDir) {

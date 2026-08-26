@@ -10,6 +10,11 @@ import {
   handleHermesPutKnowledgeNetworkCurrent,
 } from "./hermes-knowledge-network";
 import { isPlaceholderChunkText } from "./search";
+import { getProjectById } from "./projects-db";
+import {
+  resolveProjectRole,
+  roleCanViewAllSessionUploads,
+} from "./workspace-roles";
 import { resolveEmbedDimension, resolveEmbedModel } from "./embeddings";
 import {
   buildDocumentContentRevisionKey,
@@ -262,7 +267,20 @@ async function loadDocument(
     };
   }
 
-  const accessErr = documentAccessError(row, userId);
+  let viewAllSession = false;
+  if (userId) {
+    const project = await getProjectById(env, projectId);
+    if (project) {
+      const role = await resolveProjectRole(
+        env,
+        userId,
+        projectId,
+        project.createdBy,
+      );
+      viewAllSession = roleCanViewAllSessionUploads(role);
+    }
+  }
+  const accessErr = documentAccessError(row, userId, { viewAllSession });
   if (accessErr) {
     return {
       ok: false,

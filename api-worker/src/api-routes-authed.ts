@@ -52,6 +52,7 @@ import {
   handlePublishChapterDraftRun,
   handlePutChapterDraftSection,
   handleReviseChapterDraftSection,
+  handleRollbackKnowledgeChapterVersion,
 } from "./project-knowledge-chapter-draft-routes";
 import { handleListAdminChapterReviseLogs } from "./chapter-revise-logs-admin-routes";
 import { handleListAdminOperationLogs } from "./operation-logs-admin-routes";
@@ -405,6 +406,23 @@ export async function routeAuthedApi(
       );
     }
     return json({ error: "Method Not Allowed" }, 405);
+  }
+
+  if (
+    /^\/api\/projects\/[^/]+\/knowledge-chapter-versions\/[^/]+\/rollback$/u.test(
+      path,
+    ) &&
+    request.method === "POST"
+  ) {
+    const parts = path.split("/");
+    const projectId = decodePathProjectId(parts[3] ?? "");
+    const version = parts[5] ?? "";
+    return handleRollbackKnowledgeChapterVersion(
+      env,
+      projectId,
+      version,
+      authUserId,
+    );
   }
 
   if (

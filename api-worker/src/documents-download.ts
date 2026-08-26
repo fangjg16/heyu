@@ -3,7 +3,7 @@ import type { AppDatabase } from "./app-database";
 import { documentAccessError, type DocumentRow } from "./documents-access";
 import { getProjectById } from "./projects-db";
 import { decodePathProjectId } from "./projects-resolve";
-import { canDownloadProjectFile, isIssuerRole, resolveProjectRole } from "./workspace-roles";
+import { canDownloadProjectFile, isIssuerRole, resolveProjectRole, roleCanViewAllSessionUploads } from "./workspace-roles";
 
 type Env = { DB: AppDatabase; FILES: AppObjectStorage };
 
@@ -59,16 +59,18 @@ export async function handleDownloadProjectFile(
     return json({ error: "文件不存在或已删除" }, 404);
   }
 
-  const accessErr = documentAccessError(row, userId);
+  const role = await resolveProjectRole(
+    env,
+    userId,
+    projectId,
+    project.createdBy,
+  );
+  const accessErr = documentAccessError(row, userId, {
+    viewAllSession: roleCanViewAllSessionUploads(role),
+  });
   if (accessErr) return json({ error: accessErr }, 403);
 
   if (row.scope === "package") {
-    const role = await resolveProjectRole(
-      env,
-      userId,
-      projectId,
-      project.createdBy,
-    );
     if (isIssuerRole(role)) {
       let shared = false;
       let sourceKind: string | null = null;

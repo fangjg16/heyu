@@ -41,7 +41,10 @@ import {
   stripHtmlToText,
 } from "@/lib/text-line-diff";
 import { loadSessionUserId } from "@/workspace/session";
-import { canPublishProjectKnowledgeNetwork } from "@/workspace/project-manage";
+import {
+  canPublishProjectKnowledgeNetwork,
+  canUpdateProjectKnowledgeNetwork,
+} from "@/workspace/project-manage";
 import { getMergedProjects } from "@/workspace/project-registry";
 
 const OVERVIEW_CHAPTER = { id: "project-overview", label: "项目概览" };
@@ -149,10 +152,12 @@ export default function KnowledgeChapterDraftReviewPage() {
   const userId = loadSessionUserId() ?? "";
   const project = getMergedProjects().find((p) => p.id === projectId);
   // 审核页在布局外独立路由，刷新时 apiProjects 可能尚未灌入，勿对 undefined 解引用
-  const canPublish = canPublishProjectKnowledgeNetwork(userId, {
+  const projectRef = {
     id: projectId,
     createdBy: project?.createdBy ?? null,
-  });
+  };
+  const canUpdate = canUpdateProjectKnowledgeNetwork(userId, projectRef);
+  const canPublish = canPublishProjectKnowledgeNetwork(userId, projectRef);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -463,7 +468,7 @@ export default function KnowledgeChapterDraftReviewPage() {
   const canPublishChanged =
     canPublish && !actionLocked && runOpen && changedCount > 0;
   const draftEditableSection =
-    canPublish &&
+    canUpdate &&
     runOpen &&
     selected != null &&
     selected.kind !== "failed" &&
@@ -472,7 +477,7 @@ export default function KnowledgeChapterDraftReviewPage() {
     Boolean(selected.draftHtml?.trim() || editing);
   const canEditDraft = draftEditableSection && !actionLocked;
   const showReviseBar =
-    canPublish &&
+    canUpdate &&
     runOpen &&
     selected != null &&
     (selected.kind === "revising" ||
@@ -624,7 +629,7 @@ export default function KnowledgeChapterDraftReviewPage() {
   }, [selected]);
 
   const doPublish = async (sectionIds: string[]) => {
-    if (sectionIds.length === 0) return;
+    if (!canPublish || sectionIds.length === 0) return;
     setBusy("publish");
     setError(null);
     setNotice(null);
@@ -660,7 +665,7 @@ export default function KnowledgeChapterDraftReviewPage() {
   };
 
   const onDiscard = async () => {
-    if (!canPublish || busy) return;
+    if (!canUpdate || busy) return;
     if (!window.confirm("确定放弃本草案？正式章节内容不会改变。")) return;
     setBusy("discard");
     setError(null);
@@ -692,7 +697,7 @@ export default function KnowledgeChapterDraftReviewPage() {
   })();
 
   const onRemoveChapter = async (sectionId: string, label: string) => {
-    if (!canPublish || actionLocked) return;
+    if (!canUpdate || actionLocked) return;
     if (!window.confirm(`从本次草案移除「${label}」？不会删除正式版已有内容。`)) {
       return;
     }
@@ -710,7 +715,7 @@ export default function KnowledgeChapterDraftReviewPage() {
   };
 
   const onAddChapter = async (sectionId: string) => {
-    if (!canPublish || actionLocked || !sectionId) return;
+    if (!canUpdate || actionLocked || !sectionId) return;
     const label =
       REVIEWABLE_CHAPTERS.find((c) => c.id === sectionId)?.label ?? sectionId;
     setChapterBusy(sectionId);
@@ -800,7 +805,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                       章节列表
                     </div>
                     <div className="flex items-center gap-1">
-                      {canPublish && addableChapters.length > 0 ? (
+                      {canUpdate && addableChapters.length > 0 ? (
                         <label className="relative inline-flex items-center">
                           <select
                             className="h-7 max-w-[6.5rem] appearance-none rounded-md border border-[rgba(160,99,88,0.3)] bg-white pl-2 pr-6 text-[11px] font-medium text-[#A06358]"
@@ -861,7 +866,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                             {kindLabel(r.kind)}
                           </span>
                         </button>
-                        {canPublish && runOpen ? (
+                        {canUpdate && runOpen ? (
                           <button
                             type="button"
                             title={`移除「${r.label}」`}
@@ -1287,6 +1292,8 @@ export default function KnowledgeChapterDraftReviewPage() {
                   </dl>
 
                   <div className="mt-4 space-y-1.5">
+                    {canPublish ? (
+                      <>
                     <div className="text-[12px] font-semibold text-[#59625F]">
                       版本递增
                     </div>
@@ -1363,6 +1370,8 @@ export default function KnowledgeChapterDraftReviewPage() {
                     </label>
                       </>
                     )}
+                      </>
+                    ) : null}
                   </div>
 
                   {hasGraphDraft && selected?.id === "project-overview" ? (
@@ -1371,9 +1380,13 @@ export default function KnowledgeChapterDraftReviewPage() {
                     </p>
                   ) : null}
 
-                  {!canPublish ? (
+                  {!canPublish && canUpdate ? (
+                    <p className="mt-4 text-[12px] leading-relaxed text-[#59625F]">
+                      已通知项目管理员审核。你可以继续改写或放弃草案；发布须由项目管理员操作。
+                    </p>
+                  ) : !canUpdate ? (
                     <p className="mt-4 text-[12px] leading-relaxed text-[#969E9A]">
-                      当前角色无权发布或放弃草案。
+                      当前角色无权更新或发布草案。
                     </p>
                   ) : null}
 
@@ -1409,7 +1422,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                   <button
                     type="button"
                     disabled={
-                      !canPublish ||
+                      !canUpdate ||
                       actionLocked ||
                       editing ||
                       runStatus === "published"
@@ -1426,8 +1439,8 @@ export default function KnowledgeChapterDraftReviewPage() {
                     type="button"
                     onClick={() => setAsideOpen(true)}
                     className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[#A06358] hover:bg-[#EFE7E6]"
-                    title="展开摘要与发布"
-                    aria-label="展开摘要与发布"
+                    title="展开摘要"
+                    aria-label="展开摘要"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>

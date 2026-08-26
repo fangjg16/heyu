@@ -37,12 +37,15 @@ import {
   setDraftRunStatus,
   upsertDraftItem,
   deleteDraftItem,
+  rollbackLiveChaptersToVersion,
 } from "./project-knowledge-chapter-revisions-db";
 import { filterProjectsForDirectory } from "./projects-auth";
 import { getProjectById, listProjects } from "./projects-db";
+import { notifyProjectAdminsAndCores } from "./project-role-notify";
 import {
   canListProjectFiles,
   canPublishProjectKnowledgeNetwork,
+  canUpdateProjectKnowledgeNetwork,
 } from "./workspace-roles";
 
 type Env = { DB: AppDatabase } & LlmClientEnv;
@@ -91,7 +94,29 @@ async function assertCanRead(
   return null;
 }
 
-async function assertCanWrite(
+async function assertCanUpdate(
+  env: Env,
+  userId: string,
+  projectId: string,
+  createdBy: string | null | undefined,
+): Promise<Response | null> {
+  if (
+    !(await canUpdateProjectKnowledgeNetwork(
+      env,
+      userId,
+      projectId,
+      createdBy,
+    ))
+  ) {
+    return json(
+      { error: "当前角色无权更新知识网络章节", code: "UPDATE_FORBIDDEN" },
+      403,
+    );
+  }
+  return null;
+}
+
+async function assertCanPublish(
   env: Env,
   userId: string,
   projectId: string,
@@ -106,11 +131,20 @@ async function assertCanWrite(
     ))
   ) {
     return json(
-      { error: "当前角色无权更新知识网络章节", code: "PUBLISH_FORBIDDEN" },
+      { error: "仅项目管理员可审核、发布或回滚知识网络", code: "PUBLISH_FORBIDDEN" },
       403,
     );
   }
   return null;
+}
+
+async function assertCanWrite(
+  env: Env,
+  userId: string,
+  projectId: string,
+  createdBy: string | null | undefined,
+): Promise<Response | null> {
+  return assertCanUpdate(env, userId, projectId, createdBy);
 }
 
 const RESEARCH_SET = new Set<string>(FULL_UPDATE_SECTION_IDS);
@@ -470,6 +504,34 @@ export async function handleCreateChapterDraftRun(
     sectionIds: wantedIds,
   });
   kickDraftRunGeneration(env, ctx, projectId, run.id, userId);
+  if (
+    !(await canPublishProjectKnowledgeNetwork(
+      env,
+      userId,
+      projectId,
+      project.createdBy,
+    ))
+  ) {
+    const scopeLabel =
+      scope === "full"
+        ? "全部章节"
+        : sectionId === "project-overview"
+          ? "项目概览"
+          : "章节";
+    void notifyProjectAdminsAndCores(env, {
+      projectId,
+      projectName: project.name,
+      createdBy: project.createdBy,
+      actorUserId: userId,
+      kind: "kn_draft",
+      recipients: "admin",
+      title: "知识网络待审核",
+      summary: `{actor} 提交了「${project.name}」的${scopeLabel}更新，请审核发布`,
+      href: `/app/projects/${encodeURIComponent(projectId)}/knowledge/review/${encodeURIComponent(run.id)}`,
+    }).catch(() => {
+      /* 通知失败不阻断生成 */
+    });
+  }
   const items = await listDraftItems(env.DB, run.id);
   return json({
     ok: true,
@@ -979,7 +1041,7 @@ export async function handlePublishChapterDraftRun(
   const project = await getProjectById(env, projectId);
   if (!project) return json({ error: "项目不存在" }, 404);
 
-  const denied = await assertCanWrite(
+  const denied = await assertCanPublish(
     env,
     userId,
     projectId,
@@ -1222,4 +1284,49 @@ export async function handleGetKnowledgeChapterVersion(
       archivedBy: c.updatedBy,
     })),
   });
+}
+
+/** POST .../knowledge-chapter-versions/:version/rollback */
+export async function handleRollbackKnowledgeChapterVersion(
+  env: Env,
+  projectId: string,
+  versionRaw: string,
+  userIdRaw: string | null,
+): Promise<Response> {
+  const userId = normalizeUserId(userIdRaw);
+  if (!userId) return json({ error: "缺少 userId" }, 400);
+
+  const version = Number(versionRaw);
+  if (!Number.isFinite(version) || version < 1) {
+    return json({ error: "无效的版本号" }, 400);
+  }
+
+  const project = await getProjectById(env, projectId);
+  if (!project) return json({ error: "项目不存在" }, 404);
+
+  const denied = await assertCanPublish(
+    env,
+    userId,
+    projectId,
+    project.createdBy,
+  );
+  if (denied) return denied;
+
+  try {
+    const result = await rollbackLiveChaptersToVersion(env.DB, {
+      projectId,
+      version,
+      rolledBackBy: userId,
+    });
+    return json({
+      ok: true,
+      projectId,
+      restoredFrom: version,
+      newVersion: result.newVersion,
+      restoredSections: result.restoredSections,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return json({ error: msg }, 400);
+  }
 }

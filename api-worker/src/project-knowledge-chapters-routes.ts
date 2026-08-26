@@ -54,6 +54,7 @@ import { getProjectById } from "./projects-db";
 import {
   canListProjectFiles,
   canPublishProjectKnowledgeNetwork,
+  canUpdateProjectKnowledgeNetwork,
 } from "./workspace-roles";
 import { syncProjectSourcesFromPublishedChapters } from "./project-knowledge-sources-sync";
 
@@ -281,6 +282,28 @@ async function assertCanWrite(
   createdBy: string | null | undefined,
 ): Promise<Response | null> {
   if (
+    !(await canUpdateProjectKnowledgeNetwork(
+      env,
+      userId,
+      projectId,
+      createdBy,
+    ))
+  ) {
+    return json(
+      { error: "当前角色无权更新知识网络章节", code: "UPDATE_FORBIDDEN" },
+      403,
+    );
+  }
+  return null;
+}
+
+async function assertCanPublishLive(
+  env: Env,
+  userId: string,
+  projectId: string,
+  createdBy: string | null | undefined,
+): Promise<Response | null> {
+  if (
     !(await canPublishProjectKnowledgeNetwork(
       env,
       userId,
@@ -289,7 +312,7 @@ async function assertCanWrite(
     ))
   ) {
     return json(
-      { error: "当前角色无权更新知识网络章节", code: "PUBLISH_FORBIDDEN" },
+      { error: "仅项目管理员可直接写入正式版知识网络", code: "PUBLISH_FORBIDDEN" },
       403,
     );
   }
@@ -440,15 +463,12 @@ export async function handleGenerateProjectKnowledgeChapter(
   const project = await getProjectById(env, projectId);
   if (!project) return json({ error: "项目不存在" }, 404);
 
-  const denied = await assertCanWrite(
-    env,
-    userId,
-    projectId,
-    project.createdBy,
-  );
+  const isDraft = generateTarget.target === "draft";
+  const denied = isDraft
+    ? await assertCanWrite(env, userId, projectId, project.createdBy)
+    : await assertCanPublishLive(env, userId, projectId, project.createdBy);
   if (denied) return denied;
 
-  const isDraft = generateTarget.target === "draft";
   let draftRunId: string | null = null;
   if (isDraft) {
     draftRunId = generateTarget.runId;
@@ -1100,7 +1120,7 @@ export async function handleReviseProjectKnowledgeChapter(
   const project = await getProjectById(env, projectId);
   if (!project) return json({ error: "项目不存在" }, 404);
 
-  const denied = await assertCanWrite(
+  const denied = await assertCanPublishLive(
     env,
     userId,
     projectId,
