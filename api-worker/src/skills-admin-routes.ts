@@ -34,6 +34,7 @@ import {
   skillsBridgeBase,
 } from "./skills-volume-sync";
 import { serializeChapterSkillMap } from "./chapter-skill-map";
+import { recordOperationLog } from "./operation-logs-db";
 
 type Env = {
   DB: AppDatabase;
