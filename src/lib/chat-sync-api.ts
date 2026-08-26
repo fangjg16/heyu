@@ -4,6 +4,7 @@ import {
   productizeLiveChatMessageForDisplay,
 } from "@/lib/agent-job-display";
 import type { LiveChatMessage } from "@/workspace/chat-types";
+import { isBlankAssistantPlaceholder } from "@/workspace/chat-message-order";
 import type { PersistedConversation } from "@/workspace/chat-persistence";
 import { AI_CHAT_ENDPOINT } from "@/lib/project-api";
 
@@ -55,11 +56,17 @@ export function mergeAsyncAgentJobIntoConversation(
     ephemeralAssistantMessageId?: string;
     assistantContent: string;
     timeLabel?: string;
+    skillIntent?: string | null;
   },
 ): LiveChatMessage[] {
   const userJobId = userMessageIdForJob(opts.jobId);
   const assistantJobId = assistantMessageIdForJob(opts.jobId);
   const time = opts.timeLabel ?? new Date().toLocaleString("zh-CN");
+  const submitContent = productizeKnJobSubmitContent(
+    opts.assistantContent,
+    opts.skillIntent,
+  );
+  const skillIntent = opts.skillIntent?.trim() || undefined;
 
   let next = messages.map((m) => {
     if (opts.ephemeralUserMessageId && m.id === opts.ephemeralUserMessageId) {
@@ -70,8 +77,9 @@ export function mergeAsyncAgentJobIntoConversation(
         ...m,
         id: assistantJobId,
         role: "assistant" as const,
-        content: productizeKnJobSubmitContent(opts.assistantContent),
+        content: submitContent,
         pendingJobId: opts.jobId,
+        skillIntent,
         jobProgressLabel: m.jobProgressLabel ?? JOB_SUBMITTED_LABEL,
         isStreaming: false,
         streamStatusLabel: undefined,
@@ -86,15 +94,25 @@ export function mergeAsyncAgentJobIntoConversation(
       {
         id: assistantJobId,
         role: "assistant" as const,
-        content: productizeKnJobSubmitContent(opts.assistantContent),
+        content: submitContent,
         time,
         pendingJobId: opts.jobId,
+        skillIntent,
         jobProgressLabel: JOB_SUBMITTED_LABEL,
       },
     ];
   }
 
-  return next;
+  return next.filter((m) => {
+    if (m.id === assistantJobId || m.id === userJobId) return true;
+    if (
+      opts.ephemeralAssistantMessageId &&
+      m.id === opts.ephemeralAssistantMessageId
+    ) {
+      return false;
+    }
+    return !isBlankAssistantPlaceholder(m);
+  });
 }
 
 export async function fetchRemoteChatState(
@@ -209,7 +227,10 @@ export async function attachActiveAgentJobsToMessages(
       jobProgressLabel:
         list[idx].jobProgressLabel?.trim() || JOB_RESUMED_LABEL,
       content: list[idx].content?.trim()
-        ? productizeKnJobSubmitContent(list[idx].content!)
+        ? productizeKnJobSubmitContent(
+            list[idx].content!,
+            list[idx].skillIntent,
+          )
         : "正在生成，请稍候…",
     };
     out[convId] = list;
@@ -243,7 +264,9 @@ function sanitizeMessagesForSync(
 ): Record<string, LiveChatMessage[]> {
   const out: Record<string, LiveChatMessage[]> = {};
   for (const [convId, msgs] of Object.entries(messagesByConversation)) {
-    out[convId] = (msgs ?? []).map(
+    out[convId] = (msgs ?? [])
+      .filter((m) => !isBlankAssistantPlaceholder(m))
+      .map(
       ({ jobProgressLabel: _j, isStreaming: _s, streamStatusLabel: _l, ...rest }) => rest,
     );
   }

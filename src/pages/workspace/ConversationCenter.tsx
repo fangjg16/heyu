@@ -53,13 +53,15 @@ import { loadSessionToken } from "@/workspace/session";
 import type { KnowledgeNetworkChatEntryState } from "@/lib/knowledge-network-prompts";
 import type { WorkspaceProject } from "@/workspace/projects";
 import { consumeChatSse } from "@/lib/chat-stream-client";
-import { cancelAgentJobRemote, mergeAsyncAgentJobIntoConversation } from "@/lib/chat-sync-api";
+import {
+  cancelAgentJobRemote,
+  mergeAsyncAgentJobIntoConversation,
+} from "@/lib/chat-sync-api";
 import {
   buildProductizedJobProgressLabel,
   formatAgentJobFailureDisplay,
   productizeAssistantBubbleContent,
   productizeJobProgressLabelForDisplay,
-  productizeKnJobSubmitContent,
   productizeStreamStatusLabel,
   type SlotBatchProgressLike,
 } from "@/lib/agent-job-display";
@@ -94,6 +96,7 @@ import {
 import { rememberChatReturnPath } from "@/workspace/chat-return";
 import {
   appendMessageWithSortIndex,
+  isBlankAssistantPlaceholder,
   sortMessagesByConversation,
   sortMessagesChronologically,
 } from "@/workspace/chat-message-order";
@@ -435,6 +438,13 @@ function buildApiHealthProbeUrl(chatEndpoint: string): string | null {
     return null;
   }
   return null;
+}
+
+function skillIntentFromChatPayload(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const rec = payload as { skillIntent?: unknown; chatMode?: unknown };
+  const raw = rec.skillIntent ?? rec.chatMode;
+  return typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
 }
 
 const AGENT_JOB_POLL_MS = 3000;
@@ -2447,10 +2457,9 @@ export default function ConversationCenter() {
             typeof payload.assistantMessageId === "string"
               ? payload.assistantMessageId
               : `assistant-job-${jobId}`;
+          const skillIntent = skillIntentFromChatPayload(payload);
           const placeholderAnswer = formatCitationMarkers(
-            productizeKnJobSubmitContent(
-              String(payload.answer ?? "正在生成，请稍候…"),
-            ),
+            String(payload.answer ?? "正在生成，请稍候…"),
             mergedCitationMap,
           );
           setLiveMessagesByConversation((prev) => ({
@@ -2463,6 +2472,7 @@ export default function ConversationCenter() {
                 ephemeralAssistantMessageId: assistantId,
                 assistantContent: placeholderAnswer,
                 timeLabel: getCurrentDateTimeLabel(),
+                skillIntent,
               },
             ),
           }));
@@ -2559,10 +2569,9 @@ export default function ConversationCenter() {
           "string"
             ? (payload as { assistantMessageId: string }).assistantMessageId
             : `assistant-job-${jobId}`;
+        const skillIntent = skillIntentFromChatPayload(payload);
         const placeholderAnswer = formatCitationMarkers(
-          productizeKnJobSubmitContent(
-            String((payload as { answer?: string }).answer ?? "正在生成，请稍候…"),
-          ),
+          String((payload as { answer?: string }).answer ?? "正在生成，请稍候…"),
           mergedCitationMap,
         );
         setLiveError(null);
@@ -2576,6 +2585,7 @@ export default function ConversationCenter() {
               ephemeralAssistantMessageId: streamAssistantId ?? undefined,
               assistantContent: placeholderAnswer,
               timeLabel: getCurrentDateTimeLabel(),
+              skillIntent,
             },
           ),
         }));
@@ -3086,7 +3096,7 @@ export default function ConversationCenter() {
                   const baseAssistantDisplay = knPrepared?.displayContent ?? rawAssistantText;
                   const displayAssistantText = productizeAssistantBubbleContent(
                     baseAssistantDisplay,
-                    { pendingJobId: m.pendingJobId },
+                    { pendingJobId: m.pendingJobId, skillIntent: m.skillIntent },
                   );
                   const displayJobProgressLabel = m.pendingJobId
                     ? productizeJobProgressLabelForDisplay(m.jobProgressLabel)
@@ -3102,6 +3112,16 @@ export default function ConversationCenter() {
                         ? m.files!.map((f) => f.name).join("\n")
                         : "";
                   const assistantCopyText = displayAssistantText.trim();
+                  if (
+                    m.role === "assistant" &&
+                    (isBlankAssistantPlaceholder(m) ||
+                      (!assistantCopyText &&
+                        !streaming &&
+                        !m.pendingJobId &&
+                        !knPrepared?.html))
+                  ) {
+                    return null;
+                  }
                   return m.role === "user" ? (
                     <div key={m.id} className="flex flex-col items-end gap-3">
                       {m.files && m.files.length > 0 ? (

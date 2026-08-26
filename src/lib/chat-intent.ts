@@ -33,7 +33,7 @@ const DEEP_SKILL_PATTERNS: RegExp[] = [
   /整理文件|organize document|file index|文档索引|sort these files|有哪些文件|文件分类/u,
   /术语表|glossary|专有名词|add footnote|什么是 da|explain lfp|footnote/u,
   /查外部资料|公开信息|public info|搜一下|search for|background on|网上查|联网搜索|what can we find on/u,
-  /project[-\s]?intake|intake|入驻|五维|覆盖度|尽调(?!清单)|成熟度诊断|资料覆盖|全面分析|完整分析|深度分析|分析.{0,6}项目|项目.{0,6}分析|怎么看.{0,8}项目|帮我看|看下这个项目|new project|look at this deal|投资价值|交易结构|瓶颈|硬实力/u,
+  /project[-\s]?intake|intake|入驻|五维|覆盖度|尽调(?!清单)|成熟度诊断|资料覆盖|全面分析|完整分析|深度分析|项目.{0,6}分析|怎么看.{0,8}项目|看下这个项目|new project|look at this deal|投资价值|交易结构|瓶颈|硬实力/u,
 ];
 
 export function isDeepSkillMessage(message: string): boolean {

@@ -120,19 +120,22 @@ export function buildKnSlotBatchUserProgressLabel(
   );
 }
 
+function isKnowledgeNetworkJobIntent(skillIntent?: string | null): boolean {
+  return skillIntent === "knowledge_network";
+}
+
 /** 展示层：助手气泡正文（含 D1 存量、刷新恢复） */
 export function productizeAssistantBubbleContent(
   content: string,
-  opts?: { pendingJobId?: string | null },
+  opts?: { pendingJobId?: string | null; skillIntent?: string | null },
 ): string {
   const t = content.trim();
   if (!t) {
-    return opts?.pendingJobId
-      ? "已开始生成项目知识网络，完成后将自动更新本对话。"
-      : "";
+    if (!opts?.pendingJobId) return "";
+    return productizeKnJobSubmitContent("", opts.skillIntent);
   }
   if (opts?.pendingJobId || isTechnicalAgentJobCopy(t)) {
-    return productizeKnJobSubmitContent(t);
+    return productizeKnJobSubmitContent(t, opts?.skillIntent);
   }
   return t;
 }
@@ -156,10 +159,12 @@ export function productizeLiveChatMessageForDisplay(m: {
   content: string;
   pendingJobId?: string | null;
   jobProgressLabel?: string;
+  skillIntent?: string | null;
 }): { content: string; jobProgressLabel?: string } {
   if (m.role !== "assistant") return { content: m.content, jobProgressLabel: m.jobProgressLabel };
   const content = productizeAssistantBubbleContent(m.content, {
     pendingJobId: m.pendingJobId,
+    skillIntent: m.skillIntent,
   });
   const jobProgressLabel = m.pendingJobId
     ? productizeJobProgressLabelForDisplay(m.jobProgressLabel)
@@ -167,15 +172,39 @@ export function productizeLiveChatMessageForDisplay(m: {
   return { content, jobProgressLabel };
 }
 
+const KN_SUBMIT_COPY =
+  "已开始生成项目知识网络，将分多个阶段完成全部 13 个板块，校验通过后自动写入。";
+const KN_SUBMIT_SHORT_COPY = "已开始生成项目知识网络，完成后将自动更新本对话。";
+const DEEP_ANALYSIS_SUBMIT_COPY = "已开始深度分析，完成后将自动更新本对话。";
+
 /** 任务提交后助手气泡首段（API answer / D1 存量） */
-export function productizeKnJobSubmitContent(content: string): string {
+export function productizeKnJobSubmitContent(
+  content: string,
+  skillIntent?: string | null,
+): string {
   const t = content.trim();
-  if (!t) return "已开始生成项目知识网络，完成后将自动更新本对话。";
-  if (TECHNICAL_SUBMIT_RE.test(t)) {
-    return "已开始生成项目知识网络，将分多个阶段完成全部 13 个板块，校验通过后自动写入。";
+  const knJob = isKnowledgeNetworkJobIntent(skillIntent);
+  const technicalKn = TECHNICAL_SUBMIT_RE.test(t);
+
+  if (skillIntent && !knJob) {
+    if (!t || technicalKn || /已开始生成项目知识网络|13 个板块/i.test(t)) {
+      return DEEP_ANALYSIS_SUBMIT_COPY;
+    }
+    if (/^已提交深度分析|^深度分析已提交|后台引擎|兼容模式/i.test(t)) {
+      return DEEP_ANALYSIS_SUBMIT_COPY;
+    }
+    if (/^正在深度分析|^深度分析进行中/i.test(t)) return "正在生成，请稍候…";
+    return t;
+  }
+
+  if (!t) {
+    return knJob || technicalKn ? KN_SUBMIT_SHORT_COPY : DEEP_ANALYSIS_SUBMIT_COPY;
+  }
+  if (technicalKn) {
+    return KN_SUBMIT_COPY;
   }
   if (/^已提交深度分析|^深度分析已提交|后台引擎|兼容模式/i.test(t)) {
-    return "已开始深度分析，完成后将自动更新本对话。";
+    return DEEP_ANALYSIS_SUBMIT_COPY;
   }
   if (/^正在深度分析|^深度分析进行中/i.test(t)) return "正在生成，请稍候…";
   return t;

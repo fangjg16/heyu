@@ -12,6 +12,8 @@ export type LiveChatMessage = {
   projectKnowledgeNetworkVersion?: number;
   /** Hermes 异步任务 ID，轮询完成后清除 */
   pendingJobId?: string;
+  /** 提交任务时的 skillIntent（展示层区分知识网络 vs 深度分析） */
+  skillIntent?: string;
   /** 轮询接口返回的实时进度文案 */
   jobProgressLabel?: string;
   /** SSE 流式生成中：保留「思考中」条，下方同步追加正文 */

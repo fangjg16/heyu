@@ -127,7 +127,7 @@ const INTENT_RULES: IntentRule[] = [
   { intent: "public_info_search", re: /查外部资料|公开信息|public info|搜一下|search for|background on|网上查|联网搜索|what can we find on/u },
   {
     intent: "project_intake",
-    re: /project[-\s]?intake|intake|入驻|五维|覆盖度|尽调(?!清单)|成熟度诊断|资料覆盖|全面分析|完整分析|深度分析|分析.{0,6}项目|项目.{0,6}分析|怎么看.{0,8}项目|帮我看|看下这个项目|new project|look at this deal|投资价值|交易结构|瓶颈|硬实力|项目类型|project[-\s]?type|maturity\s+diagnosis|两因素|来源多样性|\/intake/u,
+    re: /project[-\s]?intake|intake|入驻|五维|覆盖度|尽调(?!清单)|成熟度诊断|资料覆盖|全面分析|完整分析|深度分析|项目.{0,6}分析|怎么看.{0,8}项目|看下这个项目|new project|look at this deal|投资价值|交易结构|瓶颈|硬实力|项目类型|project[-\s]?type|maturity\s+diagnosis|两因素|来源多样性|\/intake/u,
   },
 ];
 
