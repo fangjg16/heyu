@@ -1390,6 +1390,8 @@ export default function KnowledgeChapterDraftReviewPage() {
                     </p>
                   ) : null}
 
+                  {canPublish ? (
+                    <>
                   <button
                     type="button"
                     disabled={!canPublishSelected || editing}
@@ -1419,6 +1421,8 @@ export default function KnowledgeChapterDraftReviewPage() {
                       ? "发布中…"
                       : `发布全部变更（${changedCount}）`}
                   </button>
+                    </>
+                  ) : null}
                   <button
                     type="button"
                     disabled={
@@ -1428,7 +1432,11 @@ export default function KnowledgeChapterDraftReviewPage() {
                       runStatus === "published"
                     }
                     onClick={() => void onDiscard()}
-                    className="mt-2.5 flex h-10 w-full items-center justify-center rounded-[11px] border border-[rgba(78,66,57,0.18)] text-[13.5px] font-medium text-[#1F2423] hover:bg-[rgba(78,66,57,0.04)] disabled:cursor-not-allowed disabled:opacity-45"
+                    className={
+                      canPublish
+                        ? "mt-2.5 flex h-10 w-full items-center justify-center rounded-[11px] border border-[rgba(78,66,57,0.18)] text-[13.5px] font-medium text-[#1F2423] hover:bg-[rgba(78,66,57,0.04)] disabled:cursor-not-allowed disabled:opacity-45"
+                        : "mt-5 flex h-10 w-full items-center justify-center rounded-[11px] border border-[rgba(78,66,57,0.18)] text-[13.5px] font-medium text-[#1F2423] hover:bg-[rgba(78,66,57,0.04)] disabled:cursor-not-allowed disabled:opacity-45"
+                    }
                   >
                     {busy === "discard" ? "处理中…" : "放弃草案"}
                   </button>
