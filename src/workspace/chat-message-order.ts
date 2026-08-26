@@ -9,6 +9,16 @@ function timestampFromMessageId(id: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** 无正文、未在流式/任务中的助手占位，渲染出来就是空小泡泡 */
+export function isBlankAssistantPlaceholder(m: LiveChatMessage): boolean {
+  if (m.role !== "assistant") return false;
+  if (m.isStreaming) return false;
+  if (m.pendingJobId) return false;
+  if (m.knowledgeNetworkHtml?.trim()) return false;
+  if ((m.files?.length ?? 0) > 0) return false;
+  return !String(m.content ?? "").trim();
+}
+
 function compareMessages(a: LiveChatMessage, b: LiveChatMessage): number {
   const ai = a.sortIndex;
   const bi = b.sortIndex;
@@ -31,7 +41,9 @@ function compareMessages(a: LiveChatMessage, b: LiveChatMessage): number {
 export function sortMessagesChronologically(
   messages: LiveChatMessage[],
 ): LiveChatMessage[] {
-  return [...messages].sort(compareMessages);
+  return [...messages]
+    .filter((m) => !isBlankAssistantPlaceholder(m))
+    .sort(compareMessages);
 }
 
 export function sortMessagesByConversation(

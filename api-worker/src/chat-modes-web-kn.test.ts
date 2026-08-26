@@ -41,6 +41,19 @@ describe("due-diligence chat intents", () => {
     expect(detectSkillIntent("帮我做个尽调")).toBe("project_intake");
   });
 
+  it("does not treat casual 创业搞头 questions as intake or knowledge network", () => {
+    expect(
+      detectSkillIntent("请帮我分析一下这个项目创业有没有搞头"),
+    ).toBe("standard");
+    expect(detectSkillIntent("这个项目创业有没有搞头")).toBe("standard");
+  });
+
+  it("still routes explicit depth / intake phrasing", () => {
+    expect(detectSkillIntent("请做一次深度分析")).toBe("project_intake");
+    expect(detectSkillIntent("全面分析这个项目")).toBe("project_intake");
+    expect(detectSkillIntent("看下这个项目")).toBe("project_intake");
+  });
+
   it("routes newer specialist skills instead of project-intake", () => {
     expect(detectSkillIntent("做一份合规分析")).toBe("compliance_check");
     expect(detectSkillIntent("帮我看竞品分析")).toBe("startup_competitors");
