@@ -73,6 +73,10 @@ import {
 } from "@/lib/project-file-source";
 import { resolveFileTopic } from "@/lib/file-topic";
 import {
+  collectDroppedFiles,
+  snapshotDroppedEntries,
+} from "@/lib/collect-dropped-files";
+import {
   relativePathFromWebkitFile,
   unzipProjectPackageFiles,
 } from "@/lib/unzip-project-files";
@@ -152,7 +156,8 @@ function shouldRefetchParseSummary(summary: string): boolean {
 }
 
 function hasWebkitPath(file: File): boolean {
-  return Boolean((file as File & { webkitRelativePath?: string }).webkitRelativePath);
+  const path = (file as File & { webkitRelativePath?: string }).webkitRelativePath ?? "";
+  return path.includes("/");
 }
 
 function isZipFile(file: File): boolean {
@@ -954,9 +959,11 @@ export function ProjectMaterialsSection({
   const acceptTreeDrop = useCallback(
     (dataTransfer: DataTransfer, targetFolder: string) => {
       if (!canManage || !useLive) return;
+      const bucket = sourceBucketFromVirtualPath(targetFolder);
       if (
-        sourceBucketFromVirtualPath(targetFolder) === "session" ||
-        sourceBucketFromVirtualPath(targetFolder) === "issuer" ||
+        bucket === "session" ||
+        bucket === "issuer" ||
+        bucket === "ai" ||
         isTopicPath(targetFolder)
       ) {
         return;
@@ -972,9 +979,30 @@ export function ProjectMaterialsSection({
         }
         return;
       }
-      if (dataTransfer.files?.length) {
-        void processUploadSelection(dataTransfer.files, targetFolder);
-      }
+      // webkitGetAsEntry 必须在 drop 回调里同步取出，await 之后浏览器可能清空 items
+      const snapshot = snapshotDroppedEntries(dataTransfer);
+      if (!snapshot.entries.length && !snapshot.files.length) return;
+      void (async () => {
+        const readingFolder = snapshot.entries.some((entry) => entry.isDirectory);
+        if (readingFolder) {
+          setError(null);
+          setUnzipHint("正在读取文件夹…");
+        }
+        try {
+          const files = await collectDroppedFiles(snapshot);
+          setUnzipHint(null);
+          if (!files.length) {
+            setError(
+              "未能读取拖入的文件夹。请改用「选择文件夹」，或把文件夹里的文件拖进来。",
+            );
+            return;
+          }
+          await processUploadSelection(files, targetFolder);
+        } catch (e) {
+          setUnzipHint(null);
+          setError(e instanceof Error ? e.message : "读取拖入的文件夹失败");
+        }
+      })();
     },
     [canManage, liveFiles, onMoveFile, processUploadSelection, useLive],
   );
@@ -1288,10 +1316,12 @@ export function ProjectMaterialsSection({
         if (!canManage || !useLive) return;
         e.preventDefault();
         e.stopPropagation();
-        const target =
-            dragOverPath === null || dragOverPath === ""
-            ? PROJECT_SOURCE_PATH
-            : dragOverPath;
+        const hovered = dragOverPath && dragOverPath !== "" ? dragOverPath : null;
+        const selected =
+          selection.kind === "folder" && selection.path
+            ? selection.path
+            : PROJECT_SOURCE_PATH;
+        const target = hovered ?? selected;
         setDragOverPath(null);
         acceptTreeDrop(e.dataTransfer, target);
       }}
@@ -1416,17 +1446,7 @@ export function ProjectMaterialsSection({
                     setExpanded={setExpanded}
                     setSelection={setSelection}
                     onSelectFile={selectFile}
-                    onDropFiles={(files, path) => {
-                      const bucket = sourceBucketFromVirtualPath(path);
-                      if (bucket === "session" || bucket === "issuer" || bucket === "ai" || isTopicPath(path)) {
-                        return;
-                      }
-                      void processUploadSelection(files, path);
-                    }}
-                    onDropDocument={(fileId, path) => {
-                      const file = liveFiles?.find((f) => f.id === fileId);
-                      if (file) void onMoveFile(file, path);
-                    }}
+                    onDropTransfer={acceptTreeDrop}
                   />
                 ))}
               </div>
@@ -1847,8 +1867,7 @@ function TreeRow({
   setExpanded,
   setSelection,
   onSelectFile,
-  onDropFiles,
-  onDropDocument,
+  onDropTransfer,
 }: {
   node: FileTreeNode;
   depth: number;
@@ -1860,8 +1879,7 @@ function TreeRow({
   setExpanded: Dispatch<SetStateAction<Record<string, boolean>>>;
   setSelection: (s: Selection) => void;
   onSelectFile: (file: ProjectFileRecord) => void;
-  onDropFiles: (files: FileList, path: string) => void;
-  onDropDocument: (fileId: string, path: string) => void;
+  onDropTransfer: (dataTransfer: DataTransfer, path: string) => void;
 }) {
   if (node.kind === "file") {
     const selected = selection.kind === "file" && selection.id === node.id;
@@ -1966,17 +1984,7 @@ function TreeRow({
           e.preventDefault();
           e.stopPropagation();
           setDragOverPath(null);
-          const raw = e.dataTransfer.getData(DND_DOC_MIME);
-          if (raw) {
-            try {
-              const payload = JSON.parse(raw) as { id?: string };
-              if (payload.id) onDropDocument(payload.id, node.path);
-            } catch {
-              /* ignore */
-            }
-            return;
-          }
-          onDropFiles(e.dataTransfer.files, node.path);
+          onDropTransfer(e.dataTransfer, node.path);
         }}
       >
         <span className="w-3 shrink-0 text-center text-[10px] text-[#9aa09c]">
@@ -2001,8 +2009,7 @@ function TreeRow({
               setExpanded={setExpanded}
               setSelection={setSelection}
               onSelectFile={onSelectFile}
-              onDropFiles={onDropFiles}
-              onDropDocument={onDropDocument}
+              onDropTransfer={onDropTransfer}
             />
           ))
         : null}
