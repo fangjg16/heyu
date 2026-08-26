@@ -827,7 +827,7 @@ export function ProjectKnowledgeNetworkSection({
           </div>
           ) : canUpdate ? (
             <p className="rounded-xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.9)] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-[#59625F]">
-              更新本章会生成草案并通知项目管理员审核，不会直接改正式版。
+              更新本章会生成草案。改完后在审核页提交给项目管理员审批，不会直接改正式版。
             </p>
           ) : null}
 

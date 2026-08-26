@@ -147,6 +147,36 @@ async function assertCanWrite(
   return assertCanUpdate(env, userId, projectId, createdBy);
 }
 
+async function notifyProjectAdminsOfDraftReview(
+  env: Env,
+  input: {
+    project: { id: string; name: string; createdBy: string | null };
+    actorUserId: string;
+    runId: string;
+    scope: string;
+    sectionIds?: string[];
+  },
+): Promise<void> {
+  const ids = input.sectionIds ?? [];
+  const scopeLabel =
+    input.scope === "full"
+      ? "全部章节"
+      : ids.length === 1 && ids[0] === "project-overview"
+        ? "项目概览"
+        : "章节";
+  await notifyProjectAdminsAndCores(env, {
+    projectId: input.project.id,
+    projectName: input.project.name,
+    createdBy: input.project.createdBy,
+    actorUserId: input.actorUserId,
+    kind: "kn_draft",
+    recipients: "admin",
+    title: "知识网络待审核",
+    summary: `{actor} 提交了「${input.project.name}」的${scopeLabel}更新，请审核发布`,
+    href: `/app/projects/${encodeURIComponent(input.project.id)}/knowledge/review/${encodeURIComponent(input.runId)}`,
+  });
+}
+
 const RESEARCH_SET = new Set<string>(FULL_UPDATE_SECTION_IDS);
 /** 可发起单章/概览草案的主 section */
 const SECTION_DRAFT_SET = new Set<string>([
@@ -504,34 +534,6 @@ export async function handleCreateChapterDraftRun(
     sectionIds: wantedIds,
   });
   kickDraftRunGeneration(env, ctx, projectId, run.id, userId);
-  if (
-    !(await canPublishProjectKnowledgeNetwork(
-      env,
-      userId,
-      projectId,
-      project.createdBy,
-    ))
-  ) {
-    const scopeLabel =
-      scope === "full"
-        ? "全部章节"
-        : sectionId === "project-overview"
-          ? "项目概览"
-          : "章节";
-    void notifyProjectAdminsAndCores(env, {
-      projectId,
-      projectName: project.name,
-      createdBy: project.createdBy,
-      actorUserId: userId,
-      kind: "kn_draft",
-      recipients: "admin",
-      title: "知识网络待审核",
-      summary: `{actor} 提交了「${project.name}」的${scopeLabel}更新，请审核发布`,
-      href: `/app/projects/${encodeURIComponent(projectId)}/knowledge/review/${encodeURIComponent(run.id)}`,
-    }).catch(() => {
-      /* 通知失败不阻断生成 */
-    });
-  }
   const items = await listDraftItems(env.DB, run.id);
   return json({
     ok: true,
@@ -1199,6 +1201,75 @@ export async function handleDiscardChapterDraftRun(
 
   await setDraftRunStatus(env.DB, runId, "discarded");
   return json({ ok: true, runId, status: "discarded" });
+}
+
+/** POST .../chapter-draft-runs/:runId/submit — Core 提交给项目管理员审批 */
+export async function handleSubmitChapterDraftRun(
+  env: Env,
+  projectId: string,
+  runId: string,
+  userIdRaw: string | null,
+): Promise<Response> {
+  const userId = normalizeUserId(userIdRaw);
+  if (!userId) return json({ error: "缺少 userId" }, 400);
+
+  const project = await getProjectById(env, projectId);
+  if (!project) return json({ error: "项目不存在" }, 404);
+
+  const denied = await assertCanWrite(
+    env,
+    userId,
+    projectId,
+    project.createdBy,
+  );
+  if (denied) return denied;
+
+  if (
+    await canPublishProjectKnowledgeNetwork(
+      env,
+      userId,
+      projectId,
+      project.createdBy,
+    )
+  ) {
+    return json(
+      {
+        error: "项目管理员可直接发布，无需提交审批",
+        code: "PUBLISH_DIRECTLY",
+      },
+      400,
+    );
+  }
+
+  const run = await getDraftRun(env.DB, runId);
+  if (!run || run.projectId !== projectId) {
+    return json({ error: "草案 run 不存在" }, 404);
+  }
+  if (run.status === "published") {
+    return json({ error: "该草案已发布", code: "ALREADY_PUBLISHED" }, 409);
+  }
+  if (run.status === "discarded") {
+    return json({ error: "该草案已放弃", code: "ALREADY_DISCARDED" }, 409);
+  }
+  if (run.status === "generating") {
+    return json(
+      { error: "草案仍在生成中，请完成后再提交审批", code: "STILL_GENERATING" },
+      409,
+    );
+  }
+
+  const items = await listDraftItems(env.DB, runId);
+  const sectionIds = items
+    .map((i) => i.sectionId)
+    .filter((id) => id !== "sources" && id !== "glossary" && id !== "project-graph");
+  await notifyProjectAdminsOfDraftReview(env, {
+    project,
+    actorUserId: userId,
+    runId,
+    scope: run.scope,
+    sectionIds,
+  });
+  return json({ ok: true, runId, submitted: true });
 }
 
 /** GET /api/projects/:id/knowledge-chapter-versions */

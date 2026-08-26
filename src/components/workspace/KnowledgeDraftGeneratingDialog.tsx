@@ -103,7 +103,7 @@ export function KnowledgeDraftGeneratingDialog({
                 <span className="font-medium text-[#1F2423]">
                   当前正式版本不会被覆盖
                 </span>
-                ；完成后可进入审核页对照差异，确认后再发布。点「后台继续」可关闭本窗口，生成仍会继续。
+                ；完成后可进入审核页对照差异。正式版须由项目管理员发布。点「后台继续」可关闭本窗口，生成仍会继续。
               </>
             ) : (
               <>
@@ -111,7 +111,7 @@ export function KnowledgeDraftGeneratingDialog({
                 <span className="font-medium text-[#1F2423]">
                   当前正式版本不会被覆盖
                 </span>
-                ；全部完成后可进入审核页对照差异并发布为新版本。点「后台继续」可关闭本窗口，生成仍会继续。
+                ；全部完成后可进入审核页对照差异。正式版须由项目管理员发布。点「后台继续」可关闭本窗口，生成仍会继续。
               </>
             )}
           </p>

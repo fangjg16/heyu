@@ -53,6 +53,7 @@ import {
   handlePutChapterDraftSection,
   handleReviseChapterDraftSection,
   handleRollbackKnowledgeChapterVersion,
+  handleSubmitChapterDraftRun,
 } from "./project-knowledge-chapter-draft-routes";
 import { handleListAdminChapterReviseLogs } from "./chapter-revise-logs-admin-routes";
 import { handleListAdminOperationLogs } from "./operation-logs-admin-routes";
@@ -362,6 +363,18 @@ export async function routeAuthedApi(
       runId,
       authUserId,
     );
+  }
+
+  if (
+    /^\/api\/projects\/[^/]+\/chapter-draft-runs\/[^/]+\/submit$/u.test(
+      path,
+    ) &&
+    request.method === "POST"
+  ) {
+    const parts = path.split("/");
+    const projectId = decodePathProjectId(parts[3] ?? "");
+    const runId = parts[5] ?? "";
+    return handleSubmitChapterDraftRun(env, projectId, runId, authUserId);
   }
 
   if (

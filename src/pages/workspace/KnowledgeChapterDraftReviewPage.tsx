@@ -25,6 +25,7 @@ import {
   publishChapterDraftRun,
   reviseChapterDraftSection,
   saveChapterDraftSection,
+  submitChapterDraftRun,
   type ChapterDraftItem,
 } from "@/lib/project-api";
 import {
@@ -170,7 +171,7 @@ export default function KnowledgeChapterDraftReviewPage() {
     RESEARCH_CHAPTERS[0]!.id,
   );
   const [mode, setMode] = useState<"side" | "diff">("side");
-  const [busy, setBusy] = useState<"publish" | "discard" | null>(null);
+  const [busy, setBusy] = useState<"publish" | "discard" | "submit" | null>(null);
   const [confirm, setConfirm] = useState<ConfirmMode>(null);
   const [publishBump, setPublishBump] = useState<ChapterVersionBump>("minor");
   const [liveHasHtml, setLiveHasHtml] = useState<Record<string, boolean>>(
@@ -674,6 +675,29 @@ export default function KnowledgeChapterDraftReviewPage() {
       navigate(`/app/projects/${projectId}/knowledge`, { replace: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : "放弃失败");
+      setBusy(null);
+    }
+  };
+
+  const onSubmitForReview = async () => {
+    if (canPublish || !canUpdate || busy) return;
+    if (runStatus === "generating") return;
+    if (
+      !window.confirm(
+        "将本草案提交给项目管理员审批？正式版不会立刻改动，项目管理员审核后才会发布。",
+      )
+    ) {
+      return;
+    }
+    setBusy("submit");
+    setError(null);
+    setNotice(null);
+    try {
+      await submitChapterDraftRun(projectId, runId, userId);
+      setNotice("已提交项目管理员审批。你可继续改写，改完后可再次提交。");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "提交审批失败");
+    } finally {
       setBusy(null);
     }
   };
@@ -1382,7 +1406,7 @@ export default function KnowledgeChapterDraftReviewPage() {
 
                   {!canPublish && canUpdate ? (
                     <p className="mt-4 text-[12px] leading-relaxed text-[#59625F]">
-                      已通知项目管理员审核。你可以继续改写或放弃草案；发布须由项目管理员操作。
+                      改写完成后点击「提交审批」，项目管理员会在通知里收到本草案。发布须由项目管理员操作。
                     </p>
                   ) : !canUpdate ? (
                     <p className="mt-4 text-[12px] leading-relaxed text-[#969E9A]">
@@ -1422,6 +1446,25 @@ export default function KnowledgeChapterDraftReviewPage() {
                       : `发布全部变更（${changedCount}）`}
                   </button>
                     </>
+                  ) : canUpdate ? (
+                    <button
+                      type="button"
+                      disabled={
+                        actionLocked ||
+                        editing ||
+                        runStatus === "generating" ||
+                        runStatus === "published" ||
+                        runStatus === "discarded"
+                      }
+                      onClick={() => void onSubmitForReview()}
+                      className="mt-5 flex h-10 w-full items-center justify-center rounded-[11px] bg-[#A06358] text-[13.5px] font-medium text-white hover:bg-[#8F564C] disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      {busy === "submit"
+                        ? "提交中…"
+                        : runStatus === "generating"
+                          ? "生成完成后可提交审批"
+                          : "提交审批"}
+                    </button>
                   ) : null}
                   <button
                     type="button"

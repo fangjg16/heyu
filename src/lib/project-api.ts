@@ -1599,6 +1599,24 @@ export async function publishChapterDraftRun(
   };
 }
 
+/** Core 提交草案给项目管理员审批（不会写入正式版） */
+export async function submitChapterDraftRun(
+  projectId: string,
+  runId: string,
+  userId: string,
+): Promise<void> {
+  const q = new URLSearchParams({ userId });
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/chapter-draft-runs/${encodeURIComponent(runId)}/submit?${q}`,
+    { method: "POST" },
+  );
+  const data = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    code?: string;
+  };
+  if (!res.ok) throw new Error(data.error || `提交审批失败（${res.status}）`);
+}
+
 export async function discardChapterDraftRun(
   projectId: string,
   runId: string,
