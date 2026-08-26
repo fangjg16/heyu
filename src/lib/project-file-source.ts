@@ -34,6 +34,10 @@ export const SOURCE_BUCKETS: {
 ];
 
 const ISSUER_PREFIXES = ["项目协作方上传", "项目方上传"];
+/** 长前缀在前：避免把「项目上传的/…」误剥成「的/…」 */
+const PROJECT_PREFIXES = [PROJECT_UPLOAD_FOLDER, "项目上传"].filter(
+  (p, i, all) => all.findIndex((x) => x === p) === i,
+);
 
 export function fileSourceBucket(file: ProjectFileRecord): FileSourceBucket {
   if (file.scope === "session") return "session";
@@ -54,18 +58,23 @@ function stripPrefix(path: string, prefix: string): string {
   return p;
 }
 
+function stripFirstMatching(path: string, prefixes: string[]): string {
+  const p = normalizeRelativePath(path);
+  const matched = prefixes
+    .filter((prefix) => p === prefix || p.startsWith(`${prefix}/`))
+    .sort((a, b) => b.length - a.length)[0];
+  return matched ? stripPrefix(p, matched) : p;
+}
+
 export function stripSourcePrefix(
   path: string | null | undefined,
   bucket: FileSourceBucket,
 ): string {
   const p = normalizeRelativePath(path);
-  if (bucket === "project") return stripPrefix(p, PROJECT_UPLOAD_FOLDER);
+  if (bucket === "project") return stripFirstMatching(p, PROJECT_PREFIXES);
   if (bucket === "session") return stripPrefix(p, SESSION_UPLOAD_FOLDER);
   if (bucket === "ai") return stripPrefix(p, AI_GENERATED_FOLDER);
-  for (const prefix of ISSUER_PREFIXES) {
-    if (p === prefix || p.startsWith(`${prefix}/`)) return stripPrefix(p, prefix);
-  }
-  return p;
+  return stripFirstMatching(p, ISSUER_PREFIXES);
 }
 
 export function isSourceRootPath(path: string): boolean {
