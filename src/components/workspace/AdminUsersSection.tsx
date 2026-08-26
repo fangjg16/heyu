@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ImagePlus, KeyRound, Loader2, Pencil, Plus, RotateCcw, Trash2, Users } from "lucide-react";
+import { KeyRound, Loader2, Pencil, Plus, RotateCcw, Trash2, Users } from "lucide-react";
 import {
   createAdminWorkspaceUser,
   deleteAdminUserProjectMembership,
@@ -14,7 +14,6 @@ import {
 } from "@/lib/admin-users-api";
 import { fetchWorkspaceUsersDirectory, fetchAuthMe } from "@/lib/api-auth";
 import { isUserAccountDisabled } from "@/lib/account-status";
-import { resizeImageToJpegDataUrl } from "@/lib/resize-avatar";
 import {
   fetchProjectsFromApi,
   updateProjectPermissions,
@@ -45,7 +44,6 @@ type FormState = {
   username: string;
   displayName: string;
   orgTitle: string;
-  avatarUrl: string;
   isPlatformAdmin: boolean;
   status: "active" | "disabled";
   password: string;
@@ -66,7 +64,6 @@ const emptyForm = (): FormState => ({
   username: "",
   displayName: "",
   orgTitle: "",
-  avatarUrl: "",
   isPlatformAdmin: false,
   status: "active",
   password: "",
@@ -97,8 +94,6 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
     AdminUserProjectMembership[]
   >([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
-  const avatarInputRef = useRef<HTMLInputElement>(null);
-  const [avatarBusy, setAvatarBusy] = useState(false);
 
   const orgSuggestions = useMemo(() => {
     const fromUsers = users
@@ -180,7 +175,6 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
       username: u.username,
       displayName: u.displayName,
       orgTitle: stripOrgRoleLabel(u.orgTitle),
-      avatarUrl: u.avatarUrl ?? "",
       isPlatformAdmin: u.isPlatformAdmin,
       status: isUserAccountDisabled(u) ? "disabled" : "active",
       password: "",
@@ -257,7 +251,6 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
           username: form.username,
           displayName: form.displayName,
           orgTitle: stripOrgRoleLabel(form.orgTitle),
-          avatarUrl: form.avatarUrl,
           isPlatformAdmin: form.isPlatformAdmin,
           status: form.status,
         });
@@ -273,7 +266,6 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
           password: form.password,
           displayName: form.displayName,
           orgTitle: stripOrgRoleLabel(form.orgTitle),
-          avatarUrl: form.avatarUrl,
           isPlatformAdmin: form.isPlatformAdmin,
         });
         setHint("用户已创建");
@@ -373,21 +365,6 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
         p.projectId === projectId && !p.isCreator ? { ...p, role } : p,
       ),
     );
-  };
-
-  const onPickAvatar = async (file: File | undefined) => {
-    if (!file) return;
-    setAvatarBusy(true);
-    setError(null);
-    try {
-      const avatarUrl = await resizeImageToJpegDataUrl(file);
-      setForm((f) => ({ ...f, avatarUrl }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setAvatarBusy(false);
-      if (avatarInputRef.current) avatarInputRef.current.value = "";
-    }
   };
 
   return (
@@ -595,58 +572,6 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
                       ))}
                     </datalist>
                   </label>
-                  <div className="block text-[11px] font-medium text-muted-foreground">
-                    头像
-                    <div className="mt-1 flex items-center gap-3">
-                      <UserAvatar
-                        user={{
-                          displayName: form.displayName || form.username,
-                          avatarUrl: form.avatarUrl,
-                        }}
-                        className="h-12 w-12 text-sm"
-                        fallbackClassName="bg-[hsl(var(--wine-deep))] text-white"
-                      />
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <input
-                          ref={avatarInputRef}
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) =>
-                            void onPickAvatar(e.target.files?.[0])
-                          }
-                        />
-                        <button
-                          type="button"
-                          disabled={saving || avatarBusy}
-                          onClick={() => avatarInputRef.current?.click()}
-                          className="inline-flex items-center gap-1 rounded-full border border-border/80 bg-white px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-muted/40 disabled:opacity-50"
-                        >
-                          {avatarBusy ? (
-                            <Loader2
-                              className="h-3 w-3 animate-spin"
-                              aria-hidden
-                            />
-                          ) : (
-                            <ImagePlus className="h-3 w-3" aria-hidden />
-                          )}
-                          上传头像
-                        </button>
-                        {form.avatarUrl ? (
-                          <button
-                            type="button"
-                            disabled={saving || avatarBusy}
-                            onClick={() =>
-                              setForm((f) => ({ ...f, avatarUrl: "" }))
-                            }
-                            className="inline-flex items-center gap-1 rounded-full border border-border/80 bg-white px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted/40 disabled:opacity-50"
-                          >
-                            移除
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
                   {!editing ? (
                     <label className="block text-[11px] font-medium text-muted-foreground">
                       初始密码（至少 8 位）

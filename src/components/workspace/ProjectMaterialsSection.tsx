@@ -44,7 +44,6 @@ import {
   moveProjectFile,
   PROJECT_UPLOAD_FOLDER,
   shareFileWithIssuer,
-  uploadProjectPackageFile,
   type ProjectFileRecord,
 } from "@/lib/project-api";
 import {
@@ -76,11 +75,17 @@ import {
   relativePathFromWebkitFile,
   unzipProjectPackageFiles,
 } from "@/lib/unzip-project-files";
+import {
+  enqueueProjectUpload,
+  uploadHintForProject,
+  useUploadQueue,
+} from "@/workspace/upload-queue";
 
 const DND_DOC_MIME = "application/x-taizi-document";
 
 type ProjectMaterialsSectionProps = {
   projectId: string;
+  projectName?: string;
   userId: string;
   canManage?: boolean;
   canDownload?: boolean;
@@ -424,6 +429,7 @@ async function downloadFileBlob(
 
 export function ProjectMaterialsSection({
   projectId,
+  projectName,
   userId,
   canManage = true,
   canDownload = false,
@@ -435,7 +441,8 @@ export function ProjectMaterialsSection({
 
   const [liveFiles, setLiveFiles] = useState<ProjectFileRecord[] | null>(null);
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [folderBusy, setFolderBusy] = useState(false);
+  const [unzipHint, setUnzipHint] = useState<string | null>(null);
   const [uploadHint, setUploadHint] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -462,6 +469,15 @@ export function ProjectMaterialsSection({
   const [parsingId, setParsingId] = useState<string | null>(null);
 
   const useLive = ENABLE_LIVE_CHAT && Boolean(AI_CHAT_ENDPOINT);
+  const uploadSnapshot = useUploadQueue();
+  const uploading = uploadSnapshot.jobs.some(
+    (j) =>
+      j.projectId === projectId &&
+      (j.status === "queued" || j.status === "uploading"),
+  );
+  const queueHint = uploadHintForProject(projectId);
+  const displayUploadHint = unzipHint || queueHint || uploadHint;
+  const handledJobIdsRef = useRef<Set<string>>(new Set());
 
   const reload = useCallback(async () => {
     if (!useLive || !userId) {
@@ -577,139 +593,121 @@ export function ProjectMaterialsSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅随分类方式切换
   }, [facet]);
 
-  const uploadMany = useCallback(
-    async (items: { file: File; relativePath: string }[]): Promise<void> => {
+  const enqueueItems = useCallback(
+    (items: { file: File; relativePath: string }[]) => {
       if (!items.length || !useLive || !canManage) return;
-      setUploading(true);
       setError(null);
-      setUploadHint(null);
-      const errors: string[] = [];
-      const parseQueue: string[] = [];
-      let ok = 0;
-      try {
-        for (let i = 0; i < items.length; i++) {
-          const item = items[i]!;
-          setUploadHint(`上传中 ${i + 1}/${items.length}：${item.file.name}`);
+      enqueueProjectUpload({
+        projectId,
+        projectName: projectName?.trim() || projectId,
+        userId,
+        items,
+      });
+      const folders = new Set(
+        items.map((it) =>
+          toVirtualFolder(normalizeRelativePath(it.relativePath), "project"),
+        ),
+      );
+      if (folders.size > 0) {
+        setExpanded((prev) => {
+          const next = { ...prev };
+          for (const f of folders) next[f] = true;
+          next[PROJECT_SOURCE_PATH] = true;
+          return next;
+        });
+      }
+    },
+    [canManage, projectId, projectName, useLive, userId],
+  );
+
+  const watchParseIds = useCallback(
+    (parseQueue: string[], ok: number) => {
+      if (parseQueue.length === 0) return;
+      setParsedById((prev) => {
+        const next = { ...prev };
+        for (const id of parseQueue) {
+          if (next[id]?.status === "parsed") continue;
+          next[id] = {
+            summary: "上传后自动解析中…",
+            chunkCount: 0,
+            status: "parsing",
+            keyPoints: [],
+            refs: [],
+            usedFor: [],
+          };
+        }
+        return next;
+      });
+      void (async () => {
+        for (const docId of parseQueue) {
           try {
-            const uploaded = await uploadProjectPackageFile(
+            const result = await fetchProjectFileParseSummary(
               projectId,
+              docId,
               userId,
-              item.file,
-              { relativePath: item.relativePath },
             );
-            ok += 1;
-            if (
-              uploaded.documentId &&
-              (uploaded.parseQueued || uploaded.parsed) &&
-              item.file.name !== ".keep"
-            ) {
-              parseQueue.push(uploaded.documentId);
+            setParsedById((prev) => ({
+              ...prev,
+              [docId]: {
+                summary: result.summary,
+                chunkCount: result.chunkCount,
+                status: result.parsed ? "parsed" : "failed",
+                documentType: result.documentType,
+                keyPoints: result.keyPoints ?? [],
+                refs: result.refs ?? [],
+                usedFor: result.usedFor ?? [],
+              },
+            }));
+            if (result.parsed) {
+              setLiveFiles((prev) =>
+                (prev ?? []).map((f) =>
+                  f.id === docId ? { ...f, parsed: true } : f,
+                ),
+              );
             }
           } catch (e) {
-            errors.push(
-              `${item.file.name}: ${e instanceof Error ? e.message : String(e)}`,
-            );
-          }
-        }
-        await reload();
-        if (ok > 0) {
-          const folders = new Set(
-            items.map((it) =>
-              toVirtualFolder(normalizeRelativePath(it.relativePath), "project"),
-            ),
-          );
-          if (folders.size > 0) {
-            setExpanded((prev) => {
-              const next = { ...prev };
-              for (const f of folders) next[f] = true;
-              next[PROJECT_SOURCE_PATH] = true;
-              return next;
-            });
-          }
-        }
-        if (errors.length > 0) {
-          setError(
-            `已上传 ${ok}/${items.length}。失败：${errors.slice(0, 3).join("；")}${
-              errors.length > 3 ? "…" : ""
-            }`,
-          );
-        } else {
-          setUploadHint(
-            parseQueue.length > 0
-              ? `已上传 ${ok} 个文件，正在自动解析 ${parseQueue.length} 个…`
-              : `已上传 ${ok} 个文件`,
-          );
-        }
-        if (parseQueue.length > 0) {
-          setParsedById((prev) => {
-            const next = { ...prev };
-            for (const id of parseQueue) {
-              if (next[id]?.status === "parsed") continue;
-              next[id] = {
-                summary: "上传后自动解析中…",
+            setParsedById((prev) => ({
+              ...prev,
+              [docId]: {
+                summary: e instanceof Error ? e.message : String(e),
                 chunkCount: 0,
-                status: "parsing",
+                status: "failed",
                 keyPoints: [],
                 refs: [],
                 usedFor: [],
-              };
-            }
-            return next;
-          });
-          void (async () => {
-            for (const docId of parseQueue) {
-              try {
-                const result = await fetchProjectFileParseSummary(
-                  projectId,
-                  docId,
-                  userId,
-                );
-                setParsedById((prev) => ({
-                  ...prev,
-                  [docId]: {
-                    summary: result.summary,
-                    chunkCount: result.chunkCount,
-                    status: result.parsed ? "parsed" : "failed",
-                    documentType: result.documentType,
-                    keyPoints: result.keyPoints ?? [],
-                    refs: result.refs ?? [],
-                    usedFor: result.usedFor ?? [],
-                  },
-                }));
-                if (result.parsed) {
-                  setLiveFiles((prev) =>
-                    (prev ?? []).map((f) =>
-                      f.id === docId ? { ...f, parsed: true } : f,
-                    ),
-                  );
-                }
-              } catch (e) {
-                setParsedById((prev) => ({
-                  ...prev,
-                  [docId]: {
-                    summary: e instanceof Error ? e.message : String(e),
-                    chunkCount: 0,
-                    status: "failed",
-                    keyPoints: [],
-                    refs: [],
-                    usedFor: [],
-                  },
-                }));
-              }
-            }
-            setUploadHint((hint) =>
-              hint?.includes("自动解析")
-                ? `已上传 ${ok} 个文件，自动解析完成`
-                : hint,
-            );
-          })();
+              },
+            }));
+          }
         }
-      } finally {
-        setUploading(false);
-      }
+        setUploadHint((hint) =>
+          hint?.includes("自动解析")
+            ? `已上传 ${ok} 个文件，自动解析完成`
+            : hint,
+        );
+      })();
     },
-    [canManage, projectId, reload, useLive, userId],
+    [projectId, userId],
   );
+
+  useEffect(() => {
+    for (const job of uploadSnapshot.jobs) {
+      if (job.projectId !== projectId) continue;
+      if (job.status !== "done" && job.status !== "error") continue;
+      if (handledJobIdsRef.current.has(job.id)) continue;
+      handledJobIdsRef.current.add(job.id);
+      void reload();
+      if (job.errors.length > 0) {
+        setError(
+          `已上传 ${job.ok}/${job.total}。失败：${job.errors.slice(0, 3).join("；")}${
+            job.errors.length > 3 ? "…" : ""
+          }`,
+        );
+      }
+      if (job.parseIds.length > 0) {
+        watchParseIds(job.parseIds, job.ok);
+      }
+    }
+  }, [projectId, reload, uploadSnapshot.jobs, watchParseIds]);
 
   const processUploadSelection = useCallback(
     async (list: FileList | File[] | null, targetFolder: string): Promise<void> => {
@@ -726,24 +724,21 @@ export function ProjectMaterialsSection({
       const base = resolveUploadFolder(targetFolder);
 
       if (files.length === 1 && isZipFile(files[0]!) && !hasWebkitPath(files[0]!)) {
-        setUploading(true);
         setError(null);
-        setUploadHint("正在解压 ZIP…");
+        setUnzipHint("正在解压 ZIP…");
         try {
           const items = await unzipProjectPackageFiles(files[0]!, base);
-          setUploadHint(`解压完成，共 ${items.length} 个文件，开始上传…`);
-          await uploadMany(items);
+          setUnzipHint(null);
+          enqueueItems(items);
         } catch (e) {
           setError(e instanceof Error ? e.message : String(e));
-          setUploadHint(null);
-        } finally {
-          setUploading(false);
+          setUnzipHint(null);
         }
         return;
       }
 
       if (files.some(hasWebkitPath)) {
-        await uploadMany(
+        enqueueItems(
           files.map((file) => ({
             file,
             relativePath: relativePathFromWebkitFile(file, base),
@@ -752,21 +747,21 @@ export function ProjectMaterialsSection({
         return;
       }
 
-      await uploadMany(
+      enqueueItems(
         files.map((file) => ({
           file,
           relativePath: base,
         })),
       );
     },
-    [uploadMany],
+    [enqueueItems],
   );
 
   const onFolderInputChange = useCallback(
-    async (list: FileList | null, targetFolder: string) => {
+    (list: FileList | null, targetFolder: string) => {
       if (!list?.length) return;
       const base = resolveUploadFolder(targetFolder);
-      await uploadMany(
+      enqueueItems(
         Array.from(list).map((file) => ({
           file,
           relativePath: relativePathFromWebkitFile(file, base),
@@ -774,7 +769,7 @@ export function ProjectMaterialsSection({
       );
       if (folderInputRef.current) folderInputRef.current.value = "";
     },
-    [uploadMany],
+    [enqueueItems],
   );
 
   const triggerFilePicker = (targetFolder: string) => {
@@ -788,7 +783,7 @@ export function ProjectMaterialsSection({
   };
 
   const onCreateFolder = async (parentPath: string) => {
-    if (!useLive || !canManage || uploading) return;
+    if (!useLive || !canManage || folderBusy) return;
     if (isTopicPath(parentPath)) return;
     const bucket = sourceBucketFromVirtualPath(parentPath || PROJECT_SOURCE_PATH);
     if (bucket === "session" || bucket === "issuer" || bucket === "ai") return;
@@ -798,7 +793,7 @@ export function ProjectMaterialsSection({
       setError("文件夹名称不能包含 / 或 \\");
       return;
     }
-    setUploading(true);
+    setFolderBusy(true);
     setError(null);
     try {
       const virtualParent = parentPath || PROJECT_SOURCE_PATH;
@@ -816,7 +811,7 @@ export function ProjectMaterialsSection({
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setUploading(false);
+      setFolderBusy(false);
     }
   };
 
@@ -985,7 +980,7 @@ export function ProjectMaterialsSection({
     }
   };
 
-  const busy = uploading || Boolean(deletingId);
+  const busy = folderBusy || Boolean(deletingId);
 
   const canParseFile = useCallback(
     (file: ProjectFileRecord) => {
@@ -1225,7 +1220,7 @@ export function ProjectMaterialsSection({
 
   return (
     <section
-      className="mt-1"
+      className="mt-1 flex min-h-0 flex-1 flex-col overflow-hidden"
       aria-labelledby="project-materials-heading"
       onDragOver={(e) => {
         if (!canManage || !useLive) return;
@@ -1254,7 +1249,7 @@ export function ProjectMaterialsSection({
         源文件
       </h3>
 
-          <div className="mb-4 flex flex-wrap items-center gap-2.5">
+          <div className="mb-4 flex shrink-0 flex-wrap items-center gap-2.5">
             <label className="flex h-[38px] w-[260px] max-w-full items-center gap-2 rounded-[10px] border border-[rgba(78,66,57,0.14)] bg-[rgba(255,252,248,0.8)] px-3.5 text-[13px] text-[hsl(var(--warm-charcoal-muted))]">
               <Search className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
               <input
@@ -1286,7 +1281,7 @@ export function ProjectMaterialsSection({
             <div className="flex-1" />
             {useLive && canManage ? (
               <UploadMenu
-                disabled={busy}
+                disabled={folderBusy}
                 uploading={uploading}
                 onSelectFiles={() => triggerFilePicker(PROJECT_SOURCE_PATH)}
                 onSelectFolder={() => triggerFolderPicker(PROJECT_SOURCE_PATH)}
@@ -1295,29 +1290,31 @@ export function ProjectMaterialsSection({
           </div>
 
           {loading ? (
-            <p className="mb-3 flex items-center gap-2 text-[12px] text-muted-foreground">
+            <p className="mb-3 flex shrink-0 items-center gap-2 text-[12px] text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
               加载资料列表…
             </p>
           ) : null}
           {error ? (
-            <p className="mb-3 rounded-lg border border-rose-200/80 bg-rose-50/80 px-3 py-2 text-[12px] text-rose-700">
+            <p className="mb-3 shrink-0 rounded-lg border border-rose-200/80 bg-rose-50/80 px-3 py-2 text-[12px] text-rose-700">
               {error}
             </p>
           ) : null}
-          {uploadHint ? (
-            <p className="mb-3 text-[12px] font-medium text-emerald-700">{uploadHint}</p>
+          {displayUploadHint ? (
+            <p className="mb-3 shrink-0 text-[12px] font-medium text-emerald-700">
+              {displayUploadHint}
+            </p>
           ) : null}
 
-          <div className="grid grid-cols-1 items-start gap-[18px] lg:grid-cols-[340px_minmax(0,1fr)]">
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-[18px] overflow-hidden lg:grid-cols-[340px_minmax(0,1fr)]">
             <div
               className={cn(
-                "rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.78)] px-2.5 py-3 shadow-[0_10px_30px_rgba(102,80,60,0.07)]",
+                "flex min-h-0 max-h-[min(52vh,440px)] flex-col overflow-hidden rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.78)] px-2.5 py-3 shadow-[0_10px_30px_rgba(102,80,60,0.07)] lg:max-h-none",
                 dragOverPath === PROJECT_SOURCE_PATH && "ring-1 ring-[hsl(var(--wine)/0.35)]",
                 dragOverPath === "" && "ring-1 ring-[hsl(var(--wine)/0.35)]",
               )}
             >
-              <div className="px-1 pb-3">
+              <div className="shrink-0 px-1 pb-3">
                 <div className="grid grid-cols-2 rounded-[10px] bg-[rgba(78,66,57,0.06)] p-0.5 text-[12px]">
                     <button
                       type="button"
@@ -1354,7 +1351,7 @@ export function ProjectMaterialsSection({
                 </p>
               ) : null}
 
-              <div className="max-h-[min(70vh,640px)] overflow-y-auto">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[rgba(78,66,57,0.35)]">
                 {tree.children.map((node) => (
                   <TreeRow
                     key={node.kind === "folder" ? `f:${node.path}` : node.id}
@@ -1384,7 +1381,7 @@ export function ProjectMaterialsSection({
               </div>
             </div>
 
-            <div className="min-h-[360px] rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.78)] px-[30px] py-7 shadow-[0_10px_30px_rgba(102,80,60,0.07)]">
+            <div className="min-h-0 overflow-y-auto rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.78)] px-[30px] py-7 shadow-[0_10px_30px_rgba(102,80,60,0.07)]">
               <div className="flex items-start justify-between gap-5">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5 text-[11.5px] text-[hsl(var(--warm-charcoal-muted))]">
@@ -1564,7 +1561,7 @@ export function ProjectMaterialsSection({
                 ) : null}
                 {useLive && canManage && detail.canUploadHere ? (
                   <UploadMenu
-                    disabled={busy}
+                    disabled={folderBusy}
                     uploading={uploading}
                     label="上传到此"
                     onSelectFiles={() =>
@@ -1746,9 +1743,14 @@ function UploadMenu({
                 setOpen(false);
               }}
             >
-              选择文件夹…
+              选择文件夹（可连续添加）…
             </button>
           </li>
+          {uploading ? (
+            <li className="px-3 py-1.5 text-[11px] leading-snug text-muted-foreground">
+              上传在后台进行，可继续添加或切换项目
+            </li>
+          ) : null}
         </ul>
       ) : null}
     </div>

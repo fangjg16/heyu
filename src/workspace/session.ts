@@ -11,6 +11,7 @@ export type SessionUserProfile = {
   avatarChar?: string;
   avatarClass?: string;
   avatarUrl?: string;
+  username?: string;
   isPlatformAdmin?: boolean;
 };
 

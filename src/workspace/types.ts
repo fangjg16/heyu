@@ -26,6 +26,8 @@ export type WorkspaceUser = {
   avatarChar: string;
   avatarClass: string;
   avatarUrl?: string;
+  /** 登录名（注册时确定，不可改；Clerk 邮箱注册时通常就是邮箱） */
+  username?: string;
   /** 平台管理员（管理中枢 / 全项目） */
   isPlatformAdmin?: boolean;
 };

@@ -20,8 +20,10 @@ import {
   listActiveWorkspaceUsers,
   resolveUserIdByUsername,
   rowToPublic,
+  updateWorkspaceUser,
   upsertWorkspaceUserFromClerk,
   type WorkspaceUserPublic,
+  type WorkspaceUserRow,
 } from "./workspace-users-db";
 
 type Env = { DB: AppDatabase } & ClerkEnv;
@@ -33,8 +35,12 @@ function json(data: unknown, status = 200, extra: HeadersInit = {}): Response {
   });
 }
 
-function authProfile(row: Parameters<typeof rowToPublic>[0]) {
-  return rowToPublic(row);
+function selfProfile(row: WorkspaceUserRow) {
+  return { ...rowToPublic(row), username: row.username };
+}
+
+function authProfile(row: WorkspaceUserRow) {
+  return selfProfile(row);
 }
 
 export async function handleAuthLogin(
@@ -135,6 +141,54 @@ export async function handleAuthMe(
   if (!session) return json({ error: "登录已失效，请重新登录" }, 401);
   const profile = authProfile(session.user);
   return json({ user: profile });
+}
+
+/** PATCH /api/me/profile — 当前用户改昵称 / 头像；登录名不可改 */
+export async function handlePatchMyProfile(
+  request: Request,
+  env: Env,
+  authUserId: string,
+): Promise<Response> {
+  let body: { displayName?: string; avatarUrl?: string };
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return json({ error: "Invalid JSON" }, 400);
+  }
+
+  const patch: {
+    displayName?: string;
+    avatarUrl?: string;
+    avatarChar?: string;
+  } = {};
+  if (body.displayName !== undefined) {
+    const displayName = body.displayName.trim();
+    if (!displayName) return json({ error: "请填写昵称" }, 400);
+    if (Array.from(displayName).length > 40) {
+      return json({ error: "昵称最多 40 个字" }, 400);
+    }
+    patch.displayName = displayName;
+    patch.avatarChar = (Array.from(displayName)[0] ?? "?").toUpperCase();
+  }
+  if (body.avatarUrl !== undefined) {
+    patch.avatarUrl = body.avatarUrl;
+  }
+  if (patch.displayName === undefined && patch.avatarUrl === undefined) {
+    return json({ error: "没有需要更新的内容" }, 400);
+  }
+
+  try {
+    const row = await updateWorkspaceUser(env, authUserId, patch);
+    return json({ user: selfProfile(row) });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const status = /过大|须为|无效/.test(msg)
+      ? 400
+      : /不存在/.test(msg)
+        ? 404
+        : 500;
+    return json({ error: msg }, status);
+  }
 }
 
 export async function handleListWorkspaceUsers(

@@ -5,15 +5,42 @@ import { loadSessionUserProfile } from "./session";
 export type { WorkspaceUser };
 
 let userCache: Record<string, WorkspaceUser> = {};
+const userCacheListeners = new Set<() => void>();
+
+export function subscribeUserCache(listener: () => void): () => void {
+  userCacheListeners.add(listener);
+  return () => userCacheListeners.delete(listener);
+}
+
+function notifyUserCache(): void {
+  userCacheListeners.forEach((fn) => fn());
+}
 
 export function cacheWorkspaceUsers(users: WorkspaceUser[]): void {
   const next: typeof userCache = {};
-  for (const u of users) next[u.id] = u;
+  for (const u of users) {
+    const prev = userCache[u.id];
+    next[u.id] = {
+      ...prev,
+      ...u,
+      username: u.username ?? prev?.username,
+    };
+  }
   userCache = next;
+  notifyUserCache();
 }
 
 export function setCachedUserProfile(user: WorkspaceUser): void {
-  userCache = { ...userCache, [user.id]: user };
+  const prev = userCache[user.id];
+  userCache = {
+    ...userCache,
+    [user.id]: {
+      ...prev,
+      ...user,
+      username: user.username ?? prev?.username,
+    },
+  };
+  notifyUserCache();
 }
 
 export function getUserById(id: string | null): WorkspaceUser | undefined {
@@ -28,6 +55,7 @@ export function getUserById(id: string | null): WorkspaceUser | undefined {
       avatarChar: session.avatarChar ?? "?",
       avatarClass: session.avatarClass ?? "bg-slate-300 text-slate-800 shadow-sm",
       avatarUrl: session.avatarUrl ?? "",
+      username: session.username ?? "",
       isPlatformAdmin: session.isPlatformAdmin,
     };
   }
