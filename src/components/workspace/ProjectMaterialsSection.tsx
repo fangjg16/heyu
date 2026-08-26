@@ -1220,7 +1220,7 @@ export function ProjectMaterialsSection({
 
   return (
     <section
-      className="mt-1 flex min-h-0 flex-1 flex-col overflow-hidden"
+      className="mt-1 flex h-full min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden"
       aria-labelledby="project-materials-heading"
       onDragOver={(e) => {
         if (!canManage || !useLive) return;
@@ -1306,10 +1306,10 @@ export function ProjectMaterialsSection({
             </p>
           ) : null}
 
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-[18px] overflow-hidden lg:grid-cols-[340px_minmax(0,1fr)]">
+          <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col gap-[18px] overflow-hidden lg:flex-row lg:items-stretch">
             <div
               className={cn(
-                "flex min-h-0 max-h-[min(52vh,440px)] flex-col overflow-hidden rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.78)] px-2.5 py-3 shadow-[0_10px_30px_rgba(102,80,60,0.07)] lg:max-h-none",
+                "flex h-[min(38vh,20rem)] min-h-0 w-full min-w-0 shrink-0 flex-col overflow-hidden rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.78)] px-2.5 py-3 shadow-[0_10px_30px_rgba(102,80,60,0.07)] lg:h-full lg:w-[340px] lg:min-w-[340px] lg:max-w-[340px]",
                 dragOverPath === PROJECT_SOURCE_PATH && "ring-1 ring-[hsl(var(--wine)/0.35)]",
                 dragOverPath === "" && "ring-1 ring-[hsl(var(--wine)/0.35)]",
               )}
@@ -1351,7 +1351,7 @@ export function ProjectMaterialsSection({
                 </p>
               ) : null}
 
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[rgba(78,66,57,0.35)]">
+              <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[rgba(78,66,57,0.35)]">
                 {tree.children.map((node) => (
                   <TreeRow
                     key={node.kind === "folder" ? `f:${node.path}` : node.id}
@@ -1381,7 +1381,8 @@ export function ProjectMaterialsSection({
               </div>
             </div>
 
-            <div className="min-h-0 overflow-y-auto rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.78)] px-[30px] py-7 shadow-[0_10px_30px_rgba(102,80,60,0.07)]">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.78)] shadow-[0_10px_30px_rgba(102,80,60,0.07)]">
+              <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-[30px] py-7 [scrollbar-gutter:stable]">
               <div className="flex items-start justify-between gap-5">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5 text-[11.5px] text-[hsl(var(--warm-charcoal-muted))]">
@@ -1408,7 +1409,7 @@ export function ProjectMaterialsSection({
                       </span>
                     ))}
                   </div>
-                  <div className="mt-2.5 font-display text-2xl font-semibold">
+                  <div className="mt-2.5 truncate font-display text-2xl font-semibold" title={detail.title}>
                     {detail.title}
                   </div>
                 </div>
@@ -1583,6 +1584,7 @@ export function ProjectMaterialsSection({
                 ) : null}
               </div>
               ) : null}
+              </div>
             </div>
           </div>
 
@@ -1811,7 +1813,7 @@ function TreeRow({
           }
         }}
         className={cn(
-          "flex h-[34px] items-center gap-2 rounded-[9px] pr-2.5",
+          "flex h-[34px] w-full min-w-0 items-center gap-2 overflow-hidden rounded-[9px] pr-2.5",
           canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
         )}
         style={{
@@ -1843,11 +1845,11 @@ function TreeRow({
   const isDrag = dragOverPath === node.path;
 
   return (
-    <div>
+    <div className="min-w-0">
       <div
         role="button"
         tabIndex={0}
-        className="flex h-[34px] cursor-pointer items-center gap-2 rounded-[9px] pr-2.5"
+        className="flex h-[34px] w-full min-w-0 cursor-pointer items-center gap-2 overflow-hidden rounded-[9px] pr-2.5"
         style={{
           paddingLeft: 10 + depth * 18,
           background: isDrag

@@ -205,7 +205,7 @@ export function ProjectWorkspaceHeader({
   };
 
   return (
-    <div className="mx-auto shrink-0 max-w-[1600px] px-8 pt-6 md:px-10">
+    <div className="mx-auto w-full max-w-[1600px] shrink-0 px-8 pt-6 md:px-10">
       <button
         type="button"
         onClick={() => {

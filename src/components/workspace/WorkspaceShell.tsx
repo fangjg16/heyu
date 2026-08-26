@@ -29,8 +29,10 @@ export function WorkspaceShell({
         {hideTopBar ? null : <WorkspaceTopBar />}
         <div
           className={cn(
-            "workspace-paper-content relative z-[1] min-h-0 flex-1",
-            fillHeight ? "flex flex-col overflow-hidden" : "overflow-y-auto",
+            "workspace-paper-content relative z-[1] min-h-0 min-w-0 flex-1 [scrollbar-gutter:stable]",
+            fillHeight
+              ? "flex h-full min-h-0 flex-col overflow-hidden"
+              : "overflow-y-auto",
             contentClassName
           )}
         >
