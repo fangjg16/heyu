@@ -95,6 +95,14 @@ import {
 } from "@/workspace/chat-conversation-id";
 import { rememberChatReturnPath } from "@/workspace/chat-return";
 import {
+  assignAskConversationId,
+  clearPendingAskSourceFile,
+  parseChatAskSearch,
+  peekPendingAskSourceFile,
+  resolveAskNonce,
+  storePendingAskSourceFile,
+} from "@/workspace/chat-ask-source";
+import {
   appendMessageWithSortIndex,
   isBlankAssistantPlaceholder,
   sortMessagesByConversation,
@@ -1470,6 +1478,45 @@ export default function ConversationCenter() {
     if (!projectId || !chatSyncReady) return;
     if (hasConversationIdInUrl(conversationId)) return;
 
+    const ask = parseChatAskSearch(location.search);
+    if (ask.wantNew) {
+      if (!userId) return;
+      const newId = assignAskConversationId(
+        projectId,
+        userId,
+        resolveAskNonce(ask),
+      );
+      if (ask.sourceFile) {
+        storePendingAskSourceFile(newId, {
+          id: ask.sourceFile,
+          filename: ask.sourceName?.trim() || ask.sourceFile,
+        });
+      }
+      const newConv = buildBlankSessionConversation(
+        projectId,
+        newId,
+        project?.name ?? "项目",
+      );
+      skipNextAutoPersistRef.current = true;
+      setConversations((prev) => [
+        newConv,
+        ...prev.filter((c) => c.id !== newId),
+      ]);
+      setLiveMessagesByConversation((prev) => ({
+        ...prev,
+        [newId]: prev[newId] ?? [],
+      }));
+      setNewlyAddedConversationId(newId);
+      if (newConversationTimerRef.current !== null) {
+        window.clearTimeout(newConversationTimerRef.current);
+      }
+      newConversationTimerRef.current = window.setTimeout(() => {
+        setNewlyAddedConversationId((prev) => (prev === newId ? null : prev));
+      }, 260);
+      navigate(conversationRoutePath(projectId, newId), { replace: true });
+      return;
+    }
+
     const picked = pickConversationIdForProject(
       projectId,
       liveMessagesByConversation,
@@ -1481,6 +1528,9 @@ export default function ConversationCenter() {
     chatSyncReady,
     liveMessagesByConversation,
     navigate,
+    location.search,
+    userId,
+    project?.name,
   ]);
 
   useEffect(() => {
@@ -1507,11 +1557,55 @@ export default function ConversationCenter() {
   /** 切换侧边对话或路由会话时清空本地「待发送」附件，避免上方气泡已发出、底下仍挂着同一批待发送 */
   useEffect(() => {
     setSelectedFiles([]);
-    setReferencedSourceFiles([]);
     setShowUploadPanel(false);
     setComposerDragActive(false);
     setQuoteDraft(null);
+    if (!effectiveConversationId) {
+      setReferencedSourceFiles([]);
+      return;
+    }
+    const pending = peekPendingAskSourceFile(effectiveConversationId);
+    if (!pending) {
+      setReferencedSourceFiles([]);
+      return;
+    }
+    const found = projectSourceFiles.find((f) => f.id === pending.id);
+    setReferencedSourceFiles([
+      found ?? {
+        id: pending.id,
+        filename: pending.filename,
+        scope: "package",
+        conversationId: null,
+        mime: null,
+        createdAt: "",
+        chunkCount: 0,
+      },
+    ]);
+    requestAnimationFrame(() => chatInputRef.current?.focus());
   }, [effectiveConversationId]);
+
+  useEffect(() => {
+    if (projectSourceFiles.length === 0) return;
+    setReferencedSourceFiles((prev) => {
+      if (prev.length === 0) return prev;
+      let changed = false;
+      const next = prev.map((file) => {
+        const full = projectSourceFiles.find((item) => item.id === file.id);
+        if (!full) return file;
+        if (
+          file.filename !== full.filename ||
+          file.relativePath !== full.relativePath ||
+          file.mime !== full.mime ||
+          file.sizeBytes !== full.sizeBytes
+        ) {
+          changed = true;
+          return full;
+        }
+        return file;
+      });
+      return changed ? next : prev;
+    });
+  }, [projectSourceFiles]);
 
   const deleteLiveMessage = useCallback(
     (messageId: string) => {
@@ -3323,11 +3417,14 @@ export default function ConversationCenter() {
                   <button
                     type="button"
                     title="取消引用"
-                    onClick={() =>
+                    onClick={() => {
+                      if (effectiveConversationId) {
+                        clearPendingAskSourceFile(effectiveConversationId);
+                      }
                       setReferencedSourceFiles((prev) =>
                         prev.filter((item) => item.id !== file.id),
-                      )
-                    }
+                      );
+                    }}
                     className={cn(chatIconBtn, "h-6 w-6")}
                   >
                     <X className="h-3.5 w-3.5" />

@@ -19,7 +19,6 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
-import { useNavigate } from "react-router-dom";
 import {
   ChevronDown,
   Eye,
@@ -85,6 +84,7 @@ import {
   uploadHintForProject,
   useUploadQueue,
 } from "@/workspace/upload-queue";
+import { openChatAskAboutFile } from "@/workspace/chat-ask-source";
 
 const DND_DOC_MIME = "application/x-taizi-document";
 
@@ -440,7 +440,6 @@ export function ProjectMaterialsSection({
   canManage = true,
   canDownload = false,
 }: ProjectMaterialsSectionProps) {
-  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const folderInputRef = useRef<HTMLInputElement | null>(null);
   const uploadTargetRef = useRef<string>("");
@@ -1661,10 +1660,15 @@ export function ProjectMaterialsSection({
                     }
                   />
                 ) : null}
-                {detail.isFile ? (
+                {detail.isFile && detail.file ? (
                   <button
                     type="button"
-                    onClick={() => navigate(`/app/chat/${projectId}`)}
+                    onClick={() =>
+                      openChatAskAboutFile(projectId, {
+                        id: detail.file!.id,
+                        filename: detail.file!.filename,
+                      })
+                    }
                     className="h-[38px] rounded-[10px] bg-[hsl(var(--wine))] px-4 text-[13px] font-medium text-white hover:bg-[hsl(var(--wine-hover))]"
                   >
                     在对话中追问
