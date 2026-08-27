@@ -106,6 +106,14 @@ import {
   withAskSourceQuery,
 } from "@/workspace/chat-ask-source";
 import {
+  conversationHydrateCount,
+  conversationSidebarRows,
+  isTruncatedConversationList,
+  mergeBootstrapConversationList,
+  mergeBootstrapMessages,
+  prependConversation,
+} from "@/workspace/conversation-sidebar";
+import {
   appendMessageWithSortIndex,
   isBlankAssistantPlaceholder,
   sortMessagesByConversation,
@@ -142,14 +150,6 @@ type SessionConversationState = {
   conversations: SessionConversation[];
   messagesByConversation: Record<string, LiveChatMessage[]>;
 };
-
-function conversationHasMessages(
-  c: SessionConversation,
-  messagesByConversation: Record<string, LiveChatMessage[]>,
-): boolean {
-  const msgs = messagesByConversation[c.id];
-  return Array.isArray(msgs) && msgs.length > 0;
-}
 
 /** 每个有子线程或消息的项目都保留一条 `-main` 全局分析入口（Live 侧栏） */
 function ensureProjectMainThreads(
@@ -188,19 +188,6 @@ function buildSidebarConversationList(
   const withMain = ensureProjectMainThreads(convs, messagesByConversation, focusProjectId);
   const reconciled = reconcileConversationsWithMessages(withMain, messagesByConversation);
   return reconciled.filter((c) => Boolean(getProjectById(c.projectId)));
-}
-
-function pruneEmptyLiveConversations(
-  convs: SessionConversation[],
-  messagesByConversation: Record<string, LiveChatMessage[]>,
-): SessionConversation[] {
-  return convs.filter(
-    (c) =>
-      c.id === `${c.projectId}-main` ||
-      c.variant === "blank" ||
-      c.variant === "named" ||
-      conversationHasMessages(c, messagesByConversation),
-  );
 }
 
 /** 输入框：与工具按钮同高 32px，随内容增高 */
@@ -323,6 +310,7 @@ function mergeConversationsForBootstrap(
   isLiveAiMode: boolean,
   focusProjectId?: string,
 ): SessionConversation[] {
+  // Keep `base` metas even when this tab has not hydrated messages yet.
   const reconciled = reconcileConversationsWithMessages(base, messagesByConversation);
   const withTimes = applyConversationMetadataFromMessages(reconciled, messagesByConversation);
   const withMain = isLiveAiMode
@@ -377,17 +365,6 @@ function resolveConversationHeaderTitle(
   );
 }
 
-function conversationSidebarRows(
-  convs: SessionConversation[],
-  messagesByConversation: Record<string, LiveChatMessage[]>,
-  isLiveAiMode: boolean,
-): SessionConversation[] {
-  const list = isLiveAiMode
-    ? pruneEmptyLiveConversations(convs, messagesByConversation)
-    : convs;
-  return [...list].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-}
-
 type SidebarProjectGroup = {
   projectId: string;
   projectName: string;
@@ -399,8 +376,14 @@ function groupSidebarByProject(
   convs: SessionConversation[],
   messagesByConversation: Record<string, LiveChatMessage[]>,
   isLiveAiMode: boolean,
+  currentConversationId?: string,
 ): SidebarProjectGroup[] {
-  const rows = conversationSidebarRows(convs, messagesByConversation, isLiveAiMode);
+  const rows = conversationSidebarRows(
+    convs,
+    messagesByConversation,
+    isLiveAiMode,
+    currentConversationId,
+  );
   const byProject = new Map<string, SessionConversation[]>();
   for (const c of rows) {
     const list = byProject.get(c.projectId) ?? [];
@@ -1074,6 +1057,8 @@ export default function ConversationCenter() {
   const chatPersistTimerRef = useRef<number | null>(null);
   /** 云端 hydrate 后跳过首次自动 PUT，避免用未稳定 state 覆盖 D1 */
   const skipNextAutoPersistRef = useRef(false);
+  /** Last successful hydrate size; auto-PUT is skipped if local list is clearly smaller. */
+  const lastHydratedConversationCountRef = useRef(0);
   /** 中文输入法组词中：Enter 仅确认上屏，不触发发送 */
   const chatImeComposingRef = useRef(false);
   const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -1274,6 +1259,16 @@ export default function ConversationCenter() {
         baseConvs,
         snap.liveMessagesByConversation,
       );
+      const deleting = Boolean(options?.deletedConversationIds?.length);
+      if (
+        !deleting &&
+        isTruncatedConversationList(
+          convsToSave.length,
+          lastHydratedConversationCountRef.current,
+        )
+      ) {
+        return;
+      }
       void persistChatStateForUser(
         userId,
         {
@@ -1338,8 +1333,16 @@ export default function ConversationCenter() {
         ),
         liveMessagesByConversation,
         isLiveAiMode,
+        effectiveConversationId,
       ),
-    [conversations, liveMessagesByConversation, isLiveAiMode, projectId, apiProjectsTick],
+    [
+      conversations,
+      liveMessagesByConversation,
+      isLiveAiMode,
+      projectId,
+      apiProjectsTick,
+      effectiveConversationId,
+    ],
   );
 
   const [collapsedProjectIds, setCollapsedProjectIds] = useState<Set<string>>(
@@ -1401,21 +1404,52 @@ export default function ConversationCenter() {
 
       const cached = SESSION_CONVERSATION_CACHE[cacheKey];
 
+      const applyHydrated = (
+        incomingConvs: SessionConversation[],
+        incomingMsgs: Record<string, LiveChatMessage[]>,
+        writeCache: boolean,
+      ) => {
+        setLiveMessagesByConversation((prev) =>
+          mergeBootstrapMessages(prev, incomingMsgs),
+        );
+        setConversations((prev) => {
+          const merged = mergeBootstrapConversationList(prev, incomingConvs);
+          lastHydratedConversationCountRef.current = Math.max(
+            lastHydratedConversationCountRef.current,
+            conversationHydrateCount(merged, incomingMsgs),
+          );
+          if (writeCache) {
+            const prevCache = SESSION_CONVERSATION_CACHE[cacheKey];
+            if (
+              !prevCache ||
+              !isTruncatedConversationList(
+                merged.length,
+                prevCache.conversations.length,
+              )
+            ) {
+              SESSION_CONVERSATION_CACHE[cacheKey] = {
+                conversations: merged,
+                messagesByConversation: mergeBootstrapMessages(
+                  prevCache?.messagesByConversation ?? {},
+                  incomingMsgs,
+                ),
+              };
+            }
+          }
+          return merged;
+        });
+      };
+
       if (remote) {
         const messagesByConversation = sortMessagesByConversation(
           remote.messagesByConversation,
         );
-        setLiveMessagesByConversation(messagesByConversation);
         const next = mergeConversationsForBootstrap(
           remote.conversations,
           messagesByConversation,
           isLiveAiMode,
         );
-        setConversations(next);
-        SESSION_CONVERSATION_CACHE[cacheKey] = {
-          conversations: next,
-          messagesByConversation,
-        };
+        applyHydrated(next, messagesByConversation, true);
         setChatSyncReady(true);
         return;
       }
@@ -1429,13 +1463,12 @@ export default function ConversationCenter() {
       );
 
       if (cached && (cached.conversations.length > 0 || cachedMsgCount > 0)) {
-        setLiveMessagesByConversation(cachedMsgs);
         const next = mergeConversationsForBootstrap(
           cached.conversations,
           cachedMsgs,
           isLiveAiMode,
         );
-        setConversations(next);
+        applyHydrated(next, cachedMsgs, false);
         setChatSyncError(
           "云端对话暂未能加载，已用本页会话缓存展示。请检查网络后刷新；勿在多标签同时编辑以免覆盖。",
         );
@@ -1443,13 +1476,8 @@ export default function ConversationCenter() {
         return;
       }
 
-      setLiveMessagesByConversation({});
       const next = mergeConversationsForBootstrap([], {}, isLiveAiMode);
-      setConversations(next);
-      SESSION_CONVERSATION_CACHE[cacheKey] = {
-        conversations: next,
-        messagesByConversation: {},
-      };
+      applyHydrated(next, {}, false);
       if (isLiveAiMode) {
         setChatSyncError("云端对话加载失败，请稍后刷新页面。");
       }
@@ -1506,10 +1534,11 @@ export default function ConversationCenter() {
         project?.name ?? "项目",
       );
       skipNextAutoPersistRef.current = true;
-      setConversations((prev) => [
-        newConv,
-        ...prev.filter((c) => c.id !== newId),
-      ]);
+      setConversations((prev) => {
+        const cached = SESSION_CONVERSATION_CACHE[userId]?.conversations ?? [];
+        const base = prev.length >= cached.length ? prev : cached;
+        return prependConversation(base, newConv);
+      });
       setLiveMessagesByConversation((prev) => ({
         ...prev,
         [newId]: prev[newId] ?? [],
@@ -1546,10 +1575,19 @@ export default function ConversationCenter() {
 
   useEffect(() => {
     if (!userId || !chatSyncReady) return;
-    SESSION_CONVERSATION_CACHE[userId] = {
-      conversations,
-      messagesByConversation: liveMessagesByConversation,
-    };
+    const prevCache = SESSION_CONVERSATION_CACHE[userId];
+    if (
+      !prevCache ||
+      !isTruncatedConversationList(
+        conversations.length,
+        prevCache.conversations.length,
+      )
+    ) {
+      SESSION_CONVERSATION_CACHE[userId] = {
+        conversations,
+        messagesByConversation: liveMessagesByConversation,
+      };
+    }
     scheduleChatPersist();
     return () => {
       if (chatPersistTimerRef.current) {
@@ -2126,15 +2164,15 @@ export default function ConversationCenter() {
       if (prev.some((c) => c.id === effectiveConversationId)) return prev;
       const built = buildConversationFromProject(projectId, project ?? undefined);
       if (!built) return prev;
-      return [
+      return prependConversation(
+        prev,
         withCurrentPreviewTime({
           ...built,
           id: effectiveConversationId,
           preview: "对话进行中",
           variant: "blank",
         }),
-        ...prev,
-      ];
+      );
     });
   };
 
@@ -2216,6 +2254,10 @@ export default function ConversationCenter() {
     const nextConversations = conversations.filter((c) => c.id !== target.id);
 
     skipNextAutoPersistRef.current = true;
+    lastHydratedConversationCountRef.current = conversationHydrateCount(
+      nextConversations,
+      nextMessages,
+    );
     SESSION_CONVERSATION_CACHE[userId] = {
       conversations: nextConversations,
       messagesByConversation: nextMessages,
@@ -2389,7 +2431,7 @@ export default function ConversationCenter() {
         effectiveConversationId,
         project.name,
       );
-      setConversations((prev) => [blankConv, ...prev.filter((c) => c.id !== effectiveConversationId)]);
+      setConversations((prev) => prependConversation(prev, blankConv));
     }
 
     appendLiveMessage(effectiveConversationId, {
@@ -2913,10 +2955,7 @@ export default function ConversationCenter() {
                   project.name,
                 );
                 skipNextAutoPersistRef.current = true;
-                setConversations((prev) => [
-                  newConv,
-                  ...prev.filter((c) => c.id !== newId),
-                ]);
+                setConversations((prev) => prependConversation(prev, newConv));
                 setLiveMessagesByConversation((prev) => ({
                   ...prev,
                   [newId]: prev[newId] ?? [],
