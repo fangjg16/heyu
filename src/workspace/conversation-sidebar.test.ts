@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   conversationHydrateCount,
   conversationSidebarRows,
+  isPlaceholderEmptyConversation,
   isTruncatedConversationList,
   mergeBootstrapConversationList,
   mergeBootstrapMessages,
   prependConversation,
   pruneEmptyLiveConversations,
+  shouldPersistConversation,
+  unusedPlaceholderConversations,
   type SidebarConversationMeta,
 } from "./conversation-sidebar";
 
@@ -35,6 +38,16 @@ describe("pruneEmptyLiveConversations", () => {
     preview: "新对话",
     variant: "blank",
     updatedAt: "2026-08-27T12:00",
+  });
+  const leftoverBlank = meta({
+    id: "proj-stone-main",
+    preview: "新对话",
+    variant: "blank",
+  });
+  const leftoverAsk = meta({
+    id: "proj-stone-blank-u1-old",
+    preview: "新对话",
+    variant: "blank",
   });
 
   it("keeps persisted metas when this tab has not loaded their messages", () => {
@@ -67,6 +80,72 @@ describe("pruneEmptyLiveConversations", () => {
       currentBlank.id,
     );
     expect(rows).toHaveLength(3);
+  });
+
+  it("hides leftover unused blanks after the user leaves without sending", () => {
+    const familyBlank = meta({
+      id: "proj-family-blank-u1-new",
+      projectId: "proj-family",
+      preview: "新对话",
+      variant: "blank",
+    });
+    const rows = pruneEmptyLiveConversations(
+      [familyBlank, leftoverBlank, leftoverAsk, persistedA],
+      { [familyBlank.id]: [] },
+      familyBlank.id,
+    );
+    expect(rows.map((c) => c.id)).toEqual([familyBlank.id, persistedA.id]);
+  });
+
+  it("keeps a named empty thread the user renamed", () => {
+    const named = meta({
+      id: "proj-stone-blank-u1-named",
+      preview: "待写纪要",
+      variant: "named",
+    });
+    expect(
+      isPlaceholderEmptyConversation(named, {}),
+    ).toBe(false);
+    expect(
+      pruneEmptyLiveConversations([named], {}, "other").map((c) => c.id),
+    ).toEqual([named.id]);
+  });
+});
+
+describe("unusedPlaceholderConversations", () => {
+  it("does not drop the current blank, only abandoned ones", () => {
+    const current = meta({
+      id: "proj-a-blank-1",
+      projectId: "proj-a",
+      preview: "新对话",
+      variant: "blank",
+    });
+    const leftover = meta({
+      id: "proj-b-main",
+      projectId: "proj-b",
+      preview: "新对话",
+      variant: "blank",
+    });
+    expect(
+      unusedPlaceholderConversations([current, leftover], {}, current.id).map(
+        (c) => c.id,
+      ),
+    ).toEqual([leftover.id]);
+  });
+});
+
+describe("shouldPersistConversation", () => {
+  it("does not persist an unused blank until the first message", () => {
+    const blank = meta({
+      id: "proj-a-blank-1",
+      projectId: "proj-a",
+      preview: "新对话",
+      variant: "blank",
+    });
+    expect(shouldPersistConversation(blank, { [blank.id]: [] })).toBe(false);
+    expect(
+      shouldPersistConversation(blank, { [blank.id]: [{ id: "m1" }] }),
+    ).toBe(true);
   });
 });
 
