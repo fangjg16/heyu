@@ -3,6 +3,7 @@ import {
   parseDetailPendingText,
   resolveParseUiStatus,
   shouldRefetchParseSummary,
+  shouldSendParseRefresh,
 } from "./parse-ui-status";
 
 describe("resolveParseUiStatus", () => {
@@ -16,11 +17,22 @@ describe("resolveParseUiStatus", () => {
     ).toBe("parsing");
   });
 
-  it("shows parsing while in-flight even if the DB already marked the file parsed", () => {
+  it("keeps parsed while fetching cached details for an already-parsed file", () => {
     expect(
       resolveParseUiStatus({
         fileId: "a",
         parsingId: "a",
+        dbParsed: true,
+      }),
+    ).toBe("parsed");
+  });
+
+  it("shows parsing when the client cache is explicitly reparsing", () => {
+    expect(
+      resolveParseUiStatus({
+        fileId: "a",
+        parsingId: "a",
+        cacheStatus: "parsing",
         dbParsed: true,
       }),
     ).toBe("parsing");
@@ -44,8 +56,38 @@ describe("parseDetailPendingText", () => {
       parseDetailPendingText({ ui: "parsing", dbParsed: false }),
     ).toBe("正在解析…");
     expect(
-      parseDetailPendingText({ ui: "parsed", dbParsed: true }),
+      parseDetailPendingText({
+        ui: "parsed",
+        dbParsed: true,
+        inFlight: true,
+      }),
     ).toBe("加载详情中…");
+    expect(
+      parseDetailPendingText({ ui: "parsed", dbParsed: true }),
+    ).toBe(null);
+    expect(
+      parseDetailPendingText({
+        ui: "parsing",
+        dbParsed: true,
+        forceRefresh: true,
+      }),
+    ).toBe("正在重新解析…");
+  });
+});
+
+describe("shouldSendParseRefresh", () => {
+  it("does not refresh just because the client cache is empty", () => {
+    expect(shouldSendParseRefresh({ cachedSummary: "" })).toBe(false);
+    expect(shouldSendParseRefresh({})).toBe(false);
+  });
+
+  it("sends refresh on the icon click or a stale client summary", () => {
+    expect(shouldSendParseRefresh({ force: true })).toBe(true);
+    expect(
+      shouldSendParseRefresh({
+        cachedSummary: "（扫描 PDF「a.pdf」OCR 未抽出文字。）",
+      }),
+    ).toBe(true);
   });
 });
 
