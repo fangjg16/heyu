@@ -7,11 +7,13 @@ import { looksLikeOcrGaveUp, looksLikeUnparsedPlaceholder } from "./extract-docu
 import type { LlmCallOptions, LlmMessage } from "./llm-client";
 
 const PARSE_JSON_FIELDS = `输出唯一 JSON 对象，字段：
-{"summary":"不超过220字的投研向摘要","documentType":"必须是下列之一：项目介绍、定位与进展、对标与竞品、行业与市场、财务与估值、法律与合规、股权与主体、尽调材料、其他","keyPoints":["要点"],"refs":["可引用主题"],"usedFor":["投研用途建议"]}
+{"summary":"不超过220字的投研向摘要","documentType":"文件文种，不是投研主题","keyPoints":["要点"],"refs":["可引用主题"],"usedFor":["投研用途建议"]}
 summary 必须是完整句子，约 120–220 字；keyPoints、refs、usedFor 各最多 6 条；无内容用空数组。
 summary 是 JSON 字符串：内部英文双引号必须写成 \\"，专名优先用「」或『』。
 refs、usedFor 必须是不超过 16 字的中文短词；禁止 URL。
-documentType 只输出上列短标签本身。`;
+documentType 描述「这份文件是什么文种」，不超过 24 字。
+优先写成「文种」或「文种（出处或日期）」，例如：融资新闻稿（36氪 · 2026-02）、访谈纪要、商业计划书、测绘图、权属文件、股东协议、财务报表、行业研报、尽调清单。
+禁止输出投研主题桶：项目介绍、定位与进展、对标与竞品、行业与市场、财务与估值、法律与合规、股权与主体、尽调材料、其他。`;
 
 export const PARSE_TEXT_SYSTEM = `你是投研工作台的源文件解析助手。根据给定文件正文摘录，输出 JSON（不要 markdown 围栏，不要其它说明）。
 规则：

@@ -9,7 +9,7 @@ import { callLlm, type LlmClientEnv } from "./llm-client";
 import { getProjectById } from "./projects-db";
 import { extractPdfPlainText } from "./pdf-text";
 import { decodePathProjectId } from "./projects-resolve";
-import { canonicalizeFileTopic } from "./file-topic";
+import { canonicalizeFileTopic, inferDocumentGenre } from "./file-topic";
 import { canDownloadProjectFile, resolveProjectRole, roleCanViewAllSessionUploads } from "./workspace-roles";
 import {
   extractSummaryField,
@@ -263,6 +263,7 @@ async function upsertParseResult(
   env: Env,
   docId: string,
   payload: DocumentParsePayload,
+  filename?: string,
 ): Promise<void> {
   const now = new Date().toISOString();
   const existing = await loadParseResult(env, docId);
@@ -295,7 +296,13 @@ async function upsertParseResult(
       now,
     )
     .run();
-  await refreshFileCategoryFromParse(env, docId, payload.documentType);
+  await refreshFileCategoryFromParse(
+    env,
+    docId,
+    payload.documentType.trim()
+      ? canonicalizeFileTopic(payload.documentType, filename)
+      : "",
+  );
 }
 
 /** 解析得到的文件类型写入 file_category（已有人工分类则不覆盖） */
@@ -773,7 +780,10 @@ async function handleParseProjectFileSummaryUnlocked(
     }
     const payload: DocumentParsePayload = {
       summary: parsed.summary,
-      documentType: canonicalizeFileTopic(parsed.documentType, row.filename),
+      documentType: inferDocumentGenre({
+        filename: row.filename,
+        documentType: parsed.documentType,
+      }),
       keyPoints: parsed.keyPoints,
       refs: parsed.refs,
       usedFor: parsed.usedFor,
@@ -782,7 +792,7 @@ async function handleParseProjectFileSummaryUnlocked(
       fromCache: false,
     };
     try {
-      await upsertParseResult(env, id, payload);
+      await upsertParseResult(env, id, payload, row.filename);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (

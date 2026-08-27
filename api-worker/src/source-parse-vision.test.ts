@@ -33,6 +33,9 @@ describe("buildSourceFileParseMessages", () => {
     expect(typeof messages[0]?.content).toBe("string");
     expect(String(messages[0]?.content)).not.toMatch(/图面/);
     expect(messages[1]?.content).toContain("纪要正文");
+    expect(String(messages[0]?.content)).toMatch(/文件文种/);
+    expect(String(messages[0]?.content)).toMatch(/禁止输出投研主题桶/);
+    expect(String(messages[0]?.content)).not.toMatch(/必须是下列之一：项目介绍/);
   });
 });
 

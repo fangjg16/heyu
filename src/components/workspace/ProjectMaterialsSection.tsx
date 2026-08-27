@@ -76,7 +76,7 @@ import {
   toPhysicalFolder,
   toVirtualFolder,
 } from "@/lib/project-file-source";
-import { resolveFileTopic } from "@/lib/file-topic";
+import { inferDocumentGenre, resolveFileTopic } from "@/lib/file-topic";
 import {
   collectDroppedFiles,
   snapshotDroppedEntries,
@@ -1364,7 +1364,12 @@ export function ProjectMaterialsSection({
         summary,
         pending,
         parseBusy: cache?.status === "parsing",
-        documentType: cache?.documentType || file.fileCategory || "",
+        documentType: inferDocumentGenre({
+          filename: file.filename,
+          relativePath: file.relativePath,
+          fileCategory: file.fileCategory,
+          documentType: cache?.documentType || file.fileCategory,
+        }),
         keyPoints: cache?.keyPoints ?? [],
         srcLines: [
           { label: "来源", value: SOURCE_BUCKETS.find((b) => b.id === fileSourceBucket(file))?.name ?? "项目上传" },
