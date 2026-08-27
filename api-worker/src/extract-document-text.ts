@@ -63,15 +63,33 @@ export function ocrPendingPlaceholder(kind: "image" | "pdf", fileName: string): 
   return `（已上传 PDF：${fileName}。未能从 PDF 提取文字（多为扫描件/图片版），${OCR_PENDING_PDF}。）`;
 }
 
+/** OCR 已经跑过并失败：不要再当占位符重试，以免循环扣费 */
+function looksLikeOcrGaveUp(text: string): boolean {
+  return /OCR 未抽出|OCR 失败|无法 OCR：/u.test(text);
+}
+
+/**
+ * 合入 OCR 之前入库的扫描 PDF 占位（unpdf 抽不出字，当时不会标「等待 OCR」）。
+ */
+export function looksLikeLegacyScanPdfPlaceholder(text: string): boolean {
+  const t = text.trim();
+  if (!t || looksLikeOcrGaveUp(t)) return false;
+  if (/未能从 PDF 提取文字/u.test(t) && /扫描件|图片版/u.test(t)) return true;
+  if (t.startsWith("（已上传 PDF：") && /请上传可复制文字/u.test(t)) return true;
+  return false;
+}
+
 /**
  * 是否应重新走提取（含 OCR）。成功失败的定稿文案不要匹配，以免死循环扣费。
  */
 export function looksLikeUnparsedPlaceholder(text: string): boolean {
   const t = text.trim();
   if (!t) return true;
+  if (looksLikeOcrGaveUp(t)) return false;
   if (t.includes(OCR_PENDING_IMAGE) || t.includes("正在用 OCR")) return true;
   if (t.includes("暂未解析正文")) return true;
   if (t.startsWith("（已上传图片")) return true;
+  if (looksLikeLegacyScanPdfPlaceholder(t)) return true;
   if (t.startsWith("（已上传 PDF：") && /多为扫描件|未能从 PDF 提取/u.test(t) && t.includes("等待 OCR")) {
     return true;
   }

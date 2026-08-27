@@ -200,4 +200,14 @@ describe("extractDocumentText", () => {
       true,
     );
   });
+
+  it("treats pre-OCR scan PDF placeholders as needing OCR", () => {
+    const old = "（已上传 PDF：02_大陆地块测绘图_SP265790.pdf。未能从 PDF 提取文字（多为扫描件/图片版）。请上传可复制文字的 PDF，或另附 .txt/.md。）";
+    expect(looksLikeUnparsedPlaceholder(old)).toBe(true);
+    expect(
+      looksLikeUnparsedPlaceholder(
+        "（扫描 PDF「02.pdf」OCR 未抽出文字。模型未返回文字。）",
+      ),
+    ).toBe(false);
+  });
 });
