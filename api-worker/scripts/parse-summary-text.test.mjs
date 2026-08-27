@@ -4,6 +4,7 @@ import {
   looksLikeRawParseJson,
   normalizeParseSummaryText,
   parseSummaryRefreshRequested,
+  shouldPreferVisionForParse,
   shouldRefreshCachedSummary,
   shouldReturnCachedSummaryOnLlmError,
   truncateSummary,
@@ -69,6 +70,19 @@ assert.equal(
     true,
   ),
   false,
+);
+assert.equal(
+  shouldPreferVisionForParse({
+    cachedSummary: "可复制合同正文摘要，各方权利义务已列明。",
+  }),
+  false,
+);
+assert.equal(
+  shouldPreferVisionForParse({
+    cachedSummary:
+      "原文为扫描 PDF「a.pdf」。OCR 抽取失败未能获得任何文字内容，无法识别地块编号。建议重新进行 OCR 识别。",
+  }),
+  true,
 );
 
 const over =

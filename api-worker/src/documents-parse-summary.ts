@@ -17,6 +17,7 @@ import {
   looksLikeRawParseJson,
   normalizeParseSummaryText,
   parseSummaryRefreshRequested,
+  shouldPreferVisionForParse,
   shouldRefreshCachedSummary,
   shouldReturnCachedSummaryOnLlmError,
   truncateSummary,
@@ -533,10 +534,12 @@ async function handleParseProjectFileSummaryUnlocked(
     return json(parseResponseBody(row, rowToPayload(cached)));
   }
 
-  const preferVision =
-    forceRefresh ||
-    looksLikeOcrFailureContent(cached?.summary ?? "") ||
-    isImageFileName(row.filename, row.mime);
+  const existing = await loadExistingSourceText(env, id);
+  const preferVision = shouldPreferVisionForParse({
+    isImage: isImageFileName(row.filename, row.mime),
+    cachedSummary: cached?.summary,
+    existingText: existing?.text,
+  });
 
   let visionImages: ChatVisionImage[] = [];
   try {
@@ -550,7 +553,6 @@ async function handleParseProjectFileSummaryUnlocked(
   let chunkCount = 0;
   let extractWarning: string | undefined;
 
-  const existing = await loadExistingSourceText(env, id);
   const retryOcrAfterLlmLie = Boolean(
     cached && looksLikeOcrEmptyLlmSummary(cached.summary),
   );
