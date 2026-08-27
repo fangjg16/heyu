@@ -112,6 +112,8 @@ import {
   mergeBootstrapConversationList,
   mergeBootstrapMessages,
   prependConversation,
+  shouldPersistConversation,
+  unusedPlaceholderConversations,
 } from "@/workspace/conversation-sidebar";
 import {
   appendMessageWithSortIndex,
@@ -151,7 +153,7 @@ type SessionConversationState = {
   messagesByConversation: Record<string, LiveChatMessage[]>;
 };
 
-/** 每个有子线程或消息的项目都保留一条 `-main` 全局分析入口（Live 侧栏） */
+/** 当前项目可有一条空的 `-main` 入口；其它项目只在 `-main` 已有消息时补这一条 */
 function ensureProjectMainThreads(
   convs: SessionConversation[],
   messagesByConversation: Record<string, LiveChatMessage[]>,
@@ -173,6 +175,9 @@ function ensureProjectMainThreads(
     if (!getProjectById(pid)) continue;
     const mainId = `${pid}-main`;
     if (byId.has(mainId)) continue;
+    const mainMsgs = messagesByConversation[mainId];
+    const mainHasMsgs = Array.isArray(mainMsgs) && mainMsgs.length > 0;
+    if (!mainHasMsgs && pid !== focusProjectId) continue;
     const built = buildConversationFromProject(pid);
     if (built) byId.set(mainId, built);
   }
@@ -313,18 +318,16 @@ function mergeConversationsForBootstrap(
   // Keep `base` metas even when this tab has not hydrated messages yet.
   const reconciled = reconcileConversationsWithMessages(base, messagesByConversation);
   const withTimes = applyConversationMetadataFromMessages(reconciled, messagesByConversation);
-  const withMain = isLiveAiMode
-    ? ensureProjectMainThreads(withTimes, messagesByConversation, focusProjectId)
-    : withTimes;
+  // Do not inject empty `-main` rows into persisted state; sidebar adds them for display.
   if (isLiveAiMode) {
-    return withMain;
+    return withTimes;
   }
-  if (!focusProjectId) return withMain;
+  if (!focusProjectId) return withTimes;
   const currentConversation = buildConversationFromProject(focusProjectId);
-  if (!currentConversation) return withMain;
-  const hasCurrent = withMain.some((item) => item.projectId === focusProjectId);
-  if (hasCurrent) return withMain;
-  return [withCurrentPreviewTime(currentConversation), ...withMain];
+  if (!currentConversation) return withTimes;
+  const hasCurrent = withTimes.some((item) => item.projectId === focusProjectId);
+  if (hasCurrent) return withTimes;
+  return [withCurrentPreviewTime(currentConversation), ...withTimes];
 }
 
 function projectDisplayName(projectId: string): string {
@@ -1258,6 +1261,8 @@ export default function ConversationCenter() {
       const convsToSave = applyConversationMetadataFromMessages(
         baseConvs,
         snap.liveMessagesByConversation,
+      ).filter((c) =>
+        shouldPersistConversation(c, snap.liveMessagesByConversation),
       );
       const deleting = Boolean(options?.deletedConversationIds?.length);
       if (
@@ -1416,7 +1421,12 @@ export default function ConversationCenter() {
           const merged = mergeBootstrapConversationList(prev, incomingConvs);
           lastHydratedConversationCountRef.current = Math.max(
             lastHydratedConversationCountRef.current,
-            conversationHydrateCount(merged, incomingMsgs),
+            conversationHydrateCount(
+              merged.filter((c) =>
+                shouldPersistConversation(c, incomingMsgs),
+              ),
+              incomingMsgs,
+            ),
           );
           if (writeCache) {
             const prevCache = SESSION_CONVERSATION_CACHE[cacheKey];
@@ -1601,6 +1611,56 @@ export default function ConversationCenter() {
     liveMessagesByConversation,
     isLiveAiMode,
     scheduleChatPersist,
+  ]);
+
+  /** 离开未发过消息的占位会话后从列表和 D1 清掉，避免堆出很多「新对话」 */
+  useEffect(() => {
+    if (!userId || !chatSyncReady || !isLiveAiMode) return;
+    const leftover = unusedPlaceholderConversations(
+      conversations,
+      liveMessagesByConversation,
+      effectiveConversationId,
+    );
+    if (leftover.length === 0) return;
+
+    const dropIds = leftover.map((c) => c.id);
+    const dropSet = new Set(dropIds);
+    const nextConversations = conversations.filter((c) => !dropSet.has(c.id));
+    const nextMessages = { ...liveMessagesByConversation };
+    for (const id of dropIds) delete nextMessages[id];
+
+    if (chatPersistTimerRef.current) {
+      window.clearTimeout(chatPersistTimerRef.current);
+      chatPersistTimerRef.current = null;
+    }
+    skipNextAutoPersistRef.current = true;
+    lastHydratedConversationCountRef.current = conversationHydrateCount(
+      nextConversations.filter((c) =>
+        shouldPersistConversation(c, nextMessages),
+      ),
+      nextMessages,
+    );
+    SESSION_CONVERSATION_CACHE[userId] = {
+      conversations: nextConversations,
+      messagesByConversation: nextMessages,
+    };
+    setConversations(nextConversations);
+    setLiveMessagesByConversation(nextMessages);
+    void persistChatStateForUser(
+      userId,
+      {
+        conversations: nextConversations,
+        messagesByConversation: nextMessages,
+      },
+      { deletedConversationIds: dropIds, skipMerge: true },
+    );
+  }, [
+    userId,
+    chatSyncReady,
+    isLiveAiMode,
+    conversations,
+    liveMessagesByConversation,
+    effectiveConversationId,
   ]);
 
   /** 切换侧边对话或路由会话时清空本地「待发送」附件，避免上方气泡已发出、底下仍挂着同一批待发送 */
@@ -1969,6 +2029,9 @@ export default function ConversationCenter() {
     if (!inList && project) {
       const msgs = liveMessagesByConversation[id];
       const hasMsgs = Array.isArray(msgs) && msgs.length > 0;
+      if (!hasMsgs) {
+        skipNextAutoPersistRef.current = true;
+      }
       setConversations((prev) => {
         if (prev.some((c) => c.id === id)) return prev;
         const isBlank = isBlankConversationId(projectId, id);
