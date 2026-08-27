@@ -108,6 +108,10 @@ import {
   withAskSourceQuery,
 } from "@/workspace/chat-ask-source";
 import {
+  collectChatFileIds,
+  shouldWarnUnparsedChatUpload,
+} from "@/workspace/chat-vision-files";
+import {
   conversationHydrateCount,
   conversationSidebarRows,
   isTruncatedConversationList,
@@ -656,6 +660,7 @@ function formatCitationMarkers(
 }
 
 type UploadFileResult = {
+  documentId?: string;
   filename: string;
   parsed: boolean;
   chunks: number;
@@ -683,6 +688,7 @@ async function uploadSessionFilesToApi(
     });
     const payload = (await res.json().catch(() => ({}))) as {
       error?: string;
+      documentId?: string;
       filename?: string;
       parsed?: boolean;
       chunks?: number;
@@ -692,6 +698,7 @@ async function uploadSessionFilesToApi(
       throw new Error(payload.error || `上传失败（${res.status}）`);
     }
     results.push({
+      documentId: payload.documentId?.trim() || undefined,
       filename: payload.filename ?? file.name,
       parsed: Boolean(payload.parsed),
       chunks: payload.chunks ?? 0,
@@ -2455,6 +2462,7 @@ export default function ConversationCenter() {
     const trimmed = draftMessage.trim();
     const uploadNames = selectedFiles.map((f) => f.name);
     const sourceNames = referencedSourceFiles.map((f) => f.filename);
+    const sourceFileIds = referencedSourceFiles.map((f) => f.id);
     const fileNames = [...uploadNames, ...sourceNames];
 
     if (!isLiveAiMode) {
@@ -2562,6 +2570,7 @@ export default function ConversationCenter() {
     chatSendAbortRef.current = sendAbort;
     try {
       let uploadNotes = "";
+      let uploadedFileIds: string[] = [];
       if (filesToUpload.length > 0) {
         const uploaded = await uploadSessionFilesToApi(
           AI_CHAT_ENDPOINT,
@@ -2570,8 +2579,16 @@ export default function ConversationCenter() {
           effectiveConversationId,
           filesToUpload,
         );
+        uploadedFileIds = collectChatFileIds(uploaded.map((u) => u.documentId));
         const warnings = uploaded
-          .filter((u) => u.pdfWarning || !u.parsed || u.chunks === 0)
+          .filter((u) =>
+            shouldWarnUnparsedChatUpload({
+              filename: u.filename,
+              parsed: u.parsed,
+              chunks: u.chunks,
+              pdfWarning: u.pdfWarning,
+            }),
+          )
           .map((u) => {
             if (u.pdfWarning) return `${u.filename}：${u.pdfWarning}`;
             if (!u.parsed || u.chunks === 0) {
@@ -2586,6 +2603,7 @@ export default function ConversationCenter() {
         }
         setFileTreeRefreshKey((k) => k + 1);
       }
+      const fileIds = collectChatFileIds([...sourceFileIds, ...uploadedFileIds]);
 
       const history = liveMessages.map((m) => ({ role: m.role, content: m.content }));
       const requestBody =
@@ -2608,6 +2626,7 @@ export default function ConversationCenter() {
                 role: projectRole,
                 message: apiMessage,
                 files: fileNames,
+                fileIds,
                 history,
                 stream: true,
               };

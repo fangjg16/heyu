@@ -20,7 +20,14 @@ import {
   callQwen,
   humanizeUpstreamLlmError,
   shouldFallbackToDashscope,
+  type LlmCallOptions,
+  type LlmMessage,
 } from "./llm-client";
+import {
+  attachVisionToLastUserMessage,
+  collectChatVisionImages,
+  vlModelName,
+} from "./chat-vision";
 import { withResolvedDashscopeEnv } from "./llm-runtime-config";
 import { buildHermesMaterialsDigest } from "./hermes-materials-digest";
 import { buildKnowledgeNetworkMaterialHints } from "./knowledge-network-material-hints";
@@ -177,6 +184,8 @@ export interface Env {
   DASHSCOPE_BASE_URL?: string;
   /** 扫描件/图片抽字，默认 qwen3.5-ocr，勿与对话用的 HERMES_MODEL 混用 */
   QWEN_OCR_MODEL?: string;
+  /** 对话看图，默认 qwen3-vl-plus */
+  QWEN_VL_MODEL?: string;
   EMBED_MODEL?: string;
   EMBED_DIMENSION?: string;
   EMBED_INSTRUCT?: string;
@@ -262,6 +271,8 @@ type ChatBody = {
   message?: string;
   /** 本轮附带的文件名，用于检索 */
   files?: string[];
+  /** 本轮指定的文档 id（源文件追问 / 刚上传附件），用于看图 */
+  fileIds?: string[];
   history?: { role: string; content: string }[];
   /** 默认 true：轻问同步路径使用 SSE 流式 */
   stream?: boolean;
@@ -712,15 +723,18 @@ async function handleUpload(
 
 async function streamLlm(
   env: Env,
-  messages: { role: string; content: string }[],
+  messages: LlmMessage[],
   meta: Record<string, unknown>,
   onDone?: (fullAnswer: string) => void,
+  options?: LlmCallOptions,
 ): Promise<ReadableStream<Uint8Array>> {
   const resolved = await withResolvedDashscopeEnv(env);
   const dashscopeReady = Boolean((resolved.DASHSCOPE_API_KEY || "").trim());
-  const model = (resolved.HERMES_MODEL || "qwen-plus").trim();
+  const model =
+    (options?.model || resolved.HERMES_MODEL || "qwen-plus").trim() || "qwen-plus";
+  const skipHermes = Boolean(options?.forceDashscope);
 
-  if (isHermesAgentConfigured(env)) {
+  if (!skipHermes && isHermesAgentConfigured(env)) {
     const rawBase = (env.HERMES_BASE_URL || "").trim();
     const key = normalizeHermesApiKey(env.HERMES_API_KEY);
     if (rawBase && key) {
@@ -732,7 +746,7 @@ async function streamLlm(
           const upstream = await fetchChatCompletionsStream(
             url,
             key,
-            model,
+            (resolved.HERMES_MODEL || "qwen-plus").trim(),
             messages,
             "Hermes",
           );
@@ -765,11 +779,14 @@ async function streamLlm(
       key,
       model,
       messages,
-      "千问",
+      options?.forceDashscope ? "千问视觉" : "千问",
     );
     return transformOpenAiStreamToJfo(
       upstream,
-      { ...meta, llmBackend: "dashscope-stream" },
+      {
+        ...meta,
+        llmBackend: options?.forceDashscope ? "dashscope-vl-stream" : "dashscope-stream",
+      },
       onDone,
     );
   }
@@ -780,13 +797,16 @@ async function streamLlm(
 /** 获取 OpenAI 兼容原始 SSE（供 buildChatPipelineStream 包装） */
 async function fetchLlmUpstream(
   env: Env,
-  messages: { role: string; content: string }[],
+  messages: LlmMessage[],
+  options?: LlmCallOptions,
 ): Promise<{ upstream: ReadableStream<Uint8Array>; llmBackend: string }> {
   const resolved = await withResolvedDashscopeEnv(env);
   const dashscopeReady = Boolean((resolved.DASHSCOPE_API_KEY || "").trim());
-  const model = (resolved.HERMES_MODEL || "qwen-plus").trim();
+  const model =
+    (options?.model || resolved.HERMES_MODEL || "qwen-plus").trim() || "qwen-plus";
+  const skipHermes = Boolean(options?.forceDashscope);
 
-  if (isHermesAgentConfigured(env)) {
+  if (!skipHermes && isHermesAgentConfigured(env)) {
     const rawBase = (env.HERMES_BASE_URL || "").trim();
     const key = normalizeHermesApiKey(env.HERMES_API_KEY);
     if (rawBase && key) {
@@ -821,9 +841,12 @@ async function fetchLlmUpstream(
       key,
       model,
       messages,
-      "千问",
+      options?.forceDashscope ? "千问视觉" : "千问",
     );
-    return { upstream, llmBackend: "dashscope-stream" };
+    return {
+      upstream,
+      llmBackend: options?.forceDashscope ? "dashscope-vl-stream" : "dashscope-stream",
+    };
   }
 
   throw new Error("未配置流式 LLM");
@@ -1650,7 +1673,30 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
     }
   }
 
-  if (shouldRouteToHermes(chatMode) && isHermesAgentConfigured(env)) {
+  let visionImages: Awaited<ReturnType<typeof collectChatVisionImages>> = {
+    images: [],
+    labels: [],
+  };
+  try {
+    visionImages = await collectChatVisionImages(env, {
+      projectId,
+      userId,
+      fileIds: body.fileIds,
+      files: body.files,
+    });
+  } catch {
+    visionImages = { images: [], labels: [] };
+  }
+  const useVision = visionImages.images.length > 0;
+  const visionLlmOptions: LlmCallOptions | undefined = useVision
+    ? { forceDashscope: true, model: vlModelName(env) }
+    : undefined;
+
+  if (
+    !useVision &&
+    shouldRouteToHermes(chatMode) &&
+    isHermesAgentConfigured(env)
+  ) {
     return handleChatViaHermes(env, ctx, {
       projectId,
       userId,
@@ -1719,9 +1765,12 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
           onStatus: emitStatus,
         });
         emitStatus(CHAT_STATUS.generating);
+        const messages = useVision
+          ? attachVisionToLastUserMessage(prepared.messages, visionImages.images)
+          : prepared.messages;
         const [conversationTopic, llm] = await Promise.all([
           topicPromise,
-          fetchLlmUpstream(env, prepared.messages),
+          fetchLlmUpstream(env, messages, visionLlmOptions),
         ]);
         const { upstream, llmBackend } = llm;
         return {
@@ -1744,9 +1793,12 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
     }
 
     const prepared = await prepareStandardChatContext(contextParams);
+    const messages = useVision
+      ? attachVisionToLastUserMessage(prepared.messages, visionImages.images)
+      : prepared.messages;
     const [conversationTopic, llmResult] = await Promise.all([
       firstUserTurn ? generateConversationTopic(env, message) : Promise.resolve(undefined),
-      callLlm(env, prepared.messages),
+      callLlm(env, messages, visionLlmOptions),
     ]);
     const { answer, llmBackend } = llmResult;
     scheduleMemoryRefresh(answer);

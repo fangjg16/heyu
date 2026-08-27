@@ -17,9 +17,24 @@ export type LlmClientEnv = HermesAgentEnv &
     DASHSCOPE_API_KEY?: string;
     DASHSCOPE_BASE_URL?: string;
     HERMES_MODEL?: string;
+    QWEN_VL_MODEL?: string;
   };
 
-export type LlmMessage = { role: string; content: string };
+export type LlmContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } }
+  | {
+      type: "file";
+      file: { filename: string; file_data: string };
+    };
+
+export type LlmMessage = { role: string; content: string | LlmContentPart[] };
+
+export type LlmCallOptions = {
+  /** 看图回合走百炼视觉模型，不经 Hermes */
+  forceDashscope?: boolean;
+  model?: string;
+};
 
 export async function callChatCompletions(
   url: string,
@@ -104,6 +119,27 @@ export async function callQwen(env: LlmClientEnv, messages: LlmMessage[]) {
     messages,
     "千问",
   );
+}
+
+export async function callDashscopeModel(
+  env: LlmClientEnv,
+  messages: LlmMessage[],
+  model: string,
+  label = "千问",
+) {
+  const resolved = await withResolvedDashscopeEnv(env);
+  const key = (resolved.DASHSCOPE_API_KEY || "").trim();
+  const base = (
+    resolved.DASHSCOPE_BASE_URL ||
+    "https://dashscope.aliyuncs.com/compatible-mode/v1"
+  )
+    .trim()
+    .replace(/\/$/, "");
+  if (!key) {
+    throw new Error("未配置 DASHSCOPE_API_KEY（也未在管理台保存 API Key）");
+  }
+  const use = (model || "").trim() || (resolved.HERMES_MODEL || "qwen-plus").trim();
+  return callChatCompletions(`${base}/chat/completions`, key, use, messages, label);
 }
 
 export async function callHermes(env: LlmClientEnv, messages: LlmMessage[]) {
@@ -194,9 +230,24 @@ export function llmRetryDelayMs(attempt: number): number {
 async function callLlmOnce(
   env: LlmClientEnv,
   messages: LlmMessage[],
+  options?: LlmCallOptions,
 ): Promise<{ answer: string; raw: unknown; llmBackend: string }> {
   const resolved = await withResolvedDashscopeEnv(env);
   const dashscopeReady = Boolean((resolved.DASHSCOPE_API_KEY || "").trim());
+  const modelOverride = (options?.model || "").trim();
+
+  if (options?.forceDashscope) {
+    if (!dashscopeReady) {
+      throw new Error("看图需要 DASHSCOPE_API_KEY（或管理台 API Key）");
+    }
+    const result = await callDashscopeModel(
+      resolved,
+      messages,
+      modelOverride || (resolved.HERMES_MODEL || "qwen-plus").trim(),
+      "千问视觉",
+    );
+    return { ...result, llmBackend: "dashscope-vl" };
+  }
 
   if (isHermesAgentConfigured(env)) {
     try {
@@ -213,7 +264,9 @@ async function callLlmOnce(
   }
 
   if (dashscopeReady) {
-    const result = await callQwen(resolved, messages);
+    const result = modelOverride
+      ? await callDashscopeModel(resolved, messages, modelOverride)
+      : await callQwen(resolved, messages);
     return { ...result, llmBackend: "dashscope" };
   }
 
@@ -225,11 +278,12 @@ async function callLlmOnce(
 export async function callLlm(
   env: LlmClientEnv,
   messages: LlmMessage[],
+  options?: LlmCallOptions,
 ): Promise<{ answer: string; raw: unknown; llmBackend: string }> {
   let last: unknown;
   for (let attempt = 1; attempt <= LLM_RETRY_ATTEMPTS; attempt++) {
     try {
-      return await callLlmOnce(env, messages);
+      return await callLlmOnce(env, messages, options);
     } catch (e) {
       last = e;
       const msg = e instanceof Error ? e.message : String(e);

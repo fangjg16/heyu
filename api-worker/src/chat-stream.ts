@@ -1,4 +1,5 @@
 import { CHAT_STATUS } from "./chat-context";
+import type { LlmMessage } from "./llm-client";
 
 function sseLine(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -137,7 +138,7 @@ export async function fetchChatCompletionsStream(
   url: string,
   apiKey: string,
   model: string,
-  messages: { role: string; content: string }[],
+  messages: LlmMessage[],
   label: string,
 ): Promise<ReadableStream<Uint8Array>> {
   const res = await fetch(url, {

@@ -175,6 +175,8 @@ function buildBindings() {
     "MINIO_MAX_UPLOAD_BYTES",
     "DASHSCOPE_API_KEY",
     "DASHSCOPE_BASE_URL",
+    "QWEN_OCR_MODEL",
+    "QWEN_VL_MODEL",
     "TAVILY_API_KEY",
     "HERMES_BASE_URL",
     "HERMES_UPSTREAM_URL",

@@ -14,6 +14,8 @@ export type LlmRuntimeEnv = {
   HERMES_MODEL?: string;
   /** 源文件扫描件/图片 OCR，默认 qwen3.5-ocr */
   QWEN_OCR_MODEL?: string;
+  /** 对话看图，默认 qwen3-vl-plus */
+  QWEN_VL_MODEL?: string;
 };
 
 export type LlmRuntimeConfig = {
