@@ -17,7 +17,6 @@ import { extractImages, getDocumentProxy } from "unpdf";
 
 export const QWEN_VL_MODEL_DEFAULT = "qwen3-vl-plus";
 export const VL_IMAGE_RAW_MAX = 7 * 1024 * 1024;
-/** 扫描 PDF 整份送给 VL（抽不出页图时） */
 export const VL_PDF_RAW_MAX = 12 * 1024 * 1024;
 export const VL_MAX_IMAGES = 8;
 export const VL_MAX_PDF_PAGES = 8;
@@ -25,13 +24,16 @@ export const VL_MAX_PDF_PAGES = 8;
 export type ChatVisionImage = {
   dataUrl: string;
   label: string;
-  /** 抽不出页图时，把扫描 PDF 整份按 file 传给千问视觉 */
-  asFile?: boolean;
 };
 
 export type ChatVisionResult = {
   images: ChatVisionImage[];
   labels: string[];
+};
+
+export type VisionRasterEnv = {
+  JFO_NODE_HELPER_BASE?: string;
+  JFO_INTERNAL_KEY?: string;
 };
 
 const VL_LOOK_HINT =
@@ -51,17 +53,10 @@ export function attachVisionToLastUserMessage(
   const text =
     (typeof last.content === "string" ? last.content : "") + VL_LOOK_HINT;
   const parts: LlmContentPart[] = [
-    ...images.map((img) =>
-      img.asFile
-        ? {
-            type: "file" as const,
-            file: { filename: img.label, file_data: img.dataUrl },
-          }
-        : {
-            type: "image_url" as const,
-            image_url: { url: img.dataUrl },
-          },
-    ),
+    ...images.map((img) => ({
+      type: "image_url" as const,
+      image_url: { url: img.dataUrl },
+    })),
     { type: "text", text },
   ];
   return messages.map((m) => (m === last ? { ...m, content: parts } : m));
@@ -88,7 +83,7 @@ function asPixelBytes(data: ArrayLike<number>): Uint8Array {
   return data instanceof Uint8Array ? data : Uint8Array.from(data);
 }
 
-async function pdfPagesAsPng(bytes: Uint8Array, fileName: string): Promise<ChatVisionImage[]> {
+async function pdfEmbeddedImagesAsPng(bytes: Uint8Array, fileName: string): Promise<ChatVisionImage[]> {
   const owned = copyOwnedBytes(bytes);
   const pdf = await getDocumentProxy(copyOwnedBytes(owned));
   const n = Math.min(pdf.numPages || 1, VL_MAX_PDF_PAGES);
@@ -127,7 +122,7 @@ async function pdfPagesAsPng(bytes: Uint8Array, fileName: string): Promise<ChatV
 type VisionEnv = {
   DB: AppDatabase;
   FILES: AppObjectStorage;
-};
+} & VisionRasterEnv;
 
 async function loadRowsByIds(
   env: VisionEnv,
@@ -223,13 +218,53 @@ export function pdfTextLooksTooSparseForSkipVision(
   return Array.from(body).length < 400 * pages;
 }
 
-/** 图片，或无文字层的扫描 PDF：抽出页图（或整份 PDF）给视觉模型 */
+async function rasterizePdfViaNodeHelper(
+  env: VisionRasterEnv | undefined,
+  opts: { bytes: Uint8Array; fileName: string },
+): Promise<ChatVisionImage[]> {
+  const helper = (env?.JFO_NODE_HELPER_BASE || "").trim().replace(/\/$/u, "");
+  const key = (env?.JFO_INTERNAL_KEY || "").trim();
+  if (!helper || !key) return [];
+  if (opts.bytes.byteLength === 0 || opts.bytes.byteLength > VL_PDF_RAW_MAX) return [];
+  const q = new URLSearchParams({
+    fileName: opts.fileName,
+    maxPages: String(VL_MAX_PDF_PAGES),
+  });
+  try {
+    const res = await fetch(`${helper}/__jfo/internal/pdf-pages-png?${q}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/pdf",
+        Accept: "application/json",
+      },
+      body: copyOwnedBytes(opts.bytes),
+    });
+    if (!res.ok) return [];
+    const data = (await res.json().catch(() => null)) as {
+      pages?: Array<{ dataUrl?: string; label?: string }>;
+    } | null;
+    const pages = Array.isArray(data?.pages) ? data.pages : [];
+    return pages
+      .filter((p) => typeof p?.dataUrl === "string" && p.dataUrl.startsWith("data:image/"))
+      .slice(0, VL_MAX_IMAGES)
+      .map((p) => ({
+        dataUrl: String(p.dataUrl),
+        label: String(p.label || opts.fileName),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/** 图片，或扫描/测绘图 PDF：整页栅格成 PNG 后以 image_url 送给视觉模型 */
 export async function visionImagesFromFileBytes(opts: {
   fileName: string;
   mime?: string | null;
   bytes: Uint8Array;
   /** 点刷新 / 旧 OCR 失败摘要：即使 PDF 有少量文字层也要看图。可复制 PDF 不要设这个。 */
   preferVision?: boolean;
+  rasterEnv?: VisionRasterEnv;
 }): Promise<ChatVisionImage[]> {
   const fileName = opts.fileName;
   const mime = opts.mime ?? null;
@@ -262,16 +297,14 @@ export async function visionImagesFromFileBytes(opts: {
     if (!needVision) return [];
   }
 
-  const pages = await pdfPagesAsPng(bytes, fileName);
-  if (pages.length > 0) return pages.slice(0, VL_MAX_IMAGES);
-  if (bytes.byteLength > VL_PDF_RAW_MAX) return [];
-  return [
-    {
-      dataUrl: toDataUrl(bytes, "application/pdf"),
-      label: fileName,
-      asFile: true,
-    },
-  ];
+  const raster = await rasterizePdfViaNodeHelper(opts.rasterEnv, {
+    bytes,
+    fileName,
+  });
+  if (raster.length > 0) return raster.slice(0, VL_MAX_IMAGES);
+  const embedded = await pdfEmbeddedImagesAsPng(bytes, fileName);
+  if (embedded.length > 0) return embedded.slice(0, VL_MAX_IMAGES);
+  return [];
 }
 
 export async function collectChatVisionImages(
@@ -318,6 +351,7 @@ export async function collectChatVisionImages(
       fileName: row.filename,
       mime: row.mime,
       bytes,
+      rasterEnv: env,
     });
     for (const img of parts) {
       if (images.length >= VL_MAX_IMAGES) break;

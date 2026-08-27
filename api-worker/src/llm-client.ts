@@ -22,11 +22,7 @@ export type LlmClientEnv = HermesAgentEnv &
 
 export type LlmContentPart =
   | { type: "text"; text: string }
-  | { type: "image_url"; image_url: { url: string } }
-  | {
-      type: "file";
-      file: { filename: string; file_data: string };
-    };
+  | { type: "image_url"; image_url: { url: string } };
 
 export type LlmMessage = { role: string; content: string | LlmContentPart[] };
 

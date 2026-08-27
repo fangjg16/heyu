@@ -31,7 +31,12 @@ import {
   sourceParseVisionLlmOptions,
 } from "./source-parse-vision";
 
-type Env = { DB: AppDatabase; FILES: AppObjectStorage } & LlmClientEnv;
+type Env = {
+  DB: AppDatabase;
+  FILES: AppObjectStorage;
+  JFO_NODE_HELPER_BASE?: string;
+  JFO_INTERNAL_KEY?: string;
+} & LlmClientEnv;
 
 const SOURCE_MAX = 12_000;
 const DIRECTORY_MIME = "application/x-directory";
@@ -95,6 +100,7 @@ async function loadRowVisionImages(
     mime: row.mime,
     bytes,
     preferVision: opts?.preferVision,
+    rasterEnv: env,
   });
 }
 
