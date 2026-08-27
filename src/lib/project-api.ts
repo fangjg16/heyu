@@ -764,6 +764,7 @@ export type UploadProjectFileResult = {
   parsed: boolean;
   parseQueued?: boolean;
   chunks?: number;
+  childDocumentIds?: string[];
 };
 
 export async function uploadProjectPackageFile(
@@ -816,6 +817,9 @@ export async function uploadProjectPackageFile(
     parsed: Boolean(data.parsed),
     parseQueued: Boolean(data.parseQueued),
     chunks: Number(data.chunks) || 0,
+    childDocumentIds: Array.isArray(data.childDocumentIds)
+      ? data.childDocumentIds.map((id) => String(id).trim()).filter(Boolean)
+      : [],
   };
 }
 
