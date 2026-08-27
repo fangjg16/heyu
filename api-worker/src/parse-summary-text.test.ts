@@ -46,4 +46,11 @@ describe("shouldRefreshCachedSummary", () => {
       shouldRefreshCachedSummary("视觉理解未能读出图面：HTTP 400"),
     ).toBe(false);
   });
+
+  it("refetches the survey-map OCR paraphrase so vision can replace it", () => {
+    const survey =
+      "原文为扫描 PDF「02_大陆地块测绘图_SP265790.pdf」。OCR 抽取失败未能获得任何文字内容，无法识别地块编号、位置、面积、四至、权属人、测绘单位、比例尺、坐标系、测绘日期等关键信息。仅能确认文件名指向一份编号为 SP265790 的大陆地块测绘图，疑为土地资产尽调中的权属/边界类附件。建议重新进行 OCR 识别或人工核验扫描件后再解析。";
+    expect(looksLikeOcrEmptyLlmSummary(survey)).toBe(true);
+    expect(shouldRefreshCachedSummary(survey)).toBe(true);
+  });
 });

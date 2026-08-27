@@ -14,12 +14,13 @@ describe("buildSourceFileParseMessages", () => {
       images: [{ dataUrl: "data:image/png;base64,xx", label: "测绘图.pdf" }],
     });
     expect(messages[0]?.content).toBe(PARSE_VISION_SYSTEM);
-    expect(PARSE_VISION_SYSTEM).toMatch(/图面/);
+    expect(PARSE_VISION_SYSTEM).toMatch(/禁止写「OCR/);
     const user = messages[1]!;
     expect(Array.isArray(user.content)).toBe(true);
     const parts = user.content as Array<Record<string, unknown>>;
     expect(parts[0]).toMatchObject({ type: "image_url" });
-    expect(String((parts[1] as { text: string }).text)).toMatch(/以图面为准|只根据图面/);
+    expect(String((parts[1] as { text: string }).text)).toMatch(/直接阅读图面/);
+    expect(String((parts[1] as { text: string }).text)).not.toMatch(/OCR 未抽出/);
   });
 
   it("keeps a text-only prompt for copyable documents", () => {

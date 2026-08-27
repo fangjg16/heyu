@@ -19,11 +19,12 @@ export const PARSE_TEXT_SYSTEM = `你是投研工作台的源文件解析助手�
 2. 若信息不足，在 summary 中如实说明「原文未披露…」，不要猜测。
 3. ${PARSE_JSON_FIELDS}`;
 
-export const PARSE_VISION_SYSTEM = `你是投研工作台的源文件解析助手。这是扫描件或图片，请直接阅读图面（注记、编号、四至、图例、几何关系、权属标注），不要只根据文件名或 OCR 摘录臆测。
+export const PARSE_VISION_SYSTEM = `你是投研工作台的源文件解析助手。这是扫描件或图片，请直接阅读图面（注记、编号、四至、图例、几何关系、权属标注），不要只根据文件名臆测。
 规则：
-1. 图上看得见的必须写入 summary；禁止因为「没有可复制文字」就写成原文未披露。
+1. 图上看得见的必须写入 summary。
 2. 图上看不见的不要编造（尤其是面积、坐标、价格）。
-3. ${PARSE_JSON_FIELDS}`;
+3. 禁止写「OCR 失败 / 未能抽出文字 / 建议重新 OCR」；禁止因为没有可复制文字就说原文未披露。
+4. ${PARSE_JSON_FIELDS}`;
 
 export function sourceParseVisionLlmOptions(env: {
   QWEN_VL_MODEL?: string;
@@ -45,9 +46,11 @@ export function buildSourceFileParseMessages(opts: {
     `文件名：${opts.filename}`,
     `MIME：${opts.mime || "未知"}`,
     "",
-    ocrUsable
-      ? "【OCR/正文摘录（辅助，以图面为准）】\n" + opts.sourceText
-      : "【说明】本地抽字或 OCR 没有可用正文，请只根据图面作答。",
+    opts.images.length > 0
+      ? "【说明】请直接阅读图面作答。不要讨论抽字或 OCR，不要建议重新识别。"
+      : ocrUsable
+        ? "【文件正文摘录】\n" + opts.sourceText
+        : "【说明】没有可用正文摘录。",
   ];
   const messages: LlmMessage[] = [
     {

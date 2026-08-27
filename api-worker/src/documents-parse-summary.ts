@@ -1,7 +1,7 @@
 import type { AppObjectStorage } from "./app-storage";
 import type { AppDatabase } from "./app-database";
 import { documentAccessError, type DocumentRow } from "./documents-access";
-import { ingestExistingDocumentBytes, shouldEmbedNow, shouldQueueParse } from "./documents-ingest";
+import { ingestExistingDocumentBytes, replaceDocumentChunks, shouldEmbedNow, shouldQueueParse } from "./documents-ingest";
 import { embedDocumentChunks } from "./embeddings";
 import { copyOwnedBytes, looksLikeOcrGaveUp, looksLikeUnparsedPlaceholder } from "./extract-document-text";
 import { isImageFileName, isPdfFileName } from "./file-mime";
@@ -543,12 +543,26 @@ async function handleParseProjectFileSummaryUnlocked(
     cached && looksLikeOcrEmptyLlmSummary(cached.summary),
   );
   const existingIsOcrGiveUp = Boolean(existing && looksLikeOcrGaveUp(existing.text));
+  const existingUsable =
+    Boolean(existing) &&
+    !looksLikeUnparsedPlaceholder(existing!.text) &&
+    !looksLikeOcrGaveUp(existing!.text);
+  /** 无文字层扫描件/图片：跳过 OCR，直接看图 */
   const shouldReextract =
-    !existing ||
-    looksLikeUnparsedPlaceholder(existing.text) ||
-    (existingIsOcrGiveUp && retryOcrAfterLlmLie);
+    !useVision &&
+    (!existing ||
+      looksLikeUnparsedPlaceholder(existing.text) ||
+      (existingIsOcrGiveUp && retryOcrAfterLlmLie));
 
-  if (existing && !shouldReextract) {
+  if (useVision) {
+    if (existingUsable && existing) {
+      sourceText = existing.text;
+      chunkCount = existing.chunkCount;
+    } else if (existing) {
+      sourceText = "";
+      chunkCount = existing.chunkCount;
+    }
+  } else if (existing && !shouldReextract) {
     sourceText = existing.text;
     chunkCount = existing.chunkCount;
   } else {
@@ -631,13 +645,33 @@ async function handleParseProjectFileSummaryUnlocked(
       useVision ? sourceParseVisionLlmOptions(env) : undefined,
     );
     const parsed = parseLlmDocumentJson(answer);
+    let nextChunkCount = chunkCount;
+    const junkChunks =
+      useVision &&
+      (!sourceText.trim() ||
+        looksLikeUnparsedPlaceholder(sourceText) ||
+        looksLikeOcrGaveUp(sourceText));
+    if (junkChunks) {
+      const digest = [
+        `【${row.filename} · 视觉理解】`,
+        parsed.summary,
+        ...parsed.keyPoints,
+      ]
+        .filter(Boolean)
+        .join("\n");
+      try {
+        nextChunkCount = await replaceDocumentChunks(env, id, digest);
+      } catch {
+        /* chunks 表异常时仍返回摘要 */
+      }
+    }
     const payload: DocumentParsePayload = {
       summary: parsed.summary,
       documentType: canonicalizeFileTopic(parsed.documentType, row.filename),
       keyPoints: parsed.keyPoints,
       refs: parsed.refs,
       usedFor: parsed.usedFor,
-      chunkCount,
+      chunkCount: nextChunkCount,
       llmBackend,
       fromCache: false,
     };
