@@ -199,6 +199,7 @@ export interface Env {
   /** Hermes 只读拉取项目资料（/api/hermes/*） */
   JFO_INTERNAL_KEY?: string;
   JFO_API_PUBLIC_BASE?: string;
+  JFO_NODE_HELPER_BASE?: string;
   ALLOWED_ORIGIN?: string;
   /** slot-batch v2 开关：0/false 回退 v1；默认启用 v2 */
   KN_SLOT_BATCH_V2_ENABLED?: string;

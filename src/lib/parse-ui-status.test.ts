@@ -60,6 +60,14 @@ describe("shouldRefetchParseSummary", () => {
     expect(shouldRefetchParseSummary("视觉理解未能读出图面：模型超时")).toBe(false);
   });
 
+  it("retries after the vision handoff pipeline banner", () => {
+    expect(
+      shouldRefetchParseSummary(
+        "未能把扫描件/图片交给视觉模型阅读。请稍后点击重新解析。",
+      ),
+    ).toBe(true);
+  });
+
   it("refetches the survey-map OCR paraphrase", () => {
     expect(
       shouldRefetchParseSummary(

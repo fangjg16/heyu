@@ -161,6 +161,7 @@ export async function ingestExistingDocumentBytes(
     relativePath: string;
     allowOcr: boolean;
     persistAttachments: boolean;
+    preferOcr?: boolean;
     depth?: number;
     fetchImpl?: typeof fetch;
   },
@@ -172,6 +173,7 @@ export async function ingestExistingDocumentBytes(
     mimeType: opts.mime,
     env,
     allowOcr: opts.allowOcr,
+    preferOcr: opts.preferOcr,
     depth,
     fetchImpl: opts.fetchImpl,
   });

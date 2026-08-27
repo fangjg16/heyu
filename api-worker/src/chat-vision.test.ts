@@ -3,6 +3,7 @@ import {
   attachVisionToLastUserMessage,
   pdfTextLooksTooSparseForSkipVision,
   QWEN_VL_MODEL_DEFAULT,
+  VL_IMAGE_RAW_MAX,
   visionImagesFromFileBytes,
   vlModelName,
 } from "./chat-vision";
@@ -38,25 +39,14 @@ describe("attachVisionToLastUserMessage", () => {
     expect(out[0]?.content).toBe("sys");
   });
 
-  it("sends scan PDFs without page images as file_data", () => {
+  it("always sends image_url, never type=file (Dashscope compatible-mode rejects file)", () => {
     const out = attachVisionToLastUserMessage(
       [{ role: "user", content: "读这张测绘图" }],
-      [
-        {
-          dataUrl: "data:application/pdf;base64,JVBERg",
-          label: "scan.pdf",
-          asFile: true,
-        },
-      ],
+      [{ dataUrl: "data:image/png;base64,xx", label: "scan.pdf 第1页" }],
     );
     const parts = out[0]!.content as Array<Record<string, unknown>>;
-    expect(parts[0]).toEqual({
-      type: "file",
-      file: {
-        filename: "scan.pdf",
-        file_data: "data:application/pdf;base64,JVBERg",
-      },
-    });
+    expect(parts.map((p) => p.type)).toEqual(["image_url", "text"]);
+    expect(JSON.stringify(parts)).not.toContain('"file"');
   });
 });
 
@@ -133,7 +123,36 @@ describe("visionImagesFromFileBytes", () => {
       bytes: png,
     });
     expect(images).toHaveLength(1);
-    expect(images[0]?.asFile).toBeFalsy();
     expect(images[0]?.dataUrl.startsWith("data:image/png;base64,")).toBe(true);
+  });
+
+  it("compresses oversized images via node helper instead of dropping them", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      expect(String(input)).toContain("/__jfo/internal/image-compress");
+      return new Response(
+        JSON.stringify({
+          mime: "image/jpeg",
+          dataUrl: "data:image/jpeg;base64,abc",
+        }),
+        { status: 200 },
+      );
+    }) as typeof fetch;
+    try {
+      const bytes = new Uint8Array(VL_IMAGE_RAW_MAX + 8);
+      const images = await visionImagesFromFileBytes({
+        fileName: "04 岛屿总体规划图_StoneIsland Master Plan.jpg",
+        mime: "image/jpeg",
+        bytes,
+        rasterEnv: {
+          JFO_NODE_HELPER_BASE: "http://127.0.0.1:8791",
+          JFO_INTERNAL_KEY: "k",
+        },
+      });
+      expect(images).toHaveLength(1);
+      expect(images[0]?.dataUrl).toBe("data:image/jpeg;base64,abc");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });

@@ -36,6 +36,7 @@ export function shouldRefetchParseSummary(summary: string): boolean {
   if (!t || t === "—") return true;
   if (t.startsWith("{") && /"summary"\s*:/u.test(t)) return true;
   if (/detached ArrayBuffer/iu.test(t)) return true;
+  if (/未能把扫描件\/图片交给视觉模型阅读/u.test(t)) return true;
   if (/视觉理解未能读出图面/u.test(t)) return false;
   if (/OCR.{0,12}失败/u.test(t) && /未能获得任何文字|未提取到任何文字|未能抽出/u.test(t)) {
     return true;
