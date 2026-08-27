@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shouldRefreshCachedSummary, looksLikeOcrEmptyLlmSummary, parseSummaryRefreshRequested } from "./parse-summary-text";
+import { shouldRefreshCachedSummary, looksLikeOcrEmptyLlmSummary, parseSummaryRefreshRequested, shouldReturnCachedSummaryOnLlmError } from "./parse-summary-text";
 
 describe("shouldRefreshCachedSummary", () => {
   it("keeps a normal complete sentence", () => {
@@ -74,6 +74,25 @@ describe("parseSummaryRefreshRequested", () => {
     );
     expect(
       parseSummaryRefreshRequested(new URLSearchParams("refresh=0")),
+    ).toBe(false);
+  });
+});
+
+describe("shouldReturnCachedSummaryOnLlmError", () => {
+  const survey =
+    "原文为扫描 PDF「02_大陆地块测绘图_SP265790.pdf」。OCR 抽取失败未能获得任何文字内容，无法识别地块编号。建议重新进行 OCR 识别。";
+
+  it("does not replay OCR-failure paraphrases after a vision error", () => {
+    expect(shouldReturnCachedSummaryOnLlmError(survey, false)).toBe(false);
+    expect(shouldReturnCachedSummaryOnLlmError(survey, true)).toBe(false);
+  });
+
+  it("still returns a normal cached summary when a later LLM call fails", () => {
+    expect(
+      shouldReturnCachedSummaryOnLlmError("图上北至公路，南至海岸，编号 SP265790。", false),
+    ).toBe(true);
+    expect(
+      shouldReturnCachedSummaryOnLlmError("图上北至公路，南至海岸，编号 SP265790。", true),
     ).toBe(false);
   });
 });
