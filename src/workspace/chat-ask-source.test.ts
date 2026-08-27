@@ -4,10 +4,12 @@ import {
   chatAskAboutFilePath,
   clearPendingAskSourceFile,
   parseChatAskSearch,
+  pendingAskFileFromLocation,
   peekPendingAskSourceFile,
   resetChatAskStorageForTests,
   resolveAskNonce,
   storePendingAskSourceFile,
+  withAskSourceQuery,
 } from "./chat-ask-source";
 
 describe("parseChatAskSearch", () => {
@@ -40,6 +42,33 @@ describe("parseChatAskSearch", () => {
       sourceName: null,
       nonce: null,
     });
+  });
+});
+
+describe("pendingAskFileFromLocation", () => {
+  it("reads the source file from search or hash", () => {
+    expect(
+      pendingAskFileFromLocation(
+        "?sourceFile=doc-1&sourceName=01_Bowen滨海区总体规划_2025-11.pdf",
+      ),
+    ).toEqual({
+      id: "doc-1",
+      filename: "01_Bowen滨海区总体规划_2025-11.pdf",
+    });
+    expect(
+      pendingAskFileFromLocation("", "#sourceFile=doc-1&sourceName=a.pdf"),
+    ).toEqual({ id: "doc-1", filename: "a.pdf" });
+  });
+});
+
+describe("withAskSourceQuery", () => {
+  it("keeps the file on the conversation path so the chip survives replace", () => {
+    expect(
+      withAskSourceQuery("/app/chat/proj/conv-1", {
+        id: "doc-1",
+        filename: "01_Bowen滨海区总体规划_2025-11.pdf",
+      }),
+    ).toContain("sourceFile=doc-1");
   });
 });
 

@@ -99,9 +99,11 @@ import {
   assignAskConversationId,
   clearPendingAskSourceFile,
   parseChatAskSearch,
+  pendingAskFileFromLocation,
   peekPendingAskSourceFile,
   resolveAskNonce,
   storePendingAskSourceFile,
+  withAskSourceQuery,
 } from "@/workspace/chat-ask-source";
 import {
   appendMessageWithSortIndex,
@@ -1489,11 +1491,14 @@ export default function ConversationCenter() {
         userId,
         resolveAskNonce(ask),
       );
-      if (ask.sourceFile) {
-        storePendingAskSourceFile(newId, {
-          id: ask.sourceFile,
-          filename: ask.sourceName?.trim() || ask.sourceFile,
-        });
+      const askFile = ask.sourceFile
+        ? {
+            id: ask.sourceFile,
+            filename: ask.sourceName?.trim() || ask.sourceFile,
+          }
+        : null;
+      if (askFile) {
+        storePendingAskSourceFile(newId, askFile);
       }
       const newConv = buildBlankSessionConversation(
         projectId,
@@ -1516,7 +1521,10 @@ export default function ConversationCenter() {
       newConversationTimerRef.current = window.setTimeout(() => {
         setNewlyAddedConversationId((prev) => (prev === newId ? null : prev));
       }, 260);
-      navigate(conversationRoutePath(projectId, newId), { replace: true });
+      navigate(
+        withAskSourceQuery(conversationRoutePath(projectId, newId), askFile),
+        { replace: true },
+      );
       return;
     }
 
@@ -1567,11 +1575,19 @@ export default function ConversationCenter() {
       setReferencedSourceFiles([]);
       return;
     }
-    const pending = peekPendingAskSourceFile(effectiveConversationId);
+    const fromUrl =
+      pendingAskFileFromLocation(location.search, location.hash) ??
+      pendingAskFileFromLocation(
+        typeof window !== "undefined" ? window.location.search : "",
+        typeof window !== "undefined" ? window.location.hash : "",
+      );
+    const pending =
+      peekPendingAskSourceFile(effectiveConversationId) ?? fromUrl;
     if (!pending) {
       setReferencedSourceFiles([]);
       return;
     }
+    storePendingAskSourceFile(effectiveConversationId, pending);
     const found = projectSourceFiles.find((f) => f.id === pending.id);
     setReferencedSourceFiles([
       found ?? {
@@ -1584,8 +1600,11 @@ export default function ConversationCenter() {
         chunkCount: 0,
       },
     ]);
+    if (fromUrl && location.search.includes("sourceFile=")) {
+      navigate(location.pathname, { replace: true });
+    }
     requestAnimationFrame(() => chatInputRef.current?.focus());
-  }, [effectiveConversationId]);
+  }, [effectiveConversationId, location.search, location.hash, location.pathname, navigate]);
 
   useEffect(() => {
     if (projectSourceFiles.length === 0) return;

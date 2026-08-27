@@ -95,6 +95,39 @@ export function assignAskConversationId(
   return id;
 }
 
+export function pendingAskFileFromLocation(
+  search: string,
+  hash = "",
+): PendingAskSourceFile | null {
+  const fromSearch = parseChatAskSearch(search);
+  if (fromSearch.sourceFile) {
+    return {
+      id: fromSearch.sourceFile,
+      filename: fromSearch.sourceName || fromSearch.sourceFile,
+    };
+  }
+  const rawHash = hash.startsWith("#") ? hash.slice(1) : hash;
+  if (!rawHash) return null;
+  const fromHash = parseChatAskSearch(rawHash);
+  if (!fromHash.sourceFile) return null;
+  return {
+    id: fromHash.sourceFile,
+    filename: fromHash.sourceName || fromHash.sourceFile,
+  };
+}
+
+export function withAskSourceQuery(
+  path: string,
+  file: { id: string; filename: string } | null,
+): string {
+  if (!file?.id) return path;
+  const qs = new URLSearchParams({
+    [CHAT_ASK_FILE_PARAM]: file.id,
+    [CHAT_ASK_NAME_PARAM]: file.filename,
+  });
+  return `${path}?${qs.toString()}`;
+}
+
 export function storePendingAskSourceFile(
   conversationId: string,
   file: PendingAskSourceFile,
