@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   attachVisionToLastUserMessage,
+  pdfTextLooksTooSparseForSkipVision,
   QWEN_VL_MODEL_DEFAULT,
   visionImagesFromFileBytes,
   vlModelName,
@@ -102,6 +103,24 @@ describe("callLlm vision", () => {
     expect(body).toContain("data:image/jpeg;base64,abc");
     expect(result.llmBackend).toBe("dashscope-vl");
     expect(result.answer).toContain("北至公路");
+  });
+});
+
+describe("pdfTextLooksTooSparseForSkipVision", () => {
+  it("treats a short survey-map text layer as needing vision", () => {
+    expect(
+      pdfTextLooksTooSparseForSkipVision(
+        "【测绘图.pdf · PDF 提取正文】\nSP265790 Stone Island",
+        2,
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps a dense copyable PDF on the text path", () => {
+    const body = "本合同各方同意如下条款。".repeat(80);
+    expect(pdfTextLooksTooSparseForSkipVision(`【合同.pdf · PDF 提取正文】\n${body}`, 2)).toBe(
+      false,
+    );
   });
 });
 

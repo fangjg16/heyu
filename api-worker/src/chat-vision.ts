@@ -3,6 +3,7 @@ import type { AppObjectStorage } from "./app-storage";
 import { documentAccessError, type DocumentRow } from "./documents-access";
 import {
   copyOwnedBytes,
+  looksLikeOcrGaveUp,
   looksLikeUnparsedPlaceholder,
 } from "./extract-document-text";
 import { isImageFileName, isPdfFileName } from "./file-mime";
@@ -207,17 +208,33 @@ async function canView(
   return !documentAccessError(row, userId, { viewAllSession });
 }
 
+function pdfExtractBody(text: string): string {
+  return text.replace(/^【[^\n]+】\n?/u, "").trim();
+}
+
+/** 文字层很稀：测绘图/扫描件常有少量矢量注记，不能因此跳过看图 */
+export function pdfTextLooksTooSparseForSkipVision(
+  text: string,
+  totalPages: number,
+): boolean {
+  const body = pdfExtractBody(text);
+  if (!body) return true;
+  const pages = Math.max(totalPages || 1, 1);
+  return Array.from(body).length < 400 * pages;
+}
+
 /** 图片，或无文字层的扫描 PDF：抽出页图（或整份 PDF）给视觉模型 */
 export async function visionImagesFromFileBytes(opts: {
   fileName: string;
   mime?: string | null;
   bytes: Uint8Array;
+  /** 点刷新 / 旧 OCR 失败摘要：即使 PDF 有少量文字层也要看图 */
+  preferVision?: boolean;
 }): Promise<ChatVisionImage[]> {
   const fileName = opts.fileName;
   const mime = opts.mime ?? null;
   const bytes = copyOwnedBytes(opts.bytes);
   if (bytes.byteLength === 0) return [];
-  const images: ChatVisionImage[] = [];
 
   if (isImageFileName(fileName, mime)) {
     if (bytes.byteLength > VL_IMAGE_RAW_MAX) return [];
@@ -231,15 +248,19 @@ export async function visionImagesFromFileBytes(opts: {
 
   if (!isPdfFileName(fileName, mime)) return [];
 
-  const local = await extractPdfPlainText(
-    bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
-    fileName,
-  );
-  const needVision =
-    !local.parsed ||
-    !local.text.trim() ||
-    looksLikeUnparsedPlaceholder(local.text);
-  if (!needVision) return [];
+  if (!opts.preferVision) {
+    const local = await extractPdfPlainText(
+      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+      fileName,
+    );
+    const needVision =
+      !local.parsed ||
+      !local.text.trim() ||
+      looksLikeUnparsedPlaceholder(local.text) ||
+      looksLikeOcrGaveUp(local.text) ||
+      pdfTextLooksTooSparseForSkipVision(local.text, local.totalPages);
+    if (!needVision) return [];
+  }
 
   const pages = await pdfPagesAsPng(bytes, fileName);
   if (pages.length > 0) return pages.slice(0, VL_MAX_IMAGES);

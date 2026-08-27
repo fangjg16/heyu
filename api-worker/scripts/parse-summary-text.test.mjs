@@ -5,6 +5,7 @@ import {
   normalizeParseSummaryText,
   parseSummaryRefreshRequested,
   shouldRefreshCachedSummary,
+  shouldReturnCachedSummaryOnLlmError,
   truncateSummary,
 } from "../src/parse-summary-text.ts";
 
@@ -60,6 +61,13 @@ assert.equal(
 );
 assert.equal(
   parseSummaryRefreshRequested(new URLSearchParams("userId=a")),
+  false,
+);
+assert.equal(
+  shouldReturnCachedSummaryOnLlmError(
+    "原文为扫描 PDF「a.pdf」。OCR 抽取失败未能获得任何文字内容，无法识别地块编号。建议重新进行 OCR 识别。",
+    true,
+  ),
   false,
 );
 

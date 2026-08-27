@@ -13,10 +13,12 @@ import { canDownloadProjectFile, resolveProjectRole, roleCanViewAllSessionUpload
 import {
   extractSummaryField,
   looksLikeOcrEmptyLlmSummary,
+  looksLikeOcrFailureContent,
   looksLikeRawParseJson,
   normalizeParseSummaryText,
   parseSummaryRefreshRequested,
   shouldRefreshCachedSummary,
+  shouldReturnCachedSummaryOnLlmError,
   truncateSummary,
 } from "./parse-summary-text";
 import {
@@ -78,6 +80,7 @@ function truncateSource(text: string, max = SOURCE_MAX): string {
 async function loadRowVisionImages(
   env: Env,
   row: { filename: string; mime: string | null; r2_key: string | null },
+  opts?: { preferVision?: boolean },
 ): Promise<ChatVisionImage[]> {
   if (!row.r2_key) return [];
   if (!isImageFileName(row.filename, row.mime) && !isPdfFileName(row.filename, row.mime)) {
@@ -90,6 +93,7 @@ async function loadRowVisionImages(
     fileName: row.filename,
     mime: row.mime,
     bytes,
+    preferVision: opts?.preferVision,
   });
 }
 
@@ -408,7 +412,8 @@ export async function handleParseProjectFileSummary(
 ): Promise<Response> {
   const projectId = decodePathProjectId(pathProjectId);
   const id = docId.trim();
-  const lockKey = `${projectId}:${id}`;
+  const forceRefresh = parseSummaryRefreshRequested(new URL(request.url).searchParams);
+  const lockKey = `${projectId}:${id}:${forceRefresh ? "r" : "g"}`;
   const existingLock = PARSE_INFLIGHT.get(lockKey);
   if (existingLock) {
     const res = await existingLock;
@@ -528,9 +533,14 @@ async function handleParseProjectFileSummaryUnlocked(
     return json(parseResponseBody(row, rowToPayload(cached)));
   }
 
+  const preferVision =
+    forceRefresh ||
+    looksLikeOcrFailureContent(cached?.summary ?? "") ||
+    isImageFileName(row.filename, row.mime);
+
   let visionImages: ChatVisionImage[] = [];
   try {
-    visionImages = await loadRowVisionImages(env, row);
+    visionImages = await loadRowVisionImages(env, row, { preferVision });
   } catch {
     visionImages = [];
   }
@@ -545,13 +555,18 @@ async function handleParseProjectFileSummaryUnlocked(
     cached && looksLikeOcrEmptyLlmSummary(cached.summary),
   );
   const existingIsOcrGiveUp = Boolean(existing && looksLikeOcrGaveUp(existing.text));
-  const existingUsable =
-    Boolean(existing) &&
-    !looksLikeUnparsedPlaceholder(existing!.text) &&
-    !looksLikeOcrGaveUp(existing!.text);
-  /** 无文字层扫描件/图片：跳过 OCR，直接看图 */
+  const existingIsJunk = Boolean(
+    existing &&
+      (looksLikeUnparsedPlaceholder(existing.text) ||
+        looksLikeOcrGaveUp(existing.text) ||
+        looksLikeOcrFailureContent(existing.text)),
+  );
+  const existingUsable = Boolean(existing) && !existingIsJunk;
+  /** 无文字层扫描件/图片：跳过 OCR，直接看图。PDF 看图失败时不要再拿 OCR 失败文案去扩写。 */
   const shouldReextract =
     !useVision &&
+    !isPdfFileName(row.filename, row.mime) &&
+    !isImageFileName(row.filename, row.mime) &&
     (!existing ||
       looksLikeUnparsedPlaceholder(existing.text) ||
       (existingIsOcrGiveUp && retryOcrAfterLlmLie));
@@ -564,9 +579,27 @@ async function handleParseProjectFileSummaryUnlocked(
       sourceText = "";
       chunkCount = existing.chunkCount;
     }
-  } else if (existing && !shouldReextract) {
+  } else if (existing && existingUsable && !shouldReextract) {
     sourceText = existing.text;
     chunkCount = existing.chunkCount;
+  } else if (
+    !useVision &&
+    preferVision &&
+    (isPdfFileName(row.filename, row.mime) || isImageFileName(row.filename, row.mime))
+  ) {
+    return json({
+      documentId: id,
+      filename: row.filename,
+      mime: row.mime,
+      parsed: false,
+      summary: "未能把扫描件/图片交给视觉模型阅读。请稍后点击重新解析。",
+      chunkCount: existing?.chunkCount ?? 0,
+      documentType: "",
+      keyPoints: [],
+      refs: [],
+      usedFor: [],
+      warning: extractWarning ?? null,
+    });
   } else {
     const extracted = await extractAndPersistSource(
       env,
@@ -617,7 +650,8 @@ async function handleParseProjectFileSummaryUnlocked(
     !useVision &&
     (!sourceText.trim() ||
       looksLikeUnparsedPlaceholder(sourceText) ||
-      looksLikeOcrGaveUp(sourceText))
+      looksLikeOcrGaveUp(sourceText) ||
+      looksLikeOcrFailureContent(sourceText))
   ) {
     return json({
       documentId: id,
@@ -698,7 +732,7 @@ async function handleParseProjectFileSummaryUnlocked(
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    if (cached && !looksLikeOcrGaveUp(cached.summary)) {
+    if (cached && shouldReturnCachedSummaryOnLlmError(cached.summary, forceRefresh)) {
       return json(parseResponseBody(row, rowToPayload(cached)));
     }
     const failSummary = useVision

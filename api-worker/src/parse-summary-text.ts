@@ -58,6 +58,29 @@ export function parseSummaryRefreshRequested(
   return raw === "1" || raw === "true" || raw === "yes";
 }
 
+/** 检索块/摘要还在说 OCR 失败：不能当可用正文，也不能当看图失败后的成功回退 */
+export function looksLikeOcrFailureContent(text: string): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+  return looksLikeOcrEmptyLlmSummary(t) || looksLikeScanOcrNeededSummary(t);
+}
+
+/**
+ * 看图/摘要模型失败时，不要把「OCR 失败扩写」当成解析成功交回去。
+ * 否则点刷新会瞬间回到同一段文案，看起来像没重新解析。
+ */
+export function shouldReturnCachedSummaryOnLlmError(
+  cachedSummary: string | undefined,
+  forceRefresh: boolean,
+): boolean {
+  if (forceRefresh) return false;
+  const t = (cachedSummary ?? "").trim();
+  if (!t) return false;
+  if (looksLikeOcrFailureContent(t)) return false;
+  if (/OCR 未抽出|OCR 失败|无法 OCR：/u.test(t)) return false;
+  return true;
+}
+
 /** 旧版 100 字硬截、残缺 JSON、或 VARCHAR 截断：点开时应重跑解析 */
 export function shouldRefreshCachedSummary(raw: string): boolean {
   const original = (raw ?? "").trim();
