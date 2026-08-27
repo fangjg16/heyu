@@ -13,8 +13,10 @@ import {
   markBackdropPointerDown,
 } from "@/lib/backdrop-dismiss";
 import {
+  parseDetailPendingText,
   resolveParseUiStatus,
   shouldRefetchParseSummary,
+  shouldSendParseRefresh,
   type ParseUiStatus,
 } from "@/lib/parse-ui-status";
 import ReactMarkdown from "react-markdown";
@@ -1180,20 +1182,32 @@ export function ProjectMaterialsSection({
       }
       if (!force && parsedById[file.id]?.status === "parsing") return;
       if (!force && parsingId === file.id) return;
-      const refresh =
-        force || shouldRefetchParseSummary(cachedSummary);
-      setParsedById((prev) => ({
-        ...prev,
-        [file.id]: {
-          summary: force ? "正在重新解析…" : "正在解析…",
-          chunkCount: prev[file.id]?.chunkCount ?? 0,
-          status: "parsing",
-          documentType: prev[file.id]?.documentType,
-          keyPoints: prev[file.id]?.keyPoints ?? [],
-          refs: prev[file.id]?.refs ?? [],
-          usedFor: prev[file.id]?.usedFor ?? [],
-        },
-      }));
+      const refresh = shouldSendParseRefresh({ force, cachedSummary });
+      const loadingCached = Boolean(file.parsed) && !refresh;
+      if (!loadingCached) {
+        const prev = parsedById[file.id];
+        const keepSummary =
+          prev?.status === "parsed" &&
+          prev.summary &&
+          prev.summary !== "—" &&
+          !shouldRefetchParseSummary(prev.summary);
+        setParsedById((map) => ({
+          ...map,
+          [file.id]: {
+            summary: keepSummary && prev?.summary
+              ? prev.summary
+              : force
+                ? "正在重新解析…"
+                : "正在解析…",
+            chunkCount: map[file.id]?.chunkCount ?? 0,
+            status: "parsing",
+            documentType: map[file.id]?.documentType,
+            keyPoints: keepSummary ? (map[file.id]?.keyPoints ?? []) : [],
+            refs: keepSummary ? (map[file.id]?.refs ?? []) : [],
+            usedFor: keepSummary ? (map[file.id]?.usedFor ?? []) : [],
+          },
+        }));
+      }
       setParsingId(file.id);
       setError(null);
       try {
@@ -1299,17 +1313,34 @@ export function ProjectMaterialsSection({
             t.label === "受限",
         ) ?? tags[0];
       const cache = parsedById[file.id];
+      const inFlight =
+        parsingId === file.id || cache?.status === "parsing";
+      const pending = parseDetailPendingText({
+        ui,
+        dbParsed: Boolean(file.parsed),
+        inFlight,
+        forceRefresh: ui === "parsing" && Boolean(file.parsed),
+      });
       const trail = [
         ...folderPathTrail(fullTree, selectedFileNode.relativePath),
         { label: file.filename, path: `file:${file.id}` },
       ];
+      const pendingCopy = /^(正在解析…|正在重新解析…|加载详情中…)$/u;
       let summary = "点击文件以解析（将调用大模型生成摘要）";
-      if (ui === "parsing") summary = "正在解析…";
-      else if (cache?.status === "parsed") summary = cache.summary || "—";
+      if (cache?.status === "parsed") summary = cache.summary || "—";
       else if (cache?.status === "failed") summary = cache.summary || "解析失败";
-      else if (file.parsed) summary = "加载详情中…";
-      else if (file.scope === "package" && !canDownload) {
+      else if (
+        cache?.status === "parsing" &&
+        cache.summary &&
+        !pendingCopy.test(cache.summary)
+      ) {
+        summary = cache.summary;
+      } else if (file.scope === "package" && !canDownload) {
         summary = "当前权限受限，无法解析该文件";
+      } else if (pending) {
+        summary = "";
+      } else if (file.parsed) {
+        summary = cache?.summary || "";
       }
 
       const refLabels = cache?.refs ?? [];
@@ -1331,6 +1362,8 @@ export function ProjectMaterialsSection({
                 : "",
         refs: refLabels.filter((r) => r.length <= 24 && !/https?:\/\//i.test(r)),
         summary,
+        pending,
+        parseBusy: cache?.status === "parsing",
         documentType: cache?.documentType || file.fileCategory || "",
         keyPoints: cache?.keyPoints ?? [],
         srcLines: [
@@ -1374,6 +1407,8 @@ export function ProjectMaterialsSection({
       perm: "",
       refs: [] as string[],
       summary: "",
+      pending: null as string | null,
+      parseBusy: false,
       documentType: "",
       keyPoints: [] as string[],
       srcLines: [] as { label: string; value: string }[],
@@ -1820,20 +1855,16 @@ export function ProjectMaterialsSection({
                         <RefreshCw
                           className={cn(
                             "h-3.5 w-3.5",
-                            (parsingId === detail.file.id ||
-                              parsedById[detail.file.id]?.status === "parsing") &&
-                              "animate-spin",
+                            detail.parseBusy && "animate-spin",
                           )}
                           strokeWidth={1.8}
                           aria-hidden
                         />
                       </button>
                     ) : null}
-                    {detail.documentType &&
-                    parsingId !== detail.file?.id &&
-                    parsedById[detail.file?.id ?? ""]?.status !== "parsing" ? (
-                      <span className="text-[13px] font-medium text-[#1F2423]">
-                        {detail.documentType}
+                    {detail.pending ? (
+                      <span className="text-[13px] text-[hsl(var(--warm-charcoal-muted))]">
+                        {detail.pending}
                       </span>
                     ) : null}
                     {detail.perm ? (
@@ -1842,19 +1873,14 @@ export function ProjectMaterialsSection({
                       </span>
                     ) : null}
                   </div>
-                  {parsingId === detail.file?.id ||
-                  parsedById[detail.file?.id ?? ""]?.status === "parsing" ? (
-                    <span className="inline-flex items-center gap-2 text-[hsl(var(--warm-charcoal-muted))]">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                      {detail.summary}
-                    </span>
-                  ) : (
+                  {detail.documentType ? (
+                    <div className="mb-2 text-[13px] font-medium text-[#1F2423]">
+                      {detail.documentType}
+                    </div>
+                  ) : null}
+                  {detail.summary.trim() ? (
                     <>
-                      {detail.summary.trim() ? (
-                        <ChatMarkdown text={detail.summary} variant="assistant" />
-                      ) : (
-                        <div>—</div>
-                      )}
+                      <ChatMarkdown text={detail.summary} variant="assistant" />
                       {detail.keyPoints.length > 0 ? (
                         <ul className="mt-3 list-disc space-y-1 pl-5 text-[13px] leading-relaxed text-[hsl(var(--warm-charcoal))]">
                           {detail.keyPoints.map((p, i) => (
@@ -1863,6 +1889,8 @@ export function ProjectMaterialsSection({
                         </ul>
                       ) : null}
                     </>
+                  ) : detail.pending ? null : (
+                    <div>—</div>
                   )}
                 </div>
               ) : null}
