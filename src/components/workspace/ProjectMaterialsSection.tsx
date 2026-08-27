@@ -78,8 +78,9 @@ import {
   snapshotDroppedEntries,
 } from "@/lib/collect-dropped-files";
 import {
+  expandZipsInUploadItems,
+  isZipFileName,
   relativePathFromWebkitFile,
-  unzipProjectPackageFiles,
 } from "@/lib/unzip-project-files";
 import {
   enqueueProjectUpload,
@@ -173,7 +174,11 @@ function hasWebkitPath(file: File): boolean {
 }
 
 function isZipFile(file: File): boolean {
-  return file.name.toLowerCase().endsWith(".zip");
+  return isZipFileName(file.name, file.type);
+}
+
+function isZipRecord(file: { filename: string; mime?: string | null }): boolean {
+  return isZipFileName(file.filename, file.mime);
 }
 
 function fileExt(name: string): string {
@@ -462,6 +467,7 @@ export function ProjectMaterialsSection({
   const [unzipHint, setUnzipHint] = useState<string | null>(null);
   const [uploadHint, setUploadHint] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [unzippingId, setUnzippingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragOverPath, setDragOverPath] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
@@ -740,54 +746,37 @@ export function ProjectMaterialsSection({
       }
       const files = Array.from(list);
       const base = resolveUploadFolder(targetFolder);
-
-      if (files.length === 1 && isZipFile(files[0]!) && !hasWebkitPath(files[0]!)) {
-        setError(null);
-        setUnzipHint("正在解压 ZIP…");
-        try {
-          const items = await unzipProjectPackageFiles(files[0]!, base);
-          setUnzipHint(null);
-          enqueueItems(items);
-        } catch (e) {
-          setError(e instanceof Error ? e.message : String(e));
-          setUnzipHint(null);
+      const initial = files.map((file) => ({
+        file,
+        relativePath: hasWebkitPath(file)
+          ? relativePathFromWebkitFile(file, base)
+          : base,
+      }));
+      const hasZip = initial.some((it) => isZipFile(it.file));
+      const warnings: string[] = [];
+      setError(null);
+      if (hasZip) setUnzipHint("正在解压 ZIP…");
+      try {
+        const items = await expandZipsInUploadItems(initial, { warnings });
+        setUnzipHint(null);
+        if (warnings.length > 0) {
+          setError(warnings.slice(0, 3).join("；"));
         }
-        return;
+        enqueueItems(items);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+        setUnzipHint(null);
       }
-
-      if (files.some(hasWebkitPath)) {
-        enqueueItems(
-          files.map((file) => ({
-            file,
-            relativePath: relativePathFromWebkitFile(file, base),
-          })),
-        );
-        return;
-      }
-
-      enqueueItems(
-        files.map((file) => ({
-          file,
-          relativePath: base,
-        })),
-      );
     },
     [enqueueItems],
   );
 
   const onFolderInputChange = useCallback(
     (list: FileList | null, targetFolder: string) => {
-      if (!list?.length) return;
-      const base = resolveUploadFolder(targetFolder);
-      enqueueItems(
-        Array.from(list).map((file) => ({
-          file,
-          relativePath: relativePathFromWebkitFile(file, base),
-        })),
-      );
+      void processUploadSelection(list, targetFolder);
       if (folderInputRef.current) folderInputRef.current.value = "";
     },
-    [enqueueItems],
+    [processUploadSelection],
   );
 
   const triggerFilePicker = (targetFolder: string) => {
@@ -853,6 +842,40 @@ export function ProjectMaterialsSection({
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const onUnzipUploadedZip = async (file: ProjectFileRecord) => {
+    if (!useLive || !canManage) return;
+    if (!isZipRecord(file)) return;
+    if (fileSourceBucket(file) === "issuer") return;
+    setUnzippingId(file.id);
+    setError(null);
+    setUnzipHint(`正在解压 ${file.filename}…`);
+    try {
+      const { blob, filename } = await downloadFileBlob(
+        projectId,
+        file.id,
+        userId,
+        file.filename,
+      );
+      const zipFile = new File([blob], filename || file.filename, {
+        type: file.mime || "application/zip",
+      });
+      const warnings: string[] = [];
+      const items = await expandZipsInUploadItems(
+        [{ file: zipFile, relativePath: normalizeRelativePath(file.relativePath) }],
+        { warnings },
+      );
+      if (warnings.length > 0) {
+        setError(warnings.slice(0, 3).join("；"));
+      }
+      enqueueItems(items);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUnzippingId(null);
+      setUnzipHint(null);
     }
   };
 
@@ -1139,7 +1162,7 @@ export function ProjectMaterialsSection({
     }
   };
 
-  const busy = folderBusy || Boolean(deletingId);
+  const busy = folderBusy || Boolean(deletingId) || Boolean(unzippingId);
 
   const canParseFile = useCallback(
     (file: ProjectFileRecord) => {
@@ -1670,6 +1693,16 @@ export function ProjectMaterialsSection({
                   canManage &&
                   fileSourceBucket(detail.file) !== "issuer" ? (
                     <>
+                      {isZipRecord(detail.file) ? (
+                        <button
+                          type="button"
+                          disabled={busy || unzippingId === detail.file.id}
+                          onClick={() => void onUnzipUploadedZip(detail.file!)}
+                          className="h-8 rounded-lg border border-[rgba(160,99,88,0.3)] bg-transparent px-3 text-[12.5px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:opacity-50"
+                        >
+                          {unzippingId === detail.file.id ? "解压中…" : "解压"}
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         disabled={busy}

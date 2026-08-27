@@ -7,9 +7,13 @@ import {
   handleGetActiveAgentJobs,
   persistAgentJobPendingChatTurn,
 } from "./chat-sync";
-import { extractPdfPlainText } from "./pdf-text";
-import { extractSpreadsheetPlainText } from "./spreadsheet-text";
 import { runDocumentParseSummaryBackground } from "./documents-parse-summary";
+import {
+  ingestExistingDocumentBytes,
+  shouldEmbedNow,
+  shouldQueueParse,
+} from "./documents-ingest";
+import { insertDocumentRow } from "./documents-persist";
 import {
   callHermes,
   callLlm,
@@ -64,7 +68,7 @@ import {
 } from "./conversation-topic";
 import { invalidateChunkCache } from "./chunk-cache";
 import { embedDocumentChunks } from "./embeddings";
-import { chunkPlainText, isGenericProjectQuestion } from "./search";
+import { isGenericProjectQuestion } from "./search";
 import { getProjectById as getDbProjectById } from "./projects-db";
 import {
   DIRECTORY_MIME,
@@ -171,6 +175,8 @@ export interface Env {
   /** 可选：Hermes 未配置时，同步快答降级为直连千问 */
   DASHSCOPE_API_KEY?: string;
   DASHSCOPE_BASE_URL?: string;
+  /** 扫描件/图片抽字，默认 qwen3.5-ocr，勿与对话用的 HERMES_MODEL 混用 */
+  QWEN_OCR_MODEL?: string;
   EMBED_MODEL?: string;
   EMBED_DIMENSION?: string;
   EMBED_INSTRUCT?: string;
@@ -556,85 +562,19 @@ async function handleUpload(
   const scopeVal = scope === "session" ? "session" : "package";
 
   const byteSize = bytes.byteLength;
-  const insertWithPathAndSize = async () => {
-    await env.DB.prepare(
-      `INSERT INTO documents (id, project_id, conversation_id, filename, relative_path, r2_key, mime, byte_size, scope, uploaded_by, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-      .bind(
-        docId,
-        projectId,
-        conversationId,
-        baseName,
-        relativePath,
-        r2Key,
-        mime,
-        byteSize,
-        scopeVal,
-        uploadedBy,
-        now,
-      )
-      .run();
-  };
-  const insertWithPath = async () => {
-    await env.DB.prepare(
-      `INSERT INTO documents (id, project_id, conversation_id, filename, relative_path, r2_key, mime, scope, uploaded_by, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-      .bind(
-        docId,
-        projectId,
-        conversationId,
-        baseName,
-        relativePath,
-        r2Key,
-        mime,
-        scopeVal,
-        uploadedBy,
-        now,
-      )
-      .run();
-  };
-  const insertLegacy = async () => {
-    await env.DB.prepare(
-      `INSERT INTO documents (id, project_id, conversation_id, filename, r2_key, mime, scope, uploaded_by, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-      .bind(
-        docId,
-        projectId,
-        conversationId,
-        baseName,
-        r2Key,
-        mime,
-        scopeVal,
-        uploadedBy,
-        now,
-      )
-      .run();
-  };
-
-  try {
-    await insertWithPathAndSize();
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    if (/Unknown column ['`]?byte_size['`]?/i.test(msg) || /no such column:\s*byte_size/i.test(msg)) {
-      try {
-        await insertWithPath();
-      } catch (e2) {
-        const msg2 = e2 instanceof Error ? e2.message : String(e2);
-        if (/Unknown column ['`]?relative_path['`]?/i.test(msg2) || /no such column:\s*relative_path/i.test(msg2)) {
-          await insertLegacy();
-        } else {
-          throw e2;
-        }
-      }
-    } else if (/Unknown column ['`]?relative_path['`]?/i.test(msg) || /no such column:\s*relative_path/i.test(msg)) {
-      await insertLegacy();
-    } else {
-      throw e;
-    }
-  }
+  await insertDocumentRow(env, {
+    id: docId,
+    projectId,
+    conversationId,
+    filename: baseName,
+    relativePath,
+    r2Key,
+    mime,
+    byteSize,
+    scope: scopeVal,
+    uploadedBy,
+    createdAt: now,
+  });
 
   if (isIssuerRole(role) || form.get("collabItemId") || form.get("sourceKind")) {
     const collabItemId = String(form.get("collabItemId") || "").trim() || null;
@@ -722,73 +662,39 @@ async function handleUpload(
     });
   }
 
-  const isText =
-    mime.startsWith("text/") ||
-    safeName.endsWith(".txt") ||
-    safeName.endsWith(".md") ||
-    safeName.endsWith(".html") ||
-    safeName.endsWith(".htm");
-  const isPdf = mime === "application/pdf" || safeName.endsWith(".pdf");
-  const isSpreadsheet =
-    mime.includes("spreadsheet") ||
-    mime === "application/vnd.ms-excel" ||
-    safeName.endsWith(".xlsx") ||
-    safeName.endsWith(".xls");
-
-  let text = "";
-  let pdfWarning: string | undefined;
-  let parsed = isText || isPdf || isSpreadsheet;
-
-  if (isText) {
-    text = new TextDecoder().decode(bytes);
-  } else if (isPdf) {
-    const extracted = await extractPdfPlainText(bytes, file.name);
-    pdfWarning = extracted.warning;
-    if (extracted.parsed && extracted.text) {
-      text = extracted.text;
-    } else {
-      parsed = false;
-      text = `（已上传 PDF：${file.name}。${extracted.warning ?? "未能提取正文"}）`;
-    }
-  } else if (isSpreadsheet) {
-    const extracted = await extractSpreadsheetPlainText(bytes, file.name);
-    pdfWarning = extracted.warning;
-    if (extracted.parsed && extracted.text) {
-      text = extracted.text;
-    } else {
-      parsed = false;
-      text = `（已上传 Excel：${file.name}。${extracted.warning ?? "未能提取表格正文"}）`;
-    }
-  } else {
-    parsed = false;
-    text = `（已上传文件：${file.name}，类型 ${mime || "未知"}，暂未解析正文。）`;
-  }
-
-  const parts = chunkPlainText(text);
-  for (let i = 0; i < parts.length; i++) {
-    await env.DB.prepare(
-      `INSERT INTO chunks (id, document_id, chunk_index, text) VALUES (?, ?, ?, ?)`,
-    )
-      .bind(`${docId}-${i}`, docId, i, parts[i])
-      .run();
-  }
-
-  await invalidateChunkCache(
+  const ingested = await ingestExistingDocumentBytes(env, {
+    docId,
     projectId,
     uploadedBy,
-    scope === "session" ? conversationId ?? undefined : undefined,
-  );
+    conversationId,
+    scope: scopeVal,
+    fileName: baseName,
+    mime,
+    bytes,
+    relativePath,
+    allowOcr: false,
+    persistAttachments: true,
+  });
 
-  if (parsed && parts.length > 0) {
-    ctx.waitUntil(embedDocumentChunks(env, docId));
-    ctx.waitUntil(
-      runDocumentParseSummaryBackground(env, ctx, {
-        projectId,
-        documentId: docId,
-        userId: uploadedBy,
-      }),
-    );
+  for (const job of ingested.jobs) {
+    if (shouldEmbedNow(job)) {
+      ctx.waitUntil(embedDocumentChunks(env, job.documentId));
+    }
+    if (shouldQueueParse(job)) {
+      ctx.waitUntil(
+        runDocumentParseSummaryBackground(env, ctx, {
+          projectId,
+          documentId: job.documentId,
+          userId: uploadedBy,
+        }),
+      );
+    }
   }
+
+  const parsed = ingested.parsed || ingested.needsOcr;
+  const childDocumentIds = ingested.jobs
+    .map((j) => j.documentId)
+    .filter((id) => id !== docId);
 
   return json({
     ok: true,
@@ -796,10 +702,11 @@ async function handleUpload(
     filename: baseName,
     relativePath,
     r2Key,
-    chunks: parts.length,
+    chunks: ingested.chunkCount,
     parsed,
-    parseQueued: Boolean(parsed && parts.length > 0),
-    pdfWarning: pdfWarning ?? null,
+    parseQueued: ingested.jobs.some(shouldQueueParse),
+    childDocumentIds,
+    pdfWarning: ingested.warning ?? null,
   });
 }
 

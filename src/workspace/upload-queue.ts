@@ -157,6 +157,11 @@ async function pump(): Promise<void> {
             ) {
               job.parseIds.push(uploaded.documentId);
             }
+            for (const childId of uploaded.childDocumentIds ?? []) {
+              if (childId && !job.parseIds.includes(childId)) {
+                job.parseIds.push(childId);
+              }
+            }
           }
         } catch (e) {
           job.errors.push(

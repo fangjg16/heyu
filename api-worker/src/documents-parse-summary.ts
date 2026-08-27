@@ -1,15 +1,13 @@
 import type { AppObjectStorage } from "./app-storage";
 import type { AppDatabase } from "./app-database";
-import { invalidateChunkCache } from "./chunk-cache";
 import { documentAccessError, type DocumentRow } from "./documents-access";
+import { ingestExistingDocumentBytes, shouldEmbedNow, shouldQueueParse } from "./documents-ingest";
 import { embedDocumentChunks } from "./embeddings";
+import { looksLikeUnparsedPlaceholder } from "./extract-document-text";
 import { callLlm, type LlmClientEnv } from "./llm-client";
-import { extractPdfPlainText } from "./pdf-text";
 import { getProjectById } from "./projects-db";
 import { decodePathProjectId } from "./projects-resolve";
-import { chunkPlainText } from "./search";
 import { canonicalizeFileTopic } from "./file-topic";
-import { extractSpreadsheetPlainText } from "./spreadsheet-text";
 import { canDownloadProjectFile, resolveProjectRole, roleCanViewAllSessionUploads } from "./workspace-roles";
 import {
   extractSummaryField,
@@ -301,86 +299,10 @@ async function loadExistingSourceText(
   return { text: joined, chunkCount };
 }
 
-async function extractPlainTextFromBytes(
-  bytes: ArrayBuffer,
-  filename: string,
-  mime: string | null,
-): Promise<{ text: string; parsed: boolean; warning?: string }> {
-  const safeName = filename.toLowerCase();
-  const m = (mime ?? "").toLowerCase();
-  const isText =
-    m.startsWith("text/") ||
-    safeName.endsWith(".txt") ||
-    safeName.endsWith(".md") ||
-    safeName.endsWith(".html") ||
-    safeName.endsWith(".htm");
-  const isPdf = m === "application/pdf" || safeName.endsWith(".pdf");
-  const isSpreadsheet =
-    m.includes("spreadsheet") ||
-    m === "application/vnd.ms-excel" ||
-    safeName.endsWith(".xlsx") ||
-    safeName.endsWith(".xls");
-
-  if (isText) {
-    return { text: new TextDecoder().decode(bytes), parsed: true };
-  }
-  if (isPdf) {
-    const extracted = await extractPdfPlainText(bytes, filename);
-    if (extracted.parsed && extracted.text) {
-      return {
-        text: extracted.text,
-        parsed: true,
-        warning: extracted.warning,
-      };
-    }
-    return {
-      text: `（已上传 PDF：${filename}。${extracted.warning ?? "未能提取正文"}）`,
-      parsed: false,
-      warning: extracted.warning,
-    };
-  }
-  if (isSpreadsheet) {
-    const extracted = await extractSpreadsheetPlainText(bytes, filename);
-    if (extracted.parsed && extracted.text) {
-      return {
-        text: extracted.text,
-        parsed: true,
-        warning: extracted.warning,
-      };
-    }
-    return {
-      text: `（已上传 Excel：${filename}。${extracted.warning ?? "未能提取表格正文"}）`,
-      parsed: false,
-      warning: extracted.warning,
-    };
-  }
-  return {
-    text: `（已上传文件：${filename}，类型 ${mime || "未知"}，暂未解析正文。）`,
-    parsed: false,
-  };
-}
-
-function looksLikePlaceholderText(text: string): boolean {
-  const t = text.trim();
-  return (
-    t.startsWith("（已上传") ||
-    t.includes("暂未解析正文") ||
-    t.includes("未能提取") ||
-    t.includes("请压缩") ||
-    /超过\s*\d+\s*MB/u.test(t)
-  );
-}
-
-async function deleteDocumentChunks(env: Env, docId: string): Promise<void> {
-  await env.DB.prepare(`DELETE FROM chunks WHERE document_id = ?`)
-    .bind(docId)
-    .run();
-}
-
 async function extractAndPersistSource(
   env: Env,
   ctx: ExecutionContext,
-  row: DocumentRow & { mime: string | null },
+  row: DocumentRow & { mime: string | null; relative_path?: string | null },
   userId: string,
   projectId: string,
 ): Promise<{ text: string; chunkCount: number; warning?: string; ok: boolean }> {
@@ -400,33 +322,38 @@ async function extractAndPersistSource(
     };
   }
   const bytes = await object.arrayBuffer();
-  const extracted = await extractPlainTextFromBytes(
-    bytes,
-    row.filename,
-    row.mime,
-  );
-  await deleteDocumentChunks(env, row.id);
-  const parts = chunkPlainText(extracted.text);
-  for (let i = 0; i < parts.length; i++) {
-    await env.DB.prepare(
-      `INSERT INTO chunks (id, document_id, chunk_index, text) VALUES (?, ?, ?, ?)`,
-    )
-      .bind(`${row.id}-${i}`, row.id, i, parts[i])
-      .run();
-  }
-  await invalidateChunkCache(
+  const ingested = await ingestExistingDocumentBytes(env, {
+    docId: row.id,
     projectId,
-    row.uploaded_by ?? userId,
-    row.scope === "session" ? row.conversation_id ?? undefined : undefined,
-  );
-  if (extracted.parsed && parts.length > 0) {
-    ctx.waitUntil(embedDocumentChunks(env, row.id));
+    uploadedBy: row.uploaded_by ?? userId,
+    conversationId: row.conversation_id,
+    scope: row.scope,
+    fileName: row.filename,
+    mime: row.mime,
+    bytes,
+    relativePath: row.relative_path ?? "",
+    allowOcr: true,
+    persistAttachments: true,
+  });
+  for (const job of ingested.jobs) {
+    if (shouldEmbedNow(job)) {
+      ctx.waitUntil(embedDocumentChunks(env, job.documentId));
+    }
+    if (job.documentId !== row.id && shouldQueueParse(job) && !job.needsOcr) {
+      ctx.waitUntil(
+        runDocumentParseSummaryBackground(env, ctx, {
+          projectId,
+          documentId: job.documentId,
+          userId,
+        }),
+      );
+    }
   }
   return {
-    text: extracted.text,
-    chunkCount: parts.length,
-    warning: extracted.warning,
-    ok: extracted.parsed && !looksLikePlaceholderText(extracted.text),
+    text: ingested.text,
+    chunkCount: ingested.chunkCount,
+    warning: ingested.warning,
+    ok: ingested.parsed && !ingested.needsOcr && !looksLikeUnparsedPlaceholder(ingested.text),
   };
 }
 
@@ -452,8 +379,40 @@ function parseResponseBody(
   };
 }
 
+const PARSE_INFLIGHT = new Map<string, Promise<Response>>();
+
 /** GET /api/projects/:projectId/files/:docId/parse-summary?userId= */
 export async function handleParseProjectFileSummary(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  pathProjectId: string,
+  docId: string,
+): Promise<Response> {
+  const projectId = decodePathProjectId(pathProjectId);
+  const id = docId.trim();
+  const lockKey = `${projectId}:${id}`;
+  const existingLock = PARSE_INFLIGHT.get(lockKey);
+  if (existingLock) {
+    const res = await existingLock;
+    return res.clone();
+  }
+  const run = handleParseProjectFileSummaryUnlocked(
+    request,
+    env,
+    ctx,
+    pathProjectId,
+    docId,
+  );
+  PARSE_INFLIGHT.set(lockKey, run);
+  try {
+    return await run;
+  } finally {
+    if (PARSE_INFLIGHT.get(lockKey) === run) PARSE_INFLIGHT.delete(lockKey);
+  }
+}
+
+async function handleParseProjectFileSummaryUnlocked(
   request: Request,
   env: Env,
   ctx: ExecutionContext,
@@ -474,21 +433,31 @@ export async function handleParseProjectFileSummary(
   let row: (DocumentRow & {
     mime: string | null;
     deleted_at?: string | null;
+    relative_path?: string | null;
   }) | null = null;
   try {
     row = await env.DB.prepare(
-      `SELECT id, project_id, filename, scope, conversation_id, uploaded_by, r2_key, mime, deleted_at
+      `SELECT id, project_id, filename, relative_path, scope, conversation_id, uploaded_by, r2_key, mime, deleted_at
        FROM documents WHERE id = ? AND project_id = ?`,
     )
       .bind(id, projectId)
-      .first<DocumentRow & { mime: string | null; deleted_at?: string | null }>();
+      .first<DocumentRow & { mime: string | null; deleted_at?: string | null; relative_path?: string | null }>();
   } catch {
-    row = await env.DB.prepare(
-      `SELECT id, project_id, filename, scope, conversation_id, uploaded_by, r2_key, mime
-       FROM documents WHERE id = ? AND project_id = ?`,
-    )
-      .bind(id, projectId)
-      .first<DocumentRow & { mime: string | null }>();
+    try {
+      row = await env.DB.prepare(
+        `SELECT id, project_id, filename, relative_path, scope, conversation_id, uploaded_by, r2_key, mime
+         FROM documents WHERE id = ? AND project_id = ?`,
+      )
+        .bind(id, projectId)
+        .first<DocumentRow & { mime: string | null; relative_path?: string | null }>();
+    } catch {
+      row = await env.DB.prepare(
+        `SELECT id, project_id, filename, scope, conversation_id, uploaded_by, r2_key, mime
+         FROM documents WHERE id = ? AND project_id = ?`,
+      )
+        .bind(id, projectId)
+        .first<DocumentRow & { mime: string | null }>();
+    }
   }
 
   if (!row || (row.deleted_at != null && String(row.deleted_at).trim() !== "")) {
@@ -546,7 +515,7 @@ export async function handleParseProjectFileSummary(
   let extractWarning: string | undefined;
 
   const existing = await loadExistingSourceText(env, id);
-  if (existing && !looksLikePlaceholderText(existing.text)) {
+  if (existing && !looksLikeUnparsedPlaceholder(existing.text)) {
     sourceText = existing.text;
     chunkCount = existing.chunkCount;
   } else {
@@ -577,7 +546,7 @@ export async function handleParseProjectFileSummary(
     }
   }
 
-  if (!sourceText.trim() || looksLikePlaceholderText(sourceText)) {
+  if (!sourceText.trim() || looksLikeUnparsedPlaceholder(sourceText)) {
     return json({
       documentId: id,
       filename: row.filename,

@@ -12,6 +12,8 @@ export type LlmRuntimeEnv = {
   DASHSCOPE_API_KEY?: string;
   DASHSCOPE_BASE_URL?: string;
   HERMES_MODEL?: string;
+  /** 源文件扫描件/图片 OCR，默认 qwen3.5-ocr */
+  QWEN_OCR_MODEL?: string;
 };
 
 export type LlmRuntimeConfig = {

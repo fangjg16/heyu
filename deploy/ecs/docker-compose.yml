@@ -121,6 +121,7 @@ services:
       MINIO_MAX_UPLOAD_BYTES: ${MINIO_MAX_UPLOAD_BYTES:-52428800}
       DASHSCOPE_API_KEY: ${LLM_API_KEY}
       DASHSCOPE_BASE_URL: ${LLM_API_BASE_URL}
+      QWEN_OCR_MODEL: ${QWEN_OCR_MODEL:-qwen3.5-ocr}
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
       # glibc 对 Docker DNS 并行 A/AAAA 会 EAI_AGAIN
       RES_OPTIONS: single-request-reopen
