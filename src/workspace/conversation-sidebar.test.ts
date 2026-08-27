@@ -82,6 +82,30 @@ describe("pruneEmptyLiveConversations", () => {
     expect(rows).toHaveLength(3);
   });
 
+  it("keeps other projects' real threads when refreshing an empty current chat", () => {
+    const familyBlank = meta({
+      id: "proj-family-blank-u1-new",
+      projectId: "proj-family",
+      preview: "新对话",
+      variant: "blank",
+    });
+    const storageHi = meta({
+      id: "proj-storage-1",
+      projectId: "proj-storage",
+      preview: "hi",
+      updatedAt: "2026-08-24",
+    });
+    const rows = conversationSidebarRows(
+      [familyBlank, storageHi],
+      { [familyBlank.id]: [] },
+      true,
+      familyBlank.id,
+    );
+    expect(rows.map((c) => c.id).sort()).toEqual(
+      [familyBlank.id, storageHi.id].sort(),
+    );
+  });
+
   it("hides leftover unused blanks after the user leaves without sending", () => {
     const familyBlank = meta({
       id: "proj-family-blank-u1-new",

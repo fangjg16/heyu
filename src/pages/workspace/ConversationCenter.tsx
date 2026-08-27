@@ -43,6 +43,7 @@ import {
   deleteProjectFile,
   ENABLE_LIVE_CHAT,
   fetchProjectByIdFromApi,
+  fetchProjectsFromApi,
   fetchProjectFiles,
   filterConversationSessionFiles,
   SESSION_UPLOAD_FOLDER,
@@ -82,6 +83,7 @@ import {
 import {
   getMergedProjects,
   getProjectById,
+  setApiProjects,
   subscribeApiProjects,
   upsertApiProject,
 } from "@/workspace/project-registry";
@@ -192,7 +194,8 @@ function buildSidebarConversationList(
 ): SessionConversation[] {
   const withMain = ensureProjectMainThreads(convs, messagesByConversation, focusProjectId);
   const reconciled = reconcileConversationsWithMessages(withMain, messagesByConversation);
-  return reconciled.filter((c) => Boolean(getProjectById(c.projectId)));
+  // Keep threads even when the project registry has not loaded yet (hard refresh).
+  return reconciled.filter((c) => Boolean(c.id && c.projectId));
 }
 
 /** 输入框：与工具按钮同高 32px，随内容增高 */
@@ -395,7 +398,6 @@ function groupSidebarByProject(
   }
   const groups: SidebarProjectGroup[] = [];
   for (const [pid, list] of byProject) {
-    if (!getProjectById(pid)) continue;
     const sorted = [...list].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     groups.push({
       projectId: pid,
@@ -1140,6 +1142,22 @@ export default function ConversationCenter() {
   const [apiProjectsTick, setApiProjectsTick] = useState(0);
 
   useEffect(() => subscribeApiProjects(() => setApiProjectsTick((n) => n + 1)), []);
+
+  /** 对话页刷新时也拉全量项目，避免侧栏只剩当前项目 */
+  useEffect(() => {
+    if (!userId || !ENABLE_LIVE_CHAT) return;
+    let cancelled = false;
+    void fetchProjectsFromApi(undefined, { userId })
+      .then((rows) => {
+        if (!cancelled && rows.length > 0) setApiProjects(rows);
+      })
+      .catch(() => {
+        /* 列表失败时仍用单项目兜底 */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   useEffect(() => {
     setChatSessionProject(undefined);
