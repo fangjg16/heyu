@@ -81,7 +81,7 @@ export function looksLikeDetachedBufferError(text: string): boolean {
 }
 
 /** OCR 已经跑过并失败：不要再当占位符重试，以免循环扣费 */
-function looksLikeOcrGaveUp(text: string): boolean {
+export function looksLikeOcrGaveUp(text: string): boolean {
   if (looksLikeDetachedBufferError(text)) return false;
   return /OCR 未抽出|OCR 失败|无法 OCR：/u.test(text);
 }

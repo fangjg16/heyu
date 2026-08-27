@@ -75,4 +75,35 @@ describe("ocrPdfWithQwen", () => {
     expect(r.ok).toBe(true);
     expect(r.text).toContain("扫描合同正文");
   });
+
+  it("falls back to text_recognition when document_parsing returns no text", async () => {
+    const tasks: string[] = [];
+    const r = await ocrPdfWithQwen(
+      {
+        DASHSCOPE_API_KEY: "sk",
+        DASHSCOPE_BASE_URL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      },
+      {
+        bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]),
+        fileName: "map.pdf",
+        fetchImpl: (async (_input: RequestInfo | URL, init?: RequestInit) => {
+          const body = String(init?.body ?? "");
+          const task = /"task":"([^"]+)"/u.exec(body)?.[1] ?? "";
+          tasks.push(task);
+          if (task === "document_parsing") {
+            return new Response(JSON.stringify({ output: [] }), { status: 200 });
+          }
+          return new Response(
+            JSON.stringify({
+              output: [{ content: [{ ocr_result: "SP265790" }] }],
+            }),
+            { status: 200 },
+          );
+        }) as typeof fetch,
+      },
+    );
+    expect(tasks).toEqual(["document_parsing", "text_recognition"]);
+    expect(r.ok).toBe(true);
+    expect(r.text).toContain("SP265790");
+  });
 });

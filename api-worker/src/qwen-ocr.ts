@@ -217,44 +217,52 @@ export async function ocrPdfWithQwen(
     const b64 = uint8ToBase64(opts.bytes);
     const dataUrl = `data:application/pdf;base64,${b64}`;
     const maxPages = Math.min(opts.maxPages ?? OCR_PDF_PAGE_MAX, OCR_PDF_PAGE_MAX);
-    const body = {
-      model,
-      input: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_file",
-              filename: opts.fileName || "document.pdf",
-              file_data: dataUrl,
-            },
-            { type: "input_text", text: PDF_PROMPT },
-          ],
+    const tasks = ["document_parsing", "text_recognition"] as const;
+    const warnings: string[] = [];
+    for (const task of tasks) {
+      const body = {
+        model,
+        input: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_file",
+                filename: opts.fileName || "document.pdf",
+                file_data: dataUrl,
+              },
+              { type: "input_text", text: PDF_PROMPT },
+            ],
+          },
+        ],
+        ocr_options: {
+          task,
+          task_config: { max_pages: maxPages },
         },
-      ],
-      ocr_options: {
-        task: "document_parsing",
-        task_config: { max_pages: maxPages },
-      },
-    };
-    const res = await fetchImpl(`${base}/responses`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify(body),
-    });
-    const raw = await parseJsonResponse(res, "qwen3.5-ocr PDF");
-    const text = extractOcrTextFromResponse(raw);
-    if (!text) {
-      return {
-        text: "",
-        ok: false,
-        warning: `${opts.fileName} PDF OCR 未返回文字。请确认百炼已开通 qwen3.5-ocr，且兼容域名支持 /v1/responses。`,
       };
+      const res = await fetchImpl(`${base}/responses`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify(body),
+      });
+      try {
+        const raw = await parseJsonResponse(res, "qwen3.5-ocr PDF");
+        const text = extractOcrTextFromResponse(raw);
+        if (text) return { text, ok: true };
+        warnings.push(`${task} 未返回文字`);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        warnings.push(`${task}：${msg}`);
+      }
     }
-    return { text, ok: true };
+    return {
+      text: "",
+      ok: false,
+      warning: `${opts.fileName} PDF OCR 未返回文字（${warnings.join("；")}）。请确认百炼已开通 qwen3.5-ocr，且兼容域名支持 /v1/responses。`,
+    };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { text: "", ok: false, warning: `${opts.fileName} PDF OCR 失败：${msg}` };

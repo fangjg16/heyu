@@ -3,7 +3,7 @@ import type { AppDatabase } from "./app-database";
 import { documentAccessError, type DocumentRow } from "./documents-access";
 import { ingestExistingDocumentBytes, shouldEmbedNow, shouldQueueParse } from "./documents-ingest";
 import { embedDocumentChunks } from "./embeddings";
-import { looksLikeUnparsedPlaceholder } from "./extract-document-text";
+import { looksLikeOcrGaveUp, looksLikeUnparsedPlaceholder } from "./extract-document-text";
 import { callLlm, type LlmClientEnv } from "./llm-client";
 import { getProjectById } from "./projects-db";
 import { decodePathProjectId } from "./projects-resolve";
@@ -11,6 +11,7 @@ import { canonicalizeFileTopic } from "./file-topic";
 import { canDownloadProjectFile, resolveProjectRole, roleCanViewAllSessionUploads } from "./workspace-roles";
 import {
   extractSummaryField,
+  looksLikeOcrEmptyLlmSummary,
   looksLikeRawParseJson,
   normalizeParseSummaryText,
   shouldRefreshCachedSummary,
@@ -515,7 +516,16 @@ async function handleParseProjectFileSummaryUnlocked(
   let extractWarning: string | undefined;
 
   const existing = await loadExistingSourceText(env, id);
-  if (existing && !looksLikeUnparsedPlaceholder(existing.text)) {
+  const retryOcrAfterLlmLie = Boolean(
+    cached && looksLikeOcrEmptyLlmSummary(cached.summary),
+  );
+  const existingIsOcrGiveUp = Boolean(existing && looksLikeOcrGaveUp(existing.text));
+  const shouldReextract =
+    !existing ||
+    looksLikeUnparsedPlaceholder(existing.text) ||
+    (existingIsOcrGiveUp && retryOcrAfterLlmLie);
+
+  if (existing && !shouldReextract) {
     sourceText = existing.text;
     chunkCount = existing.chunkCount;
   } else {
@@ -530,6 +540,20 @@ async function handleParseProjectFileSummaryUnlocked(
     chunkCount = extracted.chunkCount;
     extractWarning = extracted.warning;
     if (!extracted.ok) {
+      if (looksLikeOcrGaveUp(sourceText)) {
+        try {
+          await upsertParseResult(env, id, {
+            summary: truncateSummary(sourceText),
+            documentType: "",
+            keyPoints: [],
+            refs: [],
+            usedFor: [],
+            chunkCount,
+          });
+        } catch {
+          /* 未建 document_parse_results 时仍返回失败文案 */
+        }
+      }
       return json({
         documentId: id,
         filename: row.filename,
@@ -546,7 +570,7 @@ async function handleParseProjectFileSummaryUnlocked(
     }
   }
 
-  if (!sourceText.trim() || looksLikeUnparsedPlaceholder(sourceText)) {
+  if (!sourceText.trim() || looksLikeUnparsedPlaceholder(sourceText) || looksLikeOcrGaveUp(sourceText)) {
     return json({
       documentId: id,
       filename: row.filename,

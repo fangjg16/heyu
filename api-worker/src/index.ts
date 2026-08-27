@@ -691,7 +691,7 @@ async function handleUpload(
     }
   }
 
-  const parsed = ingested.parsed || ingested.needsOcr;
+  const parsed = ingested.parsed && !ingested.needsOcr;
   const childDocumentIds = ingested.jobs
     .map((j) => j.documentId)
     .filter((id) => id !== docId);

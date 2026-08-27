@@ -28,10 +28,20 @@ export function looksLikeScanOcrNeededSummary(text: string): boolean {
   const t = (text ?? "").trim();
   if (!t) return false;
   if (/OCR 未抽出|OCR 失败|无法 OCR：/u.test(t)) return false;
-  const admitsScan = /扫描件|图片版/u.test(t);
+  const admitsScan = /扫描件|图片版|扫描 PDF/u.test(t);
   const admitsNoText =
-    /未能提取可复制文字|未能从 PDF 提取|无法识别关键信息|需另附可复制|OCR 转录/u.test(t);
+    /未能提取可复制文字|未能从 PDF 提取|无法识别关键信息|需另附可复制|OCR 转录|未能获得任何文字|未提取到任何文字/u.test(
+      t,
+    );
   return admitsScan && admitsNoText;
+}
+
+/** 摘要模型把 OCR 失败文案扩写成投研段落：应丢弃缓存、允许再抽一次 */
+export function looksLikeOcrEmptyLlmSummary(text: string): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+  if (/OCR 未抽出|无法 OCR：/u.test(t) && t.length < 80) return false;
+  return /OCR.{0,12}失败/u.test(t) && /未能获得任何文字|未提取到任何文字|未能抽出/u.test(t);
 }
 
 /** 旧版 100 字硬截、残缺 JSON、或 VARCHAR 截断：点开时应重跑解析 */
@@ -42,6 +52,9 @@ export function shouldRefreshCachedSummary(raw: string): boolean {
   const t = normalizeParseSummaryText(original);
   if (!t) return true;
   if (/detached ArrayBuffer/iu.test(original) || /detached ArrayBuffer/iu.test(t)) {
+    return true;
+  }
+  if (looksLikeOcrEmptyLlmSummary(t) || looksLikeOcrEmptyLlmSummary(original)) {
     return true;
   }
   if (looksLikeScanOcrNeededSummary(t) || looksLikeScanOcrNeededSummary(original)) {

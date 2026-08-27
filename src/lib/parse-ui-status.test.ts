@@ -15,14 +15,14 @@ describe("resolveParseUiStatus", () => {
     ).toBe("parsing");
   });
 
-  it("treats in-flight as parsed when the file already has a stored result", () => {
+  it("shows parsing while in-flight even if the DB already marked the file parsed", () => {
     expect(
       resolveParseUiStatus({
         fileId: "a",
         parsingId: "a",
         dbParsed: true,
       }),
-    ).toBe("parsed");
+    ).toBe("parsing");
   });
 
   it("keeps parsed when cache is already loaded", () => {
@@ -41,7 +41,7 @@ describe("parseDetailPendingText", () => {
   it("uses 解析 copy for first parse and 加载详情 for cached files", () => {
     expect(
       parseDetailPendingText({ ui: "parsing", dbParsed: false }),
-    ).toBe("正在调用大模型解析…");
+    ).toBe("正在解析…");
     expect(
       parseDetailPendingText({ ui: "parsed", dbParsed: true }),
     ).toBe("加载详情中…");

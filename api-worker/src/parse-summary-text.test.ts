@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shouldRefreshCachedSummary } from "./parse-summary-text";
+import { shouldRefreshCachedSummary, looksLikeOcrEmptyLlmSummary } from "./parse-summary-text";
 
 describe("shouldRefreshCachedSummary", () => {
   it("keeps a normal complete sentence", () => {
@@ -29,5 +29,15 @@ describe("shouldRefreshCachedSummary", () => {
         "（扫描 PDF「02.pdf」OCR 未抽出文字。Cannot perform Construct on a detached ArrayBuffer）",
       ),
     ).toBe(true);
+  });
+
+  it("refetches LLM paraphrases of empty OCR, but not the short terminal give-up", () => {
+    const llm =
+      "原文为扫描 PDF「02.pdf」，OCR 抽取失败未能获得任何文字内容，无法识别地块编号。建议重新进行 OCR 识别。";
+    expect(looksLikeOcrEmptyLlmSummary(llm)).toBe(true);
+    expect(shouldRefreshCachedSummary(llm)).toBe(true);
+    expect(
+      shouldRefreshCachedSummary("（扫描 PDF「a.pdf」OCR 未抽出文字。）"),
+    ).toBe(false);
   });
 });

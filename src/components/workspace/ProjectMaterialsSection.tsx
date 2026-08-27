@@ -164,6 +164,9 @@ function shouldRefetchParseSummary(summary: string): boolean {
   if (!t || t === "—") return true;
   if (t.startsWith("{") && /"summary"\s*:/u.test(t)) return true;
   if (/detached ArrayBuffer/iu.test(t)) return true;
+  if (/OCR.{0,12}失败/u.test(t) && /未能获得任何文字|未提取到任何文字|未能抽出/u.test(t)) {
+    return true;
+  }
   if (/OCR 未抽出|OCR 失败|无法 OCR：/u.test(t)) return false;
   if (
     /扫描件|图片版/u.test(t) &&
@@ -1303,7 +1306,7 @@ export function ProjectMaterialsSection({
         { label: file.filename, path: `file:${file.id}` },
       ];
       let summary = "点击文件以解析（将调用大模型生成摘要）";
-      if (ui === "parsing") summary = "正在调用大模型解析…";
+      if (ui === "parsing") summary = "正在解析…";
       else if (cache?.status === "parsed") summary = cache.summary || "—";
       else if (cache?.status === "failed") summary = cache.summary || "解析失败";
       else if (file.parsed) summary = "加载详情中…";
