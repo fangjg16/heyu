@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   parseDetailPendingText,
   resolveParseUiStatus,
+  shouldRefetchParseSummary,
 } from "./parse-ui-status";
 
 describe("resolveParseUiStatus", () => {
@@ -45,5 +46,17 @@ describe("parseDetailPendingText", () => {
     expect(
       parseDetailPendingText({ ui: "parsed", dbParsed: true }),
     ).toBe("加载详情中…");
+  });
+});
+
+describe("shouldRefetchParseSummary", () => {
+  it("refetches OCR-empty scans so vision can read the figure", () => {
+    expect(shouldRefetchParseSummary("（扫描 PDF「a.pdf」OCR 未抽出文字。）")).toBe(
+      true,
+    );
+  });
+
+  it("does not loop after vision already failed", () => {
+    expect(shouldRefetchParseSummary("视觉理解未能读出图面：模型超时")).toBe(false);
   });
 });

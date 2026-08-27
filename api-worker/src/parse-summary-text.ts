@@ -60,7 +60,18 @@ export function shouldRefreshCachedSummary(raw: string): boolean {
   if (looksLikeScanOcrNeededSummary(t) || looksLikeScanOcrNeededSummary(original)) {
     return true;
   }
-  if (PLACEHOLDER_SUMMARY.test(t)) return false;
+  if (PLACEHOLDER_SUMMARY.test(t) && !/OCR 未抽出|OCR 失败|无法 OCR：/u.test(t)) {
+    return false;
+  }
+  if (/视觉理解未能读出图面/u.test(t) || /视觉理解未能读出图面/u.test(original)) {
+    return false;
+  }
+  if (/OCR 未抽出|OCR 失败|无法 OCR：/u.test(t) || /OCR 未抽出|OCR 失败|无法 OCR：/u.test(original)) {
+    if (/detached ArrayBuffer/iu.test(original) || /detached ArrayBuffer/iu.test(t)) {
+      return true;
+    }
+    return true;
+  }
   if (SENTENCE_END.test(t)) return false;
   const n = Array.from(t).length;
   return n === 100 || n === 200;

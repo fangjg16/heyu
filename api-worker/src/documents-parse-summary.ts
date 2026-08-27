@@ -3,7 +3,8 @@ import type { AppDatabase } from "./app-database";
 import { documentAccessError, type DocumentRow } from "./documents-access";
 import { ingestExistingDocumentBytes, shouldEmbedNow, shouldQueueParse } from "./documents-ingest";
 import { embedDocumentChunks } from "./embeddings";
-import { looksLikeOcrGaveUp, looksLikeUnparsedPlaceholder } from "./extract-document-text";
+import { copyOwnedBytes, looksLikeOcrGaveUp, looksLikeUnparsedPlaceholder } from "./extract-document-text";
+import { isImageFileName, isPdfFileName } from "./file-mime";
 import { callLlm, type LlmClientEnv } from "./llm-client";
 import { getProjectById } from "./projects-db";
 import { decodePathProjectId } from "./projects-resolve";
@@ -17,23 +18,19 @@ import {
   shouldRefreshCachedSummary,
   truncateSummary,
 } from "./parse-summary-text";
+import {
+  visionImagesFromFileBytes,
+  type ChatVisionImage,
+} from "./chat-vision";
+import {
+  buildSourceFileParseMessages,
+  sourceParseVisionLlmOptions,
+} from "./source-parse-vision";
 
 type Env = { DB: AppDatabase; FILES: AppObjectStorage } & LlmClientEnv;
 
 const SOURCE_MAX = 12_000;
 const DIRECTORY_MIME = "application/x-directory";
-
-const PARSE_SYSTEM = `你是投研工作台的源文件解析助手。根据给定文件正文摘录，输出 JSON（不要 markdown 围栏，不要其它说明）。
-规则：
-1. 只依据原文，禁止编造原文未出现的事实、数据、主体或结论。
-2. 若信息不足，在 summary 中如实说明「原文未披露…」，不要猜测。
-3. 输出唯一 JSON 对象，字段：
-{"summary":"不超过220字的投研向摘要","documentType":"必须是下列之一：项目介绍、定位与进展、对标与竞品、行业与市场、财务与估值、法律与合规、股权与主体、尽调材料、其他","keyPoints":["要点"],"refs":["可引用主题"],"usedFor":["投研用途建议"]}
-4. summary 必须是完整句子，约 120–220 字，最多 220 个汉字/字符；keyPoints、refs、usedFor 各最多 6 条；无内容用空数组。
-5. summary 是 JSON 字符串：内部英文双引号必须写成 \\"，专名优先用「」或『』，禁止未转义的 "。
-6. refs=该文件可作为何种证据/主题被引用，必须是不超过 16 字的中文短词（如「竞品定价」「团队背景」）；禁止 URL、域名、脚注编号、原文摘录。
-7. usedFor=建议用于哪些投研环节，同样用短词，禁止 URL。
-8. documentType 只输出上列短标签本身，禁止用整句文件名或报告标题当类型。`;
 
 type ParseResultRow = {
   document_id: string;
@@ -75,6 +72,24 @@ function truncateSource(text: string, max = SOURCE_MAX): string {
   const t = text.trim();
   if (t.length <= max) return t;
   return `${t.slice(0, max)}\n\n…（正文已截断）`;
+}
+
+async function loadRowVisionImages(
+  env: Env,
+  row: { filename: string; mime: string | null; r2_key: string | null },
+): Promise<ChatVisionImage[]> {
+  if (!row.r2_key) return [];
+  if (!isImageFileName(row.filename, row.mime) && !isPdfFileName(row.filename, row.mime)) {
+    return [];
+  }
+  const object = await env.FILES.get(row.r2_key);
+  if (!object) return [];
+  const bytes = copyOwnedBytes(await object.arrayBuffer());
+  return visionImagesFromFileBytes({
+    fileName: row.filename,
+    mime: row.mime,
+    bytes,
+  });
 }
 
 function looksLikeNoisyLabel(s: string): boolean {
@@ -511,6 +526,14 @@ async function handleParseProjectFileSummaryUnlocked(
     return json(parseResponseBody(row, rowToPayload(cached)));
   }
 
+  let visionImages: ChatVisionImage[] = [];
+  try {
+    visionImages = await loadRowVisionImages(env, row);
+  } catch {
+    visionImages = [];
+  }
+  const useVision = visionImages.length > 0;
+
   let sourceText = "";
   let chunkCount = 0;
   let extractWarning: string | undefined;
@@ -539,7 +562,11 @@ async function handleParseProjectFileSummaryUnlocked(
     sourceText = extracted.text;
     chunkCount = extracted.chunkCount;
     extractWarning = extracted.warning;
-    if (!extracted.ok) {
+    const extractEmpty =
+      !extracted.ok ||
+      looksLikeOcrGaveUp(sourceText) ||
+      looksLikeUnparsedPlaceholder(sourceText);
+    if (extractEmpty && !useVision) {
       if (looksLikeOcrGaveUp(sourceText)) {
         try {
           await upsertParseResult(env, id, {
@@ -570,7 +597,12 @@ async function handleParseProjectFileSummaryUnlocked(
     }
   }
 
-  if (!sourceText.trim() || looksLikeUnparsedPlaceholder(sourceText) || looksLikeOcrGaveUp(sourceText)) {
+  if (
+    !useVision &&
+    (!sourceText.trim() ||
+      looksLikeUnparsedPlaceholder(sourceText) ||
+      looksLikeOcrGaveUp(sourceText))
+  ) {
     return json({
       documentId: id,
       filename: row.filename,
@@ -587,19 +619,17 @@ async function handleParseProjectFileSummaryUnlocked(
   }
 
   try {
-    const { answer, llmBackend } = await callLlm(env, [
-      { role: "system", content: PARSE_SYSTEM },
-      {
-        role: "user",
-        content: [
-          `文件名：${row.filename}`,
-          `MIME：${row.mime || "未知"}`,
-          "",
-          "【文件正文摘录】",
-          truncateSource(sourceText),
-        ].join("\n"),
-      },
-    ]);
+    const messages = buildSourceFileParseMessages({
+      filename: row.filename,
+      mime: row.mime,
+      sourceText: truncateSource(sourceText),
+      images: visionImages,
+    });
+    const { answer, llmBackend } = await callLlm(
+      env,
+      messages,
+      useVision ? sourceParseVisionLlmOptions(env) : undefined,
+    );
     const parsed = parseLlmDocumentJson(answer);
     const payload: DocumentParsePayload = {
       summary: parsed.summary,
@@ -632,15 +662,30 @@ async function handleParseProjectFileSummaryUnlocked(
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    if (cached) {
+    if (cached && !looksLikeOcrGaveUp(cached.summary)) {
       return json(parseResponseBody(row, rowToPayload(cached)));
+    }
+    const failSummary = useVision
+      ? `视觉理解未能读出图面：${msg}`
+      : `大模型解析失败：${msg}`;
+    try {
+      await upsertParseResult(env, id, {
+        summary: truncateSummary(failSummary),
+        documentType: "",
+        keyPoints: [],
+        refs: [],
+        usedFor: [],
+        chunkCount,
+      });
+    } catch {
+      /* ignore persist */
     }
     return json({
       documentId: id,
       filename: row.filename,
       mime: row.mime,
       parsed: false,
-      summary: `大模型解析失败：${msg}`,
+      summary: failSummary,
       chunkCount,
       documentType: "",
       keyPoints: [],

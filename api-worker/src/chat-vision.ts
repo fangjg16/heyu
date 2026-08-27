@@ -207,6 +207,52 @@ async function canView(
   return !documentAccessError(row, userId, { viewAllSession });
 }
 
+/** 图片，或无文字层的扫描 PDF：抽出页图（或整份 PDF）给视觉模型 */
+export async function visionImagesFromFileBytes(opts: {
+  fileName: string;
+  mime?: string | null;
+  bytes: Uint8Array;
+}): Promise<ChatVisionImage[]> {
+  const fileName = opts.fileName;
+  const mime = opts.mime ?? null;
+  const bytes = copyOwnedBytes(opts.bytes);
+  if (bytes.byteLength === 0) return [];
+  const images: ChatVisionImage[] = [];
+
+  if (isImageFileName(fileName, mime)) {
+    if (bytes.byteLength > VL_IMAGE_RAW_MAX) return [];
+    return [
+      {
+        dataUrl: toDataUrl(bytes, guessMime(fileName, mime)),
+        label: fileName,
+      },
+    ];
+  }
+
+  if (!isPdfFileName(fileName, mime)) return [];
+
+  const local = await extractPdfPlainText(
+    bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+    fileName,
+  );
+  const needVision =
+    !local.parsed ||
+    !local.text.trim() ||
+    looksLikeUnparsedPlaceholder(local.text);
+  if (!needVision) return [];
+
+  const pages = await pdfPagesAsPng(bytes, fileName);
+  if (pages.length > 0) return pages.slice(0, VL_MAX_IMAGES);
+  if (bytes.byteLength > VL_PDF_RAW_MAX) return [];
+  return [
+    {
+      dataUrl: toDataUrl(bytes, "application/pdf"),
+      label: fileName,
+      asFile: true,
+    },
+  ];
+}
+
 export async function collectChatVisionImages(
   env: VisionEnv,
   opts: {
@@ -247,40 +293,15 @@ export async function collectChatVisionImages(
     const object = await env.FILES.get(row.r2_key);
     if (!object) continue;
     const bytes = copyOwnedBytes(await object.arrayBuffer());
-    if (bytes.byteLength === 0) continue;
-
-    if (isImg) {
-      if (bytes.byteLength > VL_IMAGE_RAW_MAX) continue;
-      images.push({
-        dataUrl: toDataUrl(bytes, guessMime(row.filename, row.mime)),
-        label: row.filename,
-      });
-      continue;
-    }
-
-    const local = await extractPdfPlainText(
-      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
-      row.filename,
-    );
-    const needVision =
-      !local.parsed ||
-      !local.text.trim() ||
-      looksLikeUnparsedPlaceholder(local.text);
-    if (!needVision) continue;
-    const pages = await pdfPagesAsPng(bytes, row.filename);
-    if (pages.length > 0) {
-      for (const img of pages) {
-        if (images.length >= VL_MAX_IMAGES) break;
-        images.push(img);
-      }
-      continue;
-    }
-    if (bytes.byteLength > VL_PDF_RAW_MAX) continue;
-    images.push({
-      dataUrl: toDataUrl(bytes, "application/pdf"),
-      label: row.filename,
-      asFile: true,
+    const parts = await visionImagesFromFileBytes({
+      fileName: row.filename,
+      mime: row.mime,
+      bytes,
     });
+    for (const img of parts) {
+      if (images.length >= VL_MAX_IMAGES) break;
+      images.push(img);
+    }
   }
 
   return {

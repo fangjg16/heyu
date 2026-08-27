@@ -29,3 +29,25 @@ export function parseDetailPendingText(input: {
   if (input.dbParsed) return "加载详情中…";
   return null;
 }
+
+/** 点开源文件时是否丢掉缓存、再拉 parse-summary（扫描件改走视觉理解） */
+export function shouldRefetchParseSummary(summary: string): boolean {
+  const t = summary.trim();
+  if (!t || t === "—") return true;
+  if (t.startsWith("{") && /"summary"\s*:/u.test(t)) return true;
+  if (/detached ArrayBuffer/iu.test(t)) return true;
+  if (/视觉理解未能读出图面/u.test(t)) return false;
+  if (/OCR.{0,12}失败/u.test(t) && /未能获得任何文字|未提取到任何文字|未能抽出/u.test(t)) {
+    return true;
+  }
+  if (/OCR 未抽出|OCR 失败|无法 OCR：/u.test(t)) return true;
+  if (
+    /扫描件|图片版/u.test(t) &&
+    /未能提取可复制文字|未能从 PDF 提取|无法识别关键信息|需另附可复制|OCR 转录/u.test(t)
+  ) {
+    return true;
+  }
+  if (/[.。！？!?…]$/u.test(t)) return false;
+  const n = Array.from(t).length;
+  return n === 100 || n === 200;
+}

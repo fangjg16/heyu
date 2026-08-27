@@ -12,9 +12,15 @@ describe("shouldRefreshCachedSummary", () => {
     expect(shouldRefreshCachedSummary(scanSummary)).toBe(true);
   });
 
-  it("does not loop after OCR already failed", () => {
+  it("refetches OCR-empty scan summaries so vision can read the figure", () => {
     expect(
       shouldRefreshCachedSummary("（扫描 PDF「a.pdf」OCR 未抽出文字。）"),
+    ).toBe(true);
+  });
+
+  it("does not loop after vision already failed to read the figure", () => {
+    expect(
+      shouldRefreshCachedSummary("视觉理解未能读出图面：模型超时"),
     ).toBe(false);
   });
 
@@ -37,7 +43,7 @@ describe("shouldRefreshCachedSummary", () => {
     expect(looksLikeOcrEmptyLlmSummary(llm)).toBe(true);
     expect(shouldRefreshCachedSummary(llm)).toBe(true);
     expect(
-      shouldRefreshCachedSummary("（扫描 PDF「a.pdf」OCR 未抽出文字。）"),
+      shouldRefreshCachedSummary("视觉理解未能读出图面：HTTP 400"),
     ).toBe(false);
   });
 });

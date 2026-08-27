@@ -2,9 +2,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   attachVisionToLastUserMessage,
   QWEN_VL_MODEL_DEFAULT,
+  visionImagesFromFileBytes,
   vlModelName,
 } from "./chat-vision";
 import { callLlm } from "./llm-client";
+import { encodePngRgba } from "./png-encode";
 
 describe("vlModelName", () => {
   it("defaults to qwen3-vl-plus", () => {
@@ -100,5 +102,19 @@ describe("callLlm vision", () => {
     expect(body).toContain("data:image/jpeg;base64,abc");
     expect(result.llmBackend).toBe("dashscope-vl");
     expect(result.answer).toContain("北至公路");
+  });
+});
+
+describe("visionImagesFromFileBytes", () => {
+  it("wraps a raster image as a data URL for source-file parse", async () => {
+    const png = await encodePngRgba(1, 1, new Uint8Array([255, 0, 0, 255]), 4);
+    const images = await visionImagesFromFileBytes({
+      fileName: "现场.png",
+      mime: "image/png",
+      bytes: png,
+    });
+    expect(images).toHaveLength(1);
+    expect(images[0]?.asFile).toBeFalsy();
+    expect(images[0]?.dataUrl.startsWith("data:image/png;base64,")).toBe(true);
   });
 });
