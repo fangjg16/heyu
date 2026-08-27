@@ -15,7 +15,9 @@ export async function extractPdfPlainText(
   filename: string,
 ): Promise<PdfExtractResult> {
   try {
-    const pdf = await getDocumentProxy(new Uint8Array(data));
+    const copy = new Uint8Array(data.byteLength);
+    copy.set(new Uint8Array(data));
+    const pdf = await getDocumentProxy(copy);
     const { totalPages, text } = await extractText(pdf, { mergePages: true });
     let body = (text || "").replace(/\s+/gu, " ").trim();
 

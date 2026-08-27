@@ -163,6 +163,7 @@ function shouldRefetchParseSummary(summary: string): boolean {
   const t = summary.trim();
   if (!t || t === "—") return true;
   if (t.startsWith("{") && /"summary"\s*:/u.test(t)) return true;
+  if (/detached ArrayBuffer/iu.test(t)) return true;
   if (/OCR 未抽出|OCR 失败|无法 OCR：/u.test(t)) return false;
   if (
     /扫描件|图片版/u.test(t) &&

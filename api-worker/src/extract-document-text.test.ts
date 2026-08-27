@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  copyOwnedBytes,
   extractDocumentText,
+  looksLikeDetachedBufferError,
   looksLikeUnparsedPlaceholder,
   ocrPendingPlaceholder,
 } from "./extract-document-text";
@@ -201,6 +203,13 @@ describe("extractDocumentText", () => {
     );
   });
 
+  it("retries when OCR failed only because pdf.js detached the buffer", () => {
+    const detached =
+      "（扫描 PDF「02_大陆地块测绘图_SP265790.pdf」OCR 未抽出文字。Cannot perform Construct on a detached ArrayBuffer）";
+    expect(looksLikeDetachedBufferError(detached)).toBe(true);
+    expect(looksLikeUnparsedPlaceholder(detached)).toBe(true);
+  });
+
   it("treats pre-OCR scan PDF placeholders as needing OCR", () => {
     const old = "（已上传 PDF：02_大陆地块测绘图_SP265790.pdf。未能从 PDF 提取文字（多为扫描件/图片版）。请上传可复制文字的 PDF，或另附 .txt/.md。）";
     expect(looksLikeUnparsedPlaceholder(old)).toBe(true);
@@ -209,5 +218,55 @@ describe("extractDocumentText", () => {
         "（扫描 PDF「02.pdf」OCR 未抽出文字。模型未返回文字。）",
       ),
     ).toBe(false);
+  });
+
+  it("keeps original bytes after transferring a copy", () => {
+    const orig = copyOwnedBytes(new Uint8Array([1, 2, 3, 4, 5]));
+    const forPdf = copyOwnedBytes(orig);
+    structuredClone(forPdf.buffer, { transfer: [forPdf.buffer] });
+    expect(() => new Uint8Array(forPdf.buffer)).toThrow(/detached/i);
+    expect(Array.from(orig)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("still OCRs a scan PDF after unpdf has looked at a copy", async () => {
+    const pdf = new TextEncoder().encode(`%PDF-1.4
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj
+3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj
+xref
+0 4
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+trailer<</Size 4/Root 1 0 R>>
+startxref
+190
+%%EOF
+`);
+    const urls: string[] = [];
+    const r = await extractDocumentText({
+      bytes: pdf,
+      fileName: "scan.pdf",
+      mimeType: "application/pdf",
+      allowOcr: true,
+      env: {
+        DASHSCOPE_API_KEY: "sk-test",
+        DASHSCOPE_BASE_URL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      },
+      fetchImpl: (async (input: RequestInfo | URL) => {
+        urls.push(String(input));
+        return new Response(
+          JSON.stringify({
+            output: [{ content: [{ ocr_result: "SP265790" }] }],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }) as typeof fetch,
+    });
+    expect(r.needsOcr).toBe(false);
+    expect(r.text.includes("detached")).toBe(false);
+    expect(urls.some((u) => u.endsWith("/responses"))).toBe(true);
+    expect(r.text).toContain("SP265790");
   });
 });

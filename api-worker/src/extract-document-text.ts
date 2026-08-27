@@ -50,6 +50,18 @@ function toUint8(data: ArrayBuffer | Uint8Array): Uint8Array {
   return data instanceof Uint8Array ? data : new Uint8Array(data);
 }
 
+/** 独立拷贝，避免 unpdf/pdf.js 把原 ArrayBuffer transfer 卸掉后 OCR 读到 detached */
+export function copyOwnedBytes(data: ArrayBuffer | Uint8Array): Uint8Array {
+  const src = toUint8(data);
+  const out = new Uint8Array(src.byteLength);
+  out.set(src);
+  return out;
+}
+
+function uint8ToArrayBuffer(u8: Uint8Array): ArrayBuffer {
+  return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength) as ArrayBuffer;
+}
+
 function capText(text: string): string {
   const t = text.trim();
   if (t.length <= MAX_TEXT_CHARS) return t;
@@ -63,8 +75,14 @@ export function ocrPendingPlaceholder(kind: "image" | "pdf", fileName: string): 
   return `（已上传 PDF：${fileName}。未能从 PDF 提取文字（多为扫描件/图片版），${OCR_PENDING_PDF}。）`;
 }
 
+/** pdf.js/unpdf 把 ArrayBuffer transfer 卸掉后的运行时错误；应重抽，不当 OCR 定稿 */
+export function looksLikeDetachedBufferError(text: string): boolean {
+  return /detached ArrayBuffer/iu.test(text);
+}
+
 /** OCR 已经跑过并失败：不要再当占位符重试，以免循环扣费 */
 function looksLikeOcrGaveUp(text: string): boolean {
+  if (looksLikeDetachedBufferError(text)) return false;
   return /OCR 未抽出|OCR 失败|无法 OCR：/u.test(text);
 }
 
@@ -85,6 +103,7 @@ export function looksLikeLegacyScanPdfPlaceholder(text: string): boolean {
 export function looksLikeUnparsedPlaceholder(text: string): boolean {
   const t = text.trim();
   if (!t) return true;
+  if (looksLikeDetachedBufferError(t)) return true;
   if (looksLikeOcrGaveUp(t)) return false;
   if (t.includes(OCR_PENDING_IMAGE) || t.includes("正在用 OCR")) return true;
   if (t.includes("暂未解析正文")) return true;
@@ -216,11 +235,24 @@ async function extractImage(
 }
 
 async function extractPdf(
-  bytes: ArrayBuffer,
+  input: ArrayBuffer | Uint8Array,
   fileName: string,
   opts: ExtractDocumentOptions,
 ): Promise<ExtractDocumentResult> {
-  const local = await extractPdfPlainText(bytes, fileName);
+  // unpdf/pdf.js 会 transfer 传入的 ArrayBuffer；OCR 必须用另一份拷贝
+  const owned = copyOwnedBytes(input);
+  let local: Awaited<ReturnType<typeof extractPdfPlainText>>;
+  try {
+    local = await extractPdfPlainText(uint8ToArrayBuffer(copyOwnedBytes(owned)), fileName);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    local = {
+      text: "",
+      totalPages: 0,
+      parsed: false,
+      warning: `PDF 解析失败：${msg}`,
+    };
+  }
   if (local.parsed && local.text.trim()) {
     return {
       text: capText(local.text),
@@ -246,7 +278,7 @@ async function extractPdf(
     };
   }
   const ocr = await ocrPdfWithQwen(opts.env, {
-    bytes: toUint8(bytes),
+    bytes: owned,
     fileName,
     fetchImpl: opts.fetchImpl,
     maxPages: local.totalPages > 0 ? local.totalPages : undefined,
@@ -281,9 +313,9 @@ export async function extractDocumentText(
 ): Promise<ExtractDocumentResult> {
   const fileName = opts.fileName || "file";
   const mime = (opts.mimeType || "").trim() || guessMimeFromFileName(fileName);
-  const bytes = toUint8(opts.bytes);
+  const bytes = copyOwnedBytes(opts.bytes);
   const depth = opts.depth ?? 0;
-  const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+  const ab = uint8ToArrayBuffer(bytes);
 
   if (isZipFileName(fileName, mime)) {
     return extractZipContents(bytes, fileName, { ...opts, depth });
@@ -354,7 +386,7 @@ export async function extractDocumentText(
   }
 
   if (isPdfFileName(fileName, mime)) {
-    return extractPdf(ab, fileName, opts);
+    return extractPdf(bytes, fileName, opts);
   }
 
   if (isImageFileName(fileName, mime)) {

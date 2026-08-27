@@ -17,4 +17,17 @@ describe("shouldRefreshCachedSummary", () => {
       shouldRefreshCachedSummary("（扫描 PDF「a.pdf」OCR 未抽出文字。）"),
     ).toBe(false);
   });
+
+  it("refetches summaries that only failed because pdf.js detached the buffer", () => {
+    expect(
+      shouldRefreshCachedSummary(
+        "Cannot perform Construct on a detached ArrayBuffer",
+      ),
+    ).toBe(true);
+    expect(
+      shouldRefreshCachedSummary(
+        "（扫描 PDF「02.pdf」OCR 未抽出文字。Cannot perform Construct on a detached ArrayBuffer）",
+      ),
+    ).toBe(true);
+  });
 });

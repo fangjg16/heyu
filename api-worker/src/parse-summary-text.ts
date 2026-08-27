@@ -41,6 +41,9 @@ export function shouldRefreshCachedSummary(raw: string): boolean {
   if (looksLikeRawParseJson(original)) return true;
   const t = normalizeParseSummaryText(original);
   if (!t) return true;
+  if (/detached ArrayBuffer/iu.test(original) || /detached ArrayBuffer/iu.test(t)) {
+    return true;
+  }
   if (looksLikeScanOcrNeededSummary(t) || looksLikeScanOcrNeededSummary(original)) {
     return true;
   }
