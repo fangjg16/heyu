@@ -27,6 +27,11 @@ import {
   PDF_PAGES_PNG_MAX_PAGES,
   rasterizePdfPages,
 } from "./pdf-pages-png.mjs";
+import {
+  IMAGE_COMPRESS_MAX_INPUT_BYTES,
+  compressImageForVision,
+  jpegBytesToDataUrl,
+} from "./image-compress.mjs";
 
 const root = apiWorkerRoot;
 const host = process.env.HOST ?? "0.0.0.0";
@@ -410,6 +415,44 @@ const onRequest = async (req, res) => {
       }
       const result = await restartHermesGatewayFromNode();
       sendJson(res, result.ok ? 200 : (result.httpStatus ?? 503), result);
+      return;
+    }
+    if (reqPath === "/__jfo/internal/image-compress" && req.method === "POST") {
+      if (!isLoopbackAddress(req.socket?.remoteAddress)) {
+        sendJson(res, 403, { error: "图片压缩仅本机 Worker 可访问" });
+        return;
+      }
+      const key = (process.env.JFO_INTERNAL_KEY ?? "").trim();
+      if (!bearerMatches(req, key)) {
+        sendJson(res, 401, { error: "Unauthorized" });
+        return;
+      }
+      const body = await readRequestBody(req);
+      if (!body?.length) {
+        sendJson(res, 400, { error: "缺少图片字节" });
+        return;
+      }
+      if (body.length > IMAGE_COMPRESS_MAX_INPUT_BYTES) {
+        sendJson(res, 413, { error: "图片过大，无法压缩后送视觉模型" });
+        return;
+      }
+      try {
+        const result = await compressImageForVision(body);
+        if (!result) {
+          sendJson(res, 422, { error: "图片无法压缩到视觉模型可收体积" });
+          return;
+        }
+        sendJson(res, 200, {
+          mime: result.mime,
+          dataUrl: jpegBytesToDataUrl(result.bytes),
+          width: result.width,
+          height: result.height,
+          byteLength: result.bytes.byteLength,
+        });
+      } catch (e) {
+        console.error("[jfo-api] image-compress:", e?.message ?? e);
+        sendJson(res, 500, { error: String(e?.message ?? e) });
+      }
       return;
     }
     if (reqPath === "/__jfo/internal/pdf-pages-png" && req.method === "POST") {

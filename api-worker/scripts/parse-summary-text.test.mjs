@@ -57,6 +57,12 @@ assert.equal(
   true,
 );
 assert.equal(
+  shouldRefreshCachedSummary(
+    "未能把扫描件/图片交给视觉模型阅读。请稍后点击重新解析。",
+  ),
+  true,
+);
+assert.equal(
   parseSummaryRefreshRequested(new URLSearchParams("userId=a&refresh=1")),
   true,
 );
@@ -70,6 +76,10 @@ assert.equal(
     true,
   ),
   false,
+);
+assert.equal(
+  shouldReturnCachedSummaryOnLlmError("图上北至公路，南至海岸，编号 SP265790。", true),
+  true,
 );
 assert.equal(
   shouldPreferVisionForParse({

@@ -3,6 +3,7 @@ import {
   attachVisionToLastUserMessage,
   pdfTextLooksTooSparseForSkipVision,
   QWEN_VL_MODEL_DEFAULT,
+  VL_IMAGE_RAW_MAX,
   visionImagesFromFileBytes,
   vlModelName,
 } from "./chat-vision";
@@ -123,5 +124,35 @@ describe("visionImagesFromFileBytes", () => {
     });
     expect(images).toHaveLength(1);
     expect(images[0]?.dataUrl.startsWith("data:image/png;base64,")).toBe(true);
+  });
+
+  it("compresses oversized images via node helper instead of dropping them", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      expect(String(input)).toContain("/__jfo/internal/image-compress");
+      return new Response(
+        JSON.stringify({
+          mime: "image/jpeg",
+          dataUrl: "data:image/jpeg;base64,abc",
+        }),
+        { status: 200 },
+      );
+    }) as typeof fetch;
+    try {
+      const bytes = new Uint8Array(VL_IMAGE_RAW_MAX + 8);
+      const images = await visionImagesFromFileBytes({
+        fileName: "04 岛屿总体规划图_StoneIsland Master Plan.jpg",
+        mime: "image/jpeg",
+        bytes,
+        rasterEnv: {
+          JFO_NODE_HELPER_BASE: "http://127.0.0.1:8791",
+          JFO_INTERNAL_KEY: "k",
+        },
+      });
+      expect(images).toHaveLength(1);
+      expect(images[0]?.dataUrl).toBe("data:image/jpeg;base64,abc");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });

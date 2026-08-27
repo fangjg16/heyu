@@ -24,6 +24,14 @@ describe("shouldRefreshCachedSummary", () => {
     ).toBe(false);
   });
 
+  it("retries after the vision handoff pipeline banner", () => {
+    expect(
+      shouldRefreshCachedSummary(
+        "未能把扫描件/图片交给视觉模型阅读。请稍后点击重新解析。",
+      ),
+    ).toBe(true);
+  });
+
   it("refetches summaries that only failed because pdf.js detached the buffer", () => {
     expect(
       shouldRefreshCachedSummary(
@@ -87,12 +95,21 @@ describe("shouldReturnCachedSummaryOnLlmError", () => {
     expect(shouldReturnCachedSummaryOnLlmError(survey, true)).toBe(false);
   });
 
-  it("still returns a normal cached summary when a later LLM call fails", () => {
+  it("still returns a normal cached summary when a later LLM call fails, including after refresh", () => {
     expect(
       shouldReturnCachedSummaryOnLlmError("图上北至公路，南至海岸，编号 SP265790。", false),
     ).toBe(true);
     expect(
       shouldReturnCachedSummaryOnLlmError("图上北至公路，南至海岸，编号 SP265790。", true),
+    ).toBe(true);
+  });
+
+  it("does not treat the vision handoff banner as a usable cache", () => {
+    expect(
+      shouldReturnCachedSummaryOnLlmError(
+        "未能把扫描件/图片交给视觉模型阅读。请稍后点击重新解析。",
+        true,
+      ),
     ).toBe(false);
   });
 });

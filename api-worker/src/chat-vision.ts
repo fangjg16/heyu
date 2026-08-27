@@ -12,11 +12,13 @@ import { getProjectById } from "./projects-db";
 import { extractPdfPlainText } from "./pdf-text";
 import { encodePngRgba } from "./png-encode";
 import { uint8ToBase64 } from "./qwen-ocr";
+import { pdfExtractLooksSparse } from "./source-parse-route";
 import { resolveProjectRole, roleCanViewAllSessionUploads } from "./workspace-roles";
 import { extractImages, getDocumentProxy } from "unpdf";
 
 export const QWEN_VL_MODEL_DEFAULT = "qwen3-vl-plus";
 export const VL_IMAGE_RAW_MAX = 7 * 1024 * 1024;
+export const VL_IMAGE_COMPRESS_MAX_INPUT = 40 * 1024 * 1024;
 export const VL_PDF_RAW_MAX = 12 * 1024 * 1024;
 export const VL_MAX_IMAGES = 8;
 export const VL_MAX_PDF_PAGES = 8;
@@ -203,19 +205,12 @@ async function canView(
   return !documentAccessError(row, userId, { viewAllSession });
 }
 
-function pdfExtractBody(text: string): string {
-  return text.replace(/^【[^\n]+】\n?/u, "").trim();
-}
-
 /** 文字层很稀：测绘图/扫描件常有少量矢量注记，不能因此跳过看图 */
 export function pdfTextLooksTooSparseForSkipVision(
   text: string,
   totalPages: number,
 ): boolean {
-  const body = pdfExtractBody(text);
-  if (!body) return true;
-  const pages = Math.max(totalPages || 1, 1);
-  return Array.from(body).length < 400 * pages;
+  return pdfExtractLooksSparse(text, totalPages);
 }
 
 async function rasterizePdfViaNodeHelper(
@@ -257,7 +252,43 @@ async function rasterizePdfViaNodeHelper(
   }
 }
 
-/** 图片，或扫描/测绘图 PDF：整页栅格成 PNG 后以 image_url 送给视觉模型 */
+async function compressImageViaNodeHelper(
+  env: VisionRasterEnv | undefined,
+  opts: { bytes: Uint8Array; fileName: string; mime?: string | null },
+): Promise<ChatVisionImage | null> {
+  const helper = (env?.JFO_NODE_HELPER_BASE || "").trim().replace(/\/$/u, "");
+  const key = (env?.JFO_INTERNAL_KEY || "").trim();
+  if (!helper || !key) return null;
+  if (opts.bytes.byteLength === 0 || opts.bytes.byteLength > VL_IMAGE_COMPRESS_MAX_INPUT) {
+    return null;
+  }
+  const q = new URLSearchParams({ fileName: opts.fileName });
+  try {
+    const res = await fetch(`${helper}/__jfo/internal/image-compress?${q}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": guessMime(opts.fileName, opts.mime),
+        Accept: "application/json",
+      },
+      body: copyOwnedBytes(opts.bytes),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json().catch(() => null)) as { dataUrl?: string } | null;
+    if (typeof data?.dataUrl === "string" && data.dataUrl.startsWith("data:image/")) {
+      return { dataUrl: data.dataUrl, label: opts.fileName };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 图片：原图或压缩后的 image_url。
+ * 少页图面 PDF：整页栅格成 PNG 再 image_url（API 不收 type=file）。
+ * 多页文字扫描不要走这里，由解析分路交给 OCR。
+ */
 export async function visionImagesFromFileBytes(opts: {
   fileName: string;
   mime?: string | null;
@@ -272,13 +303,20 @@ export async function visionImagesFromFileBytes(opts: {
   if (bytes.byteLength === 0) return [];
 
   if (isImageFileName(fileName, mime)) {
-    if (bytes.byteLength > VL_IMAGE_RAW_MAX) return [];
-    return [
-      {
-        dataUrl: toDataUrl(bytes, guessMime(fileName, mime)),
-        label: fileName,
-      },
-    ];
+    if (bytes.byteLength <= VL_IMAGE_RAW_MAX) {
+      return [
+        {
+          dataUrl: toDataUrl(bytes, guessMime(fileName, mime)),
+          label: fileName,
+        },
+      ];
+    }
+    const compressed = await compressImageViaNodeHelper(opts.rasterEnv, {
+      bytes,
+      fileName,
+      mime,
+    });
+    return compressed ? [compressed] : [];
   }
 
   if (!isPdfFileName(fileName, mime)) return [];

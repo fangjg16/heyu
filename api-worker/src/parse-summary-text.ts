@@ -65,6 +65,17 @@ export function looksLikeOcrFailureContent(text: string): boolean {
   return looksLikeOcrEmptyLlmSummary(t) || looksLikeScanOcrNeededSummary(t);
 }
 
+/** 管道失败文案：不能当成「上次可用摘要」保住 */
+export function looksLikeParseFailureBanner(text: string): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+  return (
+    /未能把扫描件\/图片交给视觉模型阅读/u.test(t) ||
+    /视觉理解未能读出图面/u.test(t) ||
+    /大模型解析失败/u.test(t)
+  );
+}
+
 /**
  * 刷新只丢掉摘要缓存，不代表必须看图。
  * 看图仅用于：图片，或旧摘要/检索块仍是 OCR 失败扩写（测绘图那类扫描件）。
@@ -82,17 +93,17 @@ export function shouldPreferVisionForParse(input: {
 }
 
 /**
- * 看图/摘要模型失败时，不要把「OCR 失败扩写」当成解析成功交回去。
- * 否则点刷新会瞬间回到同一段文案，看起来像没重新解析。
+ * 看图/摘要失败时：OCR 失败扩写、管道失败横幅不能当成功结果。
+ * 真正可用的旧摘要即使点了刷新也要保住，不要用失败文案盖掉。
  */
 export function shouldReturnCachedSummaryOnLlmError(
   cachedSummary: string | undefined,
-  forceRefresh: boolean,
+  _forceRefresh = false,
 ): boolean {
-  if (forceRefresh) return false;
   const t = (cachedSummary ?? "").trim();
   if (!t) return false;
   if (looksLikeOcrFailureContent(t)) return false;
+  if (looksLikeParseFailureBanner(t)) return false;
   if (/OCR 未抽出|OCR 失败|无法 OCR：/u.test(t)) return false;
   return true;
 }
@@ -115,6 +126,9 @@ export function shouldRefreshCachedSummary(raw: string): boolean {
   }
   if (PLACEHOLDER_SUMMARY.test(t) && !/OCR 未抽出|OCR 失败|无法 OCR：/u.test(t)) {
     return false;
+  }
+  if (/未能把扫描件\/图片交给视觉模型阅读/u.test(t) || /未能把扫描件\/图片交给视觉模型阅读/u.test(original)) {
+    return true;
   }
   if (/视觉理解未能读出图面/u.test(t) || /视觉理解未能读出图面/u.test(original)) {
     return false;

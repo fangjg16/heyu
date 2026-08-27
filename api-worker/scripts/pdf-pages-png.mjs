@@ -1,6 +1,7 @@
 /**
- * Node 侧把 PDF 整页画成 PNG（workerd 没有 @napi-rs/canvas）。
+ * 少页图面 PDF 才整页画成 PNG（workerd 没有 @napi-rs/canvas）。
  * 百炼 compatible-mode 只接受 image_url，不能传 type=file。
+ * 多页文字扫描不要走这里，解析分路会交给 OCR。
  */
 import { getDocumentProxy, renderPageAsImage } from "unpdf";
 

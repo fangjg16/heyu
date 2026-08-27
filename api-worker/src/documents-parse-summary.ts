@@ -7,17 +7,16 @@ import { copyOwnedBytes, looksLikeOcrGaveUp, looksLikeUnparsedPlaceholder } from
 import { isImageFileName, isPdfFileName } from "./file-mime";
 import { callLlm, type LlmClientEnv } from "./llm-client";
 import { getProjectById } from "./projects-db";
+import { extractPdfPlainText } from "./pdf-text";
 import { decodePathProjectId } from "./projects-resolve";
 import { canonicalizeFileTopic } from "./file-topic";
 import { canDownloadProjectFile, resolveProjectRole, roleCanViewAllSessionUploads } from "./workspace-roles";
 import {
   extractSummaryField,
-  looksLikeOcrEmptyLlmSummary,
   looksLikeOcrFailureContent,
   looksLikeRawParseJson,
   normalizeParseSummaryText,
   parseSummaryRefreshRequested,
-  shouldPreferVisionForParse,
   shouldRefreshCachedSummary,
   shouldReturnCachedSummaryOnLlmError,
   truncateSummary,
@@ -26,6 +25,11 @@ import {
   visionImagesFromFileBytes,
   type ChatVisionImage,
 } from "./chat-vision";
+import {
+  classifySourceParseRoute,
+  sourceParseBodyCharCount,
+  type SourceParseRoute,
+} from "./source-parse-route";
 import {
   buildSourceFileParseMessages,
   sourceParseVisionLlmOptions,
@@ -83,18 +87,26 @@ function truncateSource(text: string, max = SOURCE_MAX): string {
   return `${t.slice(0, max)}\n\n…（正文已截断）`;
 }
 
+async function loadDocumentBytes(
+  env: Env,
+  row: { r2_key: string | null },
+): Promise<Uint8Array> {
+  if (!row.r2_key) return new Uint8Array();
+  const object = await env.FILES.get(row.r2_key);
+  if (!object) return new Uint8Array();
+  return copyOwnedBytes(await object.arrayBuffer());
+}
+
 async function loadRowVisionImages(
   env: Env,
   row: { filename: string; mime: string | null; r2_key: string | null },
-  opts?: { preferVision?: boolean },
+  opts?: { preferVision?: boolean; bytes?: Uint8Array },
 ): Promise<ChatVisionImage[]> {
-  if (!row.r2_key) return [];
   if (!isImageFileName(row.filename, row.mime) && !isPdfFileName(row.filename, row.mime)) {
     return [];
   }
-  const object = await env.FILES.get(row.r2_key);
-  if (!object) return [];
-  const bytes = copyOwnedBytes(await object.arrayBuffer());
+  const bytes = opts?.bytes ?? (await loadDocumentBytes(env, row));
+  if (bytes.byteLength === 0) return [];
   return visionImagesFromFileBytes({
     fileName: row.filename,
     mime: row.mime,
@@ -333,6 +345,7 @@ async function extractAndPersistSource(
   row: DocumentRow & { mime: string | null; relative_path?: string | null },
   userId: string,
   projectId: string,
+  opts?: { preferOcr?: boolean },
 ): Promise<{ text: string; chunkCount: number; warning?: string; ok: boolean }> {
   if (!row.r2_key) {
     return {
@@ -361,6 +374,7 @@ async function extractAndPersistSource(
     bytes,
     relativePath: row.relative_path ?? "",
     allowOcr: true,
+    preferOcr: Boolean(opts?.preferOcr),
     persistAttachments: true,
   });
   for (const job of ingested.jobs) {
@@ -405,6 +419,23 @@ function parseResponseBody(
     fromCache: Boolean(payload.fromCache),
     warning: extra?.warning ?? null,
   };
+}
+
+function keepLastGoodParseResponse(
+  row: DocumentRow & { mime: string | null },
+  cached: ParseResultRow | null | undefined,
+  extra?: { warning?: string | null },
+): Response | null {
+  if (!cached || !shouldReturnCachedSummaryOnLlmError(cached.summary, false)) {
+    return null;
+  }
+  return json(
+    parseResponseBody(
+      row,
+      { ...rowToPayload(cached), fromCache: true },
+      { warning: extra?.warning ?? "重新解析未完成，仍显示上次可用摘要。" },
+    ),
+  );
 }
 
 const PARSE_INFLIGHT = new Map<string, Promise<Response>>();
@@ -541,28 +572,6 @@ async function handleParseProjectFileSummaryUnlocked(
   }
 
   const existing = await loadExistingSourceText(env, id);
-  const preferVision = shouldPreferVisionForParse({
-    isImage: isImageFileName(row.filename, row.mime),
-    cachedSummary: cached?.summary,
-    existingText: existing?.text,
-  });
-
-  let visionImages: ChatVisionImage[] = [];
-  try {
-    visionImages = await loadRowVisionImages(env, row, { preferVision });
-  } catch {
-    visionImages = [];
-  }
-  const useVision = visionImages.length > 0;
-
-  let sourceText = "";
-  let chunkCount = 0;
-  let extractWarning: string | undefined;
-
-  const retryOcrAfterLlmLie = Boolean(
-    cached && looksLikeOcrEmptyLlmSummary(cached.summary),
-  );
-  const existingIsOcrGiveUp = Boolean(existing && looksLikeOcrGaveUp(existing.text));
   const existingIsJunk = Boolean(
     existing &&
       (looksLikeUnparsedPlaceholder(existing.text) ||
@@ -570,31 +579,64 @@ async function handleParseProjectFileSummaryUnlocked(
         looksLikeOcrFailureContent(existing.text)),
   );
   const existingUsable = Boolean(existing) && !existingIsJunk;
-  /** 无文字层扫描件/图片：跳过 OCR，直接看图。PDF 看图失败时不要再拿 OCR 失败文案去扩写。 */
-  const shouldReextract =
-    !useVision &&
-    !isPdfFileName(row.filename, row.mime) &&
-    !isImageFileName(row.filename, row.mime) &&
-    (!existing ||
-      looksLikeUnparsedPlaceholder(existing.text) ||
-      (existingIsOcrGiveUp && retryOcrAfterLlmLie));
 
-  if (useVision) {
-    if (existingUsable && existing) {
-      sourceText = existing.text;
-      chunkCount = existing.chunkCount;
-    } else if (existing) {
-      sourceText = "";
-      chunkCount = existing.chunkCount;
+  let fileBytes: Uint8Array | null = null;
+  const loadBytes = async (): Promise<Uint8Array> => {
+    if (fileBytes) return fileBytes;
+    fileBytes = await loadDocumentBytes(env, row);
+    return fileBytes;
+  };
+
+  let pageCount: number | null = null;
+  let extractedCharCount = existingUsable && existing
+    ? sourceParseBodyCharCount(existing.text)
+    : 0;
+  if (isPdfFileName(row.filename, row.mime) && extractedCharCount < 80) {
+    try {
+      const bytes = await loadBytes();
+      if (bytes.byteLength > 0) {
+        const local = await extractPdfPlainText(
+          bytes.buffer.slice(
+            bytes.byteOffset,
+            bytes.byteOffset + bytes.byteLength,
+          ) as ArrayBuffer,
+          row.filename,
+        );
+        pageCount = local.totalPages || 0;
+        extractedCharCount = sourceParseBodyCharCount(local.text);
+      }
+    } catch {
+      /* 分路时抽字失败则按无文字层处理 */
     }
-  } else if (existing && existingUsable && !shouldReextract) {
-    sourceText = existing.text;
-    chunkCount = existing.chunkCount;
-  } else if (
-    !useVision &&
-    preferVision &&
-    (isPdfFileName(row.filename, row.mime) || isImageFileName(row.filename, row.mime))
-  ) {
+  }
+
+  const route: SourceParseRoute = classifySourceParseRoute({
+    fileName: row.filename,
+    mime: row.mime,
+    pageCount,
+    extractedCharCount,
+  });
+
+  let visionImages: ChatVisionImage[] = [];
+  if (route === "image-vl" || route === "pdf-vl") {
+    try {
+      visionImages = await loadRowVisionImages(env, row, {
+        preferVision: route === "pdf-vl",
+        bytes: await loadBytes(),
+      });
+    } catch {
+      visionImages = [];
+    }
+  }
+  const useVision = visionImages.length > 0;
+
+  let sourceText = "";
+  let chunkCount = 0;
+  let extractWarning: string | undefined;
+
+  if ((route === "image-vl" || route === "pdf-vl") && !useVision) {
+    const kept = keepLastGoodParseResponse(row, cached);
+    if (kept) return kept;
     return json({
       documentId: id,
       filename: row.filename,
@@ -608,13 +650,27 @@ async function handleParseProjectFileSummaryUnlocked(
       usedFor: [],
       warning: extractWarning ?? null,
     });
-  } else {
+  }
+
+  if (useVision) {
+    if (existingUsable && existing) {
+      sourceText = existing.text;
+      chunkCount = existing.chunkCount;
+    } else if (existing) {
+      sourceText = "";
+      chunkCount = existing.chunkCount;
+    }
+  } else if (route === "text" && existing && existingUsable) {
+    sourceText = existing.text;
+    chunkCount = existing.chunkCount;
+  } else if (route === "text" || route === "pdf-ocr") {
     const extracted = await extractAndPersistSource(
       env,
       ctx,
       row,
       userId,
       projectId,
+      { preferOcr: route === "pdf-ocr" },
     );
     sourceText = extracted.text;
     chunkCount = extracted.chunkCount;
@@ -624,6 +680,10 @@ async function handleParseProjectFileSummaryUnlocked(
       looksLikeOcrGaveUp(sourceText) ||
       looksLikeUnparsedPlaceholder(sourceText);
     if (extractEmpty && !useVision) {
+      const kept = keepLastGoodParseResponse(row, cached, {
+        warning: extractWarning ?? "重新解析未完成，仍显示上次可用摘要。",
+      });
+      if (kept) return kept;
       if (looksLikeOcrGaveUp(sourceText)) {
         try {
           await upsertParseResult(env, id, {
@@ -661,6 +721,8 @@ async function handleParseProjectFileSummaryUnlocked(
       looksLikeOcrGaveUp(sourceText) ||
       looksLikeOcrFailureContent(sourceText))
   ) {
+    const kept = keepLastGoodParseResponse(row, cached);
+    if (kept) return kept;
     return json({
       documentId: id,
       filename: row.filename,
@@ -740,9 +802,8 @@ async function handleParseProjectFileSummaryUnlocked(
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    if (cached && shouldReturnCachedSummaryOnLlmError(cached.summary, forceRefresh)) {
-      return json(parseResponseBody(row, rowToPayload(cached)));
-    }
+    const kept = keepLastGoodParseResponse(row, cached);
+    if (kept) return kept;
     const failSummary = useVision
       ? `视觉理解未能读出图面：${msg}`
       : `大模型解析失败：${msg}`;

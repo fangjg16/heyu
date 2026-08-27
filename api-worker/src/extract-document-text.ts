@@ -15,6 +15,7 @@ import { extractDocPlainText, extractDocxPlainText } from "./office-text";
 import { extractPdfPlainText } from "./pdf-text";
 import { ocrImageWithQwen, ocrPdfWithQwen } from "./qwen-ocr";
 import { extractSpreadsheetPlainText } from "./spreadsheet-text";
+import { pdfExtractLooksSparse } from "./source-parse-route";
 import { shouldSkipZipEntry, unzipToEntries } from "./zip-inflate";
 
 const MAX_TEXT_CHARS = 200_000;
@@ -42,6 +43,8 @@ export type ExtractDocumentOptions = {
   mimeType?: string | null;
   env?: LlmClientEnv | null;
   allowOcr?: boolean;
+  /** 多页文字扫描：即使有稀疏文字层也走 OCR，不要把矢量注记当成可复制正文 */
+  preferOcr?: boolean;
   depth?: number;
   fetchImpl?: typeof fetch;
 };
@@ -254,12 +257,15 @@ async function extractPdf(
     };
   }
   if (local.parsed && local.text.trim()) {
-    return {
-      text: capText(local.text),
-      parsed: true,
-      needsOcr: false,
-      warning: local.warning,
-    };
+    const sparse = pdfExtractLooksSparse(local.text, local.totalPages);
+    if (!(opts.preferOcr && sparse)) {
+      return {
+        text: capText(local.text),
+        parsed: true,
+        needsOcr: false,
+        warning: local.warning,
+      };
+    }
   }
   if (!opts.allowOcr) {
     return {
