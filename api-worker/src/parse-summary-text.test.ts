@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shouldRefreshCachedSummary, looksLikeOcrEmptyLlmSummary, parseSummaryRefreshRequested, shouldReturnCachedSummaryOnLlmError } from "./parse-summary-text";
+import { shouldRefreshCachedSummary, looksLikeOcrEmptyLlmSummary, parseSummaryRefreshRequested, shouldPreferVisionForParse, shouldReturnCachedSummaryOnLlmError } from "./parse-summary-text";
 
 describe("shouldRefreshCachedSummary", () => {
   it("keeps a normal complete sentence", () => {
@@ -94,5 +94,23 @@ describe("shouldReturnCachedSummaryOnLlmError", () => {
     expect(
       shouldReturnCachedSummaryOnLlmError("图上北至公路，南至海岸，编号 SP265790。", true),
     ).toBe(false);
+  });
+});
+
+describe("shouldPreferVisionForParse", () => {
+  const survey =
+    "原文为扫描 PDF「02.pdf」。OCR 抽取失败未能获得任何文字内容，无法识别地块编号。建议重新进行 OCR 识别。";
+
+  it("does not force vision just because the user clicked refresh", () => {
+    expect(
+      shouldPreferVisionForParse({
+        cachedSummary: "可复制合同正文摘要，各方权利义务已列明。",
+      }),
+    ).toBe(false);
+  });
+
+  it("uses vision for images and OCR-failure scan summaries", () => {
+    expect(shouldPreferVisionForParse({ isImage: true })).toBe(true);
+    expect(shouldPreferVisionForParse({ cachedSummary: survey })).toBe(true);
   });
 });

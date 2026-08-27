@@ -66,6 +66,22 @@ export function looksLikeOcrFailureContent(text: string): boolean {
 }
 
 /**
+ * 刷新只丢掉摘要缓存，不代表必须看图。
+ * 看图仅用于：图片，或旧摘要/检索块仍是 OCR 失败扩写（测绘图那类扫描件）。
+ * 可复制 PDF / Word / 邮件仍走抽字 + 文本模型。
+ */
+export function shouldPreferVisionForParse(input: {
+  isImage?: boolean;
+  cachedSummary?: string;
+  existingText?: string;
+}): boolean {
+  if (input.isImage) return true;
+  if (looksLikeOcrFailureContent(input.cachedSummary ?? "")) return true;
+  if (looksLikeOcrFailureContent(input.existingText ?? "")) return true;
+  return false;
+}
+
+/**
  * 看图/摘要模型失败时，不要把「OCR 失败扩写」当成解析成功交回去。
  * 否则点刷新会瞬间回到同一段文案，看起来像没重新解析。
  */

@@ -228,7 +228,7 @@ export async function visionImagesFromFileBytes(opts: {
   fileName: string;
   mime?: string | null;
   bytes: Uint8Array;
-  /** 点刷新 / 旧 OCR 失败摘要：即使 PDF 有少量文字层也要看图 */
+  /** 点刷新 / 旧 OCR 失败摘要：即使 PDF 有少量文字层也要看图。可复制 PDF 不要设这个。 */
   preferVision?: boolean;
 }): Promise<ChatVisionImage[]> {
   const fileName = opts.fileName;
