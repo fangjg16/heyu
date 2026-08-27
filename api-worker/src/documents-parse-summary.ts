@@ -15,6 +15,7 @@ import {
   looksLikeOcrEmptyLlmSummary,
   looksLikeRawParseJson,
   normalizeParseSummaryText,
+  parseSummaryRefreshRequested,
   shouldRefreshCachedSummary,
   truncateSummary,
 } from "./parse-summary-text";
@@ -397,7 +398,7 @@ function parseResponseBody(
 
 const PARSE_INFLIGHT = new Map<string, Promise<Response>>();
 
-/** GET /api/projects/:projectId/files/:docId/parse-summary?userId= */
+/** GET /api/projects/:projectId/files/:docId/parse-summary?userId=&refresh=1 */
 export async function handleParseProjectFileSummary(
   request: Request,
   env: Env,
@@ -438,6 +439,7 @@ async function handleParseProjectFileSummaryUnlocked(
   const url = new URL(request.url);
   const userId = normalizeUserId(url.searchParams.get("userId"));
   if (!userId) return json({ error: "缺少 userId 查询参数" }, 400);
+  const forceRefresh = parseSummaryRefreshRequested(url.searchParams);
 
   const projectId = decodePathProjectId(pathProjectId);
   const id = docId.trim();
@@ -522,7 +524,7 @@ async function handleParseProjectFileSummaryUnlocked(
   }
 
   const cached = await loadParseResult(env, id);
-  if (cached && !shouldRefreshCachedSummary(cached.summary)) {
+  if (cached && !forceRefresh && !shouldRefreshCachedSummary(cached.summary)) {
     return json(parseResponseBody(row, rowToPayload(cached)));
   }
 

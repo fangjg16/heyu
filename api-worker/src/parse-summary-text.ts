@@ -44,6 +44,20 @@ export function looksLikeOcrEmptyLlmSummary(text: string): boolean {
   return /OCR.{0,12}失败/u.test(t) && /未能获得任何文字|未提取到任何文字|未能抽出/u.test(t);
 }
 
+/** GET parse-summary?refresh=1 时丢掉已有摘要，重新跑抽字/看图 */
+export function parseSummaryRefreshRequested(
+  searchParams: { get(name: string): string | null },
+): boolean {
+  const raw = (
+    searchParams.get("refresh") ??
+    searchParams.get("force") ??
+    ""
+  )
+    .trim()
+    .toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes";
+}
+
 /** 旧版 100 字硬截、残缺 JSON、或 VARCHAR 截断：点开时应重跑解析 */
 export function shouldRefreshCachedSummary(raw: string): boolean {
   const original = (raw ?? "").trim();
