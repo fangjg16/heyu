@@ -683,14 +683,15 @@ export type ProjectFileParseSummary = {
   warning?: string | null;
 };
 
-/** 点击解析：抽取正文后调用三方大模型；结果落库，再次请求读库 */
+/** 点击解析：抽取正文后调用三方大模型；结果落库，再次请求读库。refresh 时丢掉缓存重跑。 */
 export async function fetchProjectFileParseSummary(
   projectId: string,
   documentId: string,
   userId: string,
-  _chatEndpoint = AI_CHAT_ENDPOINT,
+  opts?: { refresh?: boolean },
 ): Promise<ProjectFileParseSummary> {
   const q = new URLSearchParams({ userId });
+  if (opts?.refresh) q.set("refresh", "1");
   const res = await jfoFetch(
     `/api/projects/${encodeURIComponent(projectId)}/files/${encodeURIComponent(documentId)}/parse-summary?${q}`,
   );

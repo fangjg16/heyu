@@ -27,6 +27,7 @@ import {
   Folder,
   FolderPlus,
   Loader2,
+  RefreshCw,
   Search,
   Upload,
   X,
@@ -1165,18 +1166,33 @@ export function ProjectMaterialsSection({
   );
 
   const runParse = useCallback(
-    async (file: ProjectFileRecord) => {
+    async (file: ProjectFileRecord, opts?: { force?: boolean }) => {
+      const force = Boolean(opts?.force);
       if (!canParseFile(file)) {
         setError("当前权限无法解析该文件（受限）");
         return;
       }
-      if (parsedById[file.id]?.status === "parsed") {
+      if (!force && parsedById[file.id]?.status === "parsed") {
         if (!shouldRefetchParseSummary(parsedById[file.id]?.summary ?? "")) {
           return;
         }
       }
       if (parsedById[file.id]?.status === "parsing") return;
       if (parsingId === file.id) return;
+      if (force) {
+        setParsedById((prev) => ({
+          ...prev,
+          [file.id]: {
+            summary: "正在重新解析…",
+            chunkCount: prev[file.id]?.chunkCount ?? 0,
+            status: "parsing",
+            documentType: prev[file.id]?.documentType,
+            keyPoints: prev[file.id]?.keyPoints ?? [],
+            refs: prev[file.id]?.refs ?? [],
+            usedFor: prev[file.id]?.usedFor ?? [],
+          },
+        }));
+      }
       setParsingId(file.id);
       setError(null);
       try {
@@ -1184,6 +1200,7 @@ export function ProjectMaterialsSection({
           projectId,
           file.id,
           userId,
+          force ? { refresh: true } : undefined,
         );
         setParsedById((prev) => ({
           ...prev,
@@ -1301,6 +1318,8 @@ export function ProjectMaterialsSection({
         isFile: true as const,
         file,
         status: statusTag?.label ?? "未解析",
+        statusBg: statusTag?.bg ?? "rgba(78,66,57,0.08)",
+        statusFg: statusTag?.fg ?? "#59625F",
         perm:
           fileSourceBucket(file) === "session"
             ? "对话上传"
@@ -1349,6 +1368,8 @@ export function ProjectMaterialsSection({
       isFile: false as const,
       file: null as ProjectFileRecord | null,
       status: "",
+      statusBg: "",
+      statusFg: "",
       perm: "",
       refs: [] as string[],
       summary: "",
@@ -1556,8 +1577,8 @@ export function ProjectMaterialsSection({
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.78)] shadow-[0_10px_30px_rgba(102,80,60,0.07)]">
               <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-5 py-4 [scrollbar-gutter:stable]">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 pt-0.5">
+              <div className="flex flex-col gap-3">
+                <div className="min-w-0">
                   {detail.trail.length > 0 ? (
                     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
                       {detail.trail.map((p, i) => {
@@ -1569,7 +1590,7 @@ export function ProjectMaterialsSection({
                               className={cn(
                                 "min-w-0 truncate",
                                 last
-                                  ? "cursor-default text-[15px] font-semibold text-[#1F2423]"
+                                  ? "cursor-default font-medium text-[#1F2423]"
                                   : "text-[hsl(var(--wine))] hover:underline",
                               )}
                               title={p.label}
@@ -1594,7 +1615,55 @@ export function ProjectMaterialsSection({
                     </div>
                   )}
                 </div>
-                <div className="flex max-w-full shrink-0 flex-wrap items-center justify-end gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                {detail.isFile ? (
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <span
+                      className="inline-flex h-6 shrink-0 items-center rounded-md px-2 text-[11.5px] font-medium"
+                      style={{
+                        backgroundColor: detail.statusBg,
+                        color: detail.statusFg,
+                      }}
+                    >
+                      {detail.status}
+                    </span>
+                    {detail.file &&
+                    canParseFile(detail.file) &&
+                    detail.status !== "受限" ? (
+                      <button
+                        type="button"
+                        title="重新解析"
+                        aria-label="重新解析"
+                        disabled={
+                          busy ||
+                          parsingId === detail.file.id ||
+                          parsedById[detail.file.id]?.status === "parsing"
+                        }
+                        onClick={() => void runParse(detail.file!, { force: true })}
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[hsl(var(--warm-charcoal-muted))] hover:bg-[#EFE7E6] hover:text-[hsl(var(--wine))] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <RefreshCw
+                          className={cn(
+                            "h-3.5 w-3.5",
+                            (parsingId === detail.file.id ||
+                              parsedById[detail.file.id]?.status === "parsing") &&
+                              "animate-spin",
+                          )}
+                          strokeWidth={1.8}
+                          aria-hidden
+                        />
+                      </button>
+                    ) : null}
+                    {detail.perm ? (
+                      <span className="truncate text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
+                        {detail.perm}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="min-w-0 flex-1" />
+                )}
+                <div className="flex max-w-full min-w-0 flex-wrap items-center justify-end gap-2">
                   {!detail.isFile && canManage && folderShareFiles.length > 0 ? (
                     <IssuerShareTick
                       shared={folderShareAll}
@@ -1727,13 +1796,8 @@ export function ProjectMaterialsSection({
                     </button>
                   ) : null}
                 </div>
+                </div>
               </div>
-
-              {detail.isFile ? (
-                <p className="mt-1.5 text-[12.5px] text-[hsl(var(--warm-charcoal-muted))]">
-                  {[detail.status, detail.perm].filter(Boolean).join(" · ")}
-                </p>
-              ) : null}
 
               {!detail.isFile && folderFiles.length > 0 ? (
                 <div className="mt-4">
@@ -1779,7 +1843,7 @@ export function ProjectMaterialsSection({
               ) : null}
 
               {detail.isFile ? (
-                <div className="mt-5 text-sm leading-[1.9] text-[hsl(var(--warm-charcoal))]">
+                <div className="mt-4 text-sm leading-[1.9] text-[hsl(var(--warm-charcoal))]">
                   {parsingId === detail.file?.id ? (
                     <span className="inline-flex items-center gap-2 text-[hsl(var(--warm-charcoal-muted))]">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -1788,7 +1852,7 @@ export function ProjectMaterialsSection({
                   ) : (
                     <>
                       {detail.documentType ? (
-                        <div className="mb-2 text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
+                        <div className="mb-2 text-[13px] font-medium text-[#1F2423]">
                           {detail.documentType}
                         </div>
                       ) : null}

@@ -3,6 +3,7 @@ import {
   extractSummaryField,
   looksLikeRawParseJson,
   normalizeParseSummaryText,
+  parseSummaryRefreshRequested,
   shouldRefreshCachedSummary,
   truncateSummary,
 } from "../src/parse-summary-text.ts";
@@ -51,6 +52,14 @@ const scanSummary =
 assert.equal(shouldRefreshCachedSummary(scanSummary), true);
 assert.equal(
   shouldRefreshCachedSummary("（扫描 PDF「a.pdf」OCR 未抽出文字。）"),
+  true,
+);
+assert.equal(
+  parseSummaryRefreshRequested(new URLSearchParams("userId=a&refresh=1")),
+  true,
+);
+assert.equal(
+  parseSummaryRefreshRequested(new URLSearchParams("userId=a")),
   false,
 );
 
