@@ -20,6 +20,20 @@ export function truncateSummary(
   return head.join("");
 }
 
+/**
+ * 旧摘要在说「这是扫描件、没抽到字」：OCR 上线后应丢弃缓存、重新抽字。
+ * 不匹配「OCR 已经失败」的定稿，以免循环扣费。
+ */
+export function looksLikeScanOcrNeededSummary(text: string): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+  if (/OCR 未抽出|OCR 失败|无法 OCR：/u.test(t)) return false;
+  const admitsScan = /扫描件|图片版/u.test(t);
+  const admitsNoText =
+    /未能提取可复制文字|未能从 PDF 提取|无法识别关键信息|需另附可复制|OCR 转录/u.test(t);
+  return admitsScan && admitsNoText;
+}
+
 /** 旧版 100 字硬截、残缺 JSON、或 VARCHAR 截断：点开时应重跑解析 */
 export function shouldRefreshCachedSummary(raw: string): boolean {
   const original = (raw ?? "").trim();
@@ -27,6 +41,9 @@ export function shouldRefreshCachedSummary(raw: string): boolean {
   if (looksLikeRawParseJson(original)) return true;
   const t = normalizeParseSummaryText(original);
   if (!t) return true;
+  if (looksLikeScanOcrNeededSummary(t) || looksLikeScanOcrNeededSummary(original)) {
+    return true;
+  }
   if (PLACEHOLDER_SUMMARY.test(t)) return false;
   if (SENTENCE_END.test(t)) return false;
   const n = Array.from(t).length;

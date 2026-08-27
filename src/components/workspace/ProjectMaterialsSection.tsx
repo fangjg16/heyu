@@ -158,11 +158,18 @@ function formatFileSize(bytes: number | undefined | null): string {
   return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
-/** 旧版 100 字硬截或残缺 JSON：再点一次应重新向接口拉摘要 */
+/** 旧版 100 字硬截、残缺 JSON、或「扫描件没抽到字」：再点一次应重新向接口拉摘要（走 OCR） */
 function shouldRefetchParseSummary(summary: string): boolean {
   const t = summary.trim();
   if (!t || t === "—") return true;
   if (t.startsWith("{") && /"summary"\s*:/u.test(t)) return true;
+  if (/OCR 未抽出|OCR 失败|无法 OCR：/u.test(t)) return false;
+  if (
+    /扫描件|图片版/u.test(t) &&
+    /未能提取可复制文字|未能从 PDF 提取|无法识别关键信息|需另附可复制|OCR 转录/u.test(t)
+  ) {
+    return true;
+  }
   if (/[.。！？!?…]$/u.test(t)) return false;
   const n = Array.from(t).length;
   return n === 100 || n === 200;

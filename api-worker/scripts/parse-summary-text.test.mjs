@@ -46,6 +46,14 @@ assert.equal(shouldRefreshCachedSummary("完整一句。"), false);
 assert.equal(shouldRefreshCachedSummary(escaped), true);
 assert.equal(shouldRefreshCachedSummary("未能生成可用摘要，请直接预览原文。"), false);
 
+const scanSummary =
+  "本文件为扫描件/图片版 PDF（大陆地块测绘图，编号 SP265790），未能提取可复制文字，无法识别测绘范围、地块面积、坐标、权属、四至等关键信息。原文未披露可供投研核验的实质数据，需另附可复制文字版 PDF 或人工 OCR 转录稿后方可用于尽调。";
+assert.equal(shouldRefreshCachedSummary(scanSummary), true);
+assert.equal(
+  shouldRefreshCachedSummary("（扫描 PDF「a.pdf」OCR 未抽出文字。）"),
+  false,
+);
+
 const over =
   `${"甲。".repeat(20)}这是会被截掉的半句`;
 assert.equal(truncateSummary(over, 40).endsWith("。"), true);
