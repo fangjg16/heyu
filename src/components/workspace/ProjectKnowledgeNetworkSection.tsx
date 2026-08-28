@@ -42,10 +42,7 @@ import {
   dismissIfBackdropClick,
   markBackdropPointerDown,
 } from "@/lib/backdrop-dismiss";
-import {
-  projectPhaseLabel,
-  type WorkspaceProject,
-} from "@/workspace/projects";
+import { type WorkspaceProject } from "@/workspace/projects";
 
 type KnowledgeView = "chapters" | "sources" | "glossary" | "versions";
 
@@ -876,15 +873,75 @@ export function ProjectKnowledgeNetworkSection({
     }
   };
 
-  const focusChat = () => {
-    chatRef.current?.focus();
-  };
-
   const goToQuestions = () => {
     setView("chapters");
     setGroupId("risk");
     setSectionId("questions");
   };
+
+  const chapterActionButtons = (
+    <div className="flex shrink-0 flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={() => void onGenerate()}
+        disabled={
+          !canUpdateChapter ||
+          !canUpdate ||
+          sectionBusy !== null ||
+          liveEditing
+        }
+        title={
+          sectionBusy
+            ? "本章正在生成草案"
+            : !canUpdateChapter
+              ? "本章尚无内容，请先「更新全部章节」生成"
+              : "更新本章"
+        }
+        className="inline-flex h-9 items-center rounded-[9px] border border-[rgba(160,99,88,0.3)] bg-transparent px-3 text-[12px] font-medium text-[#A06358] transition-colors hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {sectionBusy
+          ? "生成草案中…"
+          : canRetryFailed && !hasHtml
+            ? "重试本章"
+            : "更新本章"}
+      </button>
+      {canUpdate && hasHtml ? (
+        !liveEditing ? (
+          <button
+            type="button"
+            disabled={sectionBusy !== null}
+            onClick={startLiveEdit}
+            className="inline-flex h-9 items-center rounded-[9px] border border-[rgba(78,66,57,0.18)] px-3 text-[12px] font-medium text-[#1F2423] hover:bg-[rgba(78,66,57,0.04)] disabled:opacity-50"
+          >
+            编辑本章
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              disabled={liveEditBusy}
+              onClick={cancelLiveEdit}
+              className="inline-flex h-9 items-center rounded-[9px] border border-[rgba(78,66,57,0.18)] px-3 text-[12px] font-medium text-[#1F2423] disabled:opacity-50"
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              disabled={liveEditBusy}
+              onClick={() => void saveLiveEdit()}
+              className="inline-flex h-9 items-center rounded-[9px] bg-[#A06358] px-3 text-[12px] font-medium text-white hover:bg-[#8F564C] disabled:opacity-50"
+            >
+              {liveEditBusy
+                ? "保存中…"
+                : canPublish
+                  ? "保存，去发布"
+                  : "保存，去提交审批"}
+            </button>
+          </>
+        )
+      ) : null}
+    </div>
+  );
 
   const openAllChaptersConfirm = async () => {
     setAllChaptersConfirm(true);
@@ -961,8 +1018,10 @@ export function ProjectKnowledgeNetworkSection({
 
       {view === "chapters" ? (
         <div className="space-y-3">
-          {canPublish ? (
-          <div className="flex items-end gap-2.5 rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.9)] p-3">
+          {canPublish || canUpdate ? (
+          <div className="flex flex-wrap items-end gap-2.5 rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.9)] p-3">
+            {canPublish ? (
+              <>
             <textarea
               ref={chatRef}
               value={instruction}
@@ -976,7 +1035,7 @@ export function ProjectKnowledgeNetworkSection({
                   ? "输入对本节内容的改写指令，例如：把研究结论写得更简洁"
                   : "请先「更新全部章节」生成后再改写"
               }
-              className="min-h-[52px] flex-1 resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/80 px-3.5 py-2.5 text-[13px] leading-relaxed text-[#1F2423] outline-none placeholder:text-[#969E9A] focus:border-[rgba(160,99,88,0.35)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-h-[36px] min-w-[220px] flex-1 resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/80 px-3.5 py-2.5 text-[13px] leading-relaxed text-[#1F2423] outline-none placeholder:text-[#969E9A] focus:border-[rgba(160,99,88,0.35)] disabled:cursor-not-allowed disabled:opacity-60"
             />
             <button
               type="button"
@@ -988,15 +1047,18 @@ export function ProjectKnowledgeNetworkSection({
                 liveEditing ||
                 !instruction.trim()
               }
-              className="h-10 shrink-0 rounded-[9px] bg-[#A06358] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#8F564C] disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-9 shrink-0 rounded-[9px] bg-[#A06358] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#8F564C] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {sectionBusy === "revise" ? "改写中…" : "发送"}
             </button>
-          </div>
-          ) : canUpdate ? (
-            <p className="rounded-xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.9)] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-[#59625F]">
+              </>
+            ) : (
+            <p className="min-w-[200px] flex-1 text-[12.5px] leading-relaxed text-[#59625F]">
               更新本章会生成草案。改完后在审核页提交给项目管理员审批，不会直接改正式版。
             </p>
+            )}
+            {chapterActionButtons}
+          </div>
           ) : null}
 
           {error ? (
@@ -1055,8 +1117,50 @@ export function ProjectKnowledgeNetworkSection({
               })}
             </div>
 
-            <div className="grid min-h-[470px] grid-cols-1 lg:grid-cols-[minmax(0,1fr)_304px]">
-              <article className="border-[rgba(78,66,57,0.08)] px-[34px] py-[34px] lg:border-r">
+            <div className="min-h-[470px]">
+              {sectionId !== "questions" && relatedQuestions.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-[rgba(78,66,57,0.08)] px-[18px] py-2">
+                  <span className="text-[12px] text-[#59625F]">
+                    关联待确认问题
+                  </span>
+                  {relatedQuestions.map((q, i) => {
+                    const { title } = extractOpenQuestionTitle(q.text);
+                    return (
+                      <button
+                        key={`${q.priority}-${i}-${q.text.slice(0, 24)}`}
+                        type="button"
+                        onClick={goToQuestions}
+                        className="inline-flex max-w-[220px] items-center gap-1.5 truncate text-left"
+                      >
+                        <span
+                          className={cn(
+                            "shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-none",
+                            q.priority === "P1" &&
+                              "bg-[#EFE7E6] text-[#A06358]",
+                            q.priority === "P2" &&
+                              "bg-[rgba(213,154,47,0.15)] text-[#B07d1f]",
+                            q.priority === "P3" &&
+                              "bg-[rgba(78,66,57,0.08)] text-[#59625F]",
+                          )}
+                        >
+                          {q.priority}
+                        </span>
+                        <span className="truncate text-[12.5px] font-medium text-[#1F2423]">
+                          {title || q.text}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={goToQuestions}
+                    className="text-[12px] font-medium text-[#A06358]"
+                  >
+                    查看全部 →
+                  </button>
+                </div>
+              ) : null}
+              <article className="px-[34px] py-[34px]">
                 {sectionBusy === "generate" || sectionBusy === "revise" ? (
                   <div className="flex min-h-[280px] items-center justify-center">
                     <p className="text-[13px] text-[#969E9A]">
@@ -1095,165 +1199,12 @@ export function ProjectKnowledgeNetworkSection({
                   <div className="flex min-h-[280px] items-center justify-center px-8 py-16">
                     <p className="text-center text-[13px] text-[#969E9A]">
                       {canRetryFailed
-                        ? "本章上次生成失败，可点击右侧「更新本章」重试"
+                        ? "本章上次生成失败，可点击上方「更新本章」重试"
                         : "本章尚无内容，请先「更新全部章节」生成"}
                     </p>
                   </div>
                 )}
               </article>
-
-              <aside className="bg-[rgba(248,243,238,0.45)] px-[22px] py-6">
-                <div className="lg:sticky lg:top-4">
-                  <div className="mb-[18px] border-b border-[rgba(78,66,57,0.1)] pb-[18px]">
-                    <button
-                      type="button"
-                      onClick={() => void onGenerate()}
-                      disabled={
-                        !canUpdateChapter ||
-                        !canUpdate ||
-                        sectionBusy !== null ||
-                        liveEditing
-                      }
-                      title={
-                        sectionBusy
-                          ? "本章正在生成草案"
-                          : !canUpdateChapter
-                            ? "本章尚无内容，请先「更新全部章节」生成"
-                            : "更新本章"
-                      }
-                      className="h-9 w-full whitespace-nowrap rounded-[9px] border border-[rgba(160,99,88,0.3)] bg-transparent px-2.5 text-[12px] font-medium text-[#A06358] transition-colors hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {sectionBusy
-                        ? "生成草案中…"
-                        : canRetryFailed && !hasHtml
-                          ? "重试本章"
-                          : "更新本章"}
-                    </button>
-                    {canUpdate && hasHtml ? (
-                      <div className="mt-2 flex flex-col gap-1.5">
-                        {!liveEditing ? (
-                          <button
-                            type="button"
-                            disabled={sectionBusy !== null}
-                            onClick={startLiveEdit}
-                            className="h-9 w-full rounded-[9px] border border-[rgba(78,66,57,0.18)] text-[12px] font-medium text-[#1F2423] hover:bg-[rgba(78,66,57,0.04)] disabled:opacity-50"
-                          >
-                            编辑本章
-                          </button>
-                        ) : (
-                          <div className="flex gap-1.5">
-                            <button
-                              type="button"
-                              disabled={liveEditBusy}
-                              onClick={cancelLiveEdit}
-                              className="h-9 flex-1 rounded-[9px] border border-[rgba(78,66,57,0.18)] text-[12px] font-medium text-[#1F2423] disabled:opacity-50"
-                            >
-                              取消
-                            </button>
-                            <button
-                              type="button"
-                              disabled={liveEditBusy}
-                              onClick={() => void saveLiveEdit()}
-                              className="h-9 flex-1 rounded-[9px] bg-[#A06358] text-[12px] font-medium text-white hover:bg-[#8F564C] disabled:opacity-50"
-                            >
-                              {liveEditBusy
-                                ? "保存中…"
-                                : canPublish
-                                  ? "保存，去发布"
-                                  : "保存，去提交审批"}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="flex items-start justify-between gap-2.5">
-                    <div className="text-[12.5px] font-semibold leading-snug text-[#1F2423]">
-                      {sectionLabel}
-                    </div>
-                    <span
-                      className={cn(
-                        "whitespace-nowrap rounded-lg px-2 py-[3px] text-[10px]",
-                        hasHtml
-                          ? "bg-[rgba(94,155,117,0.15)] text-[#3F6F63]"
-                          : "bg-[rgba(213,154,47,0.15)] text-[#B07d1f]",
-                      )}
-                    >
-                      {hasHtml ? "已有内容" : "待补资料"}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 flex items-baseline justify-between gap-2">
-                    <span className="text-[11px] text-[#59625F]">
-                      项目阶段
-                    </span>
-                    <span className="font-[family-name:var(--font-serif,serif)] text-[18px] font-semibold leading-snug text-[#1F2423]">
-                      {project ? projectPhaseLabel(project.phase) : "—"}
-                    </span>
-                  </div>
-
-                  {sectionId !== "questions" ? (
-                    <>
-                      <div className="my-4 h-px bg-[rgba(78,66,57,0.1)]" />
-                      <div className="mb-2 text-[12px] text-[#59625F]">
-                        关联待确认问题
-                      </div>
-                      {relatedQuestions.length === 0 ? (
-                        <p className="text-[12px] leading-relaxed text-[#969E9A]">
-                          暂无关联事项
-                        </p>
-                      ) : (
-                        <div>
-                          {relatedQuestions.map((q, i) => {
-                            const { title } = extractOpenQuestionTitle(q.text);
-                            return (
-                              <button
-                                key={`${q.priority}-${i}-${q.text.slice(0, 24)}`}
-                                type="button"
-                                onClick={goToQuestions}
-                                className="flex w-full items-start gap-2.5 border-b border-[rgba(78,66,57,0.08)] bg-transparent py-2.5 text-left font-inherit last:border-b-0"
-                              >
-                                <span
-                                  className={cn(
-                                    "mt-0.5 shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-none",
-                                    q.priority === "P1" &&
-                                      "bg-[#EFE7E6] text-[#A06358]",
-                                    q.priority === "P2" &&
-                                      "bg-[rgba(213,154,47,0.15)] text-[#B07d1f]",
-                                    q.priority === "P3" &&
-                                      "bg-[rgba(78,66,57,0.08)] text-[#59625F]",
-                                  )}
-                                >
-                                  {q.priority}
-                                </span>
-                                <span className="line-clamp-2 text-[13px] font-medium leading-snug text-[#1F2423]">
-                                  {title || q.text}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        onClick={goToQuestions}
-                        className="h-[34px] border-none bg-transparent p-0 text-[12px] font-medium text-[#A06358]"
-                      >
-                        查看全部待确认问题 →
-                      </button>
-                    </>
-                  ) : null}
-
-                  <button
-                    type="button"
-                    onClick={focusChat}
-                    className="mt-4 h-9 w-full rounded-[9px] border border-[rgba(160,99,88,0.3)] bg-transparent text-[12px] font-medium text-[#A06358] transition-colors hover:bg-[#EFE7E6]"
-                  >
-                    围绕本章提问
-                  </button>
-                </div>
-              </aside>
             </div>
           </div>
         </div>
