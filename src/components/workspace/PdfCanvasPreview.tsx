@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Loader2, Minus, Plus } from "lucide-react";
 import { AnnotationMode, GlobalWorkerOptions, getDocument } from "pdfjs-dist";
-import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
+import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,57 @@ GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 const MIN_SCALE = 0.6;
 const MAX_SCALE = 2.4;
 const SCALE_STEP = 0.15;
+
+type PdfLinkHotspot = {
+  href: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+function externalAnnotationUrl(annotation: {
+  subtype?: string;
+  url?: string;
+  unsafeUrl?: string;
+}): string | null {
+  const href = String(annotation.url || annotation.unsafeUrl || "").trim();
+  if (!/^https?:\/\//i.test(href)) return null;
+  if (annotation.subtype && annotation.subtype !== "Link") return null;
+  return href;
+}
+
+async function collectPageLinkHotspots(
+  pdfPage: PDFPageProxy,
+  viewport: { convertToViewportPoint: (x: number, y: number) => number[] },
+): Promise<PdfLinkHotspot[]> {
+  let annotations: Array<{
+    subtype?: string;
+    url?: string;
+    unsafeUrl?: string;
+    rect?: number[];
+  }> = [];
+  try {
+    annotations = (await pdfPage.getAnnotations({ intent: "display" })) as typeof annotations;
+  } catch {
+    return [];
+  }
+  const out: PdfLinkHotspot[] = [];
+  for (const annotation of annotations) {
+    const href = externalAnnotationUrl(annotation);
+    if (!href || !annotation.rect || annotation.rect.length < 4) continue;
+    const [x1, y1, x2, y2] = annotation.rect;
+    const a = viewport.convertToViewportPoint(x1!, y1!);
+    const b = viewport.convertToViewportPoint(x2!, y2!);
+    const left = Math.min(a[0]!, b[0]!);
+    const top = Math.min(a[1]!, b[1]!);
+    const width = Math.abs(b[0]! - a[0]!);
+    const height = Math.abs(b[1]! - a[1]!);
+    if (width < 2 || height < 2) continue;
+    out.push({ href, left, top, width, height });
+  }
+  return out;
+}
 
 export function PdfCanvasPreview({ data }: { data: ArrayBuffer }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -20,6 +71,8 @@ export function PdfCanvasPreview({ data }: { data: ArrayBuffer }) {
   const [scale, setScale] = useState(1.1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [links, setLinks] = useState<PdfLinkHotspot[]>([]);
+  const [bitmap, setBitmap] = useState({ width: 1, height: 1 });
 
   useEffect(() => {
     let cancelled = false;
@@ -27,6 +80,7 @@ export function PdfCanvasPreview({ data }: { data: ArrayBuffer }) {
     setError(null);
     setPdf(null);
     setPage(1);
+    setLinks([]);
     const copy = new Uint8Array(data.slice(0));
     const task = getDocument({ data: copy, disableAutoFetch: false });
     task.promise
@@ -62,6 +116,7 @@ export function PdfCanvasPreview({ data }: { data: ArrayBuffer }) {
       const viewport = pdfPage.getViewport({ scale });
       canvas.width = Math.floor(viewport.width);
       canvas.height = Math.floor(viewport.height);
+      setBitmap({ width: canvas.width, height: canvas.height });
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -75,6 +130,9 @@ export function PdfCanvasPreview({ data }: { data: ArrayBuffer }) {
       renderTaskRef.current = task;
       try {
         await task.promise;
+        if (cancelled) return;
+        const hotspots = await collectPageLinkHotspots(pdfPage, viewport);
+        if (!cancelled) setLinks(hotspots);
       } catch (e) {
         if ((e as { name?: string })?.name === "RenderingCancelledException") return;
         if (!cancelled) setError(e instanceof Error ? e.message : "页面渲染失败");
@@ -151,13 +209,41 @@ export function PdfCanvasPreview({ data }: { data: ArrayBuffer }) {
             {error}
           </div>
         ) : null}
-        <canvas
-          ref={canvasRef}
+        <div
           className={cn(
-            "mx-auto block max-w-full rounded-md bg-white shadow-[0_8px_24px_rgba(78,66,57,0.12)]",
+            "relative mx-auto w-fit max-w-full",
             (loading || error) && "hidden",
           )}
-        />
+        >
+          <canvas
+            ref={canvasRef}
+            className="block h-auto max-w-full rounded-md bg-white shadow-[0_8px_24px_rgba(78,66,57,0.12)]"
+          />
+          <div className="absolute inset-0">
+            {links.map((link, i) => (
+              <a
+                key={`${link.href}-${i}`}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={link.href}
+                aria-label="在新窗口打开链接"
+                className="absolute z-10 cursor-pointer rounded-sm hover:bg-[hsl(var(--wine)/0.12)]"
+                style={{
+                  left: `${(link.left / bitmap.width) * 100}%`,
+                  top: `${(link.top / bitmap.height) * 100}%`,
+                  width: `${(link.width / bitmap.width) * 100}%`,
+                  height: `${(link.height / bitmap.height) * 100}%`,
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.open(link.href, "_blank", "noopener,noreferrer");
+                }}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -44,6 +44,7 @@ export function buildJfoMaterialsInstructions(
     "- 禁止只凭文件名、用户一句话或未读取资料做结论。",
     "- 引用与事实须可追溯到 KB、上传资料摘录或公开来源。",
     "- 用户刚在对话上传文件时：必须 scope=session 或 scope=all，不能只读 package。",
+    "- 若上方有【Worker 预注入 · 用户点名源文件】：视为已读到该文件，禁止声称无法访问或需要重传；不足时再 GET 其 textUrl。",
     "- 若上方有【Worker 预注入 · 项目资料摘录】：可作起点，不足时仍须 manifest + 按需 textUrl。",
     "- 若上方有【Slot Material Hints】：为文件级阅读导航（soft guidance），不替代 manifest；摘录见 digest，正文仍按需 GET textUrl。",
     "- 若上方有【Slot Reading Plan】：为确定性阅读路线（mustRead/shouldRead/stopRule），不是事实结论；未读文件不得强结论，缺事实写 gap。",

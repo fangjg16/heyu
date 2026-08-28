@@ -122,7 +122,7 @@ const INTENT_RULES: IntentRule[] = [
   { intent: "value_creation_plan", re: /增值方案|value creation|投后增值|value-add|how do we add value|what can we do with this asset/u },
   { intent: "gap_tracking", re: /信息缺口|gap tracking|what'?s missing|outstanding items|还缺什么|缺口清单|gap status/u },
   { intent: "node_monitoring", re: /节点监控|node monitoring|关键节点|decision nodes|what are we waiting for|外部事件|monitor/u },
-  { intent: "document_reorganize", re: /整理文件|organize document|file index|文档索引|sort these files|有哪些文件|文件分类/u },
+  { intent: "document_reorganize", re: /整理文件(?!中)|organize document|file index|文档索引|sort these files|有哪些文件|文件分类/u },
   { intent: "term_annotator", re: /术语表|glossary|专有名词|add footnote|什么是 da|explain lfp|footnote/u },
   { intent: "public_info_search", re: /查外部资料|公开信息|public info|搜一下|search for|background on|网上查|联网搜索|what can we find on/u },
   {

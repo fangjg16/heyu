@@ -1657,16 +1657,6 @@ export function ProjectMaterialsSection({
                   )}
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                  {!detail.isFile && canManage && folderShareFiles.length > 0 ? (
-                    <IssuerShareTick
-                      shared={folderShareAll}
-                      indeterminate={folderShareMixed}
-                      disabled={busy || sharingFolder || sharingId !== null}
-                      onChange={(next) =>
-                        void onShareFolderFiles(folderShareFiles, next)
-                      }
-                    />
-                  ) : null}
                   {detail.isFile && detail.file && canShareWithIssuer(detail.file) ? (
                     <IssuerShareTick
                       shared={Boolean(detail.file.sharedWithIssuer)}
@@ -1796,7 +1786,19 @@ export function ProjectMaterialsSection({
                   <div className="mb-1 flex items-center gap-3 px-0.5 text-[11px] text-[hsl(var(--warm-charcoal-muted))]">
                     <span className="min-w-0 flex-1">文件</span>
                     {canManage && folderShareFiles.length > 0 ? (
-                      <span className="w-[4.5rem] shrink-0 text-right">协作方可见</span>
+                      <span className="inline-flex w-[7.5rem] shrink-0 items-center justify-end gap-1.5">
+                        <span>协作方可见</span>
+                        <IssuerShareTick
+                          compact
+                          showLabel={false}
+                          shared={folderShareAll}
+                          indeterminate={folderShareMixed}
+                          disabled={busy || sharingFolder || sharingId !== null}
+                          onChange={(next) =>
+                            void onShareFolderFiles(folderShareFiles, next)
+                          }
+                        />
+                      </span>
                     ) : null}
                   </div>
                   <div className="divide-y divide-[rgba(78,66,57,0.08)] border-y border-[rgba(78,66,57,0.08)]">
@@ -1810,7 +1812,7 @@ export function ProjectMaterialsSection({
                           {file.filename}
                         </button>
                         {canManage && canShareWithIssuer(file) ? (
-                          <span className="flex w-[4.5rem] shrink-0 justify-end">
+                          <span className="flex w-[7.5rem] shrink-0 justify-end">
                             <IssuerShareTick
                               compact
                               showLabel={false}
@@ -1822,11 +1824,11 @@ export function ProjectMaterialsSection({
                             />
                           </span>
                         ) : file.sharedWithIssuer ? (
-                          <span className="w-[4.5rem] shrink-0 text-right text-[11px] text-[hsl(var(--warm-charcoal-muted))]">
+                          <span className="w-[7.5rem] shrink-0 text-right text-[11px] text-[hsl(var(--warm-charcoal-muted))]">
                             可见
                           </span>
                         ) : (
-                          <span className="w-[4.5rem] shrink-0" />
+                          <span className="w-[7.5rem] shrink-0" />
                         )}
                       </div>
                     ))}

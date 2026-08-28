@@ -1,9 +1,9 @@
 import type { AppDatabase } from "./app-database";
 import type { SkillIntent } from "./chat-modes";
 import { getCitationSlots, matchCitationSlot } from "./citations";
-import { loadChunks } from "./chat-data";
+import { loadChunks, loadNamedDocumentChunks, loadNamedParseSummaries, mergeChunkRows } from "./chat-data";
 import type { KnowledgeNetworkUpdateMode } from "./knowledge-network-mode";
-import { isPlaceholderChunkText, selectChunksForChat } from "./search";
+import { chunkMatchesNamedFile, isPlaceholderChunkText, selectChunksForChat } from "./search";
 
 type DigestIntensity = "none" | "light" | "moderate" | "session_priority" | "full";
 
@@ -91,6 +91,7 @@ export async function buildHermesMaterialsDigest(
   prioritizeFilenames?: string[],
   intent: SkillIntent = "project_intake",
   knMode?: KnowledgeNetworkUpdateMode,
+  prioritizeDocumentIds?: string[],
 ): Promise<string> {
   const intensity = resolveMaterialsDigestIntensity(intent, knMode);
   if (intensity === "none") return "";
@@ -101,11 +102,27 @@ export async function buildHermesMaterialsDigest(
   } catch {
     return "";
   }
+  const ids = (prioritizeDocumentIds ?? []).map((s) => s.trim()).filter(Boolean);
+  const names = (prioritizeFilenames ?? []).filter(Boolean);
+  if (ids.length > 0 || names.length > 0) {
+    try {
+      const named = await loadNamedDocumentChunks(
+        env,
+        projectId,
+        userId,
+        conversationId,
+        ids,
+        names,
+      );
+      allChunks = mergeChunkRows(allChunks, named);
+    } catch {
+      /* 点名文件拉取失败时仍用资料包节选 */
+    }
+  }
   if (allChunks.length === 0) return "";
 
   const limits = INTENSITY_LIMITS[intensity];
   const searchQuery = (userMessage ?? "").trim() || "项目尽调 资料包 商业模式 时间轴 区位 财务";
-  const priorities = (prioritizeFilenames ?? []).filter(Boolean);
   const slots = getCitationSlots(projectId);
 
   const sessionChunks = allChunks.filter((c) => c.scope === "session");
@@ -115,7 +132,8 @@ export async function buildHermesMaterialsDigest(
     deep: intensity === "full",
     maxChars: limits.sessionMax,
     topK: limits.topK,
-    prioritizeFilenames: priorities,
+    prioritizeFilenames: names,
+    prioritizeDocumentIds: ids,
   });
 
   const packageHits =
@@ -125,7 +143,8 @@ export async function buildHermesMaterialsDigest(
           deep: intensity === "full",
           maxChars: limits.packageMax,
           topK: limits.topK,
-          prioritizeFilenames: priorities,
+          prioritizeFilenames: names,
+          prioritizeDocumentIds: ids,
         });
 
   const sessionBlock = formatDigestSection("本对话上传附件摘录", sessionHits, slots);
@@ -152,4 +171,82 @@ export async function buildHermesMaterialsDigest(
   if (sessionBlock) parts.push("", sessionBlock);
   if (packageBlock) parts.push("", packageBlock);
   return parts.join("\n");
+}
+
+/** 用户点名的源文件：无论任务强度，都把正文（或已解析摘要）预注入 Hermes */
+export async function buildNamedFilesDigest(
+  env: { DB: AppDatabase },
+  projectId: string,
+  userId: string,
+  conversationId?: string,
+  filenames?: string[],
+  fileIds?: string[],
+): Promise<string> {
+  const ids = (fileIds ?? []).map((s) => String(s).trim()).filter(Boolean);
+  const names = (filenames ?? []).map((s) => String(s).trim()).filter(Boolean);
+  if (ids.length === 0 && names.length === 0) return "";
+
+  let namedChunks: Awaited<ReturnType<typeof loadNamedDocumentChunks>> = [];
+  try {
+    namedChunks = await loadNamedDocumentChunks(
+      env,
+      projectId,
+      userId,
+      conversationId,
+      ids,
+      names,
+    );
+  } catch {
+    namedChunks = [];
+  }
+  const usable = namedChunks.filter(
+    (c) => !isPlaceholderChunkText(c.text) && c.text.trim().length > 0,
+  );
+  const slots = getCitationSlots(projectId);
+  const chunkBlock = formatDigestSection(
+    "用户点名源文件正文",
+    usable.filter((c) =>
+      chunkMatchesNamedFile(c, { ids, filenames: names }),
+    ),
+    slots,
+  );
+
+  let summaryBlock = "";
+  if (!chunkBlock) {
+    try {
+      const summaries = await loadNamedParseSummaries(
+        env,
+        projectId,
+        userId,
+        conversationId,
+        ids,
+        names,
+      );
+      if (summaries.length > 0) {
+        summaryBlock = [
+          "【用户点名源文件 · 已解析摘要】",
+          ...summaries.map((s) => {
+            const points =
+              s.keyPoints.length > 0
+                ? `\n要点：\n${s.keyPoints.map((p) => `- ${p}`).join("\n")}`
+                : "";
+            return `文件：${s.filename}\n${s.summary}${points}`;
+          }),
+        ].join("\n");
+      }
+    } catch {
+      /* 摘要表未就绪 */
+    }
+  }
+
+  if (!chunkBlock && !summaryBlock) return "";
+  return [
+    "",
+    "【Worker 预注入 · 用户点名源文件】",
+    "以下正文或摘要已从项目资料包读出。禁止声称无法访问、无法读取或需要用户重传该文件；不足处再 GET 对应 textUrl。",
+    chunkBlock,
+    summaryBlock,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }

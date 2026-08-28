@@ -15,6 +15,34 @@ export function wantsExternalSearch(message: string): boolean {
   return EXTERNAL_SEARCH_PATTERN.test(message);
 }
 
+/** 用户要整理/打开文件里的超链接网页，而不是只读 PDF 正文 */
+export function wantsLinkedPageFollow(message: string): boolean {
+  const m = message.trim();
+  if (!m) return false;
+  return /链接.{0,24}(网页|网站|打开|跳转|信息|内容)|跳转网页|打开.{0,12}链|整理.{0,16}链接|链(接|结).{0,12}(整理|摘要|内容|信息|网页)/u.test(
+    m,
+  );
+}
+
+const URL_IN_TEXT = /https?:\/\/[^\s<>"'）)\]】,，。]+/gi;
+
+/** 从资料正文抽出 http(s) 链接，供联网抓取 */
+export function extractHttpUrls(text: string, max = 8): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const matches = text.match(URL_IN_TEXT) ?? [];
+  for (const raw of matches) {
+    const url = raw.replace(/[.,;:]+$/u, "").replace(/[)）]+$/u, "");
+    if (url.length < 12) continue;
+    if (!/^https?:\/\/[a-z0-9.-]+\.[a-z]{2,}/i.test(url)) continue;
+    if (seen.has(url)) continue;
+    seen.add(url);
+    out.push(url);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 /** 写入 system，说明内外部依据分层（与合域 skills 外部调研精神一致，网站侧为对话级 Tavily） */
 export function tavilyCapabilitySystemLines(configured: boolean): string[] {
   if (!configured) {

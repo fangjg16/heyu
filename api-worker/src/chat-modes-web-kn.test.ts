@@ -69,4 +69,14 @@ describe("due-diligence chat intents", () => {
     expect(detectSkillIntent("做一下市场对标")).toBe("industry_due_diligence");
     expect(detectSkillIntent("列一组可比交易")).toBe("industry_due_diligence");
   });
+
+  it("does not treat 整理文件中的链接 as document reorganize", () => {
+    expect(
+      detectSkillIntent("帮我整理一下文件中链接跳转网页的信息"),
+    ).toBe("standard");
+    expect(
+      detectSkillIntent("帮我整理文件中链接跳转网页的信息"),
+    ).toBe("standard");
+    expect(detectSkillIntent("帮我整理文件")).toBe("document_reorganize");
+  });
 });
