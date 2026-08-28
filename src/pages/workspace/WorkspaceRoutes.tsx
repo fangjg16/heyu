@@ -239,6 +239,9 @@ function ProjectWorkspaceLayout() {
   const [draftRunId, setDraftRunId] = useState<string | null>(null);
   const [draftDialogError, setDraftDialogError] = useState<string | null>(null);
   const [draftDialogReused, setDraftDialogReused] = useState(false);
+  const [draftDialogRegen, setDraftDialogRegen] = useState<
+    "unpublished" | "all-drafts" | null
+  >(null);
   const [draftStopping, setDraftStopping] = useState(false);
   const [knowledgeRefreshKey, setKnowledgeRefreshKey] = useState(0);
   const [allChaptersNotice, setAllChaptersNotice] = useState<string | null>(
@@ -448,6 +451,7 @@ function ProjectWorkspaceLayout() {
     setAllChaptersNotice(null);
     setDraftDialogError(null);
     setDraftDialogReused(false);
+    setDraftDialogRegen(null);
     setDraftRunId(null);
     setDraftDialogMode("section");
     setDraftSectionLabel(label);
@@ -613,6 +617,7 @@ function ProjectWorkspaceLayout() {
     setAllChaptersNotice(null);
     setDraftDialogError(null);
     setDraftDialogReused(false);
+    setDraftDialogRegen(regen ?? null);
     persistFailedChapterIds([]);
     setDraftRunId(null);
     setDraftDialogMode("full");
@@ -899,6 +904,7 @@ function ProjectWorkspaceLayout() {
         runId={draftRunId}
         error={draftDialogError}
         mode={draftDialogMode}
+        regen={draftDialogRegen}
         sectionLabel={draftSectionLabel}
         reused={draftDialogReused}
         onClose={() => setDraftDialogOpen(false)}
