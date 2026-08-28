@@ -114,6 +114,7 @@ export const DOCUMENT_GENRE_HINTS: readonly { label: string; match: RegExp }[] =
   },
   { label: "航拍图", match: /航拍/iu },
   { label: "权属文件", match: /title\s*search|权属检索|产权证/iu },
+  { label: "投资简报", match: /投资简报|综合简报|ai综合简报/iu },
   { label: "商业计划书", match: /商业计划|\bbp\b|pitch\s*deck|路演材料|路演PPT/iu },
   { label: "访谈纪要", match: /访谈|会议纪要/iu },
   { label: "股东协议", match: /股东协议|股权转让|term\s*sheet/iu },
@@ -123,12 +124,33 @@ export const DOCUMENT_GENRE_HINTS: readonly { label: string; match: RegExp }[] =
   { label: "邮件", match: /\.eml$/iu },
 ];
 
-const GENRE_MAX_CHARS = 32;
+const GENRE_MAX_CHARS = 80;
+
+export function looksLikeChoppedGenre(text: string): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+  if (/[•·、，,]\s*\d{1,3}$/u.test(t)) return true;
+  if (/[（(][^）)]*$/u.test(t) && !/[）)]$/.test(t)) return true;
+  return false;
+}
+
+function truncateGenreAtPhrase(text: string, max: number): string {
+  const chars = Array.from(text);
+  if (chars.length <= max) return chars.join("");
+  const head = chars.slice(0, max);
+  for (let i = head.length - 1; i >= 12; i--) {
+    if (/[•·、，,;；)）]/.test(head[i]!)) {
+      return head.slice(0, i + 1).join("").trim();
+    }
+    if (head[i] === " ") return head.slice(0, i).join("").trim();
+  }
+  return head.join("");
+}
 
 export function sanitizeDocumentGenre(raw: string): string {
   const t = (raw ?? "").replace(/\s+/gu, " ").trim();
   if (!t || /https?:\/\//i.test(t)) return "";
-  return Array.from(t).slice(0, GENRE_MAX_CHARS).join("");
+  return truncateGenreAtPhrase(t, GENRE_MAX_CHARS);
 }
 
 export function inferDocumentGenre(input: {
@@ -138,10 +160,13 @@ export function inferDocumentGenre(input: {
   documentType?: string | null;
 }): string {
   const llm = sanitizeDocumentGenre(input.documentType ?? "");
-  if (llm && !isTopicBucketLabel(llm)) return llm;
   const nameBlob = [input.filename ?? "", input.relativePath ?? ""].join("\n");
-  for (const hint of DOCUMENT_GENRE_HINTS) {
-    if (hint.match.test(nameBlob)) return hint.label;
-  }
-  return llm;
+  const fromName = (): string => {
+    for (const hint of DOCUMENT_GENRE_HINTS) {
+      if (hint.match.test(nameBlob)) return hint.label;
+    }
+    return "";
+  };
+  if (llm && !isTopicBucketLabel(llm) && !looksLikeChoppedGenre(llm)) return llm;
+  return fromName() || (looksLikeChoppedGenre(llm) ? "" : llm);
 }

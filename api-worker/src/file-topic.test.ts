@@ -54,6 +54,15 @@ describe("inferDocumentGenre", () => {
       }),
     ).toBe("测绘图");
   });
+
+  it("does not keep a mid-year chopped genre", () => {
+    expect(
+      inferDocumentGenre({
+        filename: "03_AI综合简报_GPT版+Gemini版_2026-02.docx",
+        documentType: "投资简报 (董事会导向 • GPT+Gemini 双版本 • 20",
+      }),
+    ).toBe("投资简报");
+  });
 });
 
 describe("canonicalizeFileTopic", () => {

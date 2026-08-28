@@ -89,4 +89,15 @@ describe("inferQuestionKind", () => {
       inferQuestionKind("NKG / 多 Agent 核心技术主张未验证，专利与模型评测缺失"),
     ).toBe("tech");
   });
+
+  it("classifies product, fundraising and IP questions instead of dumping them in 其他", () => {
+    expect(
+      inferQuestionKind("“自研、无依赖” 与第三方模型/平台的边界"),
+    ).toBe("tech");
+    expect(inferQuestionKind("产品当前状态与规划状态")).toBe("business");
+    expect(inferQuestionKind("艺人及数字人数量")).toBe("business");
+    expect(inferQuestionKind("收益分配及费用瀑布")).toBe("finance");
+    expect(inferQuestionKind("5,000万元募集资金的实际用途")).toBe("finance");
+    expect(inferQuestionKind("基金方案的正式版本")).toBe("finance");
+  });
 });

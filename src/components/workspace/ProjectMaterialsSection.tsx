@@ -1881,7 +1881,7 @@ export function ProjectMaterialsSection({
                     ) : null}
                   </div>
                   {detail.documentType ? (
-                    <div className="mb-2 text-[13px] font-medium text-[#1F2423]">
+                    <div className="mb-2 break-words text-[13px] font-medium leading-snug text-[#1F2423]">
                       {detail.documentType}
                     </div>
                   ) : null}

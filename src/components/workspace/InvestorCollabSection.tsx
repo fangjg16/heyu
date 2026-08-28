@@ -43,6 +43,7 @@ const KIND_OPTIONS: { id: KindFilter; label: string }[] = [
   { id: "business", label: "业务" },
   { id: "tech", label: "技术" },
   { id: "finance", label: "财务" },
+  { id: "legal", label: "法务" },
   { id: "other", label: "其他" },
 ];
 

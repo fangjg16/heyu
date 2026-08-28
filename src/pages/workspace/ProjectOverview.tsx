@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowRight, FileText, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
+import { ArrowRight, FileText, Folder, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
 import { projectMatchesQuery } from "@/workspace/project-search";
 import { projectCardMarksFor } from "@/workspace/project-card-mark";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
@@ -33,6 +33,13 @@ import {
   uploadProjectPackageFile,
   PROJECT_UPLOAD_FOLDER,
 } from "@/lib/project-api";
+import {
+  collectDroppedFiles,
+  isLikelyDirectoryPlaceholder,
+  shouldSkipDroppedPath,
+  snapshotDroppedEntries,
+} from "@/lib/collect-dropped-files";
+import { relativePathFromWebkitFile } from "@/lib/unzip-project-files";
 import { loadSessionUserId } from "@/workspace/session";
 import {
   getMergedProjects,
@@ -351,12 +358,21 @@ export default function ProjectOverview() {
   const [deletingProject, setDeletingProject] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
   const industryTaxonomy = useIndustryTaxonomy();
   const canEditTaxonomyMd = isPlatformAdminUser(userId);
 
   useBodyScrollLock(
     Boolean(showCreateModal || createHint || editProject || deleteProject),
   );
+
+  useEffect(() => {
+    if (!showCreateModal) return;
+    const el = folderInputRef.current;
+    if (!el) return;
+    el.setAttribute("webkitdirectory", "");
+    el.setAttribute("directory", "");
+  }, [showCreateModal]);
 
   useEffect(() => {
     const id = loadSessionUserId();
@@ -518,7 +534,7 @@ export default function ProjectOverview() {
         for (const file of files) {
           try {
             await uploadProjectPackageFile(project.id, userId, file, {
-              relativePath: PROJECT_UPLOAD_FOLDER,
+              relativePath: relativePathFromWebkitFile(file, PROJECT_UPLOAD_FOLDER),
             });
           } catch (e) {
             uploadErrors.push(
@@ -578,14 +594,28 @@ export default function ProjectOverview() {
     );
   };
 
-  const addDemoFiles = (files: FileList | null) => {
+  const addDemoFiles = (files: FileList | File[] | null) => {
     if (!files || files.length === 0) return;
-    const picked = Array.from(files);
+    const picked = Array.from(files).filter((f) => {
+      if (isLikelyDirectoryPlaceholder(f)) return false;
+      const rel =
+        (f as File & { webkitRelativePath?: string }).webkitRelativePath ?? f.name;
+      return !shouldSkipDroppedPath(rel);
+    });
+    if (picked.length === 0) return;
     setNewProjectFiles((prev) => {
-      const seen = new Set(prev.map((f) => `${f.name}-${f.size}-${f.lastModified}`));
+      const seen = new Set(
+        prev.map((f) => {
+          const rel =
+            (f as File & { webkitRelativePath?: string }).webkitRelativePath ?? "";
+          return `${rel || f.name}-${f.size}-${f.lastModified}`;
+        }),
+      );
       const merged = [...prev];
       picked.forEach((f) => {
-        const key = `${f.name}-${f.size}-${f.lastModified}`;
+        const rel =
+          (f as File & { webkitRelativePath?: string }).webkitRelativePath ?? "";
+        const key = `${rel || f.name}-${f.size}-${f.lastModified}`;
         if (!seen.has(key)) merged.push(f);
       });
       return merged;
@@ -993,15 +1023,38 @@ export default function ProjectOverview() {
                 <span className="mb-1 block text-xs font-medium text-[hsl(var(--warm-charcoal))]">
                   参考附件
                 </span>
-                <div className="rounded-lg border border-dashed border-[hsl(var(--sand))] bg-[hsl(var(--linen)/0.4)] p-2.5">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-[hsl(var(--sand)/0.9)] bg-white px-2.5 py-1.5 text-xs font-medium text-[hsl(var(--warm-charcoal))] transition hover:border-[hsl(var(--wine-deep)/0.35)]"
-                  >
-                    <Upload className="h-3.5 w-3.5 text-[hsl(var(--wine-deep))]" />
-                    选择文件
-                  </button>
+                <div
+                  className="rounded-lg border border-dashed border-[hsl(var(--sand))] bg-[hsl(var(--linen)/0.4)] p-2.5"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.dataTransfer.dropEffect = "copy";
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const snap = snapshotDroppedEntries(e.dataTransfer);
+                    void collectDroppedFiles(snap).then((files) => addDemoFiles(files));
+                  }}
+                >
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-[hsl(var(--sand)/0.9)] bg-white px-2.5 py-1.5 text-xs font-medium text-[hsl(var(--warm-charcoal))] transition hover:border-[hsl(var(--wine-deep)/0.35)]"
+                    >
+                      <Upload className="h-3.5 w-3.5 text-[hsl(var(--wine-deep))]" />
+                      选择文件
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => folderInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-[hsl(var(--sand)/0.9)] bg-white px-2.5 py-1.5 text-xs font-medium text-[hsl(var(--warm-charcoal))] transition hover:border-[hsl(var(--wine-deep)/0.35)]"
+                    >
+                      <Folder className="h-3.5 w-3.5 text-[hsl(var(--wine-deep))]" />
+                      选择文件夹
+                    </button>
+                  </div>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -1012,19 +1065,34 @@ export default function ProjectOverview() {
                       e.currentTarget.value = "";
                     }}
                   />
+                  <input
+                    ref={folderInputRef}
+                    type="file"
+                    className="hidden"
+                    multiple
+                    onChange={(e) => {
+                      addDemoFiles(e.target.files);
+                      e.currentTarget.value = "";
+                    }}
+                  />
                   <p className="mt-2 text-xs text-muted-foreground">
-                    已选择 {newProjectFiles.length} 个文件
+                    已选择 {newProjectFiles.length} 个文件，可拖入文件夹
                   </p>
                   {newProjectFiles.length > 0 ? (
                     <ul className="mt-2 max-h-28 space-y-1.5 overflow-y-auto pr-0.5">
-                      {newProjectFiles.map((f, idx) => (
+                      {newProjectFiles.map((f, idx) => {
+                        const rel =
+                          (f as File & { webkitRelativePath?: string })
+                            .webkitRelativePath ?? "";
+                        const label = rel.includes("/") ? rel : f.name;
+                        return (
                         <li
-                          key={`${f.name}-${f.size}-${f.lastModified}`}
+                          key={`${label}-${f.size}-${f.lastModified}-${idx}`}
                           className="flex items-center justify-between gap-2 rounded-lg border border-border/65 bg-white px-3 py-2 text-xs"
                         >
                           <span className="flex min-w-0 items-center gap-1.5">
-                            <FileText className="h-3.5 w-3.5 text-primary/80" />
-                            <span className="truncate">{f.name}</span>
+                            <FileText className="h-3.5 w-3.5 shrink-0 text-primary/80" />
+                            <span className="truncate" title={label}>{label}</span>
                           </span>
                           <button
                             type="button"
@@ -1035,7 +1103,8 @@ export default function ProjectOverview() {
                             <X className="h-3.5 w-3.5" />
                           </button>
                         </li>
-                      ))}
+                        );
+                      })}
                     </ul>
                   ) : (
                     <p className="mt-2 text-xs text-muted-foreground">尚未选择附件。</p>

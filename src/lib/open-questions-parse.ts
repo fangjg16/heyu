@@ -233,19 +233,86 @@ export function parseOpenQuestionsFromHtml(html: string): ParsedOpenQuestion[] {
   return items;
 }
 
-export type QuestionKind = "business" | "tech" | "finance" | "other";
+export type QuestionKind = "business" | "tech" | "finance" | "legal" | "other";
 
 export const QUESTION_KIND_LABEL: Record<QuestionKind, string> = {
   business: "业务",
   tech: "技术",
   finance: "财务",
+  legal: "法务",
   other: "其他",
 };
 
 const KIND_KEYWORDS: Record<Exclude<QuestionKind, "other">, string[]> = {
-  business: ["业务", "模式", "客群", "市场", "客户", "销售", "运营", "商业"],
-  tech: ["技术", "电芯", "工艺", "系统", "设备", "专利", "效率", "寿命", "功率", "热管理"],
-  finance: ["财务", "回报", "IRR", "估值", "收入", "利润", "现金流", "成本", "融资", "造价"],
+  business: [
+    "业务",
+    "模式",
+    "客群",
+    "市场",
+    "客户",
+    "销售",
+    "运营",
+    "商业",
+    "产品",
+    "规划",
+    "路线图",
+    "艺人",
+    "数字人",
+    "内容",
+    "规模",
+  ],
+  tech: [
+    "技术",
+    "电芯",
+    "工艺",
+    "系统",
+    "设备",
+    "专利",
+    "效率",
+    "寿命",
+    "功率",
+    "热管理",
+    "模型",
+    "平台",
+    "算法",
+    "架构",
+    "自研",
+    "依赖",
+    "评测",
+    "api",
+  ],
+  finance: [
+    "财务",
+    "回报",
+    "IRR",
+    "估值",
+    "收入",
+    "利润",
+    "现金流",
+    "成本",
+    "融资",
+    "造价",
+    "收益",
+    "分配",
+    "费用",
+    "瀑布",
+    "募集",
+    "募资",
+    "资金",
+    "基金",
+  ],
+  legal: [
+    "法务",
+    "合同",
+    "合规",
+    "协议",
+    "权属",
+    "许可",
+    "牌照",
+    "诉讼",
+    "条款",
+    "监管",
+  ],
 };
 
 /** 「技术人员」等角色词不是技术类问题，先挖掉再匹配关键词。 */
@@ -259,9 +326,11 @@ export function inferQuestionKind(text: string): QuestionKind {
   const business = score(KIND_KEYWORDS.business);
   const tech = score(KIND_KEYWORDS.tech);
   const finance = score(KIND_KEYWORDS.finance);
-  const max = Math.max(business, tech, finance);
+  const legal = score(KIND_KEYWORDS.legal);
+  const max = Math.max(business, tech, finance, legal);
   if (max === 0) return "other";
   if (finance === max) return "finance";
+  if (legal === max) return "legal";
   if (tech === max) return "tech";
   return "business";
 }
