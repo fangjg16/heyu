@@ -1685,7 +1685,7 @@ export function ProjectKnowledgeNetworkSection({
                         }}
                         className="rounded-full border border-[rgba(78,66,57,0.14)] px-4 py-2 text-xs font-semibold text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]"
                       >
-                        全部重来
+                        更新全部草案
                       </button>
                       <button
                         type="button"
@@ -1695,7 +1695,7 @@ export function ProjectKnowledgeNetworkSection({
                         }}
                         className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
                       >
-                        {`更新未发布 ${RESEARCH_CHAPTER_COUNT - confirmPublished} 章`}
+                        更新未发布章节
                       </button>
                     </>
                   ) : confirmHasDraft && confirmFailed > 0 ? (
