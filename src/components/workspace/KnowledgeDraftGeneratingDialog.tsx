@@ -91,16 +91,26 @@ export function KnowledgeDraftGeneratingDialog({
             className="mt-2 font-[family-name:var(--font-serif,serif)] text-[22px] font-semibold leading-snug text-[#1F2423]"
           >
             {finished
-              ? "草案已准备就绪"
+              ? failed > 0 && done - failed <= 0
+                ? "草案生成失败"
+                : failed > 0
+                  ? "草案部分就绪"
+                  : "草案已准备就绪"
               : mode === "section"
                 ? `正在准备「${chapterName}」更新`
                 : "正在准备全部章节更新"}
           </h2>
           <p className="mt-2.5 text-[13px] leading-[1.7] text-[#59625F]">
             {finished
-              ? mode === "section"
-                ? `「${chapterName}」已生成，可以去审核。`
-                : "全部章节已生成，可以去审核。"
+              ? failed > 0 && done - failed > 0
+                ? `已生成 ${done - failed}/${total} 章，${failed} 章失败。可去审核已成功的章节；再点「更新全部」会用最新资料重试失败章，已成功待审核的章会保留。`
+                : failed > 0
+                  ? mode === "section"
+                    ? `「${chapterName}」生成失败，可关闭后重试。`
+                    : "章节生成失败。可关闭后重试。"
+                  : mode === "section"
+                    ? `「${chapterName}」已生成，可以去审核。`
+                    : "全部章节已生成，可以去审核。"
               : mode === "section"
                 ? `正在生成「${chapterName}」。可关闭此窗口，完成后在审核页查看。`
                 : "正在生成全部章节。可关闭此窗口，完成后在审核页查看。"}

@@ -1583,7 +1583,7 @@ export function ProjectKnowledgeNetworkSection({
                     确认更新全部章节
                   </h3>
                   <p className="mt-2 text-[12.5px] leading-relaxed text-[#59625F]">
-                    将更新全部章节，可能需要几分钟。确定开始？
+                    将更新全部章节，可能需要几分钟。若已有未发布草案：已成功的章节会保留待审核，失败的章节会用最新资料重试。若要整份重来，请先放弃当前草案。
                   </p>
                 </div>
                 <div className="flex justify-end gap-2 px-5 py-3">

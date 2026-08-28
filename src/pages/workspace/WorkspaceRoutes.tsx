@@ -637,19 +637,24 @@ function ProjectWorkspaceLayout() {
       runId = created.run.id;
       setDraftRunId(runId);
 
-      // 已有可审核草案：不再重跑生成
+      // 已有可审核草案：成功章保留；若有失败章则用最新资料重试，不装成「又跑完一轮」
       if (created.reused && created.run.status === "ready") {
-        const done = created.run.progressDone || total;
-        const failed = created.run.failedCount || 0;
-        setAllChaptersProgress({
-          done,
-          total: created.run.progressTotal || total,
-          failed,
-          elapsedMs: Date.now() - startedAt,
-          phase: "done",
-        });
-        setAllChaptersNotice("已有待审核草案，可直接进入审核。");
-        return;
+        const needsRetry = created.items.some(
+          (i) => i.status === "failed" || i.status === "pending",
+        );
+        if (!needsRetry) {
+          const done = created.run.progressDone || total;
+          const failed = created.run.failedCount || 0;
+          setAllChaptersProgress({
+            done,
+            total: created.run.progressTotal || total,
+            failed,
+            elapsedMs: Date.now() - startedAt,
+            phase: "done",
+          });
+          setAllChaptersNotice("已有待审核草案，可直接进入审核。");
+          return;
+        }
       }
 
       const sectionIds = ALL_RESEARCH_CHAPTERS.map((ch) => ch.id);

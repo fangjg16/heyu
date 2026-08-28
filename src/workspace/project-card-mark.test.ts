@@ -6,6 +6,10 @@ describe("projectCardMark", () => {
     expect(projectCardMark("澳大利亚 Stone Island 收购开发")).toBe("SI");
   });
 
+  it("skips a lone country name when the title has a more specific token", () => {
+    expect(projectCardMark("中国-中亚以货换货贸易")).toBe("中亚");
+  });
+
   it("keeps two-character brands", () => {
     expect(projectCardMark("中澳多肽供应链投资")).toBe("中澳");
     expect(projectCardMark("巨东 AI 业务投资")).toBe("巨东");

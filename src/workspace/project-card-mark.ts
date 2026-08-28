@@ -83,6 +83,32 @@ const BLOCKED_PAIRS = new Set([
   "葡萄",
 ]);
 
+/** 二字国名/套话：单独当水印太空，有更具体的词就用那些 */
+const GEO_MARK_SKIP = new Set([
+  "中国",
+  "美国",
+  "日本",
+  "韩国",
+  "英国",
+  "法国",
+  "德国",
+  "印度",
+  "俄国",
+  "巴西",
+  "泰国",
+  "越南",
+  "缅甸",
+  "朝鲜",
+  "澳洲",
+  "欧洲",
+  "亚洲",
+  "非洲",
+  "国内",
+  "境外",
+  "海外",
+  "国际",
+]);
+
 function isCjk(s: string): boolean {
   return /^[\u4e00-\u9fff]+$/u.test(s);
 }
@@ -100,6 +126,7 @@ function usablePair(pair: string): boolean {
   if (pair.length !== 2) return false;
   if (pair[0] === pair[1]) return false;
   if (BLOCKED_PAIRS.has(pair)) return false;
+  if (GEO_MARK_SKIP.has(pair)) return false;
   if (GENERIC.has(pair) || GENERIC.has(pair.toUpperCase())) return false;
   return true;
 }
@@ -179,7 +206,11 @@ function fromLatin(words: string[]): string[] {
 function collectCandidates(name: string): string[] {
   const tokens = tokenize(name);
   const meaningful = tokens.filter(
-    (t) => !GENERIC.has(t) && !GENERIC.has(t.toUpperCase()) && !GEO_SKIP.has(t),
+    (t) =>
+      !GENERIC.has(t) &&
+      !GENERIC.has(t.toUpperCase()) &&
+      !GEO_SKIP.has(t) &&
+      !GEO_MARK_SKIP.has(t),
   );
   const cands: string[] = [];
   const push = (list: string[]) => {

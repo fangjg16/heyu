@@ -21,6 +21,7 @@ import {
   reviseChapterHtmlContent,
 } from "./project-knowledge-chapters-routes";
 import { repairStoredChapterHtml } from "./chapter-revise-parse";
+import { draftReuseShouldRetryFailed } from "./draft-reuse";
 import {
   createDraftRun,
   ensureChapterBundle,
@@ -550,7 +551,7 @@ export async function handleCreateChapterDraftRun(
           sectionIds: [sectionId!],
         });
       }
-      if (active.status === "generating" || active.status === "failed") {
+      if (draftReuseShouldRetryFailed(active.status, items)) {
         await requeueFailedDraftSections(env, active.id, items);
         kickDraftRunGeneration(env, ctx, projectId, active.id, userId);
       }
