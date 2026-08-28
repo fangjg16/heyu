@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ENABLE_LIVE_CHAT,
   fetchMyInbox,
+  markMyNoticesRead,
   reviewJoinRequest,
   type CollabSubmitNotice,
   type JoinApproveRole,
   type ProjectJoinRequest,
   type ProjectNoticeItem,
 } from "@/lib/project-api";
+import { isNoticeActivityKind, isNoticeTodoKind } from "@/workspace/notice-groups";
 
 const JOIN_REVIEWS_EVENT = "hy-join-reviews-changed";
 
@@ -20,11 +22,16 @@ export function useJoinReviews(): {
   reviewed: ProjectJoinRequest[];
   collabSubmitted: CollabSubmitNotice[];
   projectNotices: ProjectNoticeItem[];
+  todoNotices: ProjectNoticeItem[];
+  activityNotices: ProjectNoticeItem[];
+  todoCount: number;
+  activityUnreadCount: number;
   pendingCount: number;
   loading: boolean;
   error: string | null;
   busyId: string | null;
   reload: () => void;
+  markRead: (ids: string[]) => Promise<void>;
   review: (
     req: ProjectJoinRequest,
     status: "approved" | "rejected",
@@ -104,17 +111,55 @@ export function useJoinReviews(): {
     [busyId],
   );
 
+  const markRead = useCallback(async (ids: string[]) => {
+    const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+    if (unique.length === 0) return;
+    const stamped = new Date().toISOString();
+    setProjectNotices((prev) =>
+      prev.map((n) =>
+        unique.includes(n.id) && !n.readAt?.trim() ? { ...n, readAt: stamped } : n,
+      ),
+    );
+    try {
+      await markMyNoticesRead(unique);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "标记已读失败");
+      reload();
+    }
+  }, [reload]);
+
+  const todoNotices = useMemo(
+    () =>
+      projectNotices.filter(
+        (n) => isNoticeTodoKind(n.kind) && !n.readAt?.trim(),
+      ),
+    [projectNotices],
+  );
+  const activityNotices = useMemo(
+    () => projectNotices.filter((n) => isNoticeActivityKind(n.kind)),
+    [projectNotices],
+  );
+  const activityUnreadCount = activityNotices.filter(
+    (n) => !n.readAt?.trim(),
+  ).length;
+  const todoCount =
+    requests.length + collabSubmitted.length + todoNotices.length;
+
   return {
     requests,
     reviewed,
     collabSubmitted,
     projectNotices,
-    pendingCount:
-      requests.length + collabSubmitted.length + projectNotices.length,
+    todoNotices,
+    activityNotices,
+    todoCount,
+    activityUnreadCount,
+    pendingCount: todoCount,
     loading,
     error,
     busyId,
     reload,
+    markRead,
     review,
   };
 }
