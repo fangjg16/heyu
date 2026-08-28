@@ -1695,7 +1695,7 @@ export function ProjectKnowledgeNetworkSection({
                         }}
                         className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
                       >
-                        {`未发布 ${RESEARCH_CHAPTER_COUNT - confirmPublished} 章`}
+                        {`更新未发布 ${RESEARCH_CHAPTER_COUNT - confirmPublished} 章`}
                       </button>
                     </>
                   ) : confirmHasDraft && confirmFailed > 0 ? (
