@@ -234,62 +234,62 @@ function ProjectCard({
         >
           {mark}
         </span>
-        <div className="relative">
-            <div className="flex items-center gap-1.5">
-              <p
-                className="min-w-0 flex-1 truncate text-[11px] tracking-[0.12em] text-[hsl(var(--wine))]"
-                title={displayIndustryCategory(project.category) || "投研项目"}
-              >
-                {displayIndustryCategory(project.category) || "投研项目"}
-              </p>
-              <span
-                className={cn(
-                  "inline-flex shrink-0 items-center rounded-full border px-1.5 py-px text-[10px] font-medium leading-[16px] tracking-wide",
-                  phaseBadgeClass(project.phase),
-                )}
-              >
-                {phaseChipText(project.phase)}
-              </span>
-              <span
-                className={cn(
-                  "inline-flex shrink-0 items-center rounded-full border px-1.5 py-px text-[10px] font-medium leading-[16px] tracking-wide",
-                  isMember
-                    ? "border-[rgba(78,66,57,0.16)] bg-[rgba(255,252,248,0.55)] text-[hsl(var(--warm-charcoal-muted))]"
-                    : "border-dashed border-[rgba(78,66,57,0.22)] bg-transparent text-[hsl(var(--warm-charcoal-muted))]",
-                )}
-              >
-                {roleLabel}
-              </span>
-              {canManage ? (
-                <div className="-mr-1.5 flex shrink-0 items-center">
-                  <button
-                    type="button"
-                    title="编辑项目"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEdit?.();
-                    }}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[hsl(var(--warm-charcoal-muted))] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    title="删除项目"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete?.();
-                    }}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[hsl(var(--warm-charcoal-muted))] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ) : null}
-            </div>
-            <h2 className="mt-1.5 line-clamp-2 min-h-[2.75em] font-display text-[19px] font-semibold leading-snug text-[hsl(var(--warm-charcoal))]">
-              {project.name}
-            </h2>
+        <div className="relative min-w-0">
+          <div className="flex min-w-0 flex-nowrap items-center gap-1.5">
+            <p
+              className="min-w-0 flex-1 truncate text-[11px] tracking-[0.12em] text-[hsl(var(--wine))]"
+              title={displayIndustryCategory(project.category) || "投研项目"}
+            >
+              {displayIndustryCategory(project.category) || "投研项目"}
+            </p>
+            <span
+              className={cn(
+                "inline-flex shrink-0 items-center rounded-full border px-1.5 py-px text-[10px] font-medium leading-[16px] tracking-wide",
+                phaseBadgeClass(project.phase),
+              )}
+            >
+              {phaseChipText(project.phase)}
+            </span>
+            <span
+              className={cn(
+                "inline-flex shrink-0 items-center rounded-full border px-1.5 py-px text-[10px] font-medium leading-[16px] tracking-wide",
+                isMember
+                  ? "border-[rgba(78,66,57,0.16)] bg-[rgba(255,252,248,0.55)] text-[hsl(var(--warm-charcoal-muted))]"
+                  : "border-dashed border-[rgba(78,66,57,0.22)] bg-transparent text-[hsl(var(--warm-charcoal-muted))]",
+              )}
+            >
+              {roleLabel}
+            </span>
+            {canManage ? (
+              <div className="-mr-1.5 flex shrink-0 items-center">
+                <button
+                  type="button"
+                  title="编辑项目"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit?.();
+                  }}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[hsl(var(--warm-charcoal-muted))] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  title="删除项目"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete?.();
+                  }}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[hsl(var(--warm-charcoal-muted))] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : null}
+          </div>
+          <h2 className="mt-1.5 line-clamp-2 min-h-[2.75em] font-display text-[19px] font-semibold leading-snug text-[hsl(var(--warm-charcoal))]">
+            {project.name}
+          </h2>
         </div>
       </div>
       <div className="flex flex-1 flex-col px-[22px] pb-[22px] pt-4">
