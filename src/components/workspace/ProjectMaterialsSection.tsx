@@ -2459,7 +2459,7 @@ function FilePreviewModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/45 p-3 sm:p-6"
+      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/45 p-4 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-label="源文件预览"
@@ -2467,7 +2467,12 @@ function FilePreviewModal({
       onClick={(e) => dismissIfBackdropClick(e, onClose)}
     >
       <div
-        className="flex max-h-[min(92vh,880px)] w-full max-w-[min(96vw,80rem)] flex-col overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.12)] bg-[hsl(var(--paper))] shadow-2xl"
+        className={cn(
+          "flex min-w-0 flex-col overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.12)] bg-[hsl(var(--paper))] shadow-2xl",
+          mode === "pdf"
+            ? "h-full max-h-[62rem] w-full max-w-[76rem]"
+            : "max-h-[min(92vh,880px)] w-full max-w-[min(96vw,80rem)]",
+        )}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center gap-3 border-b border-[rgba(78,66,57,0.1)] px-4 py-3">

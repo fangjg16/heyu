@@ -4,12 +4,13 @@ import { AnnotationMode, GlobalWorkerOptions, getDocument } from "pdfjs-dist";
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { cn } from "@/lib/utils";
+import { fitPdfScale } from "@/lib/pdf-fit-scale";
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
-const MIN_SCALE = 0.6;
-const MAX_SCALE = 2.4;
-const SCALE_STEP = 0.15;
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 3;
+const ZOOM_STEP = 0.1;
 
 type PdfLinkHotspot = {
   href: string;
@@ -70,16 +71,25 @@ export function PdfCanvasPreview({
   httpHeaders?: Record<string, string>;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const renderTaskRef = useRef<RenderTask | null>(null);
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [page, setPage] = useState(1);
   const [numPages, setNumPages] = useState(0);
-  const [scale, setScale] = useState(1);
+  const [userZoom, setUserZoom] = useState(1);
+  const [pageSize, setPageSize] = useState({ width: 1, height: 1 });
+  const [boxSize, setBoxSize] = useState({ width: 0, height: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [links, setLinks] = useState<PdfLinkHotspot[]>([]);
-  const [bitmap, setBitmap] = useState({ width: 1, height: 1 });
+  const [display, setDisplay] = useState({ width: 1, height: 1 });
   const headerKey = httpHeaders ? JSON.stringify(httpHeaders) : "";
+
+  const renderScale =
+    boxSize.width > 0
+      ? fitPdfScale(pageSize.width, pageSize.height, boxSize.width, boxSize.height) *
+        userZoom
+      : 1;
 
   useEffect(() => {
     let cancelled = false;
@@ -87,6 +97,7 @@ export function PdfCanvasPreview({
     setError(null);
     setPdf(null);
     setPage(1);
+    setUserZoom(1);
     setLinks([]);
     const headers = headerKey
       ? (JSON.parse(headerKey) as Record<string, string>)
@@ -122,24 +133,57 @@ export function PdfCanvasPreview({
   }, [url, headerKey]);
 
   useEffect(() => {
-    if (!pdf || !canvasRef.current) return;
+    const el = scrollerRef.current;
+    if (!el) return;
+    const apply = () => {
+      setBoxSize({ width: el.clientWidth, height: el.clientHeight });
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [loading]);
+
+  useEffect(() => {
+    if (!pdf) return;
+    let cancelled = false;
+    void pdf.getPage(page).then((pdfPage) => {
+      if (cancelled) return;
+      const viewport = pdfPage.getViewport({ scale: 1 });
+      setPageSize({ width: viewport.width, height: viewport.height });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [pdf, page]);
+
+  useEffect(() => {
+    if (!pdf || !canvasRef.current || boxSize.width <= 0) return;
     let cancelled = false;
     const canvas = canvasRef.current;
     const run = async () => {
       renderTaskRef.current?.cancel();
       const pdfPage = await pdf.getPage(page);
       if (cancelled) return;
-      const viewport = pdfPage.getViewport({ scale });
-      canvas.width = Math.floor(viewport.width);
-      canvas.height = Math.floor(viewport.height);
-      setBitmap({ width: canvas.width, height: canvas.height });
+      const viewport = pdfPage.getViewport({ scale: renderScale });
+      const outputScale = window.devicePixelRatio || 1;
+      const cssW = Math.floor(viewport.width);
+      const cssH = Math.floor(viewport.height);
+      canvas.width = Math.floor(cssW * outputScale);
+      canvas.height = Math.floor(cssH * outputScale);
+      canvas.style.width = `${cssW}px`;
+      canvas.style.height = `${cssH}px`;
+      setDisplay({ width: cssW, height: cssH });
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const transform =
+        outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : undefined;
       const task = pdfPage.render({
         canvas,
         canvasContext: ctx,
         viewport,
+        transform,
         annotationMode: AnnotationMode.DISABLE,
         intent: "display",
       });
@@ -159,12 +203,12 @@ export function PdfCanvasPreview({
       cancelled = true;
       renderTaskRef.current?.cancel();
     };
-  }, [pdf, page, scale]);
+  }, [pdf, page, renderScale, boxSize.width]);
 
-  const zoomLabel = `${Math.round(scale * 100)}%`;
+  const zoomLabel = `${Math.round(userZoom * 100)}%`;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex h-10 shrink-0 items-center justify-center gap-2 border-b border-[rgba(78,66,57,0.08)] text-[12px] text-[hsl(var(--warm-charcoal))]">
         <button
           type="button"
@@ -191,9 +235,9 @@ export function PdfCanvasPreview({
         <button
           type="button"
           className="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-[rgba(78,66,57,0.06)] disabled:opacity-30"
-          disabled={scale <= MIN_SCALE + 0.001}
+          disabled={userZoom <= MIN_ZOOM + 0.001}
           aria-label="缩小"
-          onClick={() => setScale((s) => Math.max(MIN_SCALE, s - SCALE_STEP))}
+          onClick={() => setUserZoom((s) => Math.max(MIN_ZOOM, +(s - ZOOM_STEP).toFixed(2)))}
         >
           <Minus className="h-3.5 w-3.5" />
         </button>
@@ -203,15 +247,16 @@ export function PdfCanvasPreview({
         <button
           type="button"
           className="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-[rgba(78,66,57,0.06)] disabled:opacity-30"
-          disabled={scale >= MAX_SCALE - 0.001}
+          disabled={userZoom >= MAX_ZOOM - 0.001}
           aria-label="放大"
-          onClick={() => setScale((s) => Math.min(MAX_SCALE, s + SCALE_STEP))}
+          onClick={() => setUserZoom((s) => Math.min(MAX_ZOOM, +(s + ZOOM_STEP).toFixed(2)))}
         >
           <Plus className="h-3.5 w-3.5" />
         </button>
       </div>
       <div
-        className="min-h-0 flex-1 overflow-auto bg-[rgba(248,243,238,0.45)] p-4"
+        ref={scrollerRef}
+        className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain bg-[rgba(248,243,238,0.55)] [scrollbar-gutter:stable]"
         onContextMenu={(e) => e.preventDefault()}
       >
         {loading ? (
@@ -221,43 +266,48 @@ export function PdfCanvasPreview({
           </div>
         ) : null}
         {error ? (
-          <div className="rounded-xl border border-rose-200 bg-rose-50/80 px-4 py-3 text-sm text-rose-700">
+          <div className="m-4 rounded-xl border border-rose-200 bg-rose-50/80 px-4 py-3 text-sm text-rose-700">
             {error}
           </div>
         ) : null}
         <div
           className={cn(
-            "relative mx-auto w-fit max-w-full",
+            "flex min-h-full min-w-full items-center justify-center p-7",
             (loading || error) && "hidden",
           )}
         >
-          <canvas
-            ref={canvasRef}
-            className="block h-auto max-w-full rounded-md bg-white shadow-[0_8px_24px_rgba(78,66,57,0.12)]"
-          />
-          <div className="absolute inset-0">
-            {links.map((link, i) => (
-              <a
-                key={`${link.href}-${i}`}
-                href={link.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={link.href}
-                aria-label="在新窗口打开链接"
-                className="absolute z-10 cursor-pointer rounded-sm hover:bg-[hsl(var(--wine)/0.12)]"
-                style={{
-                  left: `${(link.left / bitmap.width) * 100}%`,
-                  top: `${(link.top / bitmap.height) * 100}%`,
-                  width: `${(link.width / bitmap.width) * 100}%`,
-                  height: `${(link.height / bitmap.height) * 100}%`,
-                }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  window.open(link.href, "_blank", "noopener,noreferrer");
-                }}
-              />
-            ))}
+          <div
+            className="relative shrink-0"
+            style={{ width: display.width, height: display.height }}
+          >
+            <canvas
+              ref={canvasRef}
+              className="block rounded-md bg-white shadow-[0_8px_28px_rgba(78,66,57,0.14)]"
+            />
+            <div className="absolute inset-0">
+              {links.map((link, i) => (
+                <a
+                  key={`${link.href}-${i}`}
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={link.href}
+                  aria-label="在新窗口打开链接"
+                  className="absolute z-10 cursor-pointer rounded-sm hover:bg-[hsl(var(--wine)/0.12)]"
+                  style={{
+                    left: `${(link.left / display.width) * 100}%`,
+                    top: `${(link.top / display.height) * 100}%`,
+                    width: `${(link.width / display.width) * 100}%`,
+                    height: `${(link.height / display.height) * 100}%`,
+                  }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.open(link.href, "_blank", "noopener,noreferrer");
+                  }}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>

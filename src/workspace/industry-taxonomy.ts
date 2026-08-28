@@ -21,6 +21,15 @@ export const INDUSTRY_TAXONOMY: IndustryTheme[] =
 
 export const UNCATEGORIZED_LABEL = "未分类";
 
+/** 白名单改名后，旧存值读入时跟到新标签。 */
+const SECTOR_RENAMES: Record<string, string> = {
+  "供应链管理与贸易服务": "一般贸易、进出口与供应链服务",
+};
+
+function remapSectorLabel(sector: string): string {
+  return SECTOR_RENAMES[sector] ?? sector;
+}
+
 export function formatIndustryCategory(theme: string, sector: string): string {
   const t = theme.trim();
   const s = sector.trim();
@@ -63,7 +72,7 @@ export function parseIndustryCategory(
   const spaced = value.indexOf(" / ");
   if (spaced > 0) {
     const theme = value.slice(0, spaced).trim();
-    const sector = value.slice(spaced + 3).trim();
+    const sector = remapSectorLabel(value.slice(spaced + 3).trim());
     const known = taxonomy.find((item) => item.theme === theme);
     const inList = Boolean(known && known.sectors.includes(sector));
     return { theme, sector, custom: !inList };

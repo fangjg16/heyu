@@ -78,7 +78,7 @@ description: 根据项目名称、项目简介、产品服务、客户、收入�
 
 ```json
 {
-  "taxonomy_version": "2026-08-26-r2",
+  "taxonomy_version": "2026-08-28-r1",
   "project_name": "",
   "classification_status": "confirmed | closest",
   "primary": {

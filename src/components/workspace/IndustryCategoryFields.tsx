@@ -2,8 +2,6 @@ import { useId } from "react";
 import { Link } from "react-router-dom";
 import {
   INDUSTRY_TAXONOMY,
-  isKnownSector,
-  isKnownTheme,
   sectorsForTheme,
   UNCATEGORIZED_LABEL,
   type IndustryTheme,
@@ -45,8 +43,6 @@ export function IndustryCategoryFields({
   const themeListId = `${uid}-theme`;
   const sectorListId = `${uid}-sector`;
   const sectors = sectorsForTheme(theme, taxonomy);
-  const customTheme = Boolean(theme) && !isKnownTheme(theme, taxonomy);
-  const customSector = Boolean(sector) && !isKnownSector(theme, sector, taxonomy);
 
   return (
     <div className={className}>
@@ -99,26 +95,21 @@ export function IndustryCategoryFields({
         </label>
       </div>
       <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-        可从列表选择，也可直接输入不在白名单中的分类。
+        可从列表选择或手动填写
         {editorHref ? (
           <>
-            {" "}
-            管理员可
+            。管理员可
             <Link
               to={editorHref}
               className="mx-0.5 font-medium text-[hsl(var(--wine))] underline-offset-2 hover:underline"
             >
-              编辑 taxonomy.md
+              编辑分类列表
             </Link>
-            更新列表。
           </>
-        ) : null}
+        ) : (
+          "。"
+        )}
       </p>
-      {customTheme || customSector ? (
-        <p className="mt-1 text-[11px] leading-relaxed text-amber-800/90">
-          当前分类不在 taxonomy.md 白名单中，将按你输入的文字保存。
-        </p>
-      ) : null}
       {legacyLabel ? (
         <p className="mt-1 text-[11px] leading-relaxed text-amber-800/90">
           原分类「{legacyLabel}」已按自定义内容载入，可改选列表或继续手动编辑后保存。
