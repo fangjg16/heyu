@@ -12,6 +12,14 @@ describe("isDeepSkillMessage", () => {
     expect(isDeepSkillMessage("帮我做个尽调")).toBe(true);
     expect(isDeepSkillMessage("请做一次深度分析")).toBe(true);
   });
+
+  it("does not treat reading links inside a file as a deep organize-files job", () => {
+    expect(
+      isDeepSkillMessage("帮我整理一下文件中链接跳转网页的信息"),
+    ).toBe(false);
+    expect(isDeepSkillMessage("帮我整理文件中链接跳转网页的信息")).toBe(false);
+    expect(isDeepSkillMessage("帮我整理文件")).toBe(true);
+  });
 });
 
 describe("streamingAssistantDisplayText", () => {

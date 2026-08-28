@@ -26,15 +26,51 @@ export type ChunkSelectOptions = {
   topK?: number;
   /** 本轮用户刚上传或点名的附件，优先纳入摘录 */
   prioritizeFilenames?: string[];
+  /** 本轮指定的文档 id（源文件追问），优先于文件名模糊匹配 */
+  prioritizeDocumentIds?: string[];
 };
 
-function filenameMatchesPriority(filename: string, priorities: string[]): boolean {
-  const fn = filename.toLowerCase();
+/** 文件名比对：忽略大小写、下划线/空格、扩展名前多余的点 */
+export function normalizeFilenameForMatch(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\.(pdf|docx?|xlsx?|pptx?|txt|md|png|jpe?g|gif|webp|eml|msg)$/iu, "")
+    .replace(/[._\s]+/gu, " ")
+    .trim();
+}
+
+export function filenameMatchesPriority(filename: string, priorities: string[]): boolean {
+  const fn = normalizeFilenameForMatch(filename);
+  if (!fn) return false;
   return priorities.some((p) => {
-    const needle = p.trim().toLowerCase();
-    if (!needle) return false;
-    return fn.includes(needle) || needle.includes(fn);
+    const needle = normalizeFilenameForMatch(p);
+    if (!needle || needle.length < 4) return false;
+    return fn === needle || fn.includes(needle) || needle.includes(fn);
   });
+}
+
+export function chunkMatchesNamedFile(
+  chunk: Pick<ChunkRow, "document_id" | "filename">,
+  options: { ids?: string[]; filenames?: string[] },
+): boolean {
+  const ids = (options.ids ?? []).map((s) => s.trim()).filter(Boolean);
+  if (ids.length > 0 && ids.includes(chunk.document_id)) return true;
+  const names = (options.filenames ?? []).filter(Boolean);
+  if (names.length > 0 && filenameMatchesPriority(chunk.filename ?? "", names)) {
+    return true;
+  }
+  return false;
+}
+
+function namedPriorityChunks(
+  pool: ChunkRow[],
+  ids: string[],
+  filenames: string[],
+): ChunkRow[] {
+  if (ids.length === 0 && filenames.length === 0) return [];
+  return [...pool]
+    .filter((c) => chunkMatchesNamedFile(c, { ids, filenames }))
+    .sort(sortChunksInDocOrder);
 }
 
 function appendChunksWithinBudget(
@@ -62,25 +98,20 @@ export function selectChunksForChat(
   const pool = usable.length > 0 ? usable : chunks;
   const topK = options.topK ?? 8;
   const priorities = (options.prioritizeFilenames ?? []).filter(Boolean);
+  const priorityIds = (options.prioritizeDocumentIds ?? []).map((s) => s.trim()).filter(Boolean);
+  const namedFirst = namedPriorityChunks(pool, priorityIds, priorities);
 
   if (!options.deep) {
     const sessionChunks = pool.filter((c) => c.scope === "session");
     const packagePool = pool.filter((c) => (c.scope ?? PACKAGE_SCOPE) !== "session");
-    if (sessionChunks.length === 0 && priorities.length === 0) {
+    if (sessionChunks.length === 0 && namedFirst.length === 0) {
       return scoreChunks(pool, query, topK);
     }
 
     const selected: ChunkRow[] = [];
     const total = { n: 0 };
 
-    if (priorities.length > 0) {
-      appendChunksWithinBudget(
-        selected,
-        total,
-        options.maxChars,
-        sessionChunks.filter((c) => filenameMatchesPriority(c.filename ?? "", priorities)),
-      );
-    }
+    appendChunksWithinBudget(selected, total, options.maxChars, namedFirst);
     appendChunksWithinBudget(
       selected,
       total,
@@ -103,14 +134,7 @@ export function selectChunksForChat(
   const selected: ChunkRow[] = [];
   const total = { n: 0 };
 
-  if (priorities.length > 0) {
-    appendChunksWithinBudget(
-      selected,
-      total,
-      options.maxChars,
-      sessionChunks.filter((c) => filenameMatchesPriority(c.filename ?? "", priorities)),
-    );
-  }
+  appendChunksWithinBudget(selected, total, options.maxChars, namedFirst);
   appendChunksWithinBudget(selected, total, options.maxChars, sessionChunks);
 
   const packageHits = scoreChunks(packageChunks, query, Math.min(32, packageChunks.length));
@@ -196,8 +220,10 @@ export async function selectChunksForChatWithVectors(
 ): Promise<ChunkRow[]> {
   const topK = options.topK ?? 8;
   const priorities = (options.prioritizeFilenames ?? []).filter(Boolean);
+  const priorityIds = (options.prioritizeDocumentIds ?? []).map((s) => s.trim()).filter(Boolean);
   const sessionChunks = chunks.filter((c) => c.scope === "session");
-  const forceSessionFirst = priorities.length > 0 || sessionChunks.length > 0;
+  const namedFirst = namedPriorityChunks(chunks, priorityIds, priorities);
+  const forceSessionFirst = namedFirst.length > 0 || sessionChunks.length > 0;
 
   const embedded = chunks.filter((c) => c.embedding && c.embedding.length > 0);
   if (!options.deep && embedded.length >= 3 && (env.DASHSCOPE_API_KEY || "").trim()) {
@@ -217,14 +243,7 @@ export async function selectChunksForChatWithVectors(
           const selected: ChunkRow[] = [];
           const total = { n: 0 };
           if (forceSessionFirst) {
-            if (priorities.length > 0) {
-              appendChunksWithinBudget(
-                selected,
-                total,
-                options.maxChars,
-                sessionChunks.filter((c) => filenameMatchesPriority(c.filename ?? "", priorities)),
-              );
-            }
+            appendChunksWithinBudget(selected, total, options.maxChars, namedFirst);
             appendChunksWithinBudget(
               selected,
               total,

@@ -29,7 +29,7 @@ import {
   vlModelName,
 } from "./chat-vision";
 import { withResolvedDashscopeEnv } from "./llm-runtime-config";
-import { buildHermesMaterialsDigest } from "./hermes-materials-digest";
+import { buildHermesMaterialsDigest, buildNamedFilesDigest } from "./hermes-materials-digest";
 import { buildKnowledgeNetworkMaterialHints } from "./knowledge-network-material-hints";
 import { buildKnowledgeNetworkReadingPlan } from "./knowledge-network-reading-plan";
 import { resolveKnowledgeNetworkSlotsFromMessage } from "./knowledge-network-slot-aliases";
@@ -918,6 +918,7 @@ async function handleChatViaHermes(
     citationMap: Record<string, string>;
     projectTitleHint: string;
     files?: string[];
+    fileIds?: string[];
   },
 ): Promise<Response> {
   if (params.chatMode === "knowledge_network") {
@@ -1007,6 +1008,22 @@ async function handleChatViaHermes(
     instructions += buildKnowledgeNetworkModeInstructions(knMode, hasExistingKb);
   }
 
+  if ((params.files?.length ?? 0) > 0 || (params.fileIds?.length ?? 0) > 0) {
+    try {
+      const named = await buildNamedFilesDigest(
+        env,
+        params.projectId,
+        params.userId,
+        params.conversationId,
+        params.files,
+        params.fileIds,
+      );
+      if (named) instructions += named;
+    } catch {
+      /* 点名文件预注入失败不阻断 Hermes */
+    }
+  }
+
   if (usesFullPackageCorpus(params.chatMode)) {
     try {
       const digest = await buildHermesMaterialsDigest(
@@ -1018,6 +1035,7 @@ async function handleChatViaHermes(
         params.files,
         params.chatMode,
         knMode,
+        params.fileIds,
       );
       if (digest) instructions += digest;
     } catch {
@@ -1708,6 +1726,7 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
       citationMap,
       projectTitleHint,
       files: body.files,
+      fileIds: body.fileIds,
     });
   }
 
@@ -1727,6 +1746,7 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
     conversationId: body.conversationId,
     message,
     files: body.files,
+    fileIds: body.fileIds,
     history,
     chatMode,
     deepMode,
