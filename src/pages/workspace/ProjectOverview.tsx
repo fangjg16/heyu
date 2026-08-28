@@ -220,7 +220,7 @@ function ProjectCard({
   return (
     <article
       className={cn(
-        "relative flex flex-col overflow-hidden rounded-[20px] border border-[rgba(255,255,255,0.6)] bg-[rgba(255,252,248,0.76)] shadow-[0_10px_30px_rgba(102,80,60,0.08)] backdrop-blur-[18px] transition-shadow hover:shadow-[0_14px_36px_rgba(102,80,60,0.14)]"
+        "relative flex h-full min-h-0 flex-col overflow-hidden rounded-[20px] border border-[rgba(255,255,255,0.6)] bg-[rgba(255,252,248,0.76)] shadow-[0_10px_30px_rgba(102,80,60,0.08)] backdrop-blur-[18px] transition-shadow hover:shadow-[0_14px_36px_rgba(102,80,60,0.14)]"
       )}
     >
       <div
@@ -236,13 +236,13 @@ function ProjectCard({
         </span>
         <div className="relative flex items-start gap-3">
           <div className="min-w-0 flex-1 pr-10">
-            <p className="text-[11px] tracking-[0.12em] text-[hsl(var(--wine))]">
+            <p className="truncate text-[11px] tracking-[0.12em] text-[hsl(var(--wine))]">
               {displayIndustryCategory(project.category) || "投研项目"}
             </p>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <h2 className="font-display text-[19px] font-semibold leading-snug text-[hsl(var(--warm-charcoal))]">
-                {project.name}
-              </h2>
+            <h2 className="mt-1.5 line-clamp-2 min-h-[2.75em] font-display text-[19px] font-semibold leading-snug text-[hsl(var(--warm-charcoal))]">
+              {project.name}
+            </h2>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <span
                 className={cn(
                   "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
@@ -292,10 +292,11 @@ function ProjectCard({
         </div>
       </div>
       <div className="flex flex-1 flex-col px-[22px] pb-[22px] pt-4">
-      <p className="line-clamp-3 flex-1 text-[13.5px] leading-[1.75] text-[hsl(var(--warm-charcoal-muted))]">
+      <p className="line-clamp-3 min-h-[calc(1.75em*3)] text-[13.5px] leading-[1.75] text-[hsl(var(--warm-charcoal-muted))]">
         {previewText}
       </p>
-      <div className="mt-4 flex gap-[22px] border-t border-[rgba(78,66,57,0.1)] pt-3.5">
+      <div className="min-h-4 flex-1" aria-hidden />
+      <div className="flex gap-[22px] border-t border-[rgba(78,66,57,0.1)] pt-3.5">
         <div className="min-w-0">
           <div className="text-[11px] text-[#59625F]">负责人</div>
           <div className="mt-1 truncate text-[13px] font-medium text-[hsl(var(--warm-charcoal))]">
@@ -732,7 +733,7 @@ export default function ProjectOverview() {
         </div>
 
         {filteredProjects.length > 0 ? (
-          <div className="mt-[18px] grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="mt-[18px] grid grid-cols-1 items-stretch gap-4 md:grid-cols-2">
             {filteredProjects.map((p) => (
               <ProjectCard
                 key={p.id}
