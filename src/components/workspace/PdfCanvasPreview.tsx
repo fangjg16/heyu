@@ -62,17 +62,24 @@ async function collectPageLinkHotspots(
   return out;
 }
 
-export function PdfCanvasPreview({ data }: { data: ArrayBuffer }) {
+export function PdfCanvasPreview({
+  url,
+  httpHeaders,
+}: {
+  url: string;
+  httpHeaders?: Record<string, string>;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderTaskRef = useRef<RenderTask | null>(null);
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [page, setPage] = useState(1);
   const [numPages, setNumPages] = useState(0);
-  const [scale, setScale] = useState(1.1);
+  const [scale, setScale] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [links, setLinks] = useState<PdfLinkHotspot[]>([]);
   const [bitmap, setBitmap] = useState({ width: 1, height: 1 });
+  const headerKey = httpHeaders ? JSON.stringify(httpHeaders) : "";
 
   useEffect(() => {
     let cancelled = false;
@@ -81,8 +88,17 @@ export function PdfCanvasPreview({ data }: { data: ArrayBuffer }) {
     setPdf(null);
     setPage(1);
     setLinks([]);
-    const copy = new Uint8Array(data.slice(0));
-    const task = getDocument({ data: copy, disableAutoFetch: false });
+    const headers = headerKey
+      ? (JSON.parse(headerKey) as Record<string, string>)
+      : undefined;
+    const task = getDocument({
+      url,
+      httpHeaders: headers,
+      withCredentials: false,
+      disableRange: false,
+      disableStream: false,
+      disableAutoFetch: true,
+    });
     task.promise
       .then((doc) => {
         if (cancelled) {
@@ -103,7 +119,7 @@ export function PdfCanvasPreview({ data }: { data: ArrayBuffer }) {
       renderTaskRef.current?.cancel();
       void task.destroy();
     };
-  }, [data]);
+  }, [url, headerKey]);
 
   useEffect(() => {
     if (!pdf || !canvasRef.current) return;

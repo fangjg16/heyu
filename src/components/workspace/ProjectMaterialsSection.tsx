@@ -47,11 +47,13 @@ import {
   fetchProjectFiles,
   moveProjectFile,
   PROJECT_UPLOAD_FOLDER,
+  projectFileDownloadUrl,
   renameProjectFile,
   renameProjectFolder,
   shareFileWithIssuer,
   type ProjectFileRecord,
 } from "@/lib/project-api";
+import { loadSessionToken } from "@/workspace/session";
 import {
   filesUnderFolder,
   isHiddenKeep,
@@ -1545,9 +1547,19 @@ export function ProjectMaterialsSection({
               {error}
             </p>
           ) : null}
-          {displayUploadHint ? (
+          {displayUploadHint || uploading ? (
             <p className="mb-3 shrink-0 text-[12px] font-medium text-emerald-700">
               {displayUploadHint}
+              {uploading ? (
+                <span
+                  className={cn(
+                    "font-normal text-emerald-800/80",
+                    displayUploadHint ? " ml-2" : "",
+                  )}
+                >
+                  上传在后台进行，可继续添加或切换项目
+                </span>
+              ) : null}
             </p>
           ) : null}
 
@@ -1657,13 +1669,6 @@ export function ProjectMaterialsSection({
                   )}
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                  {detail.isFile && detail.file && canShareWithIssuer(detail.file) ? (
-                    <IssuerShareTick
-                      shared={Boolean(detail.file.sharedWithIssuer)}
-                      disabled={!canManage || busy || sharingId === detail.file.id}
-                      onChange={(next) => void onShareFile(detail.file!, next)}
-                    />
-                  ) : null}
                   {detail.isFile && detail.file ? (
                     <button
                       type="button"
@@ -1877,6 +1882,15 @@ export function ProjectMaterialsSection({
                     {detail.perm ? (
                       <span className="text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
                         {detail.perm}
+                      </span>
+                    ) : null}
+                    {detail.file && canShareWithIssuer(detail.file) ? (
+                      <span className="ml-auto">
+                        <IssuerShareTick
+                          shared={Boolean(detail.file.sharedWithIssuer)}
+                          disabled={!canManage || busy || sharingId === detail.file.id}
+                          onChange={(next) => void onShareFile(detail.file!, next)}
+                        />
                       </span>
                     ) : null}
                   </div>
@@ -2100,11 +2114,6 @@ function UploadMenu({
               选择文件夹
             </button>
           </li>
-          {uploading ? (
-            <li className="px-3 py-1.5 text-[11px] leading-snug text-muted-foreground">
-              上传在后台进行，可继续添加或切换项目
-            </li>
-          ) : null}
         </ul>
       ) : null}
     </div>
@@ -2386,20 +2395,37 @@ function FilePreviewModal({
   onClose: () => void;
   onDownload?: () => Promise<void>;
 }) {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(
+    () => !(file && classifyFileKind(file) === "pdf"),
+  );
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState<string | null>(null);
-  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
-  const [mode, setMode] = useState<"text" | "pdf" | "other">("other");
+  const [mode, setMode] = useState<"text" | "pdf" | "other">(() =>
+    file && classifyFileKind(file) === "pdf" ? "pdf" : "other",
+  );
+  const pdfHeaders = useMemo(() => {
+    const token = loadSessionToken();
+    return token ? { Authorization: `Bearer ${token}` } : undefined;
+  }, []);
+  const pdfUrl = file
+    ? projectFileDownloadUrl(projectId, file.id, userId)
+    : "";
 
   useEffect(() => {
     if (!file) return;
     let cancelled = false;
+    const kind = classifyFileKind(file);
+    if (kind === "pdf") {
+      setMode("pdf");
+      setLoading(false);
+      setError(null);
+      setText(null);
+      return;
+    }
     const run = async () => {
       setLoading(true);
       setError(null);
       setText(null);
-      setPdfData(null);
       try {
         const { blob } = await downloadFileBlob(
           projectId,
@@ -2408,17 +2434,11 @@ function FilePreviewModal({
           file.filename,
         );
         if (cancelled) return;
-        const kind = classifyFileKind(file);
         if (kind === "text") {
           const raw = await blob.text();
           if (cancelled) return;
           setMode("text");
           setText(raw.length > 200_000 ? `${raw.slice(0, 200_000)}\n\n…（已截断）` : raw);
-        } else if (kind === "pdf") {
-          const buf = await blob.arrayBuffer();
-          if (cancelled) return;
-          setMode("pdf");
-          setPdfData(buf);
         } else {
           setMode("other");
         }
@@ -2481,12 +2501,12 @@ function FilePreviewModal({
         <div
           className={cn(
             "min-h-0 flex-1",
-            mode === "pdf" && pdfData && !loading && !error
+            mode === "pdf" && !error
               ? "flex flex-col overflow-hidden"
               : "overflow-auto bg-[rgba(248,243,238,0.45)] p-5",
           )}
         >
-          {loading ? (
+          {loading && mode !== "pdf" ? (
             <div className="flex h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               加载预览…
@@ -2525,8 +2545,11 @@ function FilePreviewModal({
               )}
             </div>
           ) : null}
-          {!loading && !error && mode === "pdf" && pdfData ? (
-            <PdfCanvasPreview data={pdfData} />
+          {mode === "pdf" && pdfUrl && !error ? (
+            <PdfCanvasPreview
+              url={pdfUrl}
+              httpHeaders={pdfHeaders}
+            />
           ) : null}
           {!loading && !error && mode === "other" ? (
             <div className="mx-auto max-w-lg rounded-xl border border-[rgba(78,66,57,0.1)] bg-white px-6 py-10 text-center">

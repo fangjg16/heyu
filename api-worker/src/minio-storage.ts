@@ -1,6 +1,7 @@
 import { AwsClient } from "aws4fetch";
 import type {
   AppObjectBody,
+  AppObjectGetOptions,
   AppObjectPutOptions,
   AppObjectStorage,
   MinioEnv,
@@ -39,6 +40,21 @@ class MinioObjectBody implements AppObjectBody {
     private readonly response: Response,
     readonly body: ReadableStream | null,
   ) {}
+
+  get status(): number {
+    return this.response.status;
+  }
+
+  get size(): number | null {
+    const raw = this.response.headers.get("Content-Length");
+    if (raw == null || raw === "") return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  get contentRange(): string | null {
+    return this.response.headers.get("Content-Range");
+  }
 
   async text(): Promise<string> {
     return this.response.text();
@@ -82,10 +98,13 @@ export class MinioObjectStorage implements AppObjectStorage {
     return objectUrl(this.endpoint, this.bucket, key);
   }
 
-  async get(key: string): Promise<AppObjectBody | null> {
-    const res = await this.client.fetch(this.urlFor(key), { method: "GET" });
+  async get(key: string, options?: AppObjectGetOptions): Promise<AppObjectBody | null> {
+    const headers: Record<string, string> = {};
+    const range = options?.range?.trim();
+    if (range) headers.Range = range;
+    const res = await this.client.fetch(this.urlFor(key), { method: "GET", headers });
     if (res.status === 404) return null;
-    if (!res.ok) {
+    if (!res.ok && res.status !== 206) {
       throw new Error(`MinIO GET ${key} failed: HTTP ${res.status}`);
     }
     return new MinioObjectBody(res, res.body);

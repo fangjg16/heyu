@@ -290,8 +290,9 @@ function corsHeaders(origin: string | null, env: Env): HeadersInit {
   return {
     "Access-Control-Allow-Origin": ok && origin ? origin : allowed,
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Expose-Headers": "Content-Disposition, Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Range",
+    "Access-Control-Expose-Headers":
+      "Content-Disposition, Content-Type, Accept-Ranges, Content-Length, Content-Range",
     "Access-Control-Max-Age": "86400",
   };
 }

@@ -3,14 +3,22 @@ export type AppObjectPutOptions = {
   httpMetadata?: { contentType?: string };
 };
 
+export type AppObjectGetOptions = {
+  /** 原样转给存储的 Range，例如 bytes=0-65535 */
+  range?: string;
+};
+
 export interface AppObjectBody {
   readonly body: ReadableStream | null;
+  readonly status?: number;
+  readonly size?: number | null;
+  readonly contentRange?: string | null;
   text(): Promise<string>;
   arrayBuffer(): Promise<ArrayBuffer>;
 }
 
 export interface AppObjectStorage {
-  get(key: string): Promise<AppObjectBody | null>;
+  get(key: string, options?: AppObjectGetOptions): Promise<AppObjectBody | null>;
   put(
     key: string,
     value: ArrayBuffer | ArrayBufferView | string | ReadableStream | Blob | null,

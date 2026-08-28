@@ -117,7 +117,8 @@ export async function handleDownloadProjectFile(
     return json({ error: "文件对象不存在" }, 404);
   }
 
-  const object = await env.FILES.get(row.r2_key);
+  const range = request.headers.get("Range")?.trim() || undefined;
+  const object = await env.FILES.get(row.r2_key, range ? { range } : undefined);
   if (!object) {
     return json({ error: "对象存储中找不到文件" }, 404);
   }
@@ -132,6 +133,28 @@ export async function handleDownloadProjectFile(
     "Content-Disposition",
     `attachment; filename="${asciiFallback.replace(/"/gu, "")}"; filename*=UTF-8''${encodeURIComponent(name)}`,
   );
+  applyDownloadRangeHeaders(headers, {
+    size: object.size,
+    contentRange: object.contentRange,
+  });
+  const status = object.status === 206 ? 206 : 200;
 
-  return new Response(object.body, { status: 200, headers });
+  return new Response(object.body, { status, headers });
+}
+
+/** 让 pdf.js 能按字节区间拉首页，而不必等整份 PDF 下完。 */
+export function applyDownloadRangeHeaders(
+  headers: Headers,
+  object: {
+    size?: number | null;
+    contentRange?: string | null;
+  },
+): void {
+  headers.set("Accept-Ranges", "bytes");
+  if (object.size != null && Number.isFinite(object.size)) {
+    headers.set("Content-Length", String(object.size));
+  }
+  if (object.contentRange) {
+    headers.set("Content-Range", object.contentRange);
+  }
 }
