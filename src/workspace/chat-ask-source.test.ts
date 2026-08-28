@@ -1,13 +1,18 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   assignAskConversationId,
+  chatAskAboutChapterPath,
   chatAskAboutFilePath,
+  clearPendingAskChapter,
   clearPendingAskSourceFile,
   parseChatAskSearch,
+  pendingAskChapterFromLocation,
   pendingAskFileFromLocation,
+  peekPendingAskChapter,
   peekPendingAskSourceFile,
   resetChatAskStorageForTests,
   resolveAskNonce,
+  storePendingAskChapter,
   storePendingAskSourceFile,
   withAskSourceQuery,
 } from "./chat-ask-source";
@@ -22,6 +27,8 @@ describe("parseChatAskSearch", () => {
       wantNew: true,
       sourceFile: "doc-1",
       sourceName: "01_Bowen滨海区总体规划_2025-11.pdf",
+      knSection: null,
+      knSectionName: null,
       nonce: "abc",
     });
   });
@@ -31,6 +38,8 @@ describe("parseChatAskSearch", () => {
       wantNew: true,
       sourceFile: "abc",
       sourceName: null,
+      knSection: null,
+      knSectionName: null,
       nonce: null,
     });
   });
@@ -40,6 +49,32 @@ describe("parseChatAskSearch", () => {
       wantNew: false,
       sourceFile: null,
       sourceName: null,
+      knSection: null,
+      knSectionName: null,
+      nonce: null,
+    });
+  });
+
+  it("reads a knowledge-network chapter ask", () => {
+    expect(
+      parseChatAskSearch("?new=1&knSection=snapshot&knSectionName=项目快照&t=n1"),
+    ).toEqual({
+      wantNew: true,
+      sourceFile: null,
+      sourceName: null,
+      knSection: "snapshot",
+      knSectionName: "项目快照",
+      nonce: "n1",
+    });
+  });
+
+  it("treats knSection alone as a request for a new chat", () => {
+    expect(parseChatAskSearch("knSection=snapshot")).toEqual({
+      wantNew: true,
+      sourceFile: null,
+      sourceName: null,
+      knSection: "snapshot",
+      knSectionName: null,
       nonce: null,
     });
   });
@@ -79,6 +114,8 @@ describe("resolveAskNonce", () => {
         wantNew: true,
         sourceFile: "doc-1",
         sourceName: "a.pdf",
+        knSection: null,
+        knSectionName: null,
         nonce: "click-9",
       }),
     ).toBe("click-9");
@@ -90,9 +127,24 @@ describe("resolveAskNonce", () => {
         wantNew: true,
         sourceFile: "doc-1",
         sourceName: null,
+        knSection: null,
+        knSectionName: null,
         nonce: null,
       }),
     ).toBe("file:doc-1");
+  });
+
+  it("falls back to the chapter id when t is missing", () => {
+    expect(
+      resolveAskNonce({
+        wantNew: true,
+        sourceFile: null,
+        sourceName: null,
+        knSection: "snapshot",
+        knSectionName: "项目快照",
+        nonce: null,
+      }),
+    ).toBe("kn:snapshot");
   });
 });
 
@@ -151,5 +203,37 @@ describe("ask conversation session storage", () => {
     expect(peekPendingAskSourceFile("conv-2")).toBeNull();
     clearPendingAskSourceFile("conv-1");
     expect(peekPendingAskSourceFile("conv-1")).toBeNull();
+  });
+
+  it("stores and peeks the pending knowledge chapter by conversation", () => {
+    storePendingAskChapter("conv-1", { id: "snapshot", label: "项目快照" });
+    expect(peekPendingAskChapter("conv-1")).toEqual({
+      id: "snapshot",
+      label: "项目快照",
+    });
+    expect(peekPendingAskChapter("conv-2")).toBeNull();
+    clearPendingAskChapter("conv-1");
+    expect(peekPendingAskChapter("conv-1")).toBeNull();
+  });
+});
+
+describe("pendingAskChapterFromLocation", () => {
+  it("reads the chapter from search", () => {
+    expect(
+      pendingAskChapterFromLocation("?knSection=snapshot&knSectionName=项目快照"),
+    ).toEqual({ id: "snapshot", label: "项目快照" });
+  });
+});
+
+describe("chatAskAboutChapterPath", () => {
+  it("builds a router path with encoded project and chapter name", () => {
+    const path = chatAskAboutChapterPath("proj-1", {
+      id: "snapshot",
+      label: "项目快照",
+    });
+    expect(path.startsWith("/app/chat/proj-1?")).toBe(true);
+    expect(path).toContain("new=1");
+    expect(path).toContain("knSection=snapshot");
+    expect(path).toContain(encodeURIComponent("项目快照"));
   });
 });

@@ -11,6 +11,7 @@ import {
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowUp,
+  BookOpen,
   Check,
   ChevronDown,
   ChevronRight,
@@ -51,7 +52,11 @@ import {
 } from "@/lib/project-api";
 import { apiFetch } from "@/lib/api-auth";
 import { loadSessionToken } from "@/workspace/session";
-import type { KnowledgeNetworkChatEntryState } from "@/lib/knowledge-network-prompts";
+import {
+  formatKnowledgeChapterCiteTag,
+  knowledgeNetworkChapterAskDraft,
+  type KnowledgeNetworkChatEntryState,
+} from "@/lib/knowledge-network-prompts";
 import type { WorkspaceProject } from "@/workspace/projects";
 import { consumeChatSse } from "@/lib/chat-stream-client";
 import {
@@ -99,11 +104,15 @@ import {
 import { rememberChatReturnPath } from "@/workspace/chat-return";
 import {
   assignAskConversationId,
+  clearPendingAskChapter,
   clearPendingAskSourceFile,
   parseChatAskSearch,
+  pendingAskChapterFromLocation,
   pendingAskFileFromLocation,
+  peekPendingAskChapter,
   peekPendingAskSourceFile,
   resolveAskNonce,
+  storePendingAskChapter,
   storePendingAskSourceFile,
   withAskSourceQuery,
 } from "@/workspace/chat-ask-source";
@@ -1024,6 +1033,10 @@ export default function ConversationCenter() {
   const [referencedSourceFiles, setReferencedSourceFiles] = useState<
     ProjectFileRecord[]
   >([]);
+  const [referencedKnChapter, setReferencedKnChapter] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
   const [projectSourceFiles, setProjectSourceFiles] = useState<ProjectFileRecord[]>(
     [],
   );
@@ -1560,8 +1573,17 @@ export default function ConversationCenter() {
             filename: ask.sourceName?.trim() || ask.sourceFile,
           }
         : null;
+      const askChapter = ask.knSection
+        ? {
+            id: ask.knSection,
+            label: ask.knSectionName?.trim() || ask.knSection,
+          }
+        : null;
       if (askFile) {
         storePendingAskSourceFile(newId, askFile);
+      }
+      if (askChapter) {
+        storePendingAskChapter(newId, askChapter);
       }
       const newConv = buildBlankSessionConversation(
         projectId,
@@ -1586,7 +1608,11 @@ export default function ConversationCenter() {
         setNewlyAddedConversationId((prev) => (prev === newId ? null : prev));
       }, 260);
       navigate(
-        withAskSourceQuery(conversationRoutePath(projectId, newId), askFile),
+        withAskSourceQuery(
+          conversationRoutePath(projectId, newId),
+          askFile,
+          askChapter,
+        ),
         { replace: true },
       );
       return;
@@ -1696,6 +1722,7 @@ export default function ConversationCenter() {
     setQuoteDraft(null);
     if (!effectiveConversationId) {
       setReferencedSourceFiles([]);
+      setReferencedKnChapter(null);
       return;
     }
     const fromUrl =
@@ -1708,22 +1735,44 @@ export default function ConversationCenter() {
       peekPendingAskSourceFile(effectiveConversationId) ?? fromUrl;
     if (!pending) {
       setReferencedSourceFiles([]);
-      return;
+    } else {
+      storePendingAskSourceFile(effectiveConversationId, pending);
+      const found = projectSourceFiles.find((f) => f.id === pending.id);
+      setReferencedSourceFiles([
+        found ?? {
+          id: pending.id,
+          filename: pending.filename,
+          scope: "package",
+          conversationId: null,
+          mime: null,
+          createdAt: "",
+          chunkCount: 0,
+        },
+      ]);
     }
-    storePendingAskSourceFile(effectiveConversationId, pending);
-    const found = projectSourceFiles.find((f) => f.id === pending.id);
-    setReferencedSourceFiles([
-      found ?? {
-        id: pending.id,
-        filename: pending.filename,
-        scope: "package",
-        conversationId: null,
-        mime: null,
-        createdAt: "",
-        chunkCount: 0,
-      },
-    ]);
-    if (fromUrl && location.search.includes("sourceFile=")) {
+    const chapterFromUrl =
+      pendingAskChapterFromLocation(location.search, location.hash) ??
+      pendingAskChapterFromLocation(
+        typeof window !== "undefined" ? window.location.search : "",
+        typeof window !== "undefined" ? window.location.hash : "",
+      );
+    const pendingChapter =
+      peekPendingAskChapter(effectiveConversationId) ?? chapterFromUrl;
+    if (!pendingChapter) {
+      setReferencedKnChapter(null);
+    } else {
+      storePendingAskChapter(effectiveConversationId, pendingChapter);
+      setReferencedKnChapter(pendingChapter);
+      setDraftMessage((prev) =>
+        prev.trim()
+          ? prev
+          : knowledgeNetworkChapterAskDraft(pendingChapter.label),
+      );
+    }
+    if (
+      (fromUrl && location.search.includes("sourceFile=")) ||
+      (chapterFromUrl && location.search.includes("knSection="))
+    ) {
       navigate(location.pathname, { replace: true });
     }
     requestAnimationFrame(() => chatInputRef.current?.focus());
@@ -2479,7 +2528,7 @@ export default function ConversationCenter() {
 
     if (
       !effectiveConversationId ||
-      (!trimmed && fileNames.length === 0) ||
+      (!trimmed && fileNames.length === 0 && !referencedKnChapter) ||
       isCurrentConversationSending
     ) {
       return;
@@ -2495,8 +2544,21 @@ export default function ConversationCenter() {
     const displayText =
       quotePrefix +
       (trimmed ||
-        (fileNames.length > 0 ? `已发送 ${fileNames.length} 个文件` : ""));
-    const bodyWithoutQuote = trimmed
+        (fileNames.length > 0
+          ? `已发送 ${fileNames.length} 个文件`
+          : referencedKnChapter
+            ? knowledgeNetworkChapterAskDraft(referencedKnChapter.label).replace(
+                /：$/,
+                "",
+              )
+            : ""));
+    const knCite = referencedKnChapter
+      ? formatKnowledgeChapterCiteTag(
+          referencedKnChapter.id,
+          referencedKnChapter.label,
+        )
+      : "";
+    const bodyWithoutQuoteRaw = trimmed
       ? sourceNames.length > 0
         ? `${trimmed}\n\n【指定源文件】${sourceNames.join("、")}`
         : trimmed
@@ -2504,7 +2566,14 @@ export default function ConversationCenter() {
         ? buildMixedFileApiMessage(uploadNames, sourceNames)
         : uploadNames.length > 0
           ? buildFileUploadApiMessage(uploadNames)
-          : buildSourceFileApiMessage(sourceNames);
+          : sourceNames.length > 0
+            ? buildSourceFileApiMessage(sourceNames)
+            : "";
+    const bodyWithoutQuote = knCite
+      ? bodyWithoutQuoteRaw
+        ? `${bodyWithoutQuoteRaw}\n\n${knCite}`
+        : knCite
+      : bodyWithoutQuoteRaw;
     const apiMessage = quotePrefix + bodyWithoutQuote;
 
     const userMsgId = `user-${Date.now()}`;
@@ -2542,6 +2611,10 @@ export default function ConversationCenter() {
     setDraftMessage("");
     setSelectedFiles([]);
     setReferencedSourceFiles([]);
+    setReferencedKnChapter(null);
+    if (effectiveConversationId) {
+      clearPendingAskChapter(effectiveConversationId);
+    }
     setShowUploadPanel(false);
 
     if (!AI_CHAT_ENDPOINT) {
@@ -3581,7 +3654,9 @@ export default function ConversationCenter() {
             </div>
           ) : null}
 
-          {selectedFiles.length > 0 || referencedSourceFiles.length > 0 ? (
+          {selectedFiles.length > 0 ||
+          referencedSourceFiles.length > 0 ||
+          referencedKnChapter ? (
             <div className="mb-2 flex flex-wrap gap-1.5">
               {selectedFiles.map((f, idx) => (
                 <span
@@ -3625,6 +3700,28 @@ export default function ConversationCenter() {
                   </button>
                 </span>
               ))}
+              {referencedKnChapter ? (
+                <span className="inline-flex h-8 max-w-full items-center gap-1 rounded-lg border border-[hsl(var(--wine-deep)/0.2)] bg-[hsl(var(--wine-deep)/0.06)] pl-2.5 pr-1 text-[13px] text-[hsl(var(--wine-deep))]">
+                  <BookOpen className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                  <span className="min-w-0 truncate">
+                    知识网络 · {referencedKnChapter.label}
+                  </span>
+                  <button
+                    type="button"
+                    title="取消引用"
+                    onClick={() => {
+                      if (effectiveConversationId) {
+                        clearPendingAskChapter(effectiveConversationId);
+                      }
+                      setReferencedKnChapter(null);
+                    }}
+                    className={cn(chatIconBtn, "h-6 w-6")}
+                    aria-label="取消引用章节"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </span>
+              ) : null}
             </div>
           ) : null}
 
@@ -3746,7 +3843,8 @@ export default function ConversationCenter() {
                       : isCurrentConversationSending ||
                         (draftMessage.trim().length === 0 &&
                           selectedFiles.length === 0 &&
-                          referencedSourceFiles.length === 0)
+                          referencedSourceFiles.length === 0 &&
+                          !referencedKnChapter)
                   }
                   aria-label={
                     canStopCurrentTask
@@ -3770,7 +3868,8 @@ export default function ConversationCenter() {
                       : isCurrentConversationSending ||
                           draftMessage.trim().length > 0 ||
                           selectedFiles.length > 0 ||
-                          referencedSourceFiles.length > 0
+                          referencedSourceFiles.length > 0 ||
+                          Boolean(referencedKnChapter)
                         ? "bg-[hsl(var(--wine-deep))] text-[hsl(var(--wine-deep-foreground))] hover:bg-[hsl(353_38%_27%)] hover:text-[hsl(var(--wine-deep-foreground))]"
                         : "bg-muted text-muted-foreground/45 hover:bg-muted hover:text-muted-foreground/45",
                   )}
