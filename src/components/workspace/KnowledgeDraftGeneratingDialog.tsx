@@ -73,7 +73,7 @@ function finishedBody(opts: {
   if (reused) {
     return mode === "section"
       ? `「${chapterName}」已有待审核草案，未重新生成。要重来，请先放弃草案。`
-      : `没有重新生成。${DISCARD_THEN_REGENERATE_HINT}`;
+      : `未发布的还在草案里，已发布的正式章也不改。${DISCARD_THEN_REGENERATE_HINT}`;
   }
   return mode === "section"
     ? `「${chapterName}」已生成，可以去审核。`
