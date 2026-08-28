@@ -129,10 +129,7 @@ export function useJoinReviews(): {
   }, [reload]);
 
   const todoNotices = useMemo(
-    () =>
-      projectNotices.filter(
-        (n) => isNoticeTodoKind(n.kind) && !n.readAt?.trim(),
-      ),
+    () => projectNotices.filter((n) => isNoticeTodoKind(n.kind)),
     [projectNotices],
   );
   const activityNotices = useMemo(
