@@ -20,11 +20,16 @@ type KnowledgeDraftGeneratingDialogProps = {
   /** full = 全部章节；section = 单章 */
   mode?: "full" | "section";
   sectionLabel?: string;
+  /** 沿用了未发布草案，并未从头再生成 */
+  reused?: boolean;
   stopping?: boolean;
   onClose: () => void;
   onGoReview: () => void;
   onStop?: () => void;
 };
+
+export const DISCARD_THEN_REGENERATE_HINT =
+  "若要把全部章节重新生成一遍，请先进入审核并放弃当前草案，再点「更新全部」。";
 
 function formatElapsedMs(ms: number): string {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -36,6 +41,47 @@ function formatElapsedMs(ms: number): string {
   return `${s}秒`;
 }
 
+function finishedTitle(opts: {
+  failed: number;
+  done: number;
+  reused: boolean;
+}): string {
+  const { failed, done, reused } = opts;
+  if (failed > 0 && done - failed <= 0) return "草案生成失败";
+  if (failed > 0) return "草案部分就绪";
+  if (reused) return "沿用了待审核草案";
+  return "草案已准备就绪";
+}
+
+function finishedBody(opts: {
+  failed: number;
+  done: number;
+  total: number;
+  reused: boolean;
+  mode: "full" | "section";
+  chapterName: string;
+}): string {
+  const { failed, done, total, reused, mode, chapterName } = opts;
+  if (failed > 0 && done - failed > 0) {
+    const retry =
+      `已生成 ${done - failed}/${total} 章，${failed} 章失败。可去审核已成功的章节；再点「更新全部」会用最新资料重试失败章，已成功待审核的章会保留。`;
+    return reused ? `${retry} ${DISCARD_THEN_REGENERATE_HINT}` : retry;
+  }
+  if (failed > 0) {
+    return mode === "section"
+      ? `「${chapterName}」生成失败，可关闭后重试。`
+      : "章节生成失败。可关闭后重试。";
+  }
+  if (reused) {
+    return mode === "section"
+      ? `「${chapterName}」已有待审核草案，没有重新生成。若要重来，请先放弃当前草案后再更新本章。`
+      : `没有重新生成。未发布的章节仍在这份草案里，已发布的正式章也不会被覆盖。${DISCARD_THEN_REGENERATE_HINT}`;
+  }
+  return mode === "section"
+    ? `「${chapterName}」已生成，可以去审核。`
+    : "全部章节已生成，可以去审核。";
+}
+
 export function KnowledgeDraftGeneratingDialog({
   open,
   progress,
@@ -43,6 +89,7 @@ export function KnowledgeDraftGeneratingDialog({
   error,
   mode = "full",
   sectionLabel,
+  reused = false,
   stopping = false,
   onClose,
   onGoReview,
@@ -91,26 +138,21 @@ export function KnowledgeDraftGeneratingDialog({
             className="mt-2 font-[family-name:var(--font-serif,serif)] text-[22px] font-semibold leading-snug text-[#1F2423]"
           >
             {finished
-              ? failed > 0 && done - failed <= 0
-                ? "草案生成失败"
-                : failed > 0
-                  ? "草案部分就绪"
-                  : "草案已准备就绪"
+              ? finishedTitle({ failed, done, reused })
               : mode === "section"
                 ? `正在准备「${chapterName}」更新`
                 : "正在准备全部章节更新"}
           </h2>
           <p className="mt-2.5 text-[13px] leading-[1.7] text-[#59625F]">
             {finished
-              ? failed > 0 && done - failed > 0
-                ? `已生成 ${done - failed}/${total} 章，${failed} 章失败。可去审核已成功的章节；再点「更新全部」会用最新资料重试失败章，已成功待审核的章会保留。`
-                : failed > 0
-                  ? mode === "section"
-                    ? `「${chapterName}」生成失败，可关闭后重试。`
-                    : "章节生成失败。可关闭后重试。"
-                  : mode === "section"
-                    ? `「${chapterName}」已生成，可以去审核。`
-                    : "全部章节已生成，可以去审核。"
+              ? finishedBody({
+                  failed,
+                  done,
+                  total,
+                  reused,
+                  mode,
+                  chapterName,
+                })
               : mode === "section"
                 ? `正在生成「${chapterName}」。可关闭此窗口，完成后在审核页查看。`
                 : "正在生成全部章节。可关闭此窗口，完成后在审核页查看。"}
@@ -131,9 +173,7 @@ export function KnowledgeDraftGeneratingDialog({
                 <span className="text-[#A06358]">失败 {failed}</span>
               ) : (
                 <span className="text-[#59625F]">
-                  {finished
-                    ? "已完成"
-                    : "生成中"}
+                  {finished ? (reused ? "已沿用" : "已完成") : "生成中"}
                 </span>
               )}
             </div>

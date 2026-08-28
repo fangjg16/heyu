@@ -14,6 +14,7 @@ import { WorkspaceErrorBoundary } from "@/components/workspace/WorkspaceErrorBou
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import { cn } from "@/lib/utils";
 import {
+  DISCARD_THEN_REGENERATE_HINT,
   KnowledgeDraftGeneratingDialog,
   type DraftGeneratingProgress,
 } from "@/components/workspace/KnowledgeDraftGeneratingDialog";
@@ -237,6 +238,7 @@ function ProjectWorkspaceLayout() {
   const [draftSectionLabel, setDraftSectionLabel] = useState("");
   const [draftRunId, setDraftRunId] = useState<string | null>(null);
   const [draftDialogError, setDraftDialogError] = useState<string | null>(null);
+  const [draftDialogReused, setDraftDialogReused] = useState(false);
   const [draftStopping, setDraftStopping] = useState(false);
   const [knowledgeRefreshKey, setKnowledgeRefreshKey] = useState(0);
   const [allChaptersNotice, setAllChaptersNotice] = useState<string | null>(
@@ -445,6 +447,7 @@ function ProjectWorkspaceLayout() {
     setOverviewError(null);
     setAllChaptersNotice(null);
     setDraftDialogError(null);
+    setDraftDialogReused(false);
     setDraftRunId(null);
     setDraftDialogMode("section");
     setDraftSectionLabel(label);
@@ -477,6 +480,7 @@ function ProjectWorkspaceLayout() {
           (i) => i.sectionId === "project-overview",
         );
         const ok = item?.status === "ok" || item?.hasHtml;
+        setDraftDialogReused(Boolean(ok));
         setAllChaptersProgress({
           done: 1,
           total: 1,
@@ -490,7 +494,9 @@ function ProjectWorkspaceLayout() {
             "已有概览草案但生成失败，请放弃后重试，或进入审核查看。",
           );
         } else {
-          setAllChaptersNotice("已有待审核的项目概览草案，可直接进入审核。");
+          setAllChaptersNotice(
+            `已有待审核的项目概览草案，没有重新生成。可直接进入审核。若要重来，请先放弃当前草案后再更新概览。`,
+          );
         }
         return;
       }
@@ -582,7 +588,7 @@ function ProjectWorkspaceLayout() {
         setDraftDialogOpen(false);
         setOverviewError(null);
         setAllChaptersNotice(
-          `${e.message} 可直接继续审核未完成的草案。`,
+          `${e.message} 可直接继续审核未完成的草案。${DISCARD_THEN_REGENERATE_HINT}`,
         );
         setAllChaptersProgress(null);
       } else {
@@ -610,6 +616,7 @@ function ProjectWorkspaceLayout() {
     setOverviewError(null);
     setAllChaptersNotice(null);
     setDraftDialogError(null);
+    setDraftDialogReused(false);
     persistFailedChapterIds([]);
     setDraftRunId(null);
     setDraftDialogMode("full");
@@ -643,6 +650,7 @@ function ProjectWorkspaceLayout() {
           (i) => i.status === "failed" || i.status === "pending",
         );
         if (!needsRetry) {
+          setDraftDialogReused(true);
           const done = created.run.progressDone || total;
           const failed = created.run.failedCount || 0;
           setAllChaptersProgress({
@@ -652,7 +660,9 @@ function ProjectWorkspaceLayout() {
             elapsedMs: Date.now() - startedAt,
             phase: "done",
           });
-          setAllChaptersNotice("已有待审核草案，可直接进入审核。");
+          setAllChaptersNotice(
+            `已有待审核草案，没有重新生成。可直接进入审核。${DISCARD_THEN_REGENERATE_HINT}`,
+          );
           return;
         }
       }
@@ -734,7 +744,7 @@ function ProjectWorkspaceLayout() {
         setDraftDialogOpen(false);
         setOverviewError(null);
         setAllChaptersNotice(
-          `${e.message} 可直接继续审核未完成的草案。`,
+          `${e.message} 可直接继续审核未完成的草案。${DISCARD_THEN_REGENERATE_HINT}`,
         );
         setAllChaptersProgress(null);
       } else {
@@ -824,7 +834,7 @@ function ProjectWorkspaceLayout() {
               <p>
                 {allChaptersNotice ??
                   (persistedActiveRunId
-                    ? "本项目有未完成的章节更新草案，可继续审核或发布剩余章节。"
+                    ? "本项目有未完成的章节更新草案，可继续审核或发布剩余章节。若要把全部章节重新生成一遍，请先进入审核并放弃当前草案，再点「更新全部」。"
                     : "更新草案已就绪，可进入审核对照差异并发布。")}
               </p>
               {resumeRunId ? (
@@ -894,6 +904,7 @@ function ProjectWorkspaceLayout() {
         error={draftDialogError}
         mode={draftDialogMode}
         sectionLabel={draftSectionLabel}
+        reused={draftDialogReused}
         onClose={() => setDraftDialogOpen(false)}
         onGoReview={goDraftReview}
         stopping={draftStopping}

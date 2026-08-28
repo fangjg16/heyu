@@ -5,6 +5,7 @@ import { RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import {
+  DISCARD_THEN_REGENERATE_HINT,
   KnowledgeDraftGeneratingDialog,
   type DraftGeneratingProgress,
 } from "@/components/workspace/KnowledgeDraftGeneratingDialog";
@@ -171,6 +172,7 @@ export function ProjectKnowledgeNetworkSection({
   const [draftProgress, setDraftProgress] =
     useState<DraftGeneratingProgress | null>(null);
   const [draftSectionLabel, setDraftSectionLabel] = useState("");
+  const [draftDialogReused, setDraftDialogReused] = useState(false);
 
   const [html, setHtml] = useState<string | null>(null);
   const [questionsHtml, setQuestionsHtml] = useState<string | null>(null);
@@ -634,6 +636,7 @@ export function ProjectKnowledgeNetworkSection({
     setBusyBySection((m) => ({ ...m, [targetSectionId]: "generate" }));
     setError(null);
     setDraftDialogError(null);
+    setDraftDialogReused(false);
     setDraftRunId(null);
     setDraftSectionLabel(targetLabel);
     setDraftDialogOpen(true);
@@ -663,6 +666,7 @@ export function ProjectKnowledgeNetworkSection({
       if (created.reused && created.run.status === "ready") {
         const item = created.items.find((i) => i.sectionId === targetSectionId);
         const ok = item?.status === "ok" || item?.hasHtml;
+        setDraftDialogReused(Boolean(ok));
         setDraftProgress({
           done: 1,
           total: 1,
@@ -754,7 +758,7 @@ export function ProjectKnowledgeNetworkSection({
         setDraftRunId(e.activeRunId);
         setDraftDialogOpen(false);
         setError(
-          `${e.message} 请点击顶栏提示中的「继续审核草案」，或前往系统管理 → 审核。`,
+          `${e.message} 请点击顶栏提示中的「继续审核草案」，或前往系统管理 → 审核。${DISCARD_THEN_REGENERATE_HINT}`,
         );
         setDraftProgress(null);
       } else {
@@ -1556,6 +1560,7 @@ export function ProjectKnowledgeNetworkSection({
         error={draftDialogError}
         mode="section"
         sectionLabel={draftSectionLabel}
+        reused={draftDialogReused}
         onClose={() => setDraftDialogOpen(false)}
         onGoReview={goDraftReview}
         stopping={draftStopping}
@@ -1583,7 +1588,10 @@ export function ProjectKnowledgeNetworkSection({
                     确认更新全部章节
                   </h3>
                   <p className="mt-2 text-[12.5px] leading-relaxed text-[#59625F]">
-                    将更新全部章节，可能需要几分钟。若已有未发布草案：已成功的章节会保留待审核，失败的章节会用最新资料重试。若要整份重来，请先放弃当前草案。
+                    将更新全部章节，可能需要几分钟。若已有未发布草案：已成功的章节会保留待审核，失败的章节会用最新资料重试，已发布的正式章不会被覆盖。
+                  </p>
+                  <p className="mt-2 text-[12.5px] leading-relaxed text-[#1F2423]">
+                    {DISCARD_THEN_REGENERATE_HINT}
                   </p>
                 </div>
                 <div className="flex justify-end gap-2 px-5 py-3">

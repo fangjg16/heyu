@@ -695,7 +695,7 @@ export default function KnowledgeChapterDraftReviewPage() {
 
   const onDiscard = async () => {
     if (!canUpdate || busy) return;
-    if (!window.confirm("确定放弃本草案？正式章节内容不会改变。")) return;
+    if (!window.confirm("确定放弃本草案？正式章节内容不会改变。放弃后可再次「更新全部」，全部章节会按最新资料重新生成。")) return;
     setBusy("discard");
     setError(null);
     try {
@@ -1535,6 +1535,11 @@ export default function KnowledgeChapterDraftReviewPage() {
                   >
                     {busy === "discard" ? "处理中…" : "放弃草案"}
                   </button>
+                  {canUpdate ? (
+                    <p className="mt-2 text-center text-[11.5px] leading-relaxed text-[#969E9A]">
+                      放弃后可再点「更新全部」，全部章节会重新生成；已发布的正式章在放弃时不会改变。
+                    </p>
+                  ) : null}
                 </div>
               ) : (
                 <div className="flex h-full min-h-[12rem] flex-col items-center gap-2 py-3">
