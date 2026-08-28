@@ -5,6 +5,7 @@ import { RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import {
+  DISCARD_THEN_REGENERATE_HINT,
   KnowledgeDraftGeneratingDialog,
   type DraftGeneratingProgress,
 } from "@/components/workspace/KnowledgeDraftGeneratingDialog";
@@ -13,10 +14,12 @@ import {
   DraftRunDiscardedError,
   createChapterDraftRun,
   discardChapterDraftRun,
+  fetchActiveChapterDraftRun,
   fetchKnowledgeChapterVersion,
   fetchOverviewVersion,
   fetchProjectKnowledgeChapter,
   listKnowledgeChapterVersions,
+  listProjectKnowledgeChapters,
   reviseProjectKnowledgeChapter,
   rollbackKnowledgeChapterVersion,
   waitForDraftRunSettled,
@@ -93,6 +96,35 @@ const CHAPTER_GROUPS: ChapterGroup[] = [
   },
 ];
 
+const RESEARCH_SECTION_IDS = CHAPTER_GROUPS.flatMap((g) =>
+  g.sections.map((s) => s.id),
+);
+const RESEARCH_CHAPTER_COUNT = RESEARCH_SECTION_IDS.length;
+
+function allChaptersConfirmText(input: {
+  loading: boolean;
+  hasDraft: boolean;
+  published: number;
+  failed: number;
+  total: number;
+}): string {
+  if (input.loading) return "正在查看当前进度…";
+  const pending = Math.max(0, input.total - input.published);
+  if (input.hasDraft && input.published > 0 && pending > 0) {
+    return `${input.published} 章已发布、${pending} 章还在草案里。已发布的正式章不会改。`;
+  }
+  if (input.hasDraft && input.failed > 0) {
+    return `将重试失败的 ${input.failed} 章，已成功待审核的会保留。`;
+  }
+  if (input.hasDraft) {
+    return `已有待审核草案，不会重新生成。${DISCARD_THEN_REGENERATE_HINT}`;
+  }
+  if (input.published > 0) {
+    return "将生成新的全部章节草案。已发布的正式章在发布前不会改变。";
+  }
+  return "将更新全部章节，可能需要几分钟。";
+}
+
 function resolveSectionLocation(sectionRaw: string | null): {
   groupId: string;
   sectionId: string;
@@ -136,7 +168,7 @@ type ProjectKnowledgeNetworkSectionProps = {
   allChaptersBusy?: boolean;
   overviewBusy?: boolean;
   canUpdateAllChapters?: boolean;
-  onUpdateAllChapters?: () => void;
+  onUpdateAllChapters?: (regen?: "unpublished" | "all-drafts") => void;
 };
 
 export function ProjectKnowledgeNetworkSection({
@@ -171,6 +203,7 @@ export function ProjectKnowledgeNetworkSection({
   const [draftProgress, setDraftProgress] =
     useState<DraftGeneratingProgress | null>(null);
   const [draftSectionLabel, setDraftSectionLabel] = useState("");
+  const [draftDialogReused, setDraftDialogReused] = useState(false);
 
   const [html, setHtml] = useState<string | null>(null);
   const [questionsHtml, setQuestionsHtml] = useState<string | null>(null);
@@ -224,6 +257,10 @@ export function ProjectKnowledgeNetworkSection({
   const [liveEditBusy, setLiveEditBusy] = useState(false);
   const chapterPaneRef = useRef<HTMLDivElement>(null);
   const [allChaptersConfirm, setAllChaptersConfirm] = useState(false);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [confirmHasDraft, setConfirmHasDraft] = useState(false);
+  const [confirmPublished, setConfirmPublished] = useState(0);
+  const [confirmFailed, setConfirmFailed] = useState(0);
   useBodyScrollLock(allChaptersConfirm);
 
   const flatSections = useMemo(
@@ -634,6 +671,7 @@ export function ProjectKnowledgeNetworkSection({
     setBusyBySection((m) => ({ ...m, [targetSectionId]: "generate" }));
     setError(null);
     setDraftDialogError(null);
+    setDraftDialogReused(false);
     setDraftRunId(null);
     setDraftSectionLabel(targetLabel);
     setDraftDialogOpen(true);
@@ -663,6 +701,7 @@ export function ProjectKnowledgeNetworkSection({
       if (created.reused && created.run.status === "ready") {
         const item = created.items.find((i) => i.sectionId === targetSectionId);
         const ok = item?.status === "ok" || item?.hasHtml;
+        setDraftDialogReused(Boolean(ok));
         setDraftProgress({
           done: 1,
           total: 1,
@@ -847,6 +886,31 @@ export function ProjectKnowledgeNetworkSection({
     setSectionId("questions");
   };
 
+  const openAllChaptersConfirm = async () => {
+    setAllChaptersConfirm(true);
+    setConfirmLoading(true);
+    setConfirmHasDraft(false);
+    setConfirmPublished(0);
+    setConfirmFailed(0);
+    try {
+      const [active, live] = await Promise.all([
+        fetchActiveChapterDraftRun(projectId, userId).catch(() => null),
+        listProjectKnowledgeChapters(projectId, userId).catch(() => null),
+      ]);
+      const researchIds = new Set(RESEARCH_SECTION_IDS);
+      const published = live?.chapters
+        ? live.chapters.filter((c) => researchIds.has(c.sectionId) && c.hasHtml)
+            .length
+        : 0;
+      setConfirmHasDraft(Boolean(active?.runId));
+      setConfirmPublished(published);
+      setConfirmFailed(Number(active?.failedCount ?? 0));
+      if (active?.runId) setDraftRunId(active.runId);
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
   return (
     <section className="mt-1" aria-labelledby="project-knowledge-heading">
       <h3 id="project-knowledge-heading" className="sr-only">
@@ -877,7 +941,7 @@ export function ProjectKnowledgeNetworkSection({
         {canUpdateAllChapters || canUpdate ? (
           <button
             type="button"
-            onClick={() => setAllChaptersConfirm(true)}
+            onClick={() => void openAllChaptersConfirm()}
             disabled={
               !canUpdateAllChapters ||
               allChaptersBusy ||
@@ -1556,6 +1620,7 @@ export function ProjectKnowledgeNetworkSection({
         error={draftDialogError}
         mode="section"
         sectionLabel={draftSectionLabel}
+        reused={draftDialogReused}
         onClose={() => setDraftDialogOpen(false)}
         onGoReview={goDraftReview}
         stopping={draftStopping}
@@ -1583,10 +1648,16 @@ export function ProjectKnowledgeNetworkSection({
                     确认更新全部章节
                   </h3>
                   <p className="mt-2 text-[12.5px] leading-relaxed text-[#59625F]">
-                    将更新全部章节，可能需要几分钟。确定开始？
+                    {allChaptersConfirmText({
+                      loading: confirmLoading,
+                      hasDraft: confirmHasDraft,
+                      published: confirmPublished,
+                      failed: confirmFailed,
+                      total: RESEARCH_CHAPTER_COUNT,
+                    })}
                   </p>
                 </div>
-                <div className="flex justify-end gap-2 px-5 py-3">
+                <div className="flex flex-col-reverse gap-2 px-5 py-3 sm:flex-row sm:flex-wrap sm:justify-end">
                   <button
                     type="button"
                     onClick={() => setAllChaptersConfirm(false)}
@@ -1594,16 +1665,73 @@ export function ProjectKnowledgeNetworkSection({
                   >
                     取消
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAllChaptersConfirm(false);
-                      onUpdateAllChapters?.();
-                    }}
-                    className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
-                  >
-                    开始更新全部章节
-                  </button>
+                  {confirmLoading ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      请稍候…
+                    </button>
+                  ) : confirmHasDraft &&
+                    confirmPublished > 0 &&
+                    RESEARCH_CHAPTER_COUNT - confirmPublished > 0 ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAllChaptersConfirm(false);
+                          onUpdateAllChapters?.("all-drafts");
+                        }}
+                        className="rounded-full border border-[rgba(78,66,57,0.14)] px-4 py-2 text-xs font-semibold text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]"
+                      >
+                        更新全部草案
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAllChaptersConfirm(false);
+                          onUpdateAllChapters?.("unpublished");
+                        }}
+                        className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+                      >
+                        更新未发布草案
+                      </button>
+                    </>
+                  ) : confirmHasDraft && confirmFailed > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAllChaptersConfirm(false);
+                        onUpdateAllChapters?.();
+                      }}
+                      className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+                    >
+                      重试失败
+                    </button>
+                  ) : confirmHasDraft ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAllChaptersConfirm(false);
+                        goDraftReview();
+                      }}
+                      className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+                    >
+                      前往审核
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAllChaptersConfirm(false);
+                        onUpdateAllChapters?.();
+                      }}
+                      className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+                    >
+                      开始更新全部章节
+                    </button>
+                  )}
                 </div>
               </div>
             </div>,

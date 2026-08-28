@@ -14,6 +14,7 @@ import { WorkspaceErrorBoundary } from "@/components/workspace/WorkspaceErrorBou
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import { cn } from "@/lib/utils";
 import {
+  DISCARD_THEN_REGENERATE_HINT,
   KnowledgeDraftGeneratingDialog,
   type DraftGeneratingProgress,
 } from "@/components/workspace/KnowledgeDraftGeneratingDialog";
@@ -237,6 +238,10 @@ function ProjectWorkspaceLayout() {
   const [draftSectionLabel, setDraftSectionLabel] = useState("");
   const [draftRunId, setDraftRunId] = useState<string | null>(null);
   const [draftDialogError, setDraftDialogError] = useState<string | null>(null);
+  const [draftDialogReused, setDraftDialogReused] = useState(false);
+  const [draftDialogRegen, setDraftDialogRegen] = useState<
+    "unpublished" | "all-drafts" | null
+  >(null);
   const [draftStopping, setDraftStopping] = useState(false);
   const [knowledgeRefreshKey, setKnowledgeRefreshKey] = useState(0);
   const [allChaptersNotice, setAllChaptersNotice] = useState<string | null>(
@@ -445,6 +450,8 @@ function ProjectWorkspaceLayout() {
     setOverviewError(null);
     setAllChaptersNotice(null);
     setDraftDialogError(null);
+    setDraftDialogReused(false);
+    setDraftDialogRegen(null);
     setDraftRunId(null);
     setDraftDialogMode("section");
     setDraftSectionLabel(label);
@@ -477,6 +484,7 @@ function ProjectWorkspaceLayout() {
           (i) => i.sectionId === "project-overview",
         );
         const ok = item?.status === "ok" || item?.hasHtml;
+        setDraftDialogReused(Boolean(ok));
         setAllChaptersProgress({
           done: 1,
           total: 1,
@@ -581,9 +589,7 @@ function ProjectWorkspaceLayout() {
         setPersistedActiveRunId(e.activeRunId);
         setDraftDialogOpen(false);
         setOverviewError(null);
-        setAllChaptersNotice(
-          `${e.message} 可直接继续审核未完成的草案。`,
-        );
+        setAllChaptersNotice(`${e.message} 可直接继续审核未完成的草案。`);
         setAllChaptersProgress(null);
       } else {
         const message = normalizeGenerateError(e);
@@ -601,7 +607,7 @@ function ProjectWorkspaceLayout() {
     }
   };
 
-  const onUpdateAllChapters = async () => {
+  const onUpdateAllChapters = async (regen?: "unpublished" | "all-drafts") => {
     if (!canUpdateOverview || allChaptersBusy || overviewBusy) return;
     const total = ALL_RESEARCH_CHAPTERS.length;
     const startedAt = Date.now();
@@ -610,6 +616,8 @@ function ProjectWorkspaceLayout() {
     setOverviewError(null);
     setAllChaptersNotice(null);
     setDraftDialogError(null);
+    setDraftDialogReused(false);
+    setDraftDialogRegen(regen ?? null);
     persistFailedChapterIds([]);
     setDraftRunId(null);
     setDraftDialogMode("full");
@@ -633,23 +641,32 @@ function ProjectWorkspaceLayout() {
     try {
       const created = await createChapterDraftRun(project.id, userId, {
         scope: "full",
+        regen,
       });
       runId = created.run.id;
       setDraftRunId(runId);
 
-      // 已有可审核草案：不再重跑生成
+      // 已有可审核草案：成功章保留；若有失败章则用最新资料重试，不装成「又跑完一轮」
       if (created.reused && created.run.status === "ready") {
-        const done = created.run.progressDone || total;
-        const failed = created.run.failedCount || 0;
-        setAllChaptersProgress({
-          done,
-          total: created.run.progressTotal || total,
-          failed,
-          elapsedMs: Date.now() - startedAt,
-          phase: "done",
-        });
-        setAllChaptersNotice("已有待审核草案，可直接进入审核。");
-        return;
+        const needsRetry = created.items.some(
+          (i) => i.status === "failed" || i.status === "pending",
+        );
+        if (!needsRetry) {
+          setDraftDialogReused(true);
+          const done = created.run.progressDone || total;
+          const failed = created.run.failedCount || 0;
+          setAllChaptersProgress({
+            done,
+            total: created.run.progressTotal || total,
+            failed,
+            elapsedMs: Date.now() - startedAt,
+            phase: "done",
+          });
+          setAllChaptersNotice(
+            `已有待审核草案，未重新生成。${DISCARD_THEN_REGENERATE_HINT}`,
+          );
+          return;
+        }
       }
 
       const sectionIds = ALL_RESEARCH_CHAPTERS.map((ch) => ch.id);
@@ -728,9 +745,7 @@ function ProjectWorkspaceLayout() {
         setPersistedActiveRunId(e.activeRunId);
         setDraftDialogOpen(false);
         setOverviewError(null);
-        setAllChaptersNotice(
-          `${e.message} 可直接继续审核未完成的草案。`,
-        );
+        setAllChaptersNotice(`${e.message} 可直接继续审核未完成的草案。`);
         setAllChaptersProgress(null);
       } else {
         const message = normalizeGenerateError(e);
@@ -850,7 +865,8 @@ function ProjectWorkspaceLayout() {
               allChaptersBusy,
               overviewBusy,
               canUpdateAllChapters: canUpdateOverview,
-              onUpdateAllChapters: () => void onUpdateAllChapters(),
+              onUpdateAllChapters: (regen?: "unpublished" | "all-drafts") =>
+                void onUpdateAllChapters(regen),
               updatingChapterIds,
               failedChapterIds,
               onChapterGenerateSucceeded,
@@ -888,7 +904,9 @@ function ProjectWorkspaceLayout() {
         runId={draftRunId}
         error={draftDialogError}
         mode={draftDialogMode}
+        regen={draftDialogRegen}
         sectionLabel={draftSectionLabel}
+        reused={draftDialogReused}
         onClose={() => setDraftDialogOpen(false)}
         onGoReview={goDraftReview}
         stopping={draftStopping}
@@ -941,7 +959,7 @@ function ProjectKnowledgeTab() {
     allChaptersBusy?: boolean;
     overviewBusy?: boolean;
     canUpdateAllChapters?: boolean;
-    onUpdateAllChapters?: () => void;
+    onUpdateAllChapters?: (regen?: "unpublished" | "all-drafts") => void;
   }>();
   return (
     <ProjectKnowledgeNetworkSection

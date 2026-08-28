@@ -1266,6 +1266,8 @@ export async function createChapterDraftRun(
     sectionId?: string;
     mode?: "generate" | "manual";
     html?: string;
+    /** 沿用草案时：unpublished=只重跑未上线章；all-drafts=全部草案重来（正式版不动） */
+    regen?: "unpublished" | "all-drafts";
   },
 ): Promise<CreateChapterDraftRunResponse> {
   const q = new URLSearchParams({ userId });
@@ -1279,6 +1281,7 @@ export async function createChapterDraftRun(
         sectionId: options?.sectionId,
         mode: options?.mode,
         html: options?.html,
+        regen: options?.regen,
       }),
     },
   );
