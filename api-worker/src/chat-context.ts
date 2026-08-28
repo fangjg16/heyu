@@ -31,6 +31,7 @@ import {
 } from "./search";
 import { getQueryEmbeddingCached } from "./query-embedding-cache";
 import type { EmbedEnv } from "./embeddings";
+import { buildCitedChapterExcerpt } from "./knowledge-network-chapter-cite";
 
 const FILE_ONLY_USER_PROMPT =
   /已发送\s*\d+\s*个文件|请基于资料继续|请阅读刚上传/u;
@@ -317,6 +318,22 @@ export async function prepareStandardChatContext(
     excerptBlock = dbProjectSummary;
   }
 
+  let citedChapterExcerpt: string | null = null;
+  try {
+    citedChapterExcerpt = await buildCitedChapterExcerpt(
+      env.DB,
+      projectId,
+      message,
+    );
+  } catch {
+    citedChapterExcerpt = null;
+  }
+  if (citedChapterExcerpt) {
+    excerptBlock = excerptBlock
+      ? `${citedChapterExcerpt}\n\n---\n\n${excerptBlock}`
+      : citedChapterExcerpt;
+  }
+
   const usedExternalSearch = externalResult.used;
   const externalBlock = externalResult.block;
 
@@ -327,14 +344,18 @@ export async function prepareStandardChatContext(
 
   const namedFilePrompt = namedFileTurn
     ? "用户本轮点名或附上了项目源文件（不一定是本对话新上传）。【资料摘录】中对应文件的正文或已解析摘要视为已经读到：必须据此作答，禁止声称无法访问、无法读取、文件不在资料包中或需要用户重传。若摘录含 URL，先列出链接；若有【外部检索】再整理网页要点。"
-    : "若【资料摘录】或【项目登记信息】中已有本项目资料包内容，必须基于其介绍项目背景与要点；禁止声称「没有看到任何项目资料」。";
+    : citedChapterExcerpt
+      ? "用户本轮引用了项目知识网络的某一章。【资料摘录】开头的【知识网络章节】视为已经读到：须优先据此作答，并说明依据来自该章；不要声称看不到知识网络。"
+      : "若【资料摘录】或【项目登记信息】中已有本项目资料包内容，必须基于其介绍项目背景与要点；禁止声称「没有看到任何项目资料」。";
 
   const systemParts = [
     ...websitePlatformIdentityLines(),
     "你是联合家办平台项目助手，服务机会型投资尽调场景。回答须综合三类依据：（1）【资料摘录】中的项目内事实；（2）若有【外部检索】则纳入公开网页信息；（3）为衔接上下文的行业/流程推论——须标明「推论」或「待核实」，不得冒充已核实事实。",
     "你不是「只能读上传 PDF」的机器人：项目内问题以摘录为主；公开信息、政策、市场动态在触发联网或摘录不足时，应结合外部检索或明确说明缺口与下一步（如建议用户说「查外部资料：…」）。",
     "用户可能使用项目简称；与摘录中明显同一项目时，应正常作答，勿因简称不同而拒绝。",
-    ...(overviewQuestion || hadPackageChunks || namedFileTurn ? [namedFilePrompt] : []),
+    ...(overviewQuestion || hadPackageChunks || namedFileTurn || citedChapterExcerpt
+      ? [namedFilePrompt]
+      : []),
     "引用规范：上传资料用 [ID:n]（仅可引用摘录中实际出现且下列存在的编号）；网页用 [WEB:n] 并附 URL；勿混用。",
     ...(chatMode === "standard"
       ? [

@@ -39,6 +39,11 @@ import {
 } from "@/lib/open-questions-parse";
 import { canPublishProjectKnowledgeNetwork, canUpdateProjectKnowledgeNetwork } from "@/workspace/project-manage";
 import {
+  canEnterChat,
+  getProjectRole,
+} from "@/workspace/workspace-users";
+import { chatAskAboutChapterPath } from "@/workspace/chat-ask-source";
+import {
   dismissIfBackdropClick,
   markBackdropPointerDown,
 } from "@/lib/backdrop-dismiss";
@@ -257,6 +262,7 @@ export function ProjectKnowledgeNetworkSection({
   const [liveEditBusy, setLiveEditBusy] = useState(false);
   const chapterPaneRef = useRef<HTMLDivElement>(null);
   const [allChaptersConfirm, setAllChaptersConfirm] = useState(false);
+  const [chatDeniedOpen, setChatDeniedOpen] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [confirmHasDraft, setConfirmHasDraft] = useState(false);
   const [confirmPublished, setConfirmPublished] = useState(0);
@@ -876,14 +882,24 @@ export function ProjectKnowledgeNetworkSection({
     }
   };
 
-  const focusChat = () => {
-    chatRef.current?.focus();
-  };
-
   const goToQuestions = () => {
     setView("chapters");
     setGroupId("risk");
     setSectionId("questions");
+  };
+
+  const onAskChapter = () => {
+    const role = getProjectRole(userId, projectId, project?.createdBy);
+    if (!canEnterChat(role)) {
+      setChatDeniedOpen(true);
+      return;
+    }
+    navigate(
+      chatAskAboutChapterPath(projectId, {
+        id: sectionId,
+        label: sectionLabel,
+      }),
+    );
   };
 
   const openAllChaptersConfirm = async () => {
@@ -961,44 +977,6 @@ export function ProjectKnowledgeNetworkSection({
 
       {view === "chapters" ? (
         <div className="space-y-3">
-          {canPublish ? (
-          <div className="flex items-end gap-2.5 rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.9)] p-3">
-            <textarea
-              ref={chatRef}
-              value={instruction}
-              onChange={(e) => setInstruction(e.target.value)}
-              rows={2}
-              disabled={
-                !hasHtml || !canPublish || sectionBusy !== null || liveEditing
-              }
-              placeholder={
-                hasHtml
-                  ? "输入对本节内容的改写指令，例如：把研究结论写得更简洁"
-                  : "请先「更新全部章节」生成后再改写"
-              }
-              className="min-h-[52px] flex-1 resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/80 px-3.5 py-2.5 text-[13px] leading-relaxed text-[#1F2423] outline-none placeholder:text-[#969E9A] focus:border-[rgba(160,99,88,0.35)] disabled:cursor-not-allowed disabled:opacity-60"
-            />
-            <button
-              type="button"
-              onClick={() => void onRevise()}
-              disabled={
-                !hasHtml ||
-                !canPublish ||
-                sectionBusy !== null ||
-                liveEditing ||
-                !instruction.trim()
-              }
-              className="h-10 shrink-0 rounded-[9px] bg-[#A06358] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#8F564C] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {sectionBusy === "revise" ? "改写中…" : "发送"}
-            </button>
-          </div>
-          ) : canUpdate ? (
-            <p className="rounded-xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.9)] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-[#59625F]">
-              更新本章会生成草案。改完后在审核页提交给项目管理员审批，不会直接改正式版。
-            </p>
-          ) : null}
-
           {error ? (
             <p className="rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
               {error}
@@ -1245,9 +1223,53 @@ export function ProjectKnowledgeNetworkSection({
                     </>
                   ) : null}
 
+                  {canPublish ? (
+                    <div className="mt-4">
+                      <div className="mb-1.5 text-[12px] text-[#59625F]">
+                        改写本章
+                      </div>
+                      <textarea
+                        ref={chatRef}
+                        value={instruction}
+                        onChange={(e) => setInstruction(e.target.value)}
+                        rows={3}
+                        disabled={
+                          !hasHtml ||
+                          !canPublish ||
+                          sectionBusy !== null ||
+                          liveEditing
+                        }
+                        placeholder={
+                          hasHtml
+                            ? "例如：把研究结论写得更简洁"
+                            : "请先生成本章后再改写"
+                        }
+                        className="min-h-[72px] w-full resize-y rounded-xl border border-[rgba(78,66,57,0.12)] bg-white/80 px-3 py-2 text-[12.5px] leading-relaxed text-[#1F2423] outline-none placeholder:text-[#969E9A] focus:border-[rgba(160,99,88,0.35)] disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void onRevise()}
+                        disabled={
+                          !hasHtml ||
+                          !canPublish ||
+                          sectionBusy !== null ||
+                          liveEditing ||
+                          !instruction.trim()
+                        }
+                        className="mt-2 h-9 w-full rounded-[9px] bg-[#A06358] text-[12px] font-medium text-white hover:bg-[#8F564C] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {sectionBusy === "revise" ? "改写中…" : "发送"}
+                      </button>
+                    </div>
+                  ) : canUpdate ? (
+                    <p className="mt-4 text-[12px] leading-relaxed text-[#59625F]">
+                      更新本章会生成草案。改完后在审核页提交给项目管理员审批，不会直接改正式版。
+                    </p>
+                  ) : null}
+
                   <button
                     type="button"
-                    onClick={focusChat}
+                    onClick={onAskChapter}
                     className="mt-4 h-9 w-full rounded-[9px] border border-[rgba(160,99,88,0.3)] bg-transparent text-[12px] font-medium text-[#A06358] transition-colors hover:bg-[#EFE7E6]"
                   >
                     围绕本章提问
@@ -1626,6 +1648,31 @@ export function ProjectKnowledgeNetworkSection({
         stopping={draftStopping}
         onStop={() => void onStopDraft()}
       />
+
+      {chatDeniedOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
+              role="dialog"
+              aria-modal="true"
+            >
+              <div className="w-full max-w-sm rounded-[14px] border border-[rgba(78,66,57,0.12)] bg-[hsl(var(--paper))] p-6 shadow-2xl">
+                <h2 className="text-base font-bold">无法进入对话</h2>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  当前项目权限不足，无法进入对话中心。
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setChatDeniedOpen(false)}
+                  className="mt-5 w-full rounded-xl bg-[hsl(var(--wine))] py-2.5 text-sm font-semibold text-white"
+                >
+                  知道了
+                </button>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
       {allChaptersConfirm && typeof document !== "undefined"
         ? createPortal(

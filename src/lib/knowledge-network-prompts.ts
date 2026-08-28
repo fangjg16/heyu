@@ -29,3 +29,20 @@ export const KNOWLEDGE_NETWORK_INITIAL_PROMPT =
 export type KnowledgeNetworkChatEntryState = {
   draftMessage?: string;
 };
+
+/** 对话输入框预填：用户接着写问题即可 */
+export function knowledgeNetworkChapterAskDraft(sectionLabel: string): string {
+  const label = sectionLabel.trim() || "本章";
+  return `请根据知识网络「${label}」这一章回答：`;
+}
+
+export const KN_CHAPTER_CITE_MARKER = "【指定知识网络章节】";
+
+export function formatKnowledgeChapterCiteTag(
+  sectionId: string,
+  label: string,
+): string {
+  const id = sectionId.trim();
+  const name = label.trim() || id;
+  return `${KN_CHAPTER_CITE_MARKER}${id}:${name}`;
+}

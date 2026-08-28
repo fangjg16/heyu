@@ -115,6 +115,11 @@ import {
   isKnowledgeNetworkStatusOnlyQuery,
   stripHtmlToPlainTextForSummary,
 } from "./knowledge-network-intent";
+import {
+  buildCitedChapterExcerpt,
+  parseCitedKnowledgeChapter,
+} from "./knowledge-network-chapter-cite";
+import { getProjectKnowledgeChapterHtml } from "./project-knowledge-chapters-db";
 import { checkKnowledgeNetworkPipelineReady } from "./knowledge-network-guards";
 import { KN_SLOT_BATCH_PLAN } from "./knowledge-network-slot-batch-types";
 import { resolveSlotBatchArchitecture } from "./knowledge-network-slot-batch-config";
@@ -1025,6 +1030,19 @@ async function handleChatViaHermes(
     }
   }
 
+  try {
+    const chapterExcerpt = await buildCitedChapterExcerpt(
+      env.DB,
+      params.projectId,
+      params.message,
+    );
+    if (chapterExcerpt) {
+      instructions += `\n\n${chapterExcerpt}\n（用户本轮引用了该知识网络章节，须优先据此作答。）`;
+    }
+  } catch {
+    /* 章节摘录失败不阻断 Hermes */
+  }
+
   if (usesFullPackageCorpus(params.chatMode)) {
     try {
       const digest = await buildHermesMaterialsDigest(
@@ -1603,6 +1621,7 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
   if (isKnowledgeNetworkReadQuery(message)) {
     let knMeta = null;
     let knHtml: string | null = null;
+    const citedChapter = parseCitedKnowledgeChapter(message);
     try {
       knMeta = await getProjectKnowledgeNetworkMeta(env, projectId);
       if (knMeta) {
@@ -1611,8 +1630,20 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
     } catch {
       /* 数据库 / 对象存储未就绪 */
     }
+    if (citedChapter) {
+      try {
+        const row = await getProjectKnowledgeChapterHtml(
+          env.DB,
+          projectId,
+          citedChapter.sectionId,
+        );
+        if (row?.html?.trim()) knHtml = row.html;
+      } catch {
+        /* 章节表未就绪时沿用整页 HTML */
+      }
+    }
 
-    if (isKnowledgeNetworkStatusOnlyQuery(message)) {
+    if (isKnowledgeNetworkStatusOnlyQuery(message) && !citedChapter) {
       const answer = buildKnowledgeNetworkMetaAnswerText(
         knMeta,
         projectTitleHint,
@@ -1632,12 +1663,14 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
       });
     }
 
-    if (!knMeta || !knHtml?.trim()) {
-      const answer = buildKnowledgeNetworkMetaAnswerText(
-        null,
-        projectTitleHint,
-        undefined,
-      );
+    if (!knHtml?.trim()) {
+      const answer = citedChapter
+        ? `知识网络「${citedChapter.label}」这一章尚无已发布正文。请先在 **项目详情 → 项目知识网络** 生成该章。`
+        : buildKnowledgeNetworkMetaAnswerText(
+            null,
+            projectTitleHint,
+            undefined,
+          );
       return json({
         answer,
         citationMap,
@@ -1650,6 +1683,12 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
       });
     }
 
+    const versionHint = knMeta
+      ? `已发布知识网络：v${knMeta.version}`
+      : citedChapter
+        ? `知识网络章节：${citedChapter.label}`
+        : "项目知识网络";
+
     try {
       const plain = stripHtmlToPlainTextForSummary(knHtml);
       const { answer: summary } = await callQwen(env, [
@@ -1658,16 +1697,20 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
           role: "user",
           content: [
             `项目：${projectTitleHint}`,
-            `已发布知识网络：v${knMeta.version}`,
+            versionHint,
             "",
             `用户问题：${message}`,
             "",
-            "【知识网络正文摘录】",
+            citedChapter
+              ? `【知识网络章节：${citedChapter.label}】`
+              : "【知识网络正文摘录】",
             plain,
           ].join("\n"),
         },
       ]);
-      const answer = `${summary.trim()}\n\n---\n基于已发布 **v${knMeta.version}** 摘录作答；完整 HTML 见 **项目详情 → 项目知识网络**（本条**不会**生成新版 HTML）。`;
+      const answer = knMeta
+        ? `${summary.trim()}\n\n---\n基于已发布 **v${knMeta.version}** 摘录作答；完整 HTML 见 **项目详情 → 项目知识网络**（本条**不会**生成新版 HTML）。`
+        : `${summary.trim()}\n\n---\n基于知识网络「${citedChapter?.label ?? "本章"}」摘录作答；完整内容见 **项目详情 → 项目知识网络**。`;
       return json({
         answer,
         citationMap,
@@ -1676,19 +1719,21 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
         chatMode: "standard",
         skillIntent: "standard",
         knowledgeNetworkReadQuery: true,
-        projectKnowledgeNetworkVersion: knMeta.version,
+        ...(knMeta ? { projectKnowledgeNetworkVersion: knMeta.version } : {}),
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       return json({
-        answer: `无法根据知识网络生成摘要（${msg}）。请在 **项目详情 → 项目知识网络** 查看 **v${knMeta.version}** 完整预览。`,
+        answer: knMeta
+          ? `无法根据知识网络生成摘要（${msg}）。请在 **项目详情 → 项目知识网络** 查看 **v${knMeta.version}** 完整预览。`
+          : `无法根据知识网络章节作答（${msg}）。请在 **项目详情 → 项目知识网络** 打开该章。`,
         citationMap,
         projectId,
         async: false,
         chatMode: "standard",
         skillIntent: "standard",
         knowledgeNetworkReadQuery: true,
-        projectKnowledgeNetworkVersion: knMeta.version,
+        ...(knMeta ? { projectKnowledgeNetworkVersion: knMeta.version } : {}),
       });
     }
   }
