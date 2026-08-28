@@ -67,6 +67,10 @@ export default function Notifications() {
     if (href) navigate(href);
   };
 
+  const onOpenReview = (href: string | null) => {
+    if (href) navigate(href);
+  };
+
   return (
     <WorkspaceShell>
       <div className="mx-auto max-w-[880px] px-8 py-10 md:px-12">
@@ -208,19 +212,12 @@ export default function Notifications() {
                               {item.href ? (
                                 <button
                                   type="button"
-                                  onClick={() => onOpenNotice([item.id], item.href)}
+                                  onClick={() => onOpenReview(item.href)}
                                   className="inline-flex h-8 items-center text-[13px] font-medium text-[#A06358] hover:underline"
                                 >
                                   去审核 →
                                 </button>
                               ) : null}
-                              <button
-                                type="button"
-                                onClick={() => void markRead([item.id])}
-                                className="inline-flex h-8 items-center text-[13px] text-[hsl(var(--warm-charcoal-muted))] hover:text-[#1F2423]"
-                              >
-                                知道了
-                              </button>
                             </div>
                           </div>
                         </div>

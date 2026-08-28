@@ -230,6 +230,38 @@ export async function getDraftRun(
   return row ? rowToDraftRun(row) : null;
 }
 
+export async function listDraftRunsByIds(
+  db: AppDatabase,
+  runIds: string[],
+): Promise<DraftRun[]> {
+  const unique = [...new Set(runIds.map((id) => id.trim()).filter(Boolean))];
+  if (unique.length === 0) return [];
+  const placeholders = unique.map(() => "?").join(", ");
+  const q = await db
+    .prepare(
+      `SELECT id, project_id, scope, status, base_version, progress_done,
+              progress_total, failed_count, created_by, created_at, updated_at, published_at
+       FROM project_knowledge_chapter_draft_runs
+       WHERE id IN (${placeholders})`,
+    )
+    .bind(...unique)
+    .all<{
+      id: string;
+      project_id: string;
+      scope: string;
+      status: string;
+      base_version: number;
+      progress_done: number;
+      progress_total: number;
+      failed_count: number;
+      created_by: string | null;
+      created_at: string;
+      updated_at: string;
+      published_at: string | null;
+    }>();
+  return (q.results ?? []).map(rowToDraftRun);
+}
+
 /** 跨项目：列出指定项目下 generating/ready 的草案 run */
 export async function listActiveDraftRunsForProjects(
   db: AppDatabase,

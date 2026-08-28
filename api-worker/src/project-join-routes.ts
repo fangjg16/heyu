@@ -16,6 +16,11 @@ import {
 } from "./project-join-db";
 import { listCollabItemsForProjects } from "./collab-db";
 import { listProjectNoticesForUser, markProjectNoticesRead } from "./project-notices-db";
+import {
+  isOpenKnDraftRunStatus,
+  knDraftRunIdFromHref,
+} from "./kn-draft-notice";
+import { listDraftRunsByIds } from "./project-knowledge-chapter-revisions-db";
 import { canManageProjectCollab, resolveProjectRole } from "./workspace-roles";
 import {
   getWorkspaceUserById,
@@ -262,18 +267,46 @@ export async function handleListMyJoinReviews(
     let projectNotices: Record<string, unknown>[] = [];
     try {
       const rows = await listProjectNoticesForUser(env.DB, userId, 80);
-      projectNotices = rows.map((n) => ({
-        id: n.id,
-        projectId: n.projectId,
-        projectName: byId.get(n.projectId)?.name ?? n.projectId,
-        actorUserId: n.actorUserId,
-        kind: n.kind,
-        title: n.title,
-        summary: n.summary,
-        href: n.href,
-        createdAt: n.createdAt,
-        readAt: n.readAt,
-      }));
+      const knRunIds = [
+        ...new Set(
+          rows
+            .filter((n) => n.kind === "kn_draft")
+            .map((n) => knDraftRunIdFromHref(n.href))
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ];
+      let openRunIds = new Set<string>();
+      if (knRunIds.length > 0) {
+        try {
+          const runs = await listDraftRunsByIds(env.DB, knRunIds);
+          openRunIds = new Set(
+            runs
+              .filter((r) => isOpenKnDraftRunStatus(r.status))
+              .map((r) => r.id),
+          );
+        } catch {
+          openRunIds = new Set(knRunIds);
+        }
+      }
+      projectNotices = rows
+        .filter((n) => {
+          if (n.kind !== "kn_draft") return true;
+          const runId = knDraftRunIdFromHref(n.href);
+          if (!runId) return true;
+          return openRunIds.has(runId);
+        })
+        .map((n) => ({
+          id: n.id,
+          projectId: n.projectId,
+          projectName: byId.get(n.projectId)?.name ?? n.projectId,
+          actorUserId: n.actorUserId,
+          kind: n.kind,
+          title: n.title,
+          summary: n.summary,
+          href: n.href,
+          createdAt: n.createdAt,
+          readAt: n.kind === "kn_draft" ? null : n.readAt,
+        }));
     } catch {
       projectNotices = [];
     }

@@ -220,7 +220,7 @@ function ProjectCard({
   return (
     <article
       className={cn(
-        "relative flex h-full min-h-0 flex-col overflow-hidden rounded-[20px] border border-[rgba(255,255,255,0.6)] bg-[rgba(255,252,248,0.76)] shadow-[0_10px_30px_rgba(102,80,60,0.08)] backdrop-blur-[18px] transition-shadow hover:shadow-[0_14px_36px_rgba(102,80,60,0.14)]"
+        "group relative flex h-full min-h-0 flex-col overflow-hidden rounded-[20px] border border-[rgba(255,255,255,0.6)] bg-[rgba(255,252,248,0.76)] shadow-[0_10px_30px_rgba(102,80,60,0.08)] backdrop-blur-[18px] transition-shadow hover:shadow-[0_14px_36px_rgba(102,80,60,0.14)]"
       )}
     >
       <div
@@ -234,8 +234,47 @@ function ProjectCard({
         >
           {mark}
         </span>
+        {canManage ? (
+          <div
+            className={cn(
+              "absolute right-3.5 top-3.5 z-[2] flex items-center rounded-lg bg-[rgba(255,252,248,0.9)] shadow-[0_2px_8px_rgba(102,80,60,0.1)] backdrop-blur-sm transition duration-200 ease-out",
+              "opacity-100 translate-x-0",
+              "[@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:translate-x-2 [@media(hover:hover)]:opacity-0",
+              "[@media(hover:hover)]:group-hover:pointer-events-auto [@media(hover:hover)]:group-hover:translate-x-0 [@media(hover:hover)]:group-hover:opacity-100",
+              "[@media(hover:hover)]:group-focus-within:pointer-events-auto [@media(hover:hover)]:group-focus-within:translate-x-0 [@media(hover:hover)]:group-focus-within:opacity-100",
+            )}
+          >
+            <button
+              type="button"
+              title="编辑项目"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit?.();
+              }}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[hsl(var(--warm-charcoal-muted))] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              title="删除项目"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete?.();
+              }}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[hsl(var(--warm-charcoal-muted))] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : null}
         <div className="relative min-w-0">
-          <div className="flex min-w-0 flex-nowrap items-center gap-1.5">
+          <div
+            className={cn(
+              "flex min-w-0 flex-nowrap items-center gap-1.5",
+              canManage && "[@media(hover:none)]:pr-14",
+            )}
+          >
             <p
               className="min-w-0 flex-1 truncate text-[11px] tracking-[0.12em] text-[hsl(var(--wine))]"
               title={displayIndustryCategory(project.category) || "投研项目"}
@@ -260,32 +299,6 @@ function ProjectCard({
             >
               {roleLabel}
             </span>
-            {canManage ? (
-              <div className="-mr-1.5 flex shrink-0 items-center">
-                <button
-                  type="button"
-                  title="编辑项目"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEdit?.();
-                  }}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[hsl(var(--warm-charcoal-muted))] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  title="删除项目"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete?.();
-                  }}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[hsl(var(--warm-charcoal-muted))] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ) : null}
           </div>
           <h2 className="mt-1.5 line-clamp-2 min-h-[2.75em] font-display text-[19px] font-semibold leading-snug text-[hsl(var(--warm-charcoal))]">
             {project.name}

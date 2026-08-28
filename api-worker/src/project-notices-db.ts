@@ -157,6 +157,7 @@ export async function markProjectNoticesRead(
         `UPDATE project_notices
          SET read_at = ?
          WHERE recipient_user_id = ?
+           AND kind <> 'kn_draft'
            AND id IN (${placeholders})
            AND (read_at IS NULL OR TRIM(read_at) = '')`,
       )
