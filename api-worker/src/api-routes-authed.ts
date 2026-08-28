@@ -71,6 +71,7 @@ import {
   handleListMyJoinRequests,
   handleListMyJoinReviews,
   handleListProjectJoinRequests,
+  handleMarkMyNoticesRead,
   handleReviewJoinRequest,
 } from "./project-join-routes";
 import { handleListMyOpenQuestions } from "./open-questions-routes";
@@ -568,6 +569,16 @@ export async function routeAuthedApi(
 
   if (path === "/api/me/join-reviews" && request.method === "GET") {
     return handleListMyJoinReviews(env, authUserId);
+  }
+
+  if (path === "/api/me/notices/read" && request.method === "POST") {
+    let body: unknown = {};
+    try {
+      body = await request.json();
+    } catch {
+      body = {};
+    }
+    return handleMarkMyNoticesRead(env, authUserId, body);
   }
 
   if (path === "/api/me/open-questions" && request.method === "GET") {

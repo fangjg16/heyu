@@ -414,6 +414,7 @@ export type ProjectNoticeItem = {
   summary: string;
   href: string | null;
   createdAt: string;
+  readAt: string | null;
 };
 
 export type InboxPayload = {
@@ -472,8 +473,24 @@ export async function fetchMyInbox(): Promise<InboxPayload> {
       summary: n.summary ?? "",
       href: n.href ?? null,
       createdAt: n.createdAt ?? "",
+      readAt: n.readAt ?? null,
     })),
   };
+}
+
+export async function markMyNoticesRead(ids: string[]): Promise<void> {
+  if (!apiBaseFromChatEndpoint(AI_CHAT_ENDPOINT)) return;
+  const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+  if (unique.length === 0) return;
+  const res = await jfoFetch("/api/me/notices/read", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids: unique }),
+  });
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) {
+    throw new Error(data.error || `标记已读失败（${res.status}）`);
+  }
 }
 
 export async function fetchMyJoinReviews(): Promise<ProjectJoinRequest[]> {

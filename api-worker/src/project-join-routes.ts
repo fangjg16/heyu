@@ -15,7 +15,7 @@ import {
   deletePendingJoinRequestByApplicant,
 } from "./project-join-db";
 import { listCollabItemsForProjects } from "./collab-db";
-import { listProjectNoticesForUser } from "./project-notices-db";
+import { listProjectNoticesForUser, markProjectNoticesRead } from "./project-notices-db";
 import { canManageProjectCollab, resolveProjectRole } from "./workspace-roles";
 import {
   getWorkspaceUserById,
@@ -261,7 +261,7 @@ export async function handleListMyJoinReviews(
 
     let projectNotices: Record<string, unknown>[] = [];
     try {
-      const rows = await listProjectNoticesForUser(env.DB, userId, 40);
+      const rows = await listProjectNoticesForUser(env.DB, userId, 80);
       projectNotices = rows.map((n) => ({
         id: n.id,
         projectId: n.projectId,
@@ -272,6 +272,7 @@ export async function handleListMyJoinReviews(
         summary: n.summary,
         href: n.href,
         createdAt: n.createdAt,
+        readAt: n.readAt,
       }));
     } catch {
       projectNotices = [];
@@ -287,6 +288,31 @@ export async function handleListMyJoinReviews(
         projectNotices: [],
       });
     }
+    throw e;
+  }
+}
+
+/** POST /api/me/notices/read  { ids: string[] } */
+export async function handleMarkMyNoticesRead(
+  env: Env,
+  authUserId: string,
+  body: unknown,
+): Promise<Response> {
+  const userId = normalizeUserId(authUserId);
+  if (!userId) return json({ error: "未登录" }, 401);
+  const idsRaw =
+    body && typeof body === "object" && "ids" in body
+      ? (body as { ids?: unknown }).ids
+      : null;
+  const ids = Array.isArray(idsRaw)
+    ? idsRaw.filter((id): id is string => typeof id === "string")
+    : [];
+  if (ids.length === 0) return json({ error: "ids 必填" }, 400);
+  try {
+    const updated = await markProjectNoticesRead(env.DB, userId, ids);
+    return json({ ok: true, updated });
+  } catch (e) {
+    if (isMissingJoinTable(e)) return json({ ok: true, updated: 0 });
     throw e;
   }
 }

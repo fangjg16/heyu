@@ -242,7 +242,7 @@ export function WorkspaceTopBar({
           "relative text-[hsl(var(--warm-charcoal-muted))] transition-colors hover:text-[hsl(var(--wine))]",
           notifActive && "text-[hsl(var(--wine))]",
         )}
-        aria-label="通知"
+        aria-label={pendingCount > 0 ? `通知，${pendingCount} 条待办` : "通知"}
       >
         <Bell className="h-[22px] w-[22px]" strokeWidth={1.8} />
         {pendingCount > 0 ? (
