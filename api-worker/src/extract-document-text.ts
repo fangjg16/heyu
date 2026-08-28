@@ -288,6 +288,7 @@ async function extractPdf(
     fileName,
     fetchImpl: opts.fetchImpl,
     maxPages: local.totalPages > 0 ? local.totalPages : undefined,
+    pageCount: local.totalPages > 0 ? local.totalPages : undefined,
   });
   if (!ocr.ok || !ocr.text.trim()) {
     return {
