@@ -98,13 +98,13 @@ function prettyMemberName(displayName: string): string {
 
 const PHASE_BADGE_CLASS: Record<ProjectPhase, string> = {
   进行中:
-    "rounded-sm border border-[hsl(145_18%_78%)] bg-[hsl(145_22%_93%)] text-[hsl(145_24%_30%)]",
+    "border-[hsl(145_18%_78%)] bg-[hsl(145_22%_93%)] text-[hsl(145_24%_30%)]",
   已完成:
-    "rounded-sm border border-[hsl(var(--wine-deep)/0.35)] bg-[hsl(var(--wine-muted)/0.55)] text-[hsl(var(--wine-deep))]",
+    "border-[hsl(var(--wine-deep)/0.35)] bg-[hsl(var(--wine-muted)/0.55)] text-[hsl(var(--wine-deep))]",
   已暂停:
-    "rounded-sm border border-[hsl(var(--terracotta)/0.38)] bg-[hsl(32_26%_93%)] text-[hsl(22_28%_38%)]",
+    "border-[hsl(var(--terracotta)/0.38)] bg-[hsl(32_26%_93%)] text-[hsl(22_28%_38%)]",
   已归档:
-    "rounded-sm border border-[hsl(var(--sand))] bg-[hsl(var(--warm-charcoal)/0.06)] text-[hsl(var(--warm-charcoal-muted))]",
+    "border-[hsl(var(--sand))] bg-[hsl(var(--warm-charcoal)/0.06)] text-[hsl(var(--warm-charcoal-muted))]",
 };
 
 function phaseChipText(phase: ProjectPhase | undefined): string {
@@ -234,61 +234,62 @@ function ProjectCard({
         >
           {mark}
         </span>
-        <div className="relative flex items-start gap-3">
-          <div className="min-w-0 flex-1 pr-10">
-            <p className="truncate text-[11px] tracking-[0.12em] text-[hsl(var(--wine))]">
+        <div className="relative min-w-0">
+          <div className="flex min-w-0 flex-nowrap items-center gap-1.5">
+            <p
+              className="min-w-0 flex-1 truncate text-[11px] tracking-[0.12em] text-[hsl(var(--wine))]"
+              title={displayIndustryCategory(project.category) || "投研项目"}
+            >
               {displayIndustryCategory(project.category) || "投研项目"}
             </p>
-            <h2 className="mt-1.5 line-clamp-2 min-h-[2.75em] font-display text-[19px] font-semibold leading-snug text-[hsl(var(--warm-charcoal))]">
-              {project.name}
-            </h2>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span
-                className={cn(
-                  "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
-                  phaseBadgeClass(project.phase)
-                )}
-              >
-                {phaseChipText(project.phase)}
-              </span>
-              <span
-                className={cn(
-                  "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
-                  isMember
-                    ? "bg-[rgba(94,155,117,0.13)] text-[#3F6F63]"
-                    : "bg-[rgba(78,66,57,0.08)] text-[hsl(var(--warm-charcoal-muted))]"
-                )}
-              >
-                {roleLabel}
-              </span>
-            </div>
+            <span
+              className={cn(
+                "inline-flex shrink-0 items-center rounded-full border px-1.5 py-px text-[10px] font-medium leading-[16px] tracking-wide",
+                phaseBadgeClass(project.phase),
+              )}
+            >
+              {phaseChipText(project.phase)}
+            </span>
+            <span
+              className={cn(
+                "inline-flex shrink-0 items-center rounded-full border px-1.5 py-px text-[10px] font-medium leading-[16px] tracking-wide",
+                isMember
+                  ? "border-[rgba(78,66,57,0.16)] bg-[rgba(255,252,248,0.55)] text-[hsl(var(--warm-charcoal-muted))]"
+                  : "border-dashed border-[rgba(78,66,57,0.22)] bg-transparent text-[hsl(var(--warm-charcoal-muted))]",
+              )}
+            >
+              {roleLabel}
+            </span>
+            {canManage ? (
+              <div className="-mr-1.5 flex shrink-0 items-center">
+                <button
+                  type="button"
+                  title="编辑项目"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit?.();
+                  }}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[hsl(var(--warm-charcoal-muted))] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  title="删除项目"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete?.();
+                  }}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[hsl(var(--warm-charcoal-muted))] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : null}
           </div>
-          {canManage ? (
-            <div className="relative z-[1] flex shrink-0 gap-1">
-              <button
-                type="button"
-                title="编辑项目"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit?.();
-                }}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[hsl(var(--warm-charcoal-muted))] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                title="删除项目"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete?.();
-                }}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[hsl(var(--warm-charcoal-muted))] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ) : null}
+          <h2 className="mt-1.5 line-clamp-2 min-h-[2.75em] font-display text-[19px] font-semibold leading-snug text-[hsl(var(--warm-charcoal))]">
+            {project.name}
+          </h2>
         </div>
       </div>
       <div className="flex flex-1 flex-col px-[22px] pb-[22px] pt-4">
