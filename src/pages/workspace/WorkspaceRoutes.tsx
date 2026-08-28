@@ -603,7 +603,7 @@ function ProjectWorkspaceLayout() {
     }
   };
 
-  const onUpdateAllChapters = async () => {
+  const onUpdateAllChapters = async (regen?: "unpublished" | "all-drafts") => {
     if (!canUpdateOverview || allChaptersBusy || overviewBusy) return;
     const total = ALL_RESEARCH_CHAPTERS.length;
     const startedAt = Date.now();
@@ -636,6 +636,7 @@ function ProjectWorkspaceLayout() {
     try {
       const created = await createChapterDraftRun(project.id, userId, {
         scope: "full",
+        regen,
       });
       runId = created.run.id;
       setDraftRunId(runId);
@@ -859,7 +860,8 @@ function ProjectWorkspaceLayout() {
               allChaptersBusy,
               overviewBusy,
               canUpdateAllChapters: canUpdateOverview,
-              onUpdateAllChapters: () => void onUpdateAllChapters(),
+              onUpdateAllChapters: (regen?: "unpublished" | "all-drafts") =>
+                void onUpdateAllChapters(regen),
               updatingChapterIds,
               failedChapterIds,
               onChapterGenerateSucceeded,
@@ -951,7 +953,7 @@ function ProjectKnowledgeTab() {
     allChaptersBusy?: boolean;
     overviewBusy?: boolean;
     canUpdateAllChapters?: boolean;
-    onUpdateAllChapters?: () => void;
+    onUpdateAllChapters?: (regen?: "unpublished" | "all-drafts") => void;
   }>();
   return (
     <ProjectKnowledgeNetworkSection

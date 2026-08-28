@@ -21,7 +21,8 @@ import {
   reviseChapterHtmlContent,
 } from "./project-knowledge-chapters-routes";
 import { repairStoredChapterHtml } from "./chapter-revise-parse";
-import { draftReuseShouldRetryFailed } from "./draft-reuse";
+import { draftReuseShouldRetryFailed, unpublishedDraftSectionIds } from "./draft-reuse";
+import { listProjectKnowledgeChapterHtml } from "./project-knowledge-chapters-db";
 import {
   createDraftRun,
   ensureChapterBundle,
@@ -229,24 +230,39 @@ function kickDraftRunGeneration(
   );
 }
 
+async function requeueDraftSections(
+  env: Env,
+  runId: string,
+  sectionIds: string[],
+  items: Awaited<ReturnType<typeof listDraftItems>>,
+): Promise<void> {
+  const byId = new Map(items.map((i) => [i.sectionId, i]));
+  for (const sectionId of sectionIds) {
+    if (!isDraftGenerateableSection(sectionId)) continue;
+    const existing = byId.get(sectionId);
+    await upsertDraftItem(env.DB, {
+      runId,
+      sectionId,
+      status: "pending",
+      html: existing?.html ?? null,
+      error: null,
+      llmBackend: existing?.llmBackend ?? null,
+    });
+  }
+  await refreshDraftRunProgress(env.DB, runId);
+}
+
 async function requeueFailedDraftSections(
   env: Env,
   runId: string,
   items: Awaited<ReturnType<typeof listDraftItems>>,
 ): Promise<void> {
-  for (const item of items) {
-    if (item.status !== "failed") continue;
-    if (!isDraftGenerateableSection(item.sectionId)) continue;
-    await upsertDraftItem(env.DB, {
-      runId,
-      sectionId: item.sectionId,
-      status: "pending",
-      html: item.html,
-      error: null,
-      llmBackend: item.llmBackend,
-    });
-  }
-  await refreshDraftRunProgress(env.DB, runId);
+  await requeueDraftSections(
+    env,
+    runId,
+    items.filter((i) => i.status === "failed").map((i) => i.sectionId),
+    items,
+  );
 }
 
 /** 同一草案内排队生成，最多 CHAPTER_GENERATE_CONCURRENCY 路过模型。 */
@@ -450,12 +466,14 @@ export async function handleCreateChapterDraftRun(
   let sectionId: string | null = null;
   let mode: "generate" | "manual" = "generate";
   let manualHtml = "";
+  let regen: "unpublished" | "all-drafts" | null = null;
   try {
     const body = (await request.json().catch(() => null)) as {
       scope?: unknown;
       sectionId?: unknown;
       mode?: unknown;
       html?: unknown;
+      regen?: unknown;
     } | null;
     if (body?.scope === "section" || body?.scope === "full") {
       scope = body.scope;
@@ -468,6 +486,9 @@ export async function handleCreateChapterDraftRun(
     }
     if (typeof body?.html === "string") {
       manualHtml = body.html;
+    }
+    if (body?.regen === "unpublished" || body?.regen === "all-drafts") {
+      regen = body.regen;
     }
   } catch {
     /* 无 body 时默认 full */
@@ -551,9 +572,39 @@ export async function handleCreateChapterDraftRun(
           sectionIds: [sectionId!],
         });
       }
-      if (draftReuseShouldRetryFailed(active.status, items)) {
+      if (draftReuseShouldRetryFailed(active.status, items) && !regen) {
         await requeueFailedDraftSections(env, active.id, items);
         kickDraftRunGeneration(env, ctx, projectId, active.id, userId);
+      } else if (scope === "full" && regen === "all-drafts") {
+        await requeueDraftSections(
+          env,
+          active.id,
+          [...FULL_UPDATE_SECTION_IDS],
+          items,
+        );
+        kickDraftRunGeneration(env, ctx, projectId, active.id, userId);
+      } else if (scope === "full" && regen === "unpublished") {
+        const liveRows = await listProjectKnowledgeChapterHtml(
+          env.DB,
+          projectId,
+        );
+        const liveHtmlBySection = new Map(
+          liveRows.map((row) => [row.sectionId, row.html]),
+        );
+        const unpublishedIds = unpublishedDraftSectionIds(
+          [...FULL_UPDATE_SECTION_IDS],
+          items,
+          liveHtmlBySection,
+        );
+        if (unpublishedIds.length > 0) {
+          await requeueDraftSections(
+            env,
+            active.id,
+            unpublishedIds,
+            items,
+          );
+          kickDraftRunGeneration(env, ctx, projectId, active.id, userId);
+        }
       }
       const latest = await listDraftItems(env.DB, active.id);
       const latestRun = (await getDraftRun(env.DB, active.id)) ?? active;

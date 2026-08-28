@@ -105,18 +105,22 @@ function allChaptersConfirmText(input: {
   loading: boolean;
   hasDraft: boolean;
   published: number;
+  failed: number;
   total: number;
 }): string {
   if (input.loading) return "正在查看当前进度…";
   const pending = Math.max(0, input.total - input.published);
   if (input.hasDraft && input.published > 0 && pending > 0) {
-    return `${input.published} 章已发布、${pending} 章还在草案里。这次沿用草案：未发布的不重跑、不覆盖，已发布的正式章也不改。${DISCARD_THEN_REGENERATE_HINT}`;
+    return `${input.published} 章已发布、${pending} 章还在草案里。已发布的正式章不会改。`;
+  }
+  if (input.hasDraft && input.failed > 0) {
+    return `将重试失败的 ${input.failed} 章，已成功待审核的会保留。`;
   }
   if (input.hasDraft) {
     return `已有待审核草案，不会重新生成。${DISCARD_THEN_REGENERATE_HINT}`;
   }
   if (input.published > 0) {
-    return "将生成新的全部章节草案，可能需要几分钟。已发布的正式章在发布前不会改变。";
+    return "将生成新的全部章节草案。已发布的正式章在发布前不会改变。";
   }
   return "将更新全部章节，可能需要几分钟。";
 }
@@ -164,7 +168,7 @@ type ProjectKnowledgeNetworkSectionProps = {
   allChaptersBusy?: boolean;
   overviewBusy?: boolean;
   canUpdateAllChapters?: boolean;
-  onUpdateAllChapters?: () => void;
+  onUpdateAllChapters?: (regen?: "unpublished" | "all-drafts") => void;
 };
 
 export function ProjectKnowledgeNetworkSection({
@@ -256,6 +260,7 @@ export function ProjectKnowledgeNetworkSection({
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [confirmHasDraft, setConfirmHasDraft] = useState(false);
   const [confirmPublished, setConfirmPublished] = useState(0);
+  const [confirmFailed, setConfirmFailed] = useState(0);
   useBodyScrollLock(allChaptersConfirm);
 
   const flatSections = useMemo(
@@ -886,6 +891,7 @@ export function ProjectKnowledgeNetworkSection({
     setConfirmLoading(true);
     setConfirmHasDraft(false);
     setConfirmPublished(0);
+    setConfirmFailed(0);
     try {
       const [active, live] = await Promise.all([
         fetchActiveChapterDraftRun(projectId, userId).catch(() => null),
@@ -898,6 +904,8 @@ export function ProjectKnowledgeNetworkSection({
         : 0;
       setConfirmHasDraft(Boolean(active?.runId));
       setConfirmPublished(published);
+      setConfirmFailed(Number(active?.failedCount ?? 0));
+      if (active?.runId) setDraftRunId(active.runId);
     } finally {
       setConfirmLoading(false);
     }
@@ -1644,11 +1652,12 @@ export function ProjectKnowledgeNetworkSection({
                       loading: confirmLoading,
                       hasDraft: confirmHasDraft,
                       published: confirmPublished,
+                      failed: confirmFailed,
                       total: RESEARCH_CHAPTER_COUNT,
                     })}
                   </p>
                 </div>
-                <div className="flex justify-end gap-2 px-5 py-3">
+                <div className="flex flex-col-reverse gap-2 px-5 py-3 sm:flex-row sm:flex-wrap sm:justify-end">
                   <button
                     type="button"
                     onClick={() => setAllChaptersConfirm(false)}
@@ -1656,17 +1665,74 @@ export function ProjectKnowledgeNetworkSection({
                   >
                     取消
                   </button>
-                  <button
-                    type="button"
-                    disabled={confirmLoading}
-                    onClick={() => {
-                      setAllChaptersConfirm(false);
-                      onUpdateAllChapters?.();
-                    }}
-                    className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {confirmLoading ? "请稍候…" : "开始更新全部章节"}
-                  </button>
+                  {confirmLoading ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      请稍候…
+                    </button>
+                  ) : confirmHasDraft &&
+                    confirmPublished > 0 &&
+                    RESEARCH_CHAPTER_COUNT - confirmPublished > 0 ? (
+                    <>
+                      <button
+                        type="button"
+                        title="已发布章也会出新草稿，正式版要发布才替换"
+                        onClick={() => {
+                          setAllChaptersConfirm(false);
+                          onUpdateAllChapters?.("all-drafts");
+                        }}
+                        className="rounded-full border border-[rgba(78,66,57,0.14)] px-4 py-2 text-xs font-semibold text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]"
+                      >
+                        全部草案重来
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAllChaptersConfirm(false);
+                          onUpdateAllChapters?.("unpublished");
+                        }}
+                        className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+                      >
+                        {`只更新未发布的 ${RESEARCH_CHAPTER_COUNT - confirmPublished} 章`}
+                      </button>
+                    </>
+                  ) : confirmHasDraft && confirmFailed > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAllChaptersConfirm(false);
+                        onUpdateAllChapters?.();
+                      }}
+                      className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+                    >
+                      重试失败章节
+                    </button>
+                  ) : confirmHasDraft ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAllChaptersConfirm(false);
+                        goDraftReview();
+                      }}
+                      className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+                    >
+                      前往审核
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAllChaptersConfirm(false);
+                        onUpdateAllChapters?.();
+                      }}
+                      className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+                    >
+                      开始更新全部章节
+                    </button>
+                  )}
                 </div>
               </div>
             </div>,
