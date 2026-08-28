@@ -758,7 +758,7 @@ export function ProjectKnowledgeNetworkSection({
         setDraftRunId(e.activeRunId);
         setDraftDialogOpen(false);
         setError(
-          `${e.message} 请点击顶栏提示中的「继续审核草案」，或前往系统管理 → 审核。${DISCARD_THEN_REGENERATE_HINT}`,
+          `${e.message} 请点击顶栏提示中的「继续审核草案」，或前往系统管理 → 审核。`,
         );
         setDraftProgress(null);
       } else {
@@ -1588,9 +1588,7 @@ export function ProjectKnowledgeNetworkSection({
                     确认更新全部章节
                   </h3>
                   <p className="mt-2 text-[12.5px] leading-relaxed text-[#59625F]">
-                    将更新全部章节，可能需要几分钟。若已有未发布草案：已成功的章节会保留待审核，失败的章节会用最新资料重试，已发布的正式章不会被覆盖。
-                  </p>
-                  <p className="mt-2 text-[12.5px] leading-relaxed text-[#1F2423]">
+                    将更新全部章节，可能需要几分钟。已有草案会沿用，不会重跑。
                     {DISCARD_THEN_REGENERATE_HINT}
                   </p>
                 </div>

@@ -29,7 +29,7 @@ type KnowledgeDraftGeneratingDialogProps = {
 };
 
 export const DISCARD_THEN_REGENERATE_HINT =
-  "若要把全部章节重新生成一遍，请先进入审核并放弃当前草案，再点「更新全部」。";
+  "要整份重来，请先放弃当前草案。";
 
 function formatElapsedMs(ms: number): string {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -63,9 +63,7 @@ function finishedBody(opts: {
 }): string {
   const { failed, done, total, reused, mode, chapterName } = opts;
   if (failed > 0 && done - failed > 0) {
-    const retry =
-      `已生成 ${done - failed}/${total} 章，${failed} 章失败。可去审核已成功的章节；再点「更新全部」会用最新资料重试失败章，已成功待审核的章会保留。`;
-    return reused ? `${retry} ${DISCARD_THEN_REGENERATE_HINT}` : retry;
+    return `已生成 ${done - failed}/${total} 章，${failed} 章失败。可去审核；再点「更新全部」会重试失败章。`;
   }
   if (failed > 0) {
     return mode === "section"
@@ -74,8 +72,8 @@ function finishedBody(opts: {
   }
   if (reused) {
     return mode === "section"
-      ? `「${chapterName}」已有待审核草案，没有重新生成。若要重来，请先放弃当前草案后再更新本章。`
-      : `没有重新生成。未发布的章节仍在这份草案里，已发布的正式章也不会被覆盖。${DISCARD_THEN_REGENERATE_HINT}`;
+      ? `「${chapterName}」已有待审核草案，未重新生成。要重来，请先放弃草案。`
+      : `没有重新生成。${DISCARD_THEN_REGENERATE_HINT}`;
   }
   return mode === "section"
     ? `「${chapterName}」已生成，可以去审核。`

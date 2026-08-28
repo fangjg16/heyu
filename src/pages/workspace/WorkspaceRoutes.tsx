@@ -494,9 +494,7 @@ function ProjectWorkspaceLayout() {
             "已有概览草案但生成失败，请放弃后重试，或进入审核查看。",
           );
         } else {
-          setAllChaptersNotice(
-            `已有待审核的项目概览草案，没有重新生成。可直接进入审核。若要重来，请先放弃当前草案后再更新概览。`,
-          );
+          setAllChaptersNotice("已有待审核的项目概览草案，可直接进入审核。");
         }
         return;
       }
@@ -587,9 +585,7 @@ function ProjectWorkspaceLayout() {
         setPersistedActiveRunId(e.activeRunId);
         setDraftDialogOpen(false);
         setOverviewError(null);
-        setAllChaptersNotice(
-          `${e.message} 可直接继续审核未完成的草案。${DISCARD_THEN_REGENERATE_HINT}`,
-        );
+        setAllChaptersNotice(`${e.message} 可直接继续审核未完成的草案。`);
         setAllChaptersProgress(null);
       } else {
         const message = normalizeGenerateError(e);
@@ -661,7 +657,7 @@ function ProjectWorkspaceLayout() {
             phase: "done",
           });
           setAllChaptersNotice(
-            `已有待审核草案，没有重新生成。可直接进入审核。${DISCARD_THEN_REGENERATE_HINT}`,
+            `已有待审核草案，未重新生成。${DISCARD_THEN_REGENERATE_HINT}`,
           );
           return;
         }
@@ -743,9 +739,7 @@ function ProjectWorkspaceLayout() {
         setPersistedActiveRunId(e.activeRunId);
         setDraftDialogOpen(false);
         setOverviewError(null);
-        setAllChaptersNotice(
-          `${e.message} 可直接继续审核未完成的草案。${DISCARD_THEN_REGENERATE_HINT}`,
-        );
+        setAllChaptersNotice(`${e.message} 可直接继续审核未完成的草案。`);
         setAllChaptersProgress(null);
       } else {
         const message = normalizeGenerateError(e);
@@ -834,7 +828,7 @@ function ProjectWorkspaceLayout() {
               <p>
                 {allChaptersNotice ??
                   (persistedActiveRunId
-                    ? "本项目有未完成的章节更新草案，可继续审核或发布剩余章节。若要把全部章节重新生成一遍，请先进入审核并放弃当前草案，再点「更新全部」。"
+                    ? "本项目有未完成的章节更新草案，可继续审核或发布剩余章节。"
                     : "更新草案已就绪，可进入审核对照差异并发布。")}
               </p>
               {resumeRunId ? (
