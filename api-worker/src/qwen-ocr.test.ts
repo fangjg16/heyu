@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractOcrTextFromResponse,
   OCR_IMAGE_RAW_MAX,
+  OCR_PDF_RAW_MAX,
   ocrImageWithQwen,
   ocrPdfWithQwen,
 } from "./qwen-ocr";
@@ -105,5 +106,78 @@ describe("ocrPdfWithQwen", () => {
     expect(tasks).toEqual(["document_parsing", "text_recognition"]);
     expect(r.ok).toBe(true);
     expect(r.text).toContain("SP265790");
+  });
+
+  it("uploads oversized PDFs instead of asking to compress under 20MB", async () => {
+    const urls: string[] = [];
+    const bodies: string[] = [];
+    const bytes = new Uint8Array(OCR_PDF_RAW_MAX + 32);
+    bytes.set([0x25, 0x50, 0x44, 0x46, 0x2d]);
+    const r = await ocrPdfWithQwen(
+      {
+        DASHSCOPE_API_KEY: "sk",
+        DASHSCOPE_BASE_URL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      },
+      {
+        bytes,
+        fileName: "巨东导演演员合集.pdf",
+        fetchImpl: (async (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = String(input);
+          urls.push(url);
+          bodies.push(String(init?.body ?? ""));
+          if (url.endsWith("/files")) {
+            return new Response(JSON.stringify({ id: "file-ocr-1" }), {
+              status: 200,
+            });
+          }
+          return new Response(
+            JSON.stringify({
+              output: [{ content: [{ ocr_result: "演员名单 巨东" }] }],
+            }),
+            { status: 200 },
+          );
+        }) as typeof fetch,
+      },
+    );
+    expect(urls.some((u) => u.endsWith("/files"))).toBe(true);
+    expect(urls.some((u) => u.endsWith("/responses"))).toBe(true);
+    expect(bodies.some((b) => b.includes("file-ocr-1"))).toBe(true);
+    expect(r.ok).toBe(true);
+    expect(r.text).toContain("演员名单");
+    expect(r.warning ?? "").not.toMatch(/压到 20MB/u);
+  });
+
+  it("falls back to page OCR when upload is rejected", async () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+    const bytes = new Uint8Array(OCR_PDF_RAW_MAX + 8);
+    const r = await ocrPdfWithQwen(
+      {
+        DASHSCOPE_API_KEY: "sk",
+        DASHSCOPE_BASE_URL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      },
+      {
+        bytes,
+        fileName: "scan-big.pdf",
+        pageCount: 2,
+        renderPage: async (page) => (page <= 2 ? { mime: "image/png", bytes: png } : null),
+        fetchImpl: (async (input: RequestInfo | URL) => {
+          const url = String(input);
+          if (url.endsWith("/files")) {
+            return new Response(JSON.stringify({ error: { message: "too large" } }), {
+              status: 413,
+            });
+          }
+          return new Response(
+            JSON.stringify({
+              choices: [{ message: { content: "扫描页文字" } }],
+            }),
+            { status: 200 },
+          );
+        }) as typeof fetch,
+      },
+    );
+    expect(r.ok).toBe(true);
+    expect(r.text).toContain("扫描页文字");
+    expect(r.text).toContain("第1页");
   });
 });
