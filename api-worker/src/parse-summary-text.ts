@@ -20,6 +20,14 @@ export function truncateSummary(
   return head.join("");
 }
 
+const TRANSIENT_PARSE_FAILURE =
+  /Illegal invocation|incorrect ['"]this['"] reference|Failed to fetch|detached ArrayBuffer|接口连不上/iu;
+
+/** 运行时/网络故障：点开应重跑。百炼已跑过但没字：不要每次点开都扣费。 */
+export function looksLikeTransientParseFailure(text: string): boolean {
+  return TRANSIENT_PARSE_FAILURE.test(text ?? "");
+}
+
 /**
  * 旧摘要在说「这是扫描件、没抽到字」：OCR 上线后应丢弃缓存、重新抽字。
  * 不匹配「OCR 已经失败」的定稿，以免循环扣费。
@@ -115,7 +123,7 @@ export function shouldRefreshCachedSummary(raw: string): boolean {
   if (looksLikeRawParseJson(original)) return true;
   const t = normalizeParseSummaryText(original);
   if (!t) return true;
-  if (/detached ArrayBuffer/iu.test(original) || /detached ArrayBuffer/iu.test(t)) {
+  if (looksLikeTransientParseFailure(original) || looksLikeTransientParseFailure(t)) {
     return true;
   }
   if (looksLikeOcrEmptyLlmSummary(t) || looksLikeOcrEmptyLlmSummary(original)) {
@@ -134,10 +142,7 @@ export function shouldRefreshCachedSummary(raw: string): boolean {
     return false;
   }
   if (/OCR 未抽出|OCR 失败|无法 OCR：/u.test(t) || /OCR 未抽出|OCR 失败|无法 OCR：/u.test(original)) {
-    if (/detached ArrayBuffer/iu.test(original) || /detached ArrayBuffer/iu.test(t)) {
-      return true;
-    }
-    return false;
+    return looksLikeTransientParseFailure(original) || looksLikeTransientParseFailure(t);
   }
   if (SENTENCE_END.test(t)) return false;
   const n = Array.from(t).length;
