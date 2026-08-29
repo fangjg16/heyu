@@ -46,7 +46,7 @@ export function shouldRefetchParseSummary(summary: string): boolean {
   if (/OCR.{0,12}失败/u.test(t) && /未能获得任何文字|未提取到任何文字|未能抽出/u.test(t)) {
     return true;
   }
-  if (/OCR 未抽出|OCR 失败|无法 OCR：/u.test(t)) return true;
+  if (/OCR 未抽出|OCR 失败|无法 OCR：/u.test(t)) return false;
   if (
     /扫描件|图片版/u.test(t) &&
     /未能提取可复制文字|未能从 PDF 提取|无法识别关键信息|需另附可复制|OCR 转录/u.test(t)
@@ -67,4 +67,12 @@ export function shouldSendParseRefresh(input: {
   const s = (input.cachedSummary ?? "").trim();
   if (!s) return false;
   return shouldRefetchParseSummary(s);
+}
+
+export function formatMaterialsNetworkError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err ?? "");
+  if (/failed to fetch|networkerror|load failed|network request failed/i.test(msg)) {
+    return "接口连不上或请求被中断。若刚重建过 API，等容器起来后再点刷新；大扫描 PDF 解析可能要几分钟。";
+  }
+  return msg.trim() || "未知错误";
 }

@@ -12,10 +12,10 @@ describe("shouldRefreshCachedSummary", () => {
     expect(shouldRefreshCachedSummary(scanSummary)).toBe(true);
   });
 
-  it("refetches OCR-empty scan summaries so vision can read the figure", () => {
+  it("does not auto-retry a finished OCR give-up; click refresh instead", () => {
     expect(
       shouldRefreshCachedSummary("（扫描 PDF「a.pdf」OCR 未抽出文字。）"),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("does not loop after vision already failed to read the figure", () => {

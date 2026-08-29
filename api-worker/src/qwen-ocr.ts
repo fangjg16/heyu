@@ -303,6 +303,52 @@ async function rasterizePdfPageViaNodeHelper(
   return dataUrlToBytes(data.dataUrl);
 }
 
+/** 大 PDF：整包 OCR 放 Node，避免 workerd 传 38MB FormData / 按页 POST 把请求掐死。 */
+async function ocrPdfViaNodeHelper(
+  env: QwenOcrEnv,
+  opts: {
+    bytes: Uint8Array;
+    fileName: string;
+    maxPages: number;
+    pageCount?: number;
+    fetchImpl: FetchLike;
+  },
+): Promise<QwenOcrResult | null> {
+  const cfg = nodeHelperBase(env);
+  if (!cfg) return null;
+  const { key, base, model } = await resolvedKeyBase(env);
+  const q = new URLSearchParams({
+    fileName: opts.fileName,
+    maxPages: String(opts.maxPages),
+  });
+  if (opts.pageCount && opts.pageCount > 0) {
+    q.set("pageCount", String(opts.pageCount));
+  }
+  const res = await opts.fetchImpl(`${cfg.helper}/__jfo/internal/ocr-pdf?${q}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${cfg.key}`,
+      "Content-Type": "application/pdf",
+      Accept: "application/json",
+      "X-Dashscope-Key": key,
+      "X-Dashscope-Base": base,
+      "X-Ocr-Model": model,
+    },
+    body: copyOwnedBytes(opts.bytes),
+  });
+  if (!res.ok) {
+    const err = await res.text().catch(() => "");
+    throw new Error(`本机 OCR HTTP ${res.status}${err ? `：${err.slice(0, 200)}` : ""}`);
+  }
+  const data = (await res.json().catch(() => null)) as QwenOcrResult | null;
+  if (!data || typeof data !== "object") return null;
+  return {
+    text: typeof data.text === "string" ? data.text : "",
+    ok: Boolean(data.ok),
+    warning: typeof data.warning === "string" ? data.warning : undefined,
+  };
+}
+
 async function ocrPdfViaResponses(opts: {
   env: QwenOcrEnv;
   fetchImpl: FetchLike;
@@ -522,6 +568,16 @@ export async function ocrPdfWithQwen(
     const fetchImpl = resolveFetch(opts.fetchImpl);
     const maxPages = Math.min(opts.maxPages ?? OCR_PDF_PAGE_MAX, OCR_PDF_PAGE_MAX);
     if (opts.bytes.byteLength > OCR_PDF_RAW_MAX) {
+      if (nodeHelperBase(env) && !opts.renderPage) {
+        const viaHelper = await ocrPdfViaNodeHelper(env, {
+          bytes: opts.bytes,
+          fileName: opts.fileName,
+          maxPages,
+          pageCount: opts.pageCount,
+          fetchImpl,
+        });
+        if (viaHelper) return viaHelper;
+      }
       const uploaded = await ocrPdfViaFileUpload({
         env,
         fetchImpl,

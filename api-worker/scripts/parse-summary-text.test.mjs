@@ -54,7 +54,7 @@ const scanSummary =
 assert.equal(shouldRefreshCachedSummary(scanSummary), true);
 assert.equal(
   shouldRefreshCachedSummary("（扫描 PDF「a.pdf」OCR 未抽出文字。）"),
-  true,
+  false,
 );
 assert.equal(
   shouldRefreshCachedSummary(
