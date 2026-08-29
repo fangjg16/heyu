@@ -23,8 +23,10 @@ import {
   shouldSkipResponseHeader,
 } from "./hermes-node-proxy.mjs";
 import {
+  PDF_PAGE_PNG_OCR_MAX_BYTES,
   PDF_PAGES_PNG_MAX_BYTES,
   PDF_PAGES_PNG_MAX_PAGES,
+  rasterizePdfPage,
   rasterizePdfPages,
 } from "./pdf-pages-png.mjs";
 import {
@@ -482,6 +484,37 @@ const onRequest = async (req, res) => {
         sendJson(res, 200, result);
       } catch (e) {
         console.error("[jfo-api] pdf-pages-png:", e?.message ?? e);
+        sendJson(res, 500, { error: String(e?.message ?? e) });
+      }
+      return;
+    }
+    if (reqPath === "/__jfo/internal/pdf-page-png" && req.method === "POST") {
+      if (!isLoopbackAddress(req.socket?.remoteAddress)) {
+        sendJson(res, 403, { error: "PDF 单页栅格仅本机 Worker 可访问" });
+        return;
+      }
+      const key = (process.env.JFO_INTERNAL_KEY ?? "").trim();
+      if (!bearerMatches(req, key)) {
+        sendJson(res, 401, { error: "Unauthorized" });
+        return;
+      }
+      const body = await readRequestBody(req);
+      if (!body?.length) {
+        sendJson(res, 400, { error: "缺少 PDF 字节" });
+        return;
+      }
+      if (body.length > PDF_PAGE_PNG_OCR_MAX_BYTES) {
+        sendJson(res, 413, { error: "PDF 过大，无法单页栅格" });
+        return;
+      }
+      const url = new URL(req.url ?? "/", "http://127.0.0.1");
+      const page = Number(url.searchParams.get("page") || "1");
+      const width = Number(url.searchParams.get("width") || "0");
+      try {
+        const result = await rasterizePdfPage(body, { page, width });
+        sendJson(res, 200, result);
+      } catch (e) {
+        console.error("[jfo-api] pdf-page-png:", e?.message ?? e);
         sendJson(res, 500, { error: String(e?.message ?? e) });
       }
       return;

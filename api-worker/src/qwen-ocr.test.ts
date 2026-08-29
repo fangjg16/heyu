@@ -180,4 +180,73 @@ describe("ocrPdfWithQwen", () => {
     expect(r.text).toContain("扫描页文字");
     expect(r.text).toContain("第1页");
   });
+
+  it("rasters via node helper when upload is rejected", async () => {
+    const urls: string[] = [];
+    const bytes = new Uint8Array(OCR_PDF_RAW_MAX + 8);
+    const r = await ocrPdfWithQwen(
+      {
+        DASHSCOPE_API_KEY: "sk",
+        DASHSCOPE_BASE_URL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        JFO_NODE_HELPER_BASE: "http://127.0.0.1:8791",
+        JFO_INTERNAL_KEY: "k",
+      },
+      {
+        bytes,
+        fileName: "scan-helper.pdf",
+        pageCount: 1,
+        fetchImpl: (async (input: RequestInfo | URL) => {
+          const url = String(input);
+          urls.push(url);
+          if (url.endsWith("/files")) {
+            return new Response(JSON.stringify({ error: { message: "too large" } }), {
+              status: 413,
+            });
+          }
+          if (url.includes("/__jfo/internal/pdf-page-png")) {
+            return new Response(
+              JSON.stringify({ dataUrl: "data:image/png;base64,iVBORw0KGgo=" }),
+              { status: 200 },
+            );
+          }
+          return new Response(
+            JSON.stringify({
+              choices: [{ message: { content: "helper 栅格页" } }],
+            }),
+            { status: 200 },
+          );
+        }) as typeof fetch,
+      },
+    );
+    expect(urls.some((u) => u.includes("/__jfo/internal/pdf-page-png"))).toBe(true);
+    expect(r.ok).toBe(true);
+    expect(r.text).toContain("helper 栅格页");
+  });
+
+  it("does not ask to compress when helper is missing", async () => {
+    const bytes = new Uint8Array(OCR_PDF_RAW_MAX + 8);
+    const r = await ocrPdfWithQwen(
+      {
+        DASHSCOPE_API_KEY: "sk",
+        DASHSCOPE_BASE_URL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      },
+      {
+        bytes,
+        fileName: "scan-no-helper.pdf",
+        pageCount: 1,
+        fetchImpl: (async (input: RequestInfo | URL) => {
+          const url = String(input);
+          if (url.endsWith("/files")) {
+            return new Response(JSON.stringify({ error: { message: "too large" } }), {
+              status: 413,
+            });
+          }
+          return new Response("{}", { status: 200 });
+        }) as typeof fetch,
+      },
+    );
+    expect(r.ok).toBe(false);
+    expect(r.warning ?? "").toMatch(/JFO_NODE_HELPER_BASE/u);
+    expect(r.warning ?? "").not.toMatch(/压到 20MB/u);
+  });
 });
