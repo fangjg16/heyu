@@ -13,6 +13,7 @@ import {
   markBackdropPointerDown,
 } from "@/lib/backdrop-dismiss";
 import {
+  formatMaterialsNetworkError,
   parseDetailPendingText,
   resolveParseUiStatus,
   shouldRefetchParseSummary,
@@ -512,7 +513,7 @@ export function ProjectMaterialsSection({
       setLiveFiles(files);
     } catch (e) {
       setLiveFiles([]);
-      setError(e instanceof Error ? e.message : String(e));
+      setError(formatMaterialsNetworkError(e));
     } finally {
       setLoading(false);
     }
@@ -1254,7 +1255,7 @@ export function ProjectMaterialsSection({
         setParsedById((prev) => ({
           ...prev,
           [file.id]: {
-            summary: e instanceof Error ? e.message : String(e),
+            summary: formatMaterialsNetworkError(e),
             chunkCount: 0,
             status: "failed",
             keyPoints: [],
@@ -1262,7 +1263,7 @@ export function ProjectMaterialsSection({
             usedFor: [],
           },
         }));
-        setError(e instanceof Error ? e.message : String(e));
+        setError(formatMaterialsNetworkError(e));
       } finally {
         setParsingId((cur) => (cur === file.id ? null : cur));
       }
@@ -1284,12 +1285,11 @@ export function ProjectMaterialsSection({
       ) {
         return;
       }
-      if (cached?.status === "failed") {
-        setParsedById((prev) => {
-          const next = { ...prev };
-          delete next[file.id];
-          return next;
-        });
+      if (
+        cached?.status === "failed" &&
+        !shouldRefetchParseSummary(cached.summary ?? "")
+      ) {
+        return;
       }
       void runParse(file);
     },

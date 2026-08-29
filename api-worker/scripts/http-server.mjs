@@ -29,6 +29,7 @@ import {
   rasterizePdfPage,
   rasterizePdfPages,
 } from "./pdf-pages-png.mjs";
+import { ocrLargePdfInNode } from "./pdf-ocr-qwen.mjs";
 import {
   IMAGE_COMPRESS_MAX_INPUT_BYTES,
   compressImageForVision,
@@ -515,6 +516,48 @@ const onRequest = async (req, res) => {
         sendJson(res, 200, result);
       } catch (e) {
         console.error("[jfo-api] pdf-page-png:", e?.message ?? e);
+        sendJson(res, 500, { error: String(e?.message ?? e) });
+      }
+      return;
+    }
+    if (reqPath === "/__jfo/internal/ocr-pdf" && req.method === "POST") {
+      if (!isLoopbackAddress(req.socket?.remoteAddress)) {
+        sendJson(res, 403, { error: "大 PDF OCR 仅本机 Worker 可访问" });
+        return;
+      }
+      const key = (process.env.JFO_INTERNAL_KEY ?? "").trim();
+      if (!bearerMatches(req, key)) {
+        sendJson(res, 401, { error: "Unauthorized" });
+        return;
+      }
+      const body = await readRequestBody(req);
+      if (!body?.length) {
+        sendJson(res, 400, { error: "缺少 PDF 字节" });
+        return;
+      }
+      if (body.length > PDF_PAGE_PNG_OCR_MAX_BYTES) {
+        sendJson(res, 413, { error: "PDF 过大，无法 OCR" });
+        return;
+      }
+      const url = new URL(req.url ?? "/", "http://127.0.0.1");
+      const fileName = url.searchParams.get("fileName") || "document.pdf";
+      const maxPages = Number(url.searchParams.get("maxPages") || "50");
+      const pageCount = Number(url.searchParams.get("pageCount") || "0");
+      const apiKey = String(req.headers["x-dashscope-key"] || "").trim();
+      const base = String(req.headers["x-dashscope-base"] || "").trim();
+      const model = String(req.headers["x-ocr-model"] || "").trim();
+      try {
+        const result = await ocrLargePdfInNode(body, {
+          apiKey,
+          base,
+          model,
+          fileName,
+          maxPages,
+          pageCount: pageCount > 0 ? pageCount : undefined,
+        });
+        sendJson(res, 200, result);
+      } catch (e) {
+        console.error("[jfo-api] ocr-pdf:", e?.message ?? e);
         sendJson(res, 500, { error: String(e?.message ?? e) });
       }
       return;

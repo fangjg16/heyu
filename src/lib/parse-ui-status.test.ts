@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatMaterialsNetworkError,
   parseDetailPendingText,
   resolveParseUiStatus,
   shouldRefetchParseSummary,
@@ -85,16 +86,19 @@ describe("shouldSendParseRefresh", () => {
     expect(shouldSendParseRefresh({ force: true })).toBe(true);
     expect(
       shouldSendParseRefresh({
-        cachedSummary: "（扫描 PDF「a.pdf」OCR 未抽出文字。）",
+        cachedSummary: "本文件为扫描件/图片版 PDF，未能提取可复制文字。",
       }),
     ).toBe(true);
   });
 });
 
 describe("shouldRefetchParseSummary", () => {
-  it("refetches OCR-empty scans so vision can read the figure", () => {
+  it("does not auto-retry a finished OCR give-up", () => {
     expect(shouldRefetchParseSummary("（扫描 PDF「a.pdf」OCR 未抽出文字。）")).toBe(
-      true,
+      false,
+    );
+    expect(shouldSendParseRefresh({ cachedSummary: "Failed to fetch" })).toBe(
+      false,
     );
   });
 
@@ -116,5 +120,13 @@ describe("shouldRefetchParseSummary", () => {
         "原文为扫描 PDF「02_大陆地块测绘图_SP265790.pdf」。OCR 抽取失败未能获得任何文字内容，无法识别地块编号。建议重新进行 OCR 识别。",
       ),
     ).toBe(true);
+  });
+});
+
+describe("formatMaterialsNetworkError", () => {
+  it("translates Failed to fetch", () => {
+    expect(formatMaterialsNetworkError(new Error("Failed to fetch"))).toMatch(
+      /接口连不上/,
+    );
   });
 });

@@ -137,7 +137,7 @@ export function shouldRefreshCachedSummary(raw: string): boolean {
     if (/detached ArrayBuffer/iu.test(original) || /detached ArrayBuffer/iu.test(t)) {
       return true;
     }
-    return true;
+    return false;
   }
   if (SENTENCE_END.test(t)) return false;
   const n = Array.from(t).length;

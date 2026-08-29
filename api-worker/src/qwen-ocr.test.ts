@@ -198,29 +198,20 @@ describe("ocrPdfWithQwen", () => {
         fetchImpl: (async (input: RequestInfo | URL) => {
           const url = String(input);
           urls.push(url);
-          if (url.endsWith("/files")) {
-            return new Response(JSON.stringify({ error: { message: "too large" } }), {
-              status: 413,
-            });
-          }
-          if (url.includes("/__jfo/internal/pdf-page-png")) {
+          if (url.includes("/__jfo/internal/ocr-pdf")) {
             return new Response(
-              JSON.stringify({ dataUrl: "data:image/png;base64,iVBORw0KGgo=" }),
+              JSON.stringify({ text: "helper 整包 OCR", ok: true }),
               { status: 200 },
             );
           }
-          return new Response(
-            JSON.stringify({
-              choices: [{ message: { content: "helper 栅格页" } }],
-            }),
-            { status: 200 },
-          );
+          return new Response("{}", { status: 200 });
         }) as typeof fetch,
       },
     );
-    expect(urls.some((u) => u.includes("/__jfo/internal/pdf-page-png"))).toBe(true);
+    expect(urls.some((u) => u.includes("/__jfo/internal/ocr-pdf"))).toBe(true);
+    expect(urls.some((u) => u.includes("/pdf-page-png"))).toBe(false);
     expect(r.ok).toBe(true);
-    expect(r.text).toContain("helper 栅格页");
+    expect(r.text).toContain("helper 整包 OCR");
   });
 
   it("does not ask to compress when helper is missing", async () => {
