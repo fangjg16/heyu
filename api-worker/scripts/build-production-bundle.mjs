@@ -36,5 +36,15 @@ if (watch) {
   console.log(`[build:production] watching src → ${outfile}`);
 } else {
   await esbuild.build(buildOptions);
+  const js = fs.readFileSync(outfile, "utf8");
+  if (
+    /import\s*\(\s*["']@napi-rs\/canvas["']\s*\)/.test(js) ||
+    /from\s+["']@napi-rs\/canvas["']/.test(js) ||
+    js.includes("skia.linux")
+  ) {
+    throw new Error(
+      "production worker must not import @napi-rs/canvas (Node native). Rasterize via Node helper.",
+    );
+  }
   console.log(`[build:production] wrote ${outfile}`);
 }

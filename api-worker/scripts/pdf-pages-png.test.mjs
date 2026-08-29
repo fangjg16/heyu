@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { rasterizePdfPages } from "./pdf-pages-png.mjs";
+import { rasterizePdfPage, rasterizePdfPages } from "./pdf-pages-png.mjs";
 
 /** 最小可渲染单页 PDF（Helvetia 标准字） */
 function tinyPdf() {
@@ -29,5 +29,11 @@ assert.equal(pages.length, 1);
 assert.match(pages[0].dataUrl, /^data:image\/png;base64,/);
 assert.equal(pages[0].label, "测绘图.pdf");
 assert.ok(pages[0].dataUrl.length > 80);
+
+const one = await rasterizePdfPage(tinyPdf(), { page: 1, width: 400 });
+assert.equal(one.page, 1);
+assert.equal(one.totalPages, 1);
+assert.match(one.dataUrl, /^data:image\/png;base64,/);
+assert.ok(one.dataUrl.length > 80);
 
 console.log("pdf-pages-png: ok");

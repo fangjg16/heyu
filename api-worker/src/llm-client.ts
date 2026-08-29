@@ -18,6 +18,8 @@ export type LlmClientEnv = HermesAgentEnv &
     DASHSCOPE_BASE_URL?: string;
     HERMES_MODEL?: string;
     QWEN_VL_MODEL?: string;
+    /** 本机 Node helper：大扫描 PDF 按页栅格（workerd 不能 import canvas） */
+    JFO_NODE_HELPER_BASE?: string;
   };
 
 export type LlmContentPart =

@@ -20,6 +20,8 @@ const PDF_PROMPT =
 
 export type QwenOcrEnv = LlmRuntimeEnv & {
   QWEN_OCR_MODEL?: string;
+  /** 本机 Node helper：大扫描 PDF 按页栅格（workerd 不能 import @napi-rs/canvas） */
+  JFO_NODE_HELPER_BASE?: string;
 };
 
 export type QwenOcrResult = {
@@ -219,6 +221,12 @@ function parseUploadedFileId(raw: unknown): string | null {
   return nested || null;
 }
 
+function copyOwnedBytes(data: Uint8Array): Uint8Array {
+  const out = new Uint8Array(data.byteLength);
+  out.set(data);
+  return out;
+}
+
 function dataUrlToBytes(dataUrl: string): OcrPdfPageImage | null {
   const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/u);
   if (!m) return null;
@@ -233,26 +241,54 @@ function dataUrlToBytes(dataUrl: string): OcrPdfPageImage | null {
 
 async function countPdfPages(bytes: Uint8Array): Promise<number> {
   const { getDocumentProxy } = await import("unpdf");
-  const copy = new Uint8Array(bytes.byteLength);
-  copy.set(bytes);
+  const copy = copyOwnedBytes(bytes);
   const pdf = await getDocumentProxy(copy);
   return Math.max(1, Number(pdf.numPages) || 1);
 }
 
-async function renderPdfPageImage(
-  bytes: Uint8Array,
-  page: number,
+function nodeHelperBase(env: QwenOcrEnv): { helper: string; key: string } | null {
+  const helper = (env.JFO_NODE_HELPER_BASE || "").trim().replace(/\/$/u, "");
+  const key = (env.JFO_INTERNAL_KEY || "").trim();
+  if (!helper || !key) return null;
+  return { helper, key };
+}
+
+/**
+ * workerd 不能 import @napi-rs/canvas；单页栅格走本机 Node helper。
+ * 一页一请求，避免 50 张 PNG 同时进内存。
+ */
+async function rasterizePdfPageViaNodeHelper(
+  env: QwenOcrEnv,
+  opts: {
+    bytes: Uint8Array;
+    fileName: string;
+    page: number;
+    fetchImpl: FetchLike;
+  },
 ): Promise<OcrPdfPageImage | null> {
-  const { renderPageAsImage } = await import("unpdf");
-  const copy = new Uint8Array(bytes.byteLength);
-  copy.set(bytes);
-  const dataUrl = await renderPageAsImage(copy, page, {
-    canvasImport: () => import("@napi-rs/canvas"),
-    width: OCR_PAGE_RENDER_WIDTH,
-    toDataURL: true,
+  const cfg = nodeHelperBase(env);
+  if (!cfg) return null;
+  const q = new URLSearchParams({
+    fileName: opts.fileName,
+    page: String(opts.page),
+    width: String(OCR_PAGE_RENDER_WIDTH),
   });
-  if (typeof dataUrl !== "string") return null;
-  return dataUrlToBytes(dataUrl);
+  const res = await opts.fetchImpl(`${cfg.helper}/__jfo/internal/pdf-page-png?${q}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${cfg.key}`,
+      "Content-Type": "application/pdf",
+      Accept: "application/json",
+    },
+    body: copyOwnedBytes(opts.bytes),
+  });
+  if (!res.ok) {
+    const err = await res.text().catch(() => "");
+    throw new Error(`栅格 HTTP ${res.status}${err ? `：${err.slice(0, 200)}` : ""}`);
+  }
+  const data = (await res.json().catch(() => null)) as { dataUrl?: string } | null;
+  if (typeof data?.dataUrl !== "string") return null;
+  return dataUrlToBytes(data.dataUrl);
 }
 
 async function ocrPdfViaResponses(opts: {
@@ -386,9 +422,22 @@ async function ocrPdfViaPageImages(opts: {
     }
   }
   const cap = Math.min(Math.max(1, total), opts.maxPages, OCR_PDF_PAGE_MAX);
+  if (!opts.renderPage && !nodeHelperBase(opts.env)) {
+    return {
+      text: "",
+      ok: false,
+      warning: `${opts.fileName} 上传百炼失败后无法按页栅格：未配置本机 PDF 栅格（JFO_NODE_HELPER_BASE）。`,
+    };
+  }
   const render =
     opts.renderPage ??
-    ((page: number) => renderPdfPageImage(opts.bytes, page));
+    ((page: number) =>
+      rasterizePdfPageViaNodeHelper(opts.env, {
+        bytes: opts.bytes,
+        fileName: opts.fileName,
+        page,
+        fetchImpl: opts.fetchImpl,
+      }));
   const parts: string[] = [];
   const pageWarnings: string[] = [];
   for (let page = 1; page <= cap; page++) {
