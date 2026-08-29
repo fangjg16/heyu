@@ -42,6 +42,18 @@ export type OcrPdfRenderPage = (
 
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
+/**
+ * workerd 的 fetch/atob/btoa 是宿主方法，必须带着 globalThis 当 this。
+ * `const f = fetch; f(url)` 会报 Illegal invocation。
+ */
+function runtimeFetch(input: string | URL | Request, init?: RequestInit): Promise<Response> {
+  return globalThis.fetch(input, init);
+}
+
+function resolveFetch(fetchImpl?: FetchLike): FetchLike {
+  return fetchImpl ?? runtimeFetch;
+}
+
 function ocrModel(env: QwenOcrEnv): string {
   return (env.QWEN_OCR_MODEL || QWEN_OCR_MODEL_DEFAULT).trim() || QWEN_OCR_MODEL_DEFAULT;
 }
@@ -52,7 +64,7 @@ export function uint8ToBase64(bytes: Uint8Array): string {
   for (let i = 0; i < bytes.length; i += chunk) {
     binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
   }
-  return btoa(binary);
+  return globalThis.btoa(binary);
 }
 
 function asRecord(v: unknown): Record<string, unknown> | null {
@@ -158,7 +170,7 @@ export async function ocrImageWithQwen(
       };
     }
     const { key, base, model } = await resolvedKeyBase(env);
-    const fetchImpl = opts.fetchImpl ?? fetch;
+    const fetchImpl = resolveFetch(opts.fetchImpl);
     const b64 = uint8ToBase64(opts.bytes);
     if (b64.length > OCR_IMAGE_B64_MAX) {
       return {
@@ -233,7 +245,7 @@ function dataUrlToBytes(dataUrl: string): OcrPdfPageImage | null {
   const mime = (m[1] || "image/png").trim() || "image/png";
   const b64 = m[2] || "";
   if (!b64) return null;
-  const bin = atob(b64);
+  const bin = globalThis.atob(b64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return { mime, bytes };
@@ -507,7 +519,7 @@ export async function ocrPdfWithQwen(
         warning: `${opts.fileName} 约 ${mb(opts.bytes.byteLength)} MB，超过 qwen3.5-ocr 官方上限 ${OCR_PDF_OFFICIAL_RAW_MAX / 1024 / 1024}MB / ${OCR_PDF_PAGE_MAX} 页。请拆成多份后重新上传。`,
       };
     }
-    const fetchImpl = opts.fetchImpl ?? fetch;
+    const fetchImpl = resolveFetch(opts.fetchImpl);
     const maxPages = Math.min(opts.maxPages ?? OCR_PDF_PAGE_MAX, OCR_PDF_PAGE_MAX);
     if (opts.bytes.byteLength > OCR_PDF_RAW_MAX) {
       const uploaded = await ocrPdfViaFileUpload({

@@ -249,4 +249,86 @@ describe("ocrPdfWithQwen", () => {
     expect(r.warning ?? "").toMatch(/JFO_NODE_HELPER_BASE/u);
     expect(r.warning ?? "").not.toMatch(/压到 20MB/u);
   });
+
+  it("calls default fetch as a method so workerd this-check passes", async () => {
+    const original = globalThis.fetch;
+    const urls: string[] = [];
+    globalThis.fetch = function (this: unknown, input: RequestInfo | URL) {
+      if (this !== globalThis) {
+        throw new TypeError(
+          "Illegal invocation: function called with incorrect 'this' reference. See https://developers.cloudflare.com/workers/observability/errors/#illegal-invocation-errors for details.",
+        );
+      }
+      urls.push(String(input));
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            output: [{ content: [{ ocr_result: "扫描合同正文" }] }],
+          }),
+          { status: 200 },
+        ),
+      );
+    } as typeof fetch;
+    try {
+      const r = await ocrPdfWithQwen(
+        {
+          DASHSCOPE_API_KEY: "sk",
+          DASHSCOPE_BASE_URL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        },
+        {
+          bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]),
+          fileName: "scan.pdf",
+        },
+      );
+      expect(r.ok).toBe(true);
+      expect(r.text).toContain("扫描合同正文");
+      expect(urls[0]).toContain("/responses");
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
+  it("uploads oversized PDFs with bound default fetch", async () => {
+    const original = globalThis.fetch;
+    globalThis.fetch = function (this: unknown, input: RequestInfo | URL) {
+      if (this !== globalThis) {
+        throw new TypeError(
+          "Illegal invocation: function called with incorrect 'this' reference. See https://developers.cloudflare.com/workers/observability/errors/#illegal-invocation-errors for details.",
+        );
+      }
+      const url = String(input);
+      if (url.endsWith("/files")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ id: "file-ocr-1" }), { status: 200 }),
+        );
+      }
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            output: [{ content: [{ ocr_result: "演员名单 巨东" }] }],
+          }),
+          { status: 200 },
+        ),
+      );
+    } as typeof fetch;
+    try {
+      const bytes = new Uint8Array(OCR_PDF_RAW_MAX + 32);
+      bytes.set([0x25, 0x50, 0x44, 0x46, 0x2d]);
+      const r = await ocrPdfWithQwen(
+        {
+          DASHSCOPE_API_KEY: "sk",
+          DASHSCOPE_BASE_URL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        },
+        {
+          bytes,
+          fileName: "巨东导演演员合集.pdf",
+        },
+      );
+      expect(r.ok).toBe(true);
+      expect(r.text).toContain("演员名单");
+      expect(r.warning ?? "").not.toMatch(/Illegal invocation/u);
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
 });
