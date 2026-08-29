@@ -18,6 +18,15 @@ describe("shouldRefreshCachedSummary", () => {
     ).toBe(false);
   });
 
+  it("retries OCR give-up when the failure was a runtime crash", () => {
+    expect(
+      shouldRefreshCachedSummary(
+        "（扫描 PDF「a.pdf」OCR 未抽出文字。上传百炼失败：Illegal invocation）",
+      ),
+    ).toBe(true);
+    expect(shouldRefreshCachedSummary("Failed to fetch")).toBe(true);
+  });
+
   it("does not loop after vision already failed to read the figure", () => {
     expect(
       shouldRefreshCachedSummary("视觉理解未能读出图面：模型超时"),

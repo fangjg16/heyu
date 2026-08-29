@@ -98,8 +98,13 @@ describe("shouldRefetchParseSummary", () => {
       false,
     );
     expect(shouldSendParseRefresh({ cachedSummary: "Failed to fetch" })).toBe(
-      false,
+      true,
     );
+    expect(
+      shouldRefetchParseSummary(
+        "（扫描 PDF「a.pdf」OCR 未抽出文字。Illegal invocation）",
+      ),
+    ).toBe(true);
   });
 
   it("does not loop after vision already failed", () => {
