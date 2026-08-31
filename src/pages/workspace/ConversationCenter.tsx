@@ -481,6 +481,14 @@ function skillIntentFromChatPayload(payload: unknown): string | undefined {
   return typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
 }
 
+function chatPayloadInterviewComplete(payload: unknown): boolean {
+  return Boolean(
+    payload &&
+      typeof payload === "object" &&
+      (payload as { interviewComplete?: unknown }).interviewComplete === true,
+  );
+}
+
 const AGENT_JOB_POLL_MS = 3000;
 /** 知识网络任务最长轮询约 26 分钟（与 Worker waitForHermesRun 25 分钟 + 缓冲对齐） */
 const AGENT_JOB_MAX_POLLS = 520;
@@ -3084,6 +3092,14 @@ export default function ConversationCenter() {
         });
       }
       flushChatPersist();
+      if (chatPayloadInterviewComplete(payload)) {
+        setActiveInterview(null);
+        if (projectId) {
+          void fetchStartupInterview(projectId)
+            .then((data) => setActiveInterview(data.interview))
+            .catch(() => setActiveInterview(null));
+        }
+      }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         if (streamAssistantId) {
@@ -3510,8 +3526,7 @@ export default function ConversationCenter() {
           </div>
         </header>
 
-        {interviewInThisThread ||
-        isInterviewConversationId(effectiveConversationId) ? (
+        {interviewInThisThread ? (
           <div className="border-b border-[hsl(var(--wine)/0.18)] bg-[hsl(var(--wine-muted))] px-4 py-1.5 text-[12px] text-[#1F2423] md:px-6">
             {activeInterview?.status === "paused"
               ? INTERVIEW_BANNER_PAUSED

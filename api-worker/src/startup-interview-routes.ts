@@ -21,8 +21,11 @@ import {
 } from "./workspace-roles";
 import { seedInterviewOpeningMessage } from "./chat-sync";
 import {
+  ensureInterviewWrapLine,
   interviewFollowUpSystemPrompt,
-  sanitizeInterviewAssistantText,
+  interviewShouldClose,
+  parseInterviewLlmOutput,
+  countInterviewUserTurns,
 } from "./interview-copy";
 
 type Env = { DB: AppDatabase; FILES: AppObjectStorage } & LlmClientEnv;
@@ -233,6 +236,69 @@ export async function handlePauseStartupInterview(
   return json({ ok: true });
 }
 
+function clipInterviewTranscript(text: string, max = 8000): string {
+  if (text.length <= max) return text;
+  return text.slice(-max);
+}
+
+async function persistEndedInterviewAndDraft(
+  env: Env,
+  ctx: ExecutionContext,
+  interview: StartupInterview,
+  draftActorUserId: string,
+  transcriptCore: string,
+): Promise<{ draftRunId: string | null; draftError: string | null }> {
+  const endedAt = new Date().toISOString();
+  const transcript = [
+    `# 用户访谈纪要（第 ${interview.roundIndex} 次）`,
+    ``,
+    `- 回答人：${interview.answererUserId}`,
+    `- 结束时间：${endedAt}`,
+    ``,
+    transcriptCore.trim() || interview.pendingPrompt || "（尚无纪要正文）",
+  ].join("\n");
+  await updateInterview(env.DB, interview.id, {
+    status: "ended",
+    endedAt,
+    pendingPrompt: null,
+    transcript,
+  });
+  try {
+    await persistInterviewTranscript(env, {
+      projectId: interview.projectId,
+      userId: draftActorUserId,
+      conversationId: interview.conversationId,
+      body: transcript,
+      roundIndex: interview.roundIndex,
+    });
+  } catch (e) {
+    console.error("[startup-interview] persist transcript", e);
+  }
+  const fake = new Request(
+    `https://local/api/projects/${interview.projectId}/chapter-draft-runs`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scope: "full" }),
+    },
+  );
+  const draftRes = await handleCreateChapterDraftRun(
+    fake,
+    env,
+    ctx,
+    interview.projectId,
+    draftActorUserId,
+  );
+  const draftJson = (await draftRes.json().catch(() => ({}))) as {
+    run?: { id?: string };
+    error?: string;
+  };
+  return {
+    draftRunId: draftJson.run?.id ?? null,
+    draftError: draftJson.error ?? null,
+  };
+}
+
 export async function handleEndStartupInterview(
   env: Env,
   ctx: ExecutionContext,
@@ -246,58 +312,25 @@ export async function handleEndStartupInterview(
   }
   const active = await findActiveInterview(env.DB, projectId);
   if (!active) return json({ error: "没有进行中的访谈" }, 400);
-  const endedAt = new Date().toISOString();
-  const transcript = [
-    `# 用户访谈纪要（第 ${active.roundIndex} 次）`,
-    ``,
-    `- 回答人：${active.answererUserId}`,
-    `- 结束时间：${endedAt}`,
-    ``,
-    active.transcript?.trim() || active.pendingPrompt || "（尚无纪要正文）",
-  ].join("\n");
-  await updateInterview(env.DB, active.id, {
-    status: "ended",
-    endedAt,
-    transcript,
-  });
-  try {
-    await persistInterviewTranscript(env, {
-      projectId,
-      userId,
-      conversationId: active.conversationId,
-      body: transcript,
-      roundIndex: active.roundIndex,
-    });
-  } catch (e) {
-    console.error("[startup-interview] persist transcript", e);
-  }
-  const fake = new Request(`https://local/api/projects/${projectId}/chapter-draft-runs`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scope: "full" }),
-  });
-  const draftRes = await handleCreateChapterDraftRun(
-    fake,
+  const draft = await persistEndedInterviewAndDraft(
     env,
     ctx,
-    projectId,
+    active,
     userId,
+    active.transcript?.trim() || active.pendingPrompt || "",
   );
-  const draftJson = (await draftRes.json().catch(() => ({}))) as {
-    run?: { id?: string };
-    error?: string;
-  };
   return json({
     ok: true,
     interviewId: active.id,
     conversationId: active.conversationId,
-    draftRunId: draftJson.run?.id ?? null,
-    draftError: draftJson.error ?? null,
+    draftRunId: draft.draftRunId,
+    draftError: draft.draftError,
   });
 }
 
 export async function maybeHandleInterviewChat(
   env: Env,
+  ctx: ExecutionContext,
   input: {
     projectId: string;
     userId: string;
@@ -340,21 +373,47 @@ export async function maybeHandleInterviewChat(
       403,
     );
   }
+  const userTurns = countInterviewUserTurns(interview.transcript) + 1;
   const { answer } = await callLlm(env, [
     {
       role: "system",
-      content: interviewFollowUpSystemPrompt(),
+      content: interviewFollowUpSystemPrompt(userTurns),
     },
     {
       role: "user",
-      content: `上一批问题：\n${interview.pendingPrompt || "（无）"}\n\n用户刚才说：\n${input.message}`,
+      content: [
+        `已有纪要：\n${clipInterviewTranscript(interview.transcript?.trim() || "（尚无）")}`,
+        `上一批问题：\n${interview.pendingPrompt || "（无）"}`,
+        `用户刚才说：\n${input.message}`,
+      ].join("\n\n"),
     },
   ]);
-  const next =
-    sanitizeInterviewAssistantText((answer || "请继续回答上面的问题。").trim()) ||
-    "请继续回答上面的问题。";
+  const parsed = parseInterviewLlmOutput(answer || "");
+  const closing = interviewShouldClose(userTurns, parsed);
+  const next = closing
+    ? ensureInterviewWrapLine(parsed.visible)
+    : parsed.visible || "请继续回答上面的问题。";
   const prev = interview.transcript?.trim() ?? "";
   const transcript = `${prev}\n\n## 用户\n${input.message}\n\n## 访谈官\n${next}`.trim();
+  if (closing) {
+    const draft = await persistEndedInterviewAndDraft(
+      env,
+      ctx,
+      interview,
+      interview.startedBy,
+      transcript,
+    );
+    return json({
+      answer: next,
+      async: false,
+      chatMode: "standard",
+      skillIntent: "standard",
+      interviewLocked: false,
+      interviewComplete: true,
+      draftRunId: draft.draftRunId,
+      draftError: draft.draftError,
+    });
+  }
   await updateInterview(env.DB, interview.id, {
     pendingPrompt: next,
     transcript,

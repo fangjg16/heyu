@@ -1598,7 +1598,7 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
 
   const slots = getCitationSlots(projectId);
   const citationMap = citationMapFromSlots(slots);
-  const interviewRes = await maybeHandleInterviewChat(env, {
+  const interviewRes = await maybeHandleInterviewChat(env, ctx, {
     projectId,
     userId,
     conversationId: body.conversationId,

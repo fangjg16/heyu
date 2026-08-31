@@ -19,9 +19,12 @@ const LEAK_PATTERNS: RegExp[] = [
   /startup-design/giu,
 ];
 
+const INTERVIEW_COMPLETE_MARKER = "<<<INTERVIEW_COMPLETE>>>";
+
 /** 去掉访谈官不该对用户说的系统/后台句子。 */
 export function sanitizeInterviewAssistantText(text: string): string {
   let t = text.replace(/\r\n/gu, "\n");
+  t = t.replaceAll(INTERVIEW_COMPLETE_MARKER, "");
   for (const re of LEAK_PATTERNS) {
     t = t.replace(re, "");
   }
