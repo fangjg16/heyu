@@ -577,9 +577,7 @@ export async function handleGenerateProjectKnowledgeChapter(
   const namedSubjectsBlock = formatNamedSubjectsBlock(
     materialsBundle.namedSubjects,
   );
-  const analysisKind = await ensureAnalysisKind(env, projectId, digest, {
-    refresh: sectionId === "project-overview",
-  });
+  const analysisKind = await ensureAnalysisKind(env, projectId, digest);
 
   // 草案 prompt 以正式版 meta 为基线；合并结果写入草案侧
   const existingSources = await getProjectKnowledgeChapterHtml(

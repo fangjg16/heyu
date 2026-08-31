@@ -99,15 +99,15 @@ export async function inferAnalysisKindFromDigest(
   }
 }
 
-/** 首次生成或 refresh 时判断并落库；单章沿用已存值，保证同一次草案各章一致。 */
+/** 已落库的形态一律沿用。禁止在生成概览/章节时重判，否则会把 mature 项目翻成 early。 */
 export async function ensureAnalysisKind(
   env: { DB: AppDatabase } & LlmClientEnv,
   projectId: string,
   digest: string,
-  opts?: { refresh?: boolean },
+  _opts?: { refresh?: boolean },
 ): Promise<AnalysisKind> {
   const stored = await getStoredAnalysisKind(env.DB, projectId);
-  if (stored && !opts?.refresh) return stored;
+  if (stored) return stored;
   const kind = await inferAnalysisKindFromDigest(env, digest);
   await saveAnalysisKind(env.DB, projectId, kind);
   return kind;
