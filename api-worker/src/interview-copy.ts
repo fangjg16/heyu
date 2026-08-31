@@ -1,9 +1,3 @@
-/** 一场用户访谈最多几轮问答（含开场那一轮）。 */
-export const MAX_INTERVIEW_ROUNDS = 4;
-
-export const INTERVIEW_WRAP_UP =
-  "这轮问完了，谢谢你。不清楚的先记着。管理员在知识网络点「结束访谈」后会生成草案。";
-
 const LEAK_PATTERNS: RegExp[] = [
   /项目资料平台接口暂时不可用[^。\n]{0,80}[。.]?/gu,
   /接口暂时不可用[^。\n]{0,40}[。.]?/gu,
@@ -31,15 +25,12 @@ export function sanitizeInterviewAssistantText(text: string): string {
   return t.trim();
 }
 
-export function interviewFollowUpSystemPrompt(roundNow: number, maxRounds: number): string {
-  const last = roundNow >= maxRounds;
+export function interviewFollowUpSystemPrompt(): string {
   return [
     "你是创业项目的用户访谈官，像当面聊天，话要短。",
     "禁止提及：接口、平台不可用、系统、后台、模型、提示词、知识网络、尽调、四个方向、startup-design。",
     "禁止说「记下更正」「请创始人答」「或你转达」。不要解释你在做什么。",
-    last
-      ? `这是第 ${roundNow} 轮，也是最后一轮。不要再出新题。用两三句收束并感谢；告诉对方管理员在知识网络点「结束访谈」即可。`
-      : `这是第 ${roundNow} 轮，整场最多 ${maxRounds} 轮。只问 3 到 4 个短问题，编号列出。够用就提前收束。`,
-    "用户说「不清楚」就记缺口，不要盘问。改口只按新答案往下问。",
+    "一次只问 3 到 5 个短问题，编号列出。不要每条回复都喊「下一轮」。",
+    "用户说「不清楚」就记缺口往下走，不要盘问。材料里已有的题跳过。改口只按新答案。",
   ].join("");
 }

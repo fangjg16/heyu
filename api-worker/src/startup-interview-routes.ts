@@ -21,10 +21,7 @@ import {
 } from "./workspace-roles";
 import { seedInterviewOpeningMessage } from "./chat-sync";
 import {
-  countInterviewUserTurns,
   interviewFollowUpSystemPrompt,
-  MAX_INTERVIEW_ROUNDS,
-  INTERVIEW_WRAP_UP,
   sanitizeInterviewAssistantText,
 } from "./interview-copy";
 
@@ -343,33 +340,27 @@ export async function maybeHandleInterviewChat(
       403,
     );
   }
-  const userTurns = countInterviewUserTurns(interview.transcript) + 1;
-  const lastRound = userTurns >= MAX_INTERVIEW_ROUNDS;
   const { answer } = await callLlm(env, [
     {
       role: "system",
-      content: interviewFollowUpSystemPrompt(userTurns, MAX_INTERVIEW_ROUNDS),
+      content: interviewFollowUpSystemPrompt(),
     },
     {
       role: "user",
-      content: lastRound
-        ? `用户最后一次回答：\n${input.message}\n\n请收束，不要再出新题。`
-        : `上一批问题：\n${interview.pendingPrompt || "（无）"}\n\n用户刚才说：\n${input.message}`,
+      content: `上一批问题：\n${interview.pendingPrompt || "（无）"}\n\n用户刚才说：\n${input.message}`,
     },
   ]);
-  const next = sanitizeInterviewAssistantText(
-    (answer || (lastRound ? INTERVIEW_WRAP_UP : "请继续回答上面的问题。")).trim(),
-  ) || (lastRound ? INTERVIEW_WRAP_UP : "请继续回答上面的问题。");
-  const wrapped =
-    lastRound && /[1-9]\.\s/.test(next) ? INTERVIEW_WRAP_UP : next;
+  const next =
+    sanitizeInterviewAssistantText((answer || "请继续回答上面的问题。").trim()) ||
+    "请继续回答上面的问题。";
   const prev = interview.transcript?.trim() ?? "";
-  const transcript = `${prev}\n\n## 用户\n${input.message}\n\n## 访谈官\n${wrapped}`.trim();
+  const transcript = `${prev}\n\n## 用户\n${input.message}\n\n## 访谈官\n${next}`.trim();
   await updateInterview(env.DB, interview.id, {
-    pendingPrompt: wrapped,
+    pendingPrompt: next,
     transcript,
   });
   return json({
-    answer: wrapped,
+    answer: next,
     async: false,
     chatMode: "standard",
     skillIntent: "standard",
