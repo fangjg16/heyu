@@ -1,10 +1,18 @@
-import { CHAPTER_SKILL_SECTIONS } from "./chapter-skill-map";
+import type { AnalysisKind } from "./analysis-kind";
+import { DEFAULT_ANALYSIS_KIND } from "./analysis-kind";
 import {
-  RESEARCH_CHAPTER_IDS,
-  formatChapterVersionLabel,
-} from "./chapter-version";
+  researchSectionIdsForKind,
+  sectionLabel,
+} from "./kn-catalog";
+import { formatChapterVersionLabel } from "./chapter-version";
 
 const PER_CHAPTER_CHARS = 2_800;
+const SKIP_IDS = new Set([
+  "project-overview",
+  "sources",
+  "glossary",
+  "project-graph",
+]);
 
 function compactChapterHtml(html: string, maxChars: number): string {
   const compact = html
@@ -15,20 +23,39 @@ function compactChapterHtml(html: string, maxChars: number): string {
   return `${compact.slice(0, maxChars)}\n…(截断)`;
 }
 
+function orderedResearchIds(
+  kind: AnalysisKind,
+  chapters: { sectionId: string; html?: string | null }[],
+): string[] {
+  const catalog = researchSectionIdsForKind(kind);
+  const seen = new Set(catalog);
+  const extra: string[] = [];
+  for (const c of chapters) {
+    const id = c.sectionId;
+    if (!id || SKIP_IDS.has(id) || seen.has(id)) continue;
+    if (!(c.html ?? "").trim()) continue;
+    seen.add(id);
+    extra.push(id);
+  }
+  return [...catalog, ...extra];
+}
+
 export function buildKnowledgeNetworkSourceBlock(input: {
   version: number;
   chapters: { sectionId: string; html?: string | null }[];
+  analysisKind?: AnalysisKind | null;
 }): { block: string; hasResearch: boolean } {
+  const kind = input.analysisKind ?? DEFAULT_ANALYSIS_KIND;
   const byId = new Map(
     input.chapters.map((c) => [c.sectionId, (c.html ?? "").trim()] as const),
   );
   const parts: string[] = [];
-  for (const id of RESEARCH_CHAPTER_IDS) {
+  for (const id of orderedResearchIds(kind, input.chapters)) {
     const html = byId.get(id) ?? "";
     if (!html) continue;
-    const label =
-      CHAPTER_SKILL_SECTIONS.find((s) => s.id === id)?.label ?? id;
-    parts.push(`### ${label}（${id}）\n${compactChapterHtml(html, PER_CHAPTER_CHARS)}`);
+    parts.push(
+      `### ${sectionLabel(id, kind)}（${id}）\n${compactChapterHtml(html, PER_CHAPTER_CHARS)}`,
+    );
   }
   if (parts.length === 0) {
     return {
@@ -43,7 +70,7 @@ export function buildKnowledgeNetworkSourceBlock(input: {
     hasResearch: true,
     block: [
       `【当前知识网络正式版 ${formatChapterVersionLabel(input.version)}】`,
-      "以下为已发布的 13 个研究章节正文。项目概览必须根据这些内容填写模板：保留现有概览版式（成熟度、判断/下一步/风险卡、时间轴、关系图槽），不要扩写成研究长文，也不要把 13 章原文粘进概览。知识网络未覆盖处标「待补」。",
+      "以下为已发布的研究章节正文。项目概览必须根据这些内容填写模板：保留现有概览版式（成熟度、判断/下一步/风险卡、时间轴、关系图槽），不要扩写成研究长文，也不要把各章原文粘进概览。知识网络未覆盖处标「待补」。",
       "",
       ...parts,
     ].join("\n"),

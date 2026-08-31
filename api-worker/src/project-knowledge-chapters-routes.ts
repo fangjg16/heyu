@@ -622,6 +622,7 @@ export async function handleGenerateProjectKnowledgeChapter(
     const kn = buildKnowledgeNetworkSourceBlock({
       version: bundle.version,
       chapters: liveChapters,
+      analysisKind,
     });
     overviewKnBlock = kn.block;
     overviewFromKnowledge = kn.hasResearch;
