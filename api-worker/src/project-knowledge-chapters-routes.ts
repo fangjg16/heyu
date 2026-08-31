@@ -35,11 +35,12 @@ import {
   ensureChapterBundle,
   getDraftItem,
   getDraftRun,
+  listDraftItems,
   refreshDraftRunProgress,
   upsertDraftItem,
 } from "./project-knowledge-chapter-revisions-db";
 import { buildChapterGenerateMaterials } from "./project-knowledge-chapters-digest";
-import { buildKnowledgeNetworkSourceBlock } from "./overview-from-knowledge-network";
+import { buildKnowledgeNetworkSourceBlock, mergeChaptersPreferringDraft } from "./overview-from-knowledge-network";
 import {
   formatNamedSubjectsBlock,
   missingNamedSubjects,
@@ -619,10 +620,28 @@ export async function handleGenerateProjectKnowledgeChapter(
       ensureChapterBundle(env.DB, projectId, userId),
       listProjectKnowledgeChapterHtml(env.DB, projectId),
     ]);
+    let chaptersForOverview = liveChapters;
+    let fromDraft = false;
+    if (isDraft && draftRunId) {
+      const draftItems = await listDraftItems(env.DB, draftRunId).catch(
+        () => [],
+      );
+      chaptersForOverview = mergeChaptersPreferringDraft(
+        liveChapters,
+        draftItems,
+      );
+      fromDraft = draftItems.some(
+        (i) =>
+          i.status === "ok" &&
+          i.sectionId !== "project-overview" &&
+          Boolean(i.html?.trim()),
+      );
+    }
     const kn = buildKnowledgeNetworkSourceBlock({
       version: bundle.version,
-      chapters: liveChapters,
+      chapters: chaptersForOverview,
       analysisKind,
+      fromDraft,
     });
     overviewKnBlock = kn.block;
     overviewFromKnowledge = kn.hasResearch;
@@ -648,8 +667,8 @@ export async function handleGenerateProjectKnowledgeChapter(
     "",
     isOverview
       ? overviewFromKnowledge
-        ? "任务：根据下方「当前知识网络正式版」填写项目概览 HTML（含时间轴）并输出关系图 JSON；保持现有概览版式，不要把 13 章揉成一篇。附件仅供核对引用。增量补充引用来源与非常用名词。"
-        : "任务：知识网络尚无正式研究章节。可暂按附件生成项目概览 HTML（含时间轴）并输出关系图 JSON；缺处标「待补」。增量补充引用来源与非常用名词。"
+        ? "任务：根据下方知识网络研究章节填写项目概览 HTML（含时间轴）并输出关系图 JSON；保持现有概览版式，不要把各章揉成一篇。附件仅供核对引用。增量补充引用来源与非常用名词。"
+        : "任务：知识网络尚无研究章节。可暂按附件生成项目概览 HTML（含时间轴）并输出关系图 JSON；缺处标「待补」。增量补充引用来源与非常用名词。"
       : "任务：基于下方「项目上传附件」按模板生成本章内容；===GRAPH=== 写 NONE；并仅增量补充引用来源与非常用名词。",
     "",
     "【章节 Markdown 模板】",

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { researchSectionsForKind } from "./kn-catalog";
-import { questionsSectionIdForKind } from "./kn-catalog";
+import {
+  fullDraftSectionIds,
+  questionsSectionIdForKind,
+  researchSectionsForKind,
+} from "./kn-catalog";
 
 describe("kn-catalog", () => {
   it("gives each kind its own research chapters", () => {
@@ -25,5 +28,13 @@ describe("kn-catalog", () => {
     expect(questionsSectionIdForKind("mature")).toBe("diligence-gaps");
     expect(questionsSectionIdForKind("acquire")).toBe("open-items-exceptions");
     expect(questionsSectionIdForKind("early")).toBe("validation");
+  });
+
+  it("puts project overview last on a full draft run", () => {
+    const early = fullDraftSectionIds("early");
+    expect(early.at(-1)).toBe("project-overview");
+    expect(early).toContain("founder-interview");
+    expect(fullDraftSectionIds("mature").at(-1)).toBe("project-overview");
+    expect(fullDraftSectionIds("acquire").at(-1)).toBe("project-overview");
   });
 });

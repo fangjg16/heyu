@@ -53,7 +53,7 @@ import {
 import type { WorkspaceProject } from "@/workspace/projects";
 import { formatChapterVersionLabel, formatOverviewVersionLabel } from "@/lib/chapter-version";
 import { resolveAnalysisKind } from "@/lib/analysis-kind";
-import { researchSectionsForKind } from "@/lib/kn-catalog";
+import { fullDraftSectionIds } from "@/lib/kn-catalog";
 import {
   canEnterChat,
   getProjectRole,
@@ -202,9 +202,9 @@ function saveFailedChapterIds(projectId: string, ids: string[]): void {
   }
 }
 
-/** 与后端当前形态研究章节一致 */
-function researchChaptersForProject(project: WorkspaceProject | null) {
-  return researchSectionsForKind(resolveAnalysisKind(project?.analysisKind));
+/** 与后端「更新全部」一致：研究章 + 最后一项项目概览 */
+function fullDraftIdsForProject(project: WorkspaceProject | null) {
+  return fullDraftSectionIds(resolveAnalysisKind(project?.analysisKind));
 }
 
 function ProjectWorkspaceLayout() {
@@ -599,8 +599,8 @@ function ProjectWorkspaceLayout() {
 
   const onUpdateAllChapters = async (regen?: "unpublished" | "all-drafts") => {
     if (!canUpdateOverview || allChaptersBusy || overviewBusy) return;
-    const chapters = researchChaptersForProject(project);
-    const total = chapters.length;
+    const sectionIds = fullDraftIdsForProject(project);
+    const total = sectionIds.length;
     const startedAt = Date.now();
     setAllChaptersBusy(true);
     setUpdatingChapterIds([]);
@@ -660,10 +660,9 @@ function ProjectWorkspaceLayout() {
         }
       }
 
-      const sectionIds = chapters.map((ch) => ch.id);
-      const pendingChapters = chapters.filter((ch) => {
+      const pendingChapters = sectionIds.filter((id) => {
         if (!created.reused) return true;
-        const item = created.items.find((i) => i.sectionId === ch.id);
+        const item = created.items.find((i) => i.sectionId === id);
         return !item || item.status === "pending" || item.status === "failed";
       });
       const alreadyOk = total - pendingChapters.length;

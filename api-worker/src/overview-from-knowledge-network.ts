@@ -40,10 +40,27 @@ function orderedResearchIds(
   return [...catalog, ...extra];
 }
 
+export function mergeChaptersPreferringDraft(
+  live: { sectionId: string; html?: string | null }[],
+  drafts: { sectionId: string; status: string; html?: string | null }[],
+): { sectionId: string; html?: string | null }[] {
+  const byId = new Map(
+    live.map((c) => [c.sectionId, { sectionId: c.sectionId, html: c.html }]),
+  );
+  for (const d of drafts) {
+    if (d.status !== "ok") continue;
+    const html = (d.html ?? "").trim();
+    if (!html) continue;
+    byId.set(d.sectionId, { sectionId: d.sectionId, html });
+  }
+  return [...byId.values()];
+}
+
 export function buildKnowledgeNetworkSourceBlock(input: {
   version: number;
   chapters: { sectionId: string; html?: string | null }[];
   analysisKind?: AnalysisKind | null;
+  fromDraft?: boolean;
 }): { block: string; hasResearch: boolean } {
   const kind = input.analysisKind ?? DEFAULT_ANALYSIS_KIND;
   const byId = new Map(
@@ -61,16 +78,20 @@ export function buildKnowledgeNetworkSourceBlock(input: {
     return {
       hasResearch: false,
       block: [
-        "【当前知识网络正式版】",
-        "（尚无已发布研究章节。可暂按附件填写并标「待补」；知识网络发布后再更新概览以对齐。）",
+        input.fromDraft
+          ? "【当前知识网络（本轮研究草案优先）】"
+          : "【当前知识网络正式版】",
+        "（尚无研究章节。可暂按附件填写并标「待补」；研究章生成后再更新概览以对齐。）",
       ].join("\n"),
     };
   }
   return {
     hasResearch: true,
     block: [
-      `【当前知识网络正式版 ${formatChapterVersionLabel(input.version)}】`,
-      "以下为已发布的研究章节正文。项目概览必须根据这些内容填写模板：保留现有概览版式（成熟度、判断/下一步/风险卡、时间轴、关系图槽），不要扩写成研究长文，也不要把各章原文粘进概览。知识网络未覆盖处标「待补」。",
+      input.fromDraft
+        ? `【当前知识网络（本轮研究草案优先）${formatChapterVersionLabel(input.version)}】`
+        : `【当前知识网络正式版 ${formatChapterVersionLabel(input.version)}】`,
+      "以下为研究章节正文。项目概览必须根据这些内容填写模板：保留现有概览版式（成熟度、判断/下一步/风险卡、时间轴、关系图槽），不要扩写成研究长文，也不要把各章原文粘进概览。知识网络未覆盖处标「待补」。",
       "",
       ...parts,
     ].join("\n"),

@@ -80,7 +80,7 @@ function runningBody(opts: {
   if (opts.regen === "all-drafts") {
     return "正在生成全部章节的草案。已发布的正式章在发布前不会改变。可关闭此窗口，完成后在审核页查看。";
   }
-  return "正在生成全部章节。可关闭此窗口，完成后在审核页查看。";
+  return "正在生成全部章节（研究章完成后会再生成项目概览草案）。可关闭此窗口，完成后在审核页查看。";
 }
 
 function finishedBody(opts: {
@@ -115,7 +115,7 @@ function finishedBody(opts: {
   if (regen === "all-drafts") {
     return "全部章节草案已生成，可以去审核。已发布的正式章在发布前不会改变。";
   }
-  return "全部章节已生成，可以去审核。";
+  return "全部章节（含项目概览草案）已生成，可以去审核。";
 }
 
 export function KnowledgeDraftGeneratingDialog({

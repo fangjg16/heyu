@@ -1,6 +1,7 @@
 import { normalizeProjectPhase } from "@/workspace/projects";
 import { apiFetch } from "@/lib/api-auth";
 import { formatOpenQuestionForIssuer } from "@/lib/kn-citations";
+import { sectionLabel } from "@/lib/kn-catalog";
 
 function withAuthHeaders(init?: RequestInit): RequestInit {
   return init ?? {};
@@ -1496,9 +1497,9 @@ export function summarizeDraftRunProgress(
     done,
     total: sectionIds.length,
     failed: failedRows.length,
-    lastLabel: lastId ? (RESEARCH_CHAPTER_LABELS[lastId] ?? lastId) : undefined,
+    lastLabel: lastId ? sectionLabel(lastId) : undefined,
     failedDetails: failedRows.map((i) => {
-      const name = RESEARCH_CHAPTER_LABELS[i.sectionId] ?? i.sectionId;
+      const name = sectionLabel(i.sectionId);
       const err = (i.error ?? "").trim() || "生成失败";
       return `${name}：${err}`;
     }),

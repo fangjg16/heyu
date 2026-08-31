@@ -19,7 +19,7 @@ import {
   ensureAnalysisKind,
   getStoredAnalysisKind,
 } from "./analysis-kind";
-import { isGeneratableSectionId, researchSectionIdsForKind } from "./kn-catalog";
+import { fullDraftSectionIds, isGeneratableSectionId } from "./kn-catalog";
 import type { LlmClientEnv } from "./llm-client";
 import {
   handleGenerateProjectKnowledgeChapter,
@@ -60,11 +60,11 @@ import {
 
 type Env = { DB: AppDatabase } & LlmClientEnv;
 
-/** 全部章节更新：当前形态研究章（不含 overview / sources / glossary） */
+/** 全部章节更新：当前形态研究章 + 最后一项项目概览 */
 export function fullUpdateSectionIds(
   kind: "early" | "mature" | "acquire" = DEFAULT_ANALYSIS_KIND,
 ): string[] {
-  return researchSectionIdsForKind(kind);
+  return fullDraftSectionIds(kind);
 }
 
 function json(data: unknown, status = 200): Response {
@@ -276,8 +276,18 @@ async function processPendingDraftRun(
         isDraftGenerateableSection(i.sectionId) &&
         !isDraftGenerateInFlight(draftGenerateJobKey(runId, i.sectionId)),
     );
-    while (working.size < CHAPTER_GENERATE_CONCURRENCY && pending.length > 0) {
-      const item = pending.shift();
+    const researchStillOpen = items.some(
+      (i) =>
+        i.sectionId !== "project-overview" &&
+        isDraftGenerateableSection(i.sectionId) &&
+        (i.status === "pending" ||
+          isDraftGenerateInFlight(draftGenerateJobKey(runId, i.sectionId))),
+    );
+    const queue = researchStillOpen
+      ? pending.filter((i) => i.sectionId !== "project-overview")
+      : pending;
+    while (working.size < CHAPTER_GENERATE_CONCURRENCY && queue.length > 0) {
+      const item = queue.shift();
       if (!item) break;
       let job!: Promise<void>;
       job = runOneDraftSectionGenerate(
@@ -429,7 +439,7 @@ export async function handleListMyChapterDraftRuns(
 
 /** POST /api/projects/:id/chapter-draft-runs
  *  body 可选：{ scope?: 'full'|'section', sectionId?: string }
- *  创建后由服务端排队生成，前端只轮询 run，不要并行 POST 13 次 generate。
+ *  创建后由服务端排队生成，前端只轮询 run，不要并行 POST generate。
  */
 export async function handleCreateChapterDraftRun(
   request: Request,
@@ -613,6 +623,14 @@ export async function handleCreateChapterDraftRun(
             unpublishedIds,
             items,
           );
+          kickDraftRunGeneration(env, ctx, projectId, active.id, userId);
+        }
+      }
+      if (scope === "full") {
+        const have = new Set(items.map((i) => i.sectionId));
+        const missing = wantedIds.filter((id) => !have.has(id));
+        if (missing.length > 0) {
+          await requeueDraftSections(env, active.id, missing, items);
           kickDraftRunGeneration(env, ctx, projectId, active.id, userId);
         }
       }

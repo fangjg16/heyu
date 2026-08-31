@@ -85,9 +85,9 @@ function allChaptersConfirmText(input: {
     return `已有待审核草案，不会重新生成。${DISCARD_THEN_REGENERATE_HINT}`;
   }
   if (input.published > 0) {
-    return "将生成新的全部章节草案。已发布的正式章在发布前不会改变。";
+    return "将生成新的全部章节草案（含项目概览）。已发布的正式章在发布前不会改变。";
   }
-  return "将更新全部章节，可能需要几分钟。";
+  return "将更新全部研究章节，完成后生成项目概览草案，可能需要几分钟。";
 }
 
 function formatVersionTime(iso: string | null | undefined): string {

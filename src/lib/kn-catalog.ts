@@ -136,6 +136,13 @@ export function researchSectionIdsForKind(
   return researchSectionsForKind(kind).map((s) => s.id);
 }
 
+/** 「更新全部」：研究章 + 最后生成项目概览 */
+export function fullDraftSectionIds(
+  kind: AnalysisKind = DEFAULT_ANALYSIS_KIND,
+): string[] {
+  return [...researchSectionIdsForKind(kind), "project-overview"];
+}
+
 export function sectionLabel(
   id: string,
   kind: AnalysisKind = DEFAULT_ANALYSIS_KIND,

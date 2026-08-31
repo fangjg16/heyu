@@ -232,7 +232,7 @@ const SKILL_PROMPTS: Record<Exclude<SkillIntent, "standard">, string[]> = {
   ],
   knowledge_network: [
     "【项目知识网络】已改为仅在网页生成。不要输出整页 HTML、不要 ```html 代码块、不要写入 [AI]_知识网络.html。",
-    "请用户打开本项目「知识网络」，使用「更新全部章节」或「更新本章」；概览用顶栏「更新概览」。",
+    "请用户打开本项目「知识网络」，使用「更新全部章节」或「更新本章」。更新全部会在研究章之后生成概览草案；也可单独用顶栏「更新概览」对齐已发布知识网络。",
   ],
   ic_memo: [
     "【投资委员会备忘录（草稿）】输出 Markdown：投资概要、标的与交易、投资逻辑、主要风险与缓释、关键条款/交割条件、表决建议（通过/有条件/否决及条件）。",
@@ -363,7 +363,7 @@ export function knowledgeNetworkSystemLines(projectNameHint?: string): string[] 
 
 /** 对话命中「生成知识网络」时的固定回复：不再跑 Hermes 整页 HTML */
 export const KNOWLEDGE_NETWORK_USE_WEB_ANSWER =
-  "项目知识网络请在网页生成：打开本项目「知识网络」，用「更新全部章节」或「更新本章」（概览用顶栏「更新概览」）。对话不再生成整页 HTML。";
+  "项目知识网络请在网页生成：打开本项目「知识网络」，用「更新全部章节」或「更新本章」（更新全部会在研究章之后生成概览草案；也可单独用顶栏「更新概览」）。对话不再生成整页 HTML。";
 
 export function extractKnowledgeNetworkHtml(answer: string): string | null {
   const fence = answer.match(/```html\s*([\s\S]*?)```/i);

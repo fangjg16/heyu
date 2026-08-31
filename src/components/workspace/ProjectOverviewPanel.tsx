@@ -112,7 +112,7 @@ export function ProjectOverviewPanel({
     return (
       <div className="flex min-h-[280px] items-center justify-center px-8 py-16">
         <p className="max-w-md text-center text-[13px] leading-relaxed text-[#969E9A]">
-          尚无项目概览。点「更新概览」根据当前知识网络生成。
+          尚无项目概览。在知识网络点「更新全部章节」会一并生成概览草案；也可点顶栏「更新概览」按已发布知识网络单独生成。
         </p>
       </div>
     );
