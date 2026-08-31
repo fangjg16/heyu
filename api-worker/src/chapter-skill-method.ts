@@ -102,21 +102,25 @@ function wrapMethodBlock(
   const extraLock =
     sectionId === "project-overview"
       ? "综合成熟度只填右上角那一个数或状态词；禁止输出 Factor A/B 分卡、十一段完整度表。"
-      : sectionId === "snapshot"
+      : sectionId === "project-summary" || sectionId === "snapshot"
         ? "只填项目范围与交易要点；禁止输出 Factor A/B 分卡、十一段完整度表或综合成熟度表。"
-        : sectionId === "questions"
+        : sectionId === "diligence-gaps" ||
+            sectionId === "open-items-exceptions" ||
+            sectionId === "questions"
           ? "待确认问题必须用 P1/P2/P3 三组 <details> 折叠卡片，组内 <ol><li>；禁止改成缺口登记大表。"
-          : sectionId === "business"
+          : sectionId === "business-technology" ||
+              sectionId === "business-worth-buying" ||
+              sectionId === "business"
             ? "写目标公司怎么赚钱（客户/定价/单位经济）；禁止 IRR/MOIC/投资人回报。模板里只有一张画布，禁止再叠一套九格。"
-            : sectionId === "objectives"
-              ? "用结论/已核实/假设/缺口四段封面，不要已核实/存疑/矛盾三个计数大卡。"
-              : sectionId === "industry"
-                ? "写市场切法、政策、与标的咬合、红黄旗；禁止对战卡和出价区间。"
-                : sectionId === "benchmarks"
-                  ? "只填模板里出现的对标主格式；禁止行业章内容、禁止同时做完整对战卡和完整出价表。附件文件名或正文点名的对标主体（含中文名/英文名）必须入表，不得漏列。"
-                  : sectionId === "framework"
-                    ? "写建议、论点、法律路径、增值杠杆与路线图；禁止 Top5 风险表和三情景 IRR 摘要。"
-                    : "";
+            : sectionId === "industry-competition" ||
+                sectionId === "market-discovery" ||
+                sectionId === "industry"
+              ? "写市场切法、政策、与标的咬合、红黄旗；禁止对战卡和出价区间。"
+              : sectionId === "investment-conclusion" ||
+                  sectionId === "recommendation-conditions" ||
+                  sectionId === "framework"
+                ? "写建议、论点、法律路径、增值杠杆与路线图；禁止 Top5 风险表和三情景 IRR 摘要。"
+                : "";
   const lines = [
     "【分析方法 · 只用于填写模板中的「待补」】",
     `本章 ${sectionId} 对应 skill：${parts.map((p) => p.skill).join("、")}。`,

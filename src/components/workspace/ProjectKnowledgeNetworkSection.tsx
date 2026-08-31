@@ -12,19 +12,27 @@ import {
 import {
   ActiveDraftExistsError,
   DraftRunDiscardedError,
+  ENABLE_LIVE_CHAT,
   createChapterDraftRun,
   discardChapterDraftRun,
+  endStartupInterview,
   fetchActiveChapterDraftRun,
   fetchKnowledgeChapterVersion,
   fetchOverviewVersion,
   fetchProjectKnowledgeChapter,
+  fetchProjectPermissions,
+  fetchStartupInterview,
   listKnowledgeChapterVersions,
   listProjectKnowledgeChapters,
+  pauseStartupInterview,
   reviseProjectKnowledgeChapter,
   rollbackKnowledgeChapterVersion,
+  startStartupInterview,
   waitForDraftRunSettled,
   type KnowledgeChapterVersionMeta,
   type OverviewVersionMeta,
+  type ProjectPermissionMember,
+  type StartupInterviewDto,
 } from "@/lib/project-api";
 import { stripAuthoringHintsFromHtml } from "@/lib/strip-authoring-hints";
 import { formatChapterVersionLabel, formatOverviewVersionLabel } from "@/lib/chapter-version";
@@ -43,68 +51,20 @@ import {
   getProjectRole,
 } from "@/workspace/workspace-users";
 import { chatAskAboutChapterPath } from "@/workspace/chat-ask-source";
+import { projectPhaseLabel, type WorkspaceProject } from "@/workspace/projects";
 import {
   dismissIfBackdropClick,
   markBackdropPointerDown,
 } from "@/lib/backdrop-dismiss";
+import { resolveAnalysisKind } from "@/lib/analysis-kind";
 import {
-  projectPhaseLabel,
-  type WorkspaceProject,
-} from "@/workspace/projects";
+  catalogGroupsForKind,
+  questionsSectionIdForKind,
+  researchSectionsForKind,
+  resolveSectionLocation,
+} from "@/lib/kn-catalog";
 
 type KnowledgeView = "chapters" | "sources" | "glossary" | "versions";
-
-type ChapterGroup = {
-  id: string;
-  label: string;
-  sections: { id: string; label: string }[];
-};
-
-/** 与原型 petChapterGroups / peptideChapterGroups 一致的静态目录 */
-const CHAPTER_GROUPS: ChapterGroup[] = [
-  {
-    id: "overview",
-    label: "项目概况",
-    sections: [
-      { id: "snapshot", label: "项目快照" },
-      { id: "objectives", label: "标的概况" },
-    ],
-  },
-  {
-    id: "research",
-    label: "基础研究",
-    sections: [
-      { id: "industry", label: "行业分析" },
-      { id: "legal", label: "合规分析" },
-      { id: "benchmarks", label: "对标分析" },
-    ],
-  },
-  {
-    id: "structure",
-    label: "方案与回报",
-    sections: [
-      { id: "business", label: "业务模式" },
-      { id: "returns", label: "财务与回报" },
-      { id: "capabilities", label: "资源网络" },
-      { id: "ownership", label: "背景调查" },
-      { id: "diligence", label: "尽职调查" },
-    ],
-  },
-  {
-    id: "risk",
-    label: "风险与决策",
-    sections: [
-      { id: "risks", label: "风险矩阵" },
-      { id: "questions", label: "待确认问题" },
-      { id: "framework", label: "决策路径与法律结构" },
-    ],
-  },
-];
-
-const RESEARCH_SECTION_IDS = CHAPTER_GROUPS.flatMap((g) =>
-  g.sections.map((s) => s.id),
-);
-const RESEARCH_CHAPTER_COUNT = RESEARCH_SECTION_IDS.length;
 
 function allChaptersConfirmText(input: {
   loading: boolean;
@@ -128,20 +88,6 @@ function allChaptersConfirmText(input: {
     return "将生成新的全部章节草案。已发布的正式章在发布前不会改变。";
   }
   return "将更新全部章节，可能需要几分钟。";
-}
-
-function resolveSectionLocation(sectionRaw: string | null): {
-  groupId: string;
-  sectionId: string;
-} | null {
-  const sid = (sectionRaw ?? "").trim();
-  if (!sid) return null;
-  for (const g of CHAPTER_GROUPS) {
-    if (g.sections.some((s) => s.id === sid)) {
-      return { groupId: g.id, sectionId: sid };
-    }
-  }
-  return null;
 }
 
 function formatVersionTime(iso: string | null | undefined): string {
@@ -193,13 +139,19 @@ export function ProjectKnowledgeNetworkSection({
 }: ProjectKnowledgeNetworkSectionProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const initialLoc = resolveSectionLocation(searchParams.get("section"));
+  const analysisKind = resolveAnalysisKind(project?.analysisKind);
+  const chapterGroups = catalogGroupsForKind(analysisKind);
+  const questionsSectionId = questionsSectionIdForKind(analysisKind);
+  const initialLoc = resolveSectionLocation(
+    searchParams.get("section"),
+    analysisKind,
+  );
   const [view, setView] = useState<KnowledgeView>("chapters");
   const [groupId, setGroupId] = useState(
-    () => initialLoc?.groupId ?? CHAPTER_GROUPS[0]!.id,
+    () => initialLoc?.groupId ?? chapterGroups[0]!.id,
   );
   const [sectionId, setSectionId] = useState(
-    () => initialLoc?.sectionId ?? CHAPTER_GROUPS[0]!.sections[0]!.id,
+    () => initialLoc?.sectionId ?? chapterGroups[0]!.sections[0]!.id,
   );
   const [draftDialogOpen, setDraftDialogOpen] = useState(false);
   const [draftRunId, setDraftRunId] = useState<string | null>(null);
@@ -239,7 +191,7 @@ export function ProjectKnowledgeNetworkSection({
     { sectionId: string; html: string }[]
   >([]);
   const [versionSectionId, setVersionSectionId] = useState(
-    CHAPTER_GROUPS[0]!.sections[0]!.id,
+    chapterGroups[0]!.sections[0]!.id,
   );
   const [versionDetailLoading, setVersionDetailLoading] = useState(false);
   const [rollbackBusy, setRollbackBusy] = useState<number | null>(null);
@@ -267,20 +219,38 @@ export function ProjectKnowledgeNetworkSection({
   const [confirmHasDraft, setConfirmHasDraft] = useState(false);
   const [confirmPublished, setConfirmPublished] = useState(0);
   const [confirmFailed, setConfirmFailed] = useState(0);
+  const [interview, setInterview] = useState<StartupInterviewDto | null>(null);
+  const [interviewBusy, setInterviewBusy] = useState(false);
+  const [interviewMembers, setInterviewMembers] = useState<
+    ProjectPermissionMember[]
+  >([]);
+  const [interviewAnswererId, setInterviewAnswererId] = useState("");
   useBodyScrollLock(allChaptersConfirm);
 
   const flatSections = useMemo(
-    () => CHAPTER_GROUPS.flatMap((g) => g.sections),
-    [],
+    () => chapterGroups.flatMap((g) => g.sections),
+    [chapterGroups],
   );
 
   useEffect(() => {
-    const loc = resolveSectionLocation(searchParams.get("section"));
+    const loc = resolveSectionLocation(searchParams.get("section"), analysisKind);
     if (!loc) return;
     setView("chapters");
     setGroupId(loc.groupId);
     setSectionId(loc.sectionId);
-  }, [searchParams]);
+  }, [searchParams, analysisKind]);
+
+  useEffect(() => {
+    if (chapterGroups.some((g) => g.sections.some((s) => s.id === sectionId))) {
+      const loc = resolveSectionLocation(sectionId, analysisKind);
+      if (loc) setGroupId(loc.groupId);
+      return;
+    }
+    const first = chapterGroups[0];
+    if (!first?.sections[0]) return;
+    setGroupId(first.id);
+    setSectionId(first.sections[0].id);
+  }, [analysisKind, chapterGroups, sectionId]);
 
   useEffect(() => {
     const viewParam = searchParams.get("view");
@@ -380,30 +350,28 @@ export function ProjectKnowledgeNetworkSection({
     null;
 
   const activeGroup = useMemo(
-    () => CHAPTER_GROUPS.find((g) => g.id === groupId) ?? CHAPTER_GROUPS[0]!,
-    [groupId],
+    () => chapterGroups.find((g) => g.id === groupId) ?? chapterGroups[0]!,
+    [groupId, chapterGroups],
   );
 
   const sectionLabel = useMemo(() => {
-    for (const g of CHAPTER_GROUPS) {
+    for (const g of chapterGroups) {
       const s = g.sections.find((x) => x.id === sectionId);
       if (s) return s.label;
     }
     return sectionId;
-  }, [sectionId]);
+  }, [sectionId, chapterGroups]);
 
   const canUpdate = useMemo(() => {
     if (isGuest || !userId.trim()) return false;
-    const p = project as Pick<WorkspaceProject, "id" | "createdBy"> | undefined;
-    if (!p?.id) return false;
-    return canUpdateProjectKnowledgeNetwork(userId, p);
+    if (!project?.id) return false;
+    return canUpdateProjectKnowledgeNetwork(userId, project);
   }, [isGuest, project, userId]);
 
   const canPublish = useMemo(() => {
     if (isGuest || !userId.trim()) return false;
-    const p = project as Pick<WorkspaceProject, "id" | "createdBy"> | undefined;
-    if (!p?.id) return false;
-    return canPublishProjectKnowledgeNetwork(userId, p);
+    if (!project?.id) return false;
+    return canPublishProjectKnowledgeNetwork(userId, project);
   }, [isGuest, project, userId]);
 
   const onRollbackVersion = async (version: number) => {
@@ -484,10 +452,10 @@ export function ProjectKnowledgeNetworkSection({
   };
 
   const relatedQuestions = useMemo(() => {
-    if (sectionId === "questions") return [];
+    if (sectionId === questionsSectionId) return [];
     const items = parseOpenQuestionsFromHtml(questionsHtml ?? "");
     return pickRelatedOpenQuestions(sectionId, items, 2);
-  }, [questionsHtml, sectionId]);
+  }, [questionsHtml, sectionId, questionsSectionId]);
 
   const onChapterGenerateSucceededRef = useRef(onChapterGenerateSucceeded);
   onChapterGenerateSucceededRef.current = onChapterGenerateSucceeded;
@@ -608,7 +576,7 @@ export function ProjectKnowledgeNetworkSection({
       try {
         const data = await fetchProjectKnowledgeChapter(
           projectId,
-          "questions",
+          questionsSectionId,
           userId,
         );
         if (cancelled) return;
@@ -620,7 +588,52 @@ export function ProjectKnowledgeNetworkSection({
     return () => {
       cancelled = true;
     };
-  }, [projectId, userId, isGuest, refreshKey]);
+  }, [projectId, userId, isGuest, refreshKey, questionsSectionId]);
+
+  useEffect(() => {
+    if (analysisKind !== "early" || !projectId || isGuest) {
+      setInterview(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchStartupInterview(projectId)
+      .then((data) => {
+        if (!cancelled) setInterview(data.interview);
+      })
+      .catch(() => {
+        if (!cancelled) setInterview(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [analysisKind, projectId, isGuest, refreshKey]);
+
+  useEffect(() => {
+    if (analysisKind !== "early" || !projectId || !canPublish || !userId) {
+      return;
+    }
+    if (!ENABLE_LIVE_CHAT) {
+      const fallback = (project?.createdBy ?? userId).trim();
+      setInterviewAnswererId(fallback);
+      return;
+    }
+    let cancelled = false;
+    void fetchProjectPermissions(projectId, userId)
+      .then((data) => {
+        if (cancelled) return;
+        setInterviewMembers(data.members);
+        const fallback = (project?.createdBy ?? userId).trim();
+        setInterviewAnswererId((prev) => prev || fallback);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setInterviewMembers([]);
+        setInterviewAnswererId((project?.createdBy ?? userId).trim());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [analysisKind, projectId, canPublish, userId, project?.createdBy]);
 
   useEffect(() => {
     if (view !== "sources") return;
@@ -654,7 +667,7 @@ export function ProjectKnowledgeNetworkSection({
   };
 
   const selectGroup = (id: string) => {
-    const group = CHAPTER_GROUPS.find((g) => g.id === id);
+    const group = chapterGroups.find((g) => g.id === id);
     if (!group) return;
     setGroupId(group.id);
     setSectionId(group.sections[0]!.id);
@@ -884,8 +897,68 @@ export function ProjectKnowledgeNetworkSection({
 
   const goToQuestions = () => {
     setView("chapters");
-    setGroupId("risk");
-    setSectionId("questions");
+    const loc = resolveSectionLocation(questionsSectionId, analysisKind);
+    setGroupId(loc?.groupId ?? chapterGroups[0]!.id);
+    setSectionId(questionsSectionId);
+  };
+
+  const openInterviewChat = (conversationId: string) => {
+    navigate(`/app/chat/${encodeURIComponent(projectId)}/${encodeURIComponent(conversationId)}`);
+  };
+
+  const onStartInterview = async () => {
+    if (interviewBusy || !canPublish) return;
+    setInterviewBusy(true);
+    setError(null);
+    try {
+      const data = await startStartupInterview(
+        projectId,
+        interviewAnswererId || undefined,
+      );
+      setInterview(data.interview);
+      openInterviewChat(data.interview.conversationId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "开始访谈失败");
+    } finally {
+      setInterviewBusy(false);
+    }
+  };
+
+  const onPauseInterview = async () => {
+    if (interviewBusy || !canPublish) return;
+    setInterviewBusy(true);
+    setError(null);
+    try {
+      await pauseStartupInterview(projectId);
+      setInterview((prev) =>
+        prev ? { ...prev, status: "paused", pausedAt: new Date().toISOString() } : prev,
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "暂停失败");
+    } finally {
+      setInterviewBusy(false);
+    }
+  };
+
+  const onEndInterview = async () => {
+    if (interviewBusy || !canPublish) return;
+    setInterviewBusy(true);
+    setError(null);
+    try {
+      const data = await endStartupInterview(projectId);
+      setInterview(null);
+      if (data.draftRunId) {
+        navigate(
+          `/app/projects/${encodeURIComponent(projectId)}/knowledge/review/${encodeURIComponent(data.draftRunId)}`,
+        );
+      } else if (onUpdateAllChapters) {
+        onUpdateAllChapters();
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "结束访谈失败");
+    } finally {
+      setInterviewBusy(false);
+    }
   };
 
   const onAskChapter = () => {
@@ -913,7 +986,9 @@ export function ProjectKnowledgeNetworkSection({
         fetchActiveChapterDraftRun(projectId, userId).catch(() => null),
         listProjectKnowledgeChapters(projectId, userId).catch(() => null),
       ]);
-      const researchIds = new Set(RESEARCH_SECTION_IDS);
+      const researchIds = new Set(
+        researchSectionsForKind(analysisKind).map((s) => s.id),
+      );
       const published = live?.chapters
         ? live.chapters.filter((c) => researchIds.has(c.sectionId) && c.hasHtml)
             .length
@@ -954,6 +1029,78 @@ export function ProjectKnowledgeNetworkSection({
             );
           })}
         </div>
+        {analysisKind === "early" ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {interview?.status === "in_progress" ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => openInterviewChat(interview.conversationId)}
+                  className="inline-flex h-9 items-center rounded-[10px] border border-[rgba(78,66,57,0.16)] bg-white px-3.5 text-[13px] font-medium text-[#1F2423]"
+                >
+                  继续上次没问完的访谈
+                </button>
+                {canPublish ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled={interviewBusy}
+                      onClick={() => void onPauseInterview()}
+                      className="h-9 rounded-[10px] px-3 text-[13px] text-[#59625F] hover:bg-[rgba(78,66,57,0.06)] disabled:opacity-50"
+                    >
+                      暂停
+                    </button>
+                    <button
+                      type="button"
+                      disabled={interviewBusy}
+                      onClick={() => void onEndInterview()}
+                      className="h-9 rounded-[10px] px-3 text-[13px] text-[hsl(var(--wine))] hover:bg-[hsl(var(--wine-muted))] disabled:opacity-50"
+                    >
+                      结束访谈
+                    </button>
+                  </>
+                ) : null}
+              </>
+            ) : interview?.status === "paused" && canPublish ? (
+              <button
+                type="button"
+                disabled={interviewBusy}
+                onClick={() => void onStartInterview()}
+                className="inline-flex h-9 items-center rounded-[10px] border border-[hsl(var(--wine)/0.35)] bg-[hsl(var(--wine-muted))] px-3.5 text-[13px] font-medium text-[hsl(var(--wine))] disabled:opacity-50"
+              >
+                继续上次没问完的访谈
+              </button>
+            ) : canPublish ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {interviewMembers.length > 0 ? (
+                  <label className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[rgba(78,66,57,0.16)] bg-white px-2.5 text-[12px] text-[#59625F]">
+                    回答人
+                    <select
+                      value={interviewAnswererId}
+                      onChange={(e) => setInterviewAnswererId(e.target.value)}
+                      disabled={interviewBusy}
+                      className="max-w-[9.5rem] bg-transparent text-[13px] font-medium text-[#1F2423] outline-none"
+                    >
+                      {interviewMembers.map((m) => (
+                        <option key={m.userId} value={m.userId}>
+                          {m.displayName || m.userId}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={interviewBusy || allChaptersBusy}
+                  onClick={() => void onStartInterview()}
+                  className="inline-flex h-9 items-center rounded-[10px] border border-[hsl(var(--wine)/0.35)] bg-[hsl(var(--wine-muted))] px-3.5 text-[13px] font-medium text-[hsl(var(--wine))] disabled:opacity-50"
+                >
+                  开始用户访谈
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {canUpdateAllChapters || canUpdate ? (
           <button
             type="button"
@@ -962,7 +1109,8 @@ export function ProjectKnowledgeNetworkSection({
               !canUpdateAllChapters ||
               allChaptersBusy ||
               overviewBusy ||
-              !onUpdateAllChapters
+              !onUpdateAllChapters ||
+              interview?.status === "in_progress"
             }
             className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[hsl(var(--wine)/0.35)] bg-[hsl(var(--wine-muted))] px-3.5 text-[13px] font-medium text-[hsl(var(--wine))] transition-colors hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -985,7 +1133,7 @@ export function ProjectKnowledgeNetworkSection({
 
           <div className="overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.74)]">
             <div className="flex items-center gap-1 overflow-x-auto border-b border-[rgba(78,66,57,0.1)] px-3.5 py-2.5">
-              {CHAPTER_GROUPS.map((g) => {
+              {chapterGroups.map((g) => {
                 const active = g.id === activeGroup.id;
                 return (
                   <button
@@ -1056,7 +1204,8 @@ export function ProjectKnowledgeNetworkSection({
                     suppressContentEditableWarning
                     className={cn(
                       "kn-chapter-html text-[13.5px] leading-[1.75] text-[#1F2423] [&_a.kn-cite]:cursor-pointer [&_h2]:mb-3 [&_h2]:mt-6 [&_h2]:text-[18px] [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:mt-5 [&_h3]:text-[15px] [&_h3]:font-semibold [&_p]:my-2 [&_table]:my-3 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[rgba(78,66,57,0.12)] [&_td]:px-3 [&_td]:py-2 [&_th]:whitespace-nowrap [&_th]:border [&_th]:border-[rgba(78,66,57,0.12)] [&_th]:bg-[rgba(78,66,57,0.05)] [&_th]:px-3 [&_th]:py-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5",
-                      sectionId === "snapshot" &&
+                      (sectionId === "project-summary" ||
+                        sectionId === "decision-object") &&
                         "[&_tbody_td:first-child]:whitespace-nowrap [&_tbody_td:first-child]:font-medium",
                       liveEditing &&
                         "outline outline-2 outline-[rgba(160,99,88,0.25)] outline-offset-[-2px]",
@@ -1171,7 +1320,7 @@ export function ProjectKnowledgeNetworkSection({
                     </span>
                   </div>
 
-                  {sectionId !== "questions" ? (
+                  {sectionId !== questionsSectionId ? (
                     <>
                       <div className="my-4 h-px bg-[rgba(78,66,57,0.1)]" />
                       <div className="mb-2 text-[12px] text-[#59625F]">
@@ -1700,7 +1849,7 @@ export function ProjectKnowledgeNetworkSection({
                       hasDraft: confirmHasDraft,
                       published: confirmPublished,
                       failed: confirmFailed,
-                      total: RESEARCH_CHAPTER_COUNT,
+                      total: researchSectionsForKind(analysisKind).length,
                     })}
                   </p>
                 </div>
@@ -1722,7 +1871,7 @@ export function ProjectKnowledgeNetworkSection({
                     </button>
                   ) : confirmHasDraft &&
                     confirmPublished > 0 &&
-                    RESEARCH_CHAPTER_COUNT - confirmPublished > 0 ? (
+                    researchSectionsForKind(analysisKind).length - confirmPublished > 0 ? (
                     <>
                       <button
                         type="button"

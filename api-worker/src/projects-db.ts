@@ -1,4 +1,5 @@
 import type { AppDatabase } from "./app-database";
+import { parseAnalysisKind, saveAnalysisKind } from "./analysis-kind";
 
 export type ProjectPhase = "进行中" | "已完成" | "已归档" | "已暂停";
 
@@ -17,6 +18,7 @@ export type ProjectRow = {
   created_at: string;
   updated_at: string;
   deleted_at?: string | null;
+  analysis_kind?: string | null;
 };
 
 export type ProjectJson = {
@@ -30,6 +32,7 @@ export type ProjectJson = {
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
+  analysisKind: "early" | "mature" | "acquire" | null;
 };
 
 export function normalizeProjectOpenness(raw: unknown): ProjectOpenness {
@@ -46,6 +49,13 @@ function nowIso(): string {
 }
 
 export function rowToJson(row: ProjectRow): ProjectJson {
+  const kindRaw = String(row.analysis_kind ?? "")
+    .trim()
+    .toLowerCase();
+  const analysisKind =
+    kindRaw === "early" || kindRaw === "mature" || kindRaw === "acquire"
+      ? kindRaw
+      : null;
   return {
     id: row.id,
     name: row.name,
@@ -57,9 +67,13 @@ export function rowToJson(row: ProjectRow): ProjectJson {
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    analysisKind,
   };
 }
 
+const PROJECT_SELECT_WITH_KIND = `SELECT id, name, category, phase, summary, guest_summary, openness,
+            created_by, created_at, updated_at, deleted_at, analysis_kind
+     FROM projects`;
 const PROJECT_SELECT_WITH_OPENNESS = `SELECT id, name, category, phase, summary, guest_summary, openness,
             created_by, created_at, updated_at, deleted_at
      FROM projects`;
@@ -88,35 +102,56 @@ function notDeletedClause(hasDeletedAt: boolean): string {
   return hasDeletedAt ? " WHERE (deleted_at IS NULL OR deleted_at = '')" : "";
 }
 
+function isMissingAnalysisKindColumn(err: unknown): boolean {
+  return isMissingColumn(err, "analysis_kind");
+}
+
 export async function listProjects(env: { DB: AppDatabase }): Promise<ProjectJson[]> {
   try {
     const { results } = await env.DB.prepare(
-      `${PROJECT_SELECT_WITH_OPENNESS}${notDeletedClause(true)} ORDER BY updated_at DESC`,
+      `${PROJECT_SELECT_WITH_KIND}${notDeletedClause(true)} ORDER BY updated_at DESC`,
     ).all<ProjectRow>();
     return (results ?? []).map(rowToJson);
   } catch (e) {
-    if (isMissingDeletedAtColumn(e)) {
+    if (isMissingAnalysisKindColumn(e)) {
       try {
         const { results } = await env.DB.prepare(
-          `SELECT id, name, category, phase, summary, guest_summary, openness,
-                  created_by, created_at, updated_at
-           FROM projects ORDER BY updated_at DESC`,
+          `${PROJECT_SELECT_WITH_OPENNESS}${notDeletedClause(true)} ORDER BY updated_at DESC`,
         ).all<ProjectRow>();
         return (results ?? []).map(rowToJson);
-      } catch (e2) {
-        if (!isMissingOpennessColumn(e2)) throw e2;
-        const { results } = await env.DB.prepare(
-          `${PROJECT_SELECT_LEGACY} ORDER BY updated_at DESC`,
-        ).all<ProjectRow>();
-        return (results ?? []).map(rowToJson);
+      } catch (eKind) {
+        return listProjectsWithoutKind(env, eKind);
       }
     }
-    if (!isMissingOpennessColumn(e)) throw e;
-    const { results } = await env.DB.prepare(
-      `${PROJECT_SELECT_LEGACY} ORDER BY updated_at DESC`,
-    ).all<ProjectRow>();
-    return (results ?? []).map(rowToJson);
+    return listProjectsWithoutKind(env, e);
   }
+}
+
+async function listProjectsWithoutKind(
+  env: { DB: AppDatabase },
+  e: unknown,
+): Promise<ProjectJson[]> {
+  if (isMissingDeletedAtColumn(e)) {
+    try {
+      const { results } = await env.DB.prepare(
+        `SELECT id, name, category, phase, summary, guest_summary, openness,
+                created_by, created_at, updated_at
+         FROM projects ORDER BY updated_at DESC`,
+      ).all<ProjectRow>();
+      return (results ?? []).map(rowToJson);
+    } catch (e2) {
+      if (!isMissingOpennessColumn(e2)) throw e2;
+      const { results } = await env.DB.prepare(
+        `${PROJECT_SELECT_LEGACY} ORDER BY updated_at DESC`,
+      ).all<ProjectRow>();
+      return (results ?? []).map(rowToJson);
+    }
+  }
+  if (!isMissingOpennessColumn(e)) throw e;
+  const { results } = await env.DB.prepare(
+    `${PROJECT_SELECT_LEGACY} ORDER BY updated_at DESC`,
+  ).all<ProjectRow>();
+  return (results ?? []).map(rowToJson);
 }
 
 export async function getProjectById(
@@ -125,36 +160,56 @@ export async function getProjectById(
 ): Promise<ProjectJson | null> {
   try {
     const row = await env.DB.prepare(
-      `${PROJECT_SELECT_WITH_OPENNESS} WHERE id = ? AND (deleted_at IS NULL OR deleted_at = '')`,
+      `${PROJECT_SELECT_WITH_KIND} WHERE id = ? AND (deleted_at IS NULL OR deleted_at = '')`,
     )
       .bind(id)
       .first<ProjectRow>();
     return row ? rowToJson(row) : null;
   } catch (e) {
-    if (isMissingDeletedAtColumn(e)) {
+    if (isMissingAnalysisKindColumn(e)) {
       try {
         const row = await env.DB.prepare(
-          `SELECT id, name, category, phase, summary, guest_summary, openness,
-                  created_by, created_at, updated_at
-           FROM projects WHERE id = ?`,
+          `${PROJECT_SELECT_WITH_OPENNESS} WHERE id = ? AND (deleted_at IS NULL OR deleted_at = '')`,
         )
           .bind(id)
           .first<ProjectRow>();
         return row ? rowToJson(row) : null;
-      } catch (e2) {
-        if (!isMissingOpennessColumn(e2)) throw e2;
-        const row = await env.DB.prepare(`${PROJECT_SELECT_LEGACY} WHERE id = ?`)
-          .bind(id)
-          .first<ProjectRow>();
-        return row ? rowToJson(row) : null;
+      } catch (eKind) {
+        return getProjectByIdWithoutKind(env, id, eKind);
       }
     }
-    if (!isMissingOpennessColumn(e)) throw e;
-    const row = await env.DB.prepare(`${PROJECT_SELECT_LEGACY} WHERE id = ?`)
-      .bind(id)
-      .first<ProjectRow>();
-    return row ? rowToJson(row) : null;
+    return getProjectByIdWithoutKind(env, id, e);
   }
+}
+
+async function getProjectByIdWithoutKind(
+  env: { DB: AppDatabase },
+  id: string,
+  e: unknown,
+): Promise<ProjectJson | null> {
+  if (isMissingDeletedAtColumn(e)) {
+    try {
+      const row = await env.DB.prepare(
+        `SELECT id, name, category, phase, summary, guest_summary, openness,
+                created_by, created_at, updated_at
+         FROM projects WHERE id = ?`,
+      )
+        .bind(id)
+        .first<ProjectRow>();
+      return row ? rowToJson(row) : null;
+    } catch (e2) {
+      if (!isMissingOpennessColumn(e2)) throw e2;
+      const row = await env.DB.prepare(`${PROJECT_SELECT_LEGACY} WHERE id = ?`)
+        .bind(id)
+        .first<ProjectRow>();
+      return row ? rowToJson(row) : null;
+    }
+  }
+  if (!isMissingOpennessColumn(e)) throw e;
+  const row = await env.DB.prepare(`${PROJECT_SELECT_LEGACY} WHERE id = ?`)
+    .bind(id)
+    .first<ProjectRow>();
+  return row ? rowToJson(row) : null;
 }
 
 /** 仅用 ASCII，避免 PATCH 路径含中文导致边缘 404 */
@@ -172,6 +227,7 @@ export async function createProject(
     category?: string;
     phase?: ProjectPhase;
     openness?: ProjectOpenness | string;
+    analysisKind?: string | null;
     createdBy?: string | null;
   },
 ): Promise<ProjectJson> {
@@ -203,6 +259,10 @@ export async function createProject(
       t,
     )
     .run();
+  const kind = parseAnalysisKind(input.analysisKind);
+  if (kind) {
+    await saveAnalysisKind(env.DB, id, kind);
+  }
   const created = await getProjectById(env, id);
   if (!created) throw new Error("项目创建后读取失败");
   return created;

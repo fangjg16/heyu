@@ -6,6 +6,7 @@ import { useJoinReviews } from "@/hooks/use-join-reviews";
 import { cn } from "@/lib/utils";
 import type { ProjectJoinRequest } from "@/lib/project-api";
 import { groupActivityNotices } from "@/workspace/notice-groups";
+import { getMergedProjects } from "@/workspace/project-registry";
 
 function formatWhen(iso: string | null | undefined): string {
   if (!iso) return "";
@@ -288,6 +289,10 @@ export default function Notifications() {
                         </div>
                         <JoinRequestReviewBar
                           disabled={busyId === req.id}
+                          analysisKind={
+                            getMergedProjects().find((p) => p.id === req.projectId)
+                              ?.analysisKind
+                          }
                           onApprove={(role) => void review(req, "approved", role)}
                           onReject={() => void review(req, "rejected")}
                           extra={

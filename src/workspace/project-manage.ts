@@ -28,7 +28,7 @@ export function canUserManageProjectMetadata(
   project: WorkspaceProject,
 ): boolean {
   if (!isPersistedUserProject(project)) return false;
-  if (getProjectRole(userId, project.id, project.createdBy) === "admin") return true;
+  if (getProjectRole(userId, project.id, project.createdBy, project.analysisKind) === "admin") return true;
   return Boolean(project.createdBy && project.createdBy === userId);
 }
 
@@ -41,49 +41,52 @@ export function canManageProjectPermissions(
   if (!uid) return false;
   const creator = (project.createdBy ?? "").trim();
   if (creator && creator === uid) return true;
-  return getProjectRole(uid, project.id, project.createdBy) === "admin";
+  return getProjectRole(uid, project.id, project.createdBy, project.analysisKind) === "admin";
 }
 
 /** 下载项目资料原文件：仅项目 Admin / Core（创建人在本项目已是 Admin） */
 export function canDownloadProjectMaterials(
   userId: string,
-  project: Pick<WorkspaceProject, "id" | "createdBy">,
+  project: Pick<WorkspaceProject, "id" | "createdBy" | "analysisKind">,
 ): boolean {
   const uid = userId.trim();
   if (!uid) return false;
-  const role = getProjectRole(uid, project.id, project.createdBy);
+  const role = getProjectRole(uid, project.id, project.createdBy, project.analysisKind);
   return role === "admin" || role === "core";
 }
 
 /** 项目上传：Admin / Core 可上传、移动、删除 */
 export function canManageProjectUploads(
   userId: string,
-  project: Pick<WorkspaceProject, "id" | "createdBy">,
+  project: Pick<WorkspaceProject, "id" | "createdBy" | "analysisKind">,
 ): boolean {
   const uid = userId.trim();
   if (!uid) return false;
-  const role = getProjectRole(uid, project.id, project.createdBy);
+  const role = getProjectRole(uid, project.id, project.createdBy, project.analysisKind);
   return role === "admin" || role === "core";
 }
 
 /** 生成知识网络草案：Admin / Core */
 export function canUpdateProjectKnowledgeNetwork(
   userId: string,
-  project: Pick<WorkspaceProject, "id" | "createdBy"> | null | undefined,
+  project: Pick<WorkspaceProject, "id" | "createdBy" | "analysisKind"> | null | undefined,
 ): boolean {
   const uid = userId.trim();
   if (!uid || !project?.id) return false;
-  const role = getProjectRole(uid, project.id, project.createdBy);
+  const role = getProjectRole(uid, project.id, project.createdBy, project.analysisKind);
   return role === "admin" || role === "core";
 }
 
 /** 审核/发布/回滚知识网络正式版：仅 Admin（与 Worker 对齐） */
 export function canPublishProjectKnowledgeNetwork(
   userId: string,
-  project: Pick<WorkspaceProject, "id" | "createdBy"> | null | undefined,
+  project:
+    | Pick<WorkspaceProject, "id" | "createdBy" | "analysisKind">
+    | null
+    | undefined,
 ): boolean {
   const uid = userId.trim();
   if (!uid || !project?.id) return false;
-  const role = getProjectRole(uid, project.id, project.createdBy);
+  const role = getProjectRole(uid, project.id, project.createdBy, project.analysisKind);
   return role === "admin";
 }

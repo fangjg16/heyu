@@ -89,6 +89,7 @@ export function getProjectRole(
   userId: string,
   projectId: string,
   createdBy?: string | null,
+  analysisKind?: string | null,
 ): WorkspaceRole {
   const uid = userId.trim();
   if (!uid) return "guest";
@@ -100,10 +101,11 @@ export function getProjectRole(
   if (creator && creator === uid) return "admin";
 
   const cached = readCachedProjectRole(projectId);
-  if (cached) return cached;
-
-  // 无项目成员记录时按未加入；勿用账号字段误当成已入组
-  return "guest";
+  const role = cached ?? "guest";
+  if (analysisKind === "early" && (role === "issuer" || role === "mid")) {
+    return "core";
+  }
+  return role;
 }
 
 /** 已加入项目（三档权限或项目协作方）。guest 表示未加入，不是第四档权限。 */
@@ -120,7 +122,16 @@ export function workspaceRoleToUiTier(role: WorkspaceRole): UiTier {
   return "low";
 }
 
-export function roleLabelForProject(role: WorkspaceRole): string {
+export function roleLabelForProject(
+  role: WorkspaceRole,
+  analysisKind?: string | null,
+): string {
+  if (analysisKind === "early") {
+    if (role === "admin") return "管理员";
+    if (role === "core" || role === "mid" || role === "issuer") return "成员";
+    if (role === "low") return "Basic";
+    if (role === "guest") return "未加入";
+  }
   switch (role) {
     case "admin":
       return "Admin";
@@ -139,10 +150,15 @@ export function roleLabelForProject(role: WorkspaceRole): string {
   }
 }
 
-/** 权限下拉：默认 Admin/Core/Basic；若成员仍是 mid 则临时保留以便改档 */
+/** 权限下拉：默认 Admin/Core/Basic；early 不出现协作方 */
 export function projectRoleSelectOptions(
   current?: WorkspaceRole | null,
+  analysisKind?: string | null,
 ): WorkspaceRole[] {
+  if (analysisKind === "early") {
+    if (current === "mid") return ["admin", "core", "mid", "low"];
+    return ["admin", "core", "low"];
+  }
   if (current === "mid") return ["admin", "core", "mid", "low", "issuer"];
   return ["admin", "core", "low", "issuer"];
 }
@@ -177,14 +193,21 @@ export function canOpenWorkspaceChat(userId: string | null | undefined): boolean
   return false;
 }
 
-export function canEnterChat(role: WorkspaceRole): boolean {
+export function canEnterChat(
+  role: WorkspaceRole,
+  analysisKind?: string | null,
+): boolean {
+  if (analysisKind === "early") return role === "admin" || role === "core";
   return isInvestorRole(role);
 }
 
 export function projectEntryPath(
   projectId: string,
   role: WorkspaceRole,
+  analysisKind?: string | null,
 ): string {
-  if (role === "issuer") return `/app/collab/${projectId}`;
+  if (role === "issuer" && analysisKind !== "early") {
+    return `/app/collab/${projectId}`;
+  }
   return `/app/projects/${projectId}/overview`;
 }

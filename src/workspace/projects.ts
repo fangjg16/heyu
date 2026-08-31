@@ -23,6 +23,8 @@ export type WorkspaceProject = {
   updatedAt?: string | null;
   /** 知识网络研究成熟度 0–100（列表接口聚合；缺省表示未知） */
   researchMaturity?: number | null;
+  /** early | mature | acquire；未判断时为空，界面按 mature 目录 */
+  analysisKind?: "early" | "mature" | "acquire" | null;
 };
 
 export const DEFAULT_PROJECT_PHASE: ProjectPhase = "进行中";

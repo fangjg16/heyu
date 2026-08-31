@@ -92,8 +92,8 @@ export function ProjectDetailDrawer({
 
   if (!project) return null;
 
-  const role = getProjectRole(userId, project.id, project.createdBy);
-  const chatOk = canEnterChat(role);
+  const role = getProjectRole(userId, project.id, project.createdBy, project.analysisKind);
+  const chatOk = canEnterChat(role, project.analysisKind);
   const canManage = canUserManageProjectMetadata(userId, project);
   const canManagePerms = canManageProjectPermissions(userId, project);
   const canDownloadMaterials = canDownloadProjectMaterials(userId, project);
@@ -152,7 +152,7 @@ export function ProjectDetailDrawer({
             <p className="mt-2 text-[11px] font-medium text-muted-foreground">
               {role === "guest"
                 ? "尚未加入本项目"
-                : `本项目权限：${roleLabelForProject(role)}`}
+                : `本项目权限：${roleLabelForProject(role, project.analysisKind)}`}
               {canManage && project.createdBy === userId
                 ? " · 你是创建人，可编辑或删除"
                 : canManage

@@ -80,6 +80,7 @@ import {
   toVirtualFolder,
 } from "@/lib/project-file-source";
 import { inferDocumentGenre, resolveFileTopic } from "@/lib/file-topic";
+import { documentsInVersionFamily } from "@/lib/document-versions";
 import {
   collectDroppedFiles,
   snapshotDroppedEntries,
@@ -267,7 +268,13 @@ function tagsForFile(
       fg: "#59625F",
     });
   }
-  if (fileSourceBucket(file) === "ai") {
+  if (file.sourceKind === "user_interview") {
+    tags.push({
+      label: "用户访谈",
+      bg: "rgba(94,155,117,0.15)",
+      fg: "#3F6F63",
+    });
+  } else if (fileSourceBucket(file) === "ai") {
     tags.push({
       label: "AI生成",
       bg: "rgba(160,99,88,0.1)",
@@ -1959,7 +1966,22 @@ export function ProjectMaterialsSection({
         <FilePreviewModal
           projectId={projectId}
           userId={userId}
-          file={findFile(fullTree, previewFileId)?.file ?? null}
+          file={
+            allLive.find((f) => f.id === previewFileId) ??
+            findFile(fullTree, previewFileId)?.file ??
+            null
+          }
+          versionFiles={
+            (() => {
+              const current =
+                allLive.find((f) => f.id === previewFileId) ??
+                findFile(fullTree, previewFileId)?.file ??
+                null;
+              return current
+                ? documentsInVersionFamily(allLive, current)
+                : [];
+            })()
+          }
           onClose={() => setPreviewFileId(null)}
           onDownload={
             canDownload
@@ -2386,15 +2408,18 @@ function FilePreviewModal({
   projectId,
   userId,
   file,
+  versionFiles = [],
   onClose,
   onDownload,
 }: {
   projectId: string;
   userId: string;
   file: ProjectFileRecord | null;
+  versionFiles?: ProjectFileRecord[];
   onClose: () => void;
   onDownload?: () => Promise<void>;
 }) {
+  const [viewing, setViewing] = useState<ProjectFileRecord | null>(file);
   const [loading, setLoading] = useState(
     () => !(file && classifyFileKind(file) === "pdf"),
   );
@@ -2412,9 +2437,15 @@ function FilePreviewModal({
     : "";
 
   useEffect(() => {
-    if (!file) return;
+    setViewing(file);
+  }, [file]);
+
+  const active = viewing ?? file;
+
+  useEffect(() => {
+    if (!active) return;
     let cancelled = false;
-    const kind = classifyFileKind(file);
+    const kind = classifyFileKind(active);
     if (kind === "pdf") {
       setMode("pdf");
       setLoading(false);
@@ -2429,11 +2460,12 @@ function FilePreviewModal({
       try {
         const { blob } = await downloadFileBlob(
           projectId,
-          file.id,
+          active.id,
           userId,
-          file.filename,
+          active.filename,
         );
         if (cancelled) return;
+        const kind = classifyFileKind(active);
         if (kind === "text") {
           const raw = await blob.text();
           if (cancelled) return;
@@ -2452,10 +2484,11 @@ function FilePreviewModal({
     return () => {
       cancelled = true;
     };
-  }, [file, projectId, userId]);
+  }, [active, projectId, userId]);
 
-  if (!file) return null;
-  const format = previewFormat(file);
+  if (!file || !active) return null;
+  const format = previewFormat(active);
+  const versions = versionFiles.length > 0 ? versionFiles : [active];
 
   return createPortal(
     <div
@@ -2480,10 +2513,38 @@ function FilePreviewModal({
             {format}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold">{file.filename}</div>
+            <div className="truncate text-sm font-semibold">{active.filename}</div>
             <div className="mt-0.5 text-[11px] text-[hsl(var(--warm-charcoal-muted))]">
               {format} · 只读预览
+              {versions.length > 1
+                ? ` · ${versions.length} 个历史版本`
+                : ""}
             </div>
+            {versions.length > 1 ? (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {versions.map((v, i) => {
+                  const current = v.id === active.id;
+                  const label = v.createdAt
+                    ? v.createdAt.replace("T", " ").slice(0, 16)
+                    : `版本 ${versions.length - i}`;
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => setViewing(v)}
+                      className={cn(
+                        "rounded-md px-1.5 py-0.5 text-[10px]",
+                        current
+                          ? "bg-[#1F2423] text-white"
+                          : "bg-[rgba(78,66,57,0.08)] text-[#59625F] hover:bg-[rgba(78,66,57,0.14)]",
+                      )}
+                    >
+                      {i === 0 ? `当前 · ${label}` : label}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
           {onDownload ? (
             <button
@@ -2530,7 +2591,7 @@ function FilePreviewModal({
                 </span>
                 <span className="font-mono text-[10px] text-[#969E9A]">{format}</span>
               </div>
-              {isMarkdownFile(file) ? (
+              {isMarkdownFile(active) ? (
                 <div className="mt-8">
                   <FileMarkdownBody text={text || ""} />
                 </div>

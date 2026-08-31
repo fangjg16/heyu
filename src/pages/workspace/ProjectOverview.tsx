@@ -9,6 +9,11 @@ import { ProjectEditModal } from "@/components/workspace/ProjectEditModal";
 import { IndustryCategoryFields, RequiredMark } from "@/components/workspace/IndustryCategoryFields";
 import { cn } from "@/lib/utils";
 import {
+  ANALYSIS_KIND_LABELS,
+  ANALYSIS_KINDS,
+  type AnalysisKind,
+} from "@/lib/analysis-kind";
+import {
   formatIndustryCategory,
   displayIndustryCategory,
   parseIndustryCategory,
@@ -145,8 +150,8 @@ function coverToneFor(project: WorkspaceProject) {
 }
 
 /** 卡片脚注用短标签 */
-function roleFootnote(role: WorkspaceRole): string {
-  return roleLabelForProject(role);
+function roleFootnote(role: WorkspaceRole, analysisKind?: string | null): string {
+  return roleLabelForProject(role, analysisKind);
 }
 
 function ownerDisplayName(createdBy: string | null | undefined): string {
@@ -188,13 +193,15 @@ function ProjectCard({
   joining?: boolean;
   withdrawing?: boolean;
 }) {
-  const role = getProjectRole(userId, project.id, project.createdBy);
+  const role = getProjectRole(userId, project.id, project.createdBy, project.analysisKind);
   const isMember = isJoinedProjectRole(role);
   const canManage = canUserManageProjectMetadata(userId, project);
-  const roleLabel = isMember ? roleFootnote(role) : "未加入";
+  const roleLabel = isMember ? roleFootnote(role, project.analysisKind) : "未加入";
   const previewText =
     project.summary.trim() ||
-    "请进入协作工作台查看待确认事项与可上传资料。";
+    (project.analysisKind === "early"
+      ? "请进入项目查看知识网络与资料。"
+      : "请进入协作工作台查看待确认事项与可上传资料。");
   const owner = ownerDisplayName(project.createdBy);
   const cover = coverToneFor(project);
   const actionLabel = isIssuerRole(role)
@@ -348,6 +355,7 @@ export default function ProjectOverview() {
   const searchQuery = searchParams.get("q") ?? "";
   const [userId, setUserId] = useState<string | null>(null);
   const [phaseFilter, setPhaseFilter] = useState<"all" | ProjectPhase>("all");
+  const [kindFilter, setKindFilter] = useState<"all" | AnalysisKind>("all");
   const [roleFilter, setRoleFilter] = useState<"all" | WorkspaceRole>("all");
   const [portfolioTab, setPortfolioTab] = useState<"mine" | "plaza">("mine");
   const [pendingJoinIds, setPendingJoinIds] = useState<string[]>([]);
@@ -357,7 +365,8 @@ export default function ProjectOverview() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDetail, setNewProjectDetail] = useState("");
-  const [newProjectOpenness, setNewProjectOpenness] = useState<ProjectOpenness>("partial");
+  const [newProjectOpenness, setNewProjectOpenness] = useState<ProjectOpenness>("invite");
+  const [newAnalysisKind, setNewAnalysisKind] = useState<AnalysisKind>("mature");
   const [newIndustryTheme, setNewIndustryTheme] = useState("");
   const [newIndustrySector, setNewIndustrySector] = useState("");
   const [participantKeyword, setParticipantKeyword] = useState("");
@@ -459,18 +468,21 @@ export default function ProjectOverview() {
   const roleOptions = userId
     ? Array.from(
         new Set(
-          visibleProjects.map((p) => getProjectRole(userId, p.id, p.createdBy))
+          visibleProjects.map((p) =>
+            getProjectRole(userId, p.id, p.createdBy, p.analysisKind),
+          )
         )
       ).filter(isJoinedProjectRole)
     : [];
   const filteredProjects = userId
     ? visibleProjects.filter((p) => {
-        const role = getProjectRole(userId, p.id, p.createdBy);
+        const role = getProjectRole(userId, p.id, p.createdBy, p.analysisKind);
         if (portfolioTab === "mine" && role === "guest") return false;
         if (portfolioTab === "plaza") {
           if (issuerOnly || !isPlazaDiscoverable(p)) return false;
         }
         if (phaseFilter !== "all" && p.phase !== phaseFilter) return false;
+        if (kindFilter !== "all" && p.analysisKind !== kindFilter) return false;
         // 广场按开放程度浏览，不要用「我的项目」里选中的权限档把未加入项目滤掉
         if (
           portfolioTab !== "plaza" &&
@@ -489,7 +501,7 @@ export default function ProjectOverview() {
   );
   const memberCount = userId
     ? visibleProjects.filter(
-        (p) => getProjectRole(userId, p.id, p.createdBy) !== "guest"
+        (p) => getProjectRole(userId, p.id, p.createdBy, p.analysisKind) !== "guest"
       ).length
     : 0;
   const plazaCount = userId
@@ -499,7 +511,8 @@ export default function ProjectOverview() {
   const resetCreateForm = () => {
     setNewProjectName("");
     setNewProjectDetail("");
-    setNewProjectOpenness("partial");
+    setNewProjectOpenness("invite");
+    setNewAnalysisKind("mature");
     setNewIndustryTheme("");
     setNewIndustrySector("");
     setParticipantKeyword("");
@@ -531,6 +544,7 @@ export default function ProjectOverview() {
           detail: newProjectDetail.trim() || undefined,
           category: formatIndustryCategory(newIndustryTheme, newIndustrySector),
           openness: newProjectOpenness,
+          analysisKind: newAnalysisKind,
           userId,
           participants: participants.map((p) => ({
             userId: p.userId,
@@ -729,6 +743,22 @@ export default function ProjectOverview() {
             </label>
             <label className="flex h-[34px] items-center gap-1.5 rounded-[9px] border border-[rgba(78,66,57,0.14)] bg-[rgba(255,252,248,0.6)] px-3 text-[12.5px] text-[hsl(var(--warm-charcoal-muted))]">
               <select
+                value={kindFilter}
+                onChange={(e) =>
+                  setKindFilter(e.target.value as "all" | AnalysisKind)
+                }
+                className="bg-transparent outline-none"
+              >
+                <option value="all">全部形态</option>
+                {ANALYSIS_KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {ANALYSIS_KIND_LABELS[k]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex h-[34px] items-center gap-1.5 rounded-[9px] border border-[rgba(78,66,57,0.14)] bg-[rgba(255,252,248,0.6)] px-3 text-[12.5px] text-[hsl(var(--warm-charcoal-muted))]">
+              <select
                 value={roleFilter}
                 onChange={(e) =>
                   setRoleFilter(e.target.value as "all" | WorkspaceRole)
@@ -761,7 +791,8 @@ export default function ProjectOverview() {
                   navigate(
                     projectEntryPath(
                       p.id,
-                      getProjectRole(userId!, p.id, p.createdBy),
+                      getProjectRole(userId!, p.id, p.createdBy, p.analysisKind),
+                      p.analysisKind,
                     ),
                   )
                 }
@@ -935,6 +966,39 @@ export default function ProjectOverview() {
 
               <div>
                 <span className="mb-1 block text-xs font-medium text-[hsl(var(--warm-charcoal))]">
+                  项目形态
+                </span>
+                <select
+                  value={newAnalysisKind}
+                  onChange={(e) => {
+                    const kind = e.target.value as AnalysisKind;
+                    setNewAnalysisKind(kind);
+                    if (kind === "early") {
+                      setNewProjectOpenness("invite");
+                      setParticipants((prev) =>
+                        prev.map((m) =>
+                          m.permission === "issuer"
+                            ? { ...m, permission: "core" }
+                            : m,
+                        ),
+                      );
+                    }
+                  }}
+                  className="w-full rounded-lg border border-[hsl(var(--sand)/0.9)] bg-white px-2.5 py-2 text-sm text-[hsl(var(--warm-charcoal))] outline-none transition focus:border-[hsl(var(--wine-deep)/0.45)] focus:ring-1 focus:ring-[hsl(var(--wine-deep)/0.12)]"
+                >
+                  {ANALYSIS_KINDS.map((k) => (
+                    <option key={k} value={k}>
+                      {ANALYSIS_KIND_LABELS[k]}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-[hsl(var(--warm-charcoal-muted))]">
+                  创业项目默认内部邀请，仍可改为全开放。
+                </p>
+              </div>
+
+              <div>
+                <span className="mb-1 block text-xs font-medium text-[hsl(var(--warm-charcoal))]">
                   项目开放程度
                   <RequiredMark />
                 </span>
@@ -1008,9 +1072,12 @@ export default function ProjectOverview() {
                               }
                               className="rounded-md border border-border/60 bg-white px-2 py-1 text-xs text-slate-700 outline-none transition focus:border-primary/30"
                             >
-                              {CREATE_PERMISSION_OPTIONS.map((perm) => (
+                              {(newAnalysisKind === "early"
+                                ? (["admin", "core", "low"] as const)
+                                : CREATE_PERMISSION_OPTIONS
+                              ).map((perm) => (
                                 <option key={perm} value={perm}>
-                                  {roleLabelForProject(perm)}
+                                  {roleLabelForProject(perm, newAnalysisKind)}
                                 </option>
                               ))}
                             </select>

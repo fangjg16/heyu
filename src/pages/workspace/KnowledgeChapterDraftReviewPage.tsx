@@ -48,31 +48,15 @@ import {
   canPublishProjectKnowledgeNetwork,
   canUpdateProjectKnowledgeNetwork,
 } from "@/workspace/project-manage";
+import { resolveAnalysisKind } from "@/lib/analysis-kind";
+import { researchSectionsForKind } from "@/lib/kn-catalog";
 import { getMergedProjects } from "@/workspace/project-registry";
 
 const OVERVIEW_CHAPTER = { id: "project-overview", label: "项目概览" };
 
-const RESEARCH_CHAPTERS: { id: string; label: string }[] = [
-  { id: "snapshot", label: "项目快照" },
-  { id: "objectives", label: "标的概况" },
-  { id: "industry", label: "行业分析" },
-  { id: "legal", label: "合规分析" },
-  { id: "benchmarks", label: "对标分析" },
-  { id: "business", label: "业务模式" },
-  { id: "returns", label: "财务与回报" },
-  { id: "capabilities", label: "资源网络" },
-  { id: "ownership", label: "背景调查" },
-  { id: "diligence", label: "尽职调查" },
-  { id: "risks", label: "风险矩阵" },
-  { id: "questions", label: "待确认问题" },
-  { id: "framework", label: "决策路径与法律结构" },
-];
-
-/** 审核页可展示的主章节（研究章 + 概览） */
-const REVIEWABLE_CHAPTERS: { id: string; label: string }[] = [
-  OVERVIEW_CHAPTER,
-  ...RESEARCH_CHAPTERS,
-];
+function reviewableChapters(kind: ReturnType<typeof resolveAnalysisKind>) {
+  return [OVERVIEW_CHAPTER, ...researchSectionsForKind(kind)];
+}
 
 type ChangeKind = "added" | "changed" | "unchanged" | "failed" | "pending" | "revising";
 
@@ -162,6 +146,16 @@ export default function KnowledgeChapterDraftReviewPage() {
   const canUpdate = canUpdateProjectKnowledgeNetwork(userId, projectRef);
   const canPublish = canPublishProjectKnowledgeNetwork(userId, projectRef);
 
+  const analysisKind = resolveAnalysisKind(project?.analysisKind);
+  const catalogChapters = useMemo(
+    () => reviewableChapters(analysisKind),
+    [analysisKind],
+  );
+  const researchChapters = useMemo(
+    () => researchSectionsForKind(analysisKind),
+    [analysisKind],
+  );
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -172,7 +166,7 @@ export default function KnowledgeChapterDraftReviewPage() {
   const [runStatus, setRunStatus] = useState<string>("");
   const [rows, setRows] = useState<ReviewRow[]>([]);
   const [selectedId, setSelectedId] = useState<string>(
-    RESEARCH_CHAPTERS[0]!.id,
+    researchChapters[0]!.id,
   );
   const [mode, setMode] = useState<"side" | "diff">("side");
   const [busy, setBusy] = useState<"publish" | "discard" | "submit" | null>(null);
@@ -324,10 +318,10 @@ export default function KnowledgeChapterDraftReviewPage() {
           setLiveHasHtml({});
         }
 
-        const reviewIdSet = new Set(REVIEWABLE_CHAPTERS.map((c) => c.id));
+        const reviewIdSet = new Set(catalogChapters.map((c) => c.id));
         const runSectionIds = draft.items
           .map((i) => i.sectionId)
-          .filter((id) => reviewIdSet.has(id));
+          .filter((id) => reviewIdSet.has(id) || id === "project-overview");
         const graphItem = draft.items.find(
           (i) => i.sectionId === "project-graph" && i.status === "ok",
         );
@@ -335,11 +329,10 @@ export default function KnowledgeChapterDraftReviewPage() {
         setGraphDraftRaw(graphRaw);
         setHasGraphDraft(Boolean(parseProjectGraphHtml(graphRaw)));
 
-        // 单章/概览草案只展示 run 内章节；全量草案展示 13 研究章
         const chaptersToShow =
           draft.run.scope === "section" && runSectionIds.length > 0
-            ? REVIEWABLE_CHAPTERS.filter((c) => runSectionIds.includes(c.id))
-            : RESEARCH_CHAPTERS;
+            ? catalogChapters.filter((c) => runSectionIds.includes(c.id))
+            : researchChapters;
 
         const liveMap = new Map<string, string | null>();
         await Promise.all(
@@ -408,7 +401,7 @@ export default function KnowledgeChapterDraftReviewPage() {
         if (!opts?.silent) setLoading(false);
       }
     },
-    [projectId, runId, userId],
+    [projectId, runId, userId, catalogChapters, researchChapters],
   );
 
   useEffect(() => {
@@ -453,7 +446,7 @@ export default function KnowledgeChapterDraftReviewPage() {
   const nextVersion = nextChapterVersion(currentVersion, {
     bump: publishBump,
     allResearchComplete:
-      researchChaptersCompleteFromFlags(flagsAfterPublish),
+      researchChaptersCompleteFromFlags(flagsAfterPublish, analysisKind),
   });
   const overviewOnlyDraft =
     rows.length > 0 && isOverviewOnlyPublish(rows.map((r) => r.id));
@@ -471,7 +464,7 @@ export default function KnowledgeChapterDraftReviewPage() {
     ? `${nextOverviewLabel}（对应 ${knForOverviewLabel}）`
     : formatChapterVersionLabel(nextVersion);
   const preRelease = isPreReleaseChapterVersion(currentVersion);
-  const addableChapters = REVIEWABLE_CHAPTERS.filter(
+  const addableChapters = catalogChapters.filter(
     (c) => !rows.some((r) => r.id === c.id),
   );
   const runOpen =
@@ -775,7 +768,7 @@ export default function KnowledgeChapterDraftReviewPage() {
   const onAddChapter = async (sectionId: string) => {
     if (!canUpdate || actionLocked || !sectionId) return;
     const label =
-      REVIEWABLE_CHAPTERS.find((c) => c.id === sectionId)?.label ?? sectionId;
+      catalogChapters.find((c) => c.id === sectionId)?.label ?? sectionId;
     setChapterBusy(sectionId);
     setError(null);
     setNotice(null);

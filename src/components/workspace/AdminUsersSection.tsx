@@ -56,6 +56,7 @@ type ProjectDraft = {
   selected: boolean;
   role: WorkspaceRole;
   isCreator: boolean;
+  analysisKind?: WorkspaceProject["analysisKind"];
 };
 
 const PRESET_ORGS = ["合域"];
@@ -155,6 +156,7 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
           selected: Boolean(m) || isCreator,
           role: isCreator ? "admin" : role,
           isCreator,
+          analysisKind: p.analysisKind,
         };
       });
   };
@@ -661,6 +663,7 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
                                   <ProjectRoleSelects
                                     role={p.role}
                                     disabled={p.isCreator}
+                                    analysisKind={p.analysisKind}
                                     onChange={(role) =>
                                       setProjectRole(p.projectId, role)
                                     }

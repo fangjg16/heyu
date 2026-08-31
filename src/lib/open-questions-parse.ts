@@ -350,6 +350,31 @@ const SECTION_QUESTION_KEYWORDS: Record<string, string[]> = {
   risks: ["风险", "缓释", "矩阵", "威胁"],
   questions: [],
   framework: ["决策", "结构", "路径比较", "行动", "法律结构", "推荐"],
+  "project-summary": ["概况", "主体", "阶段", "融资", "名称"],
+  "industry-competition": ["行业", "市场", "竞争", "规模", "供给"],
+  "business-technology": ["业务", "模式", "客群", "单位经济", "技术"],
+  "company-team": ["背景", "团队", "股权", "控制权", "主体"],
+  "financial-diligence": ["财务", "利润", "现金流", "收入", "尽调"],
+  "investment-structure-returns": ["回报", "IRR", "结构", "收益"],
+  "investment-risks": ["风险", "缓释", "矩阵", "威胁"],
+  "diligence-gaps": [],
+  "investment-conclusion": ["决策", "结论", "建议", "推荐"],
+  "exec-verdict": ["结论", "闸门", "建议"],
+  "decision-object": ["标的", "版本", "交易", "对象"],
+  "business-worth-buying": ["业务", "值不值得", "客群", "模式"],
+  "price-financing-downside": ["价格", "融资", "下行", "估值"],
+  "buyer-fit-takeover": ["买方", "接管", "适配", "团队"],
+  "acquisition-risk-register": ["风险", "缓释", "登记"],
+  "open-items-exceptions": [],
+  "counterarguments-invalidation": ["反论", "失效", "例外"],
+  "recommendation-conditions": ["建议", "条件", "推荐"],
+  "founder-interview": ["访谈", "创始人", "用户"],
+  "market-discovery": ["市场", "竞争", "客户", "发现"],
+  strategy: ["策略", "定位", "差异"],
+  brand: ["品牌", "命名", "识别"],
+  product: ["产品", "功能", "体验"],
+  financials: ["财务", "收入", "成本", "预测"],
+  validation: [],
 };
 
 /**
@@ -360,7 +385,16 @@ export function pickRelatedOpenQuestions(
   all: ParsedOpenQuestion[],
   max = 2,
 ): ParsedOpenQuestion[] {
-  if (sectionId === "questions" || all.length === 0 || max <= 0) return [];
+  if (
+    sectionId === "questions" ||
+    sectionId === "diligence-gaps" ||
+    sectionId === "open-items-exceptions" ||
+    sectionId === "validation" ||
+    all.length === 0 ||
+    max <= 0
+  ) {
+    return [];
+  }
 
   const keywords = SECTION_QUESTION_KEYWORDS[sectionId] ?? [];
   const scored = all.map((q, idx) => {

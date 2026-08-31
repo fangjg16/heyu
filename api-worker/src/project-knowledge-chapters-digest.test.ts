@@ -112,7 +112,7 @@ describe("three-layer chapter materials", () => {
       supplement: byDoc.get("bp") ?? [],
       sectionId: "benchmarks",
     });
-    expect(digest).toContain("【资料目录 · 全量】");
+    expect(digest).toContain("【资料目录 · 项目资料】");
     expect(digest).toContain("商业计划书.pdf");
     expect(digest).toContain("剧云 jucloud 对标对比.xlsx");
     expect(digest).toContain("财务模型.xlsx");

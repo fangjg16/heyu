@@ -54,6 +54,20 @@ describe("due-diligence chat intents", () => {
     expect(detectSkillIntent("看下这个项目")).toBe("project_intake");
   });
 
+  it("remaps generic analysis by project kind", () => {
+    expect(detectSkillIntent("帮我做个尽调", "early")).toBe("startup_design");
+    expect(detectSkillIntent("帮我做个尽调", "acquire")).toBe(
+      "acquisition_intake",
+    );
+  });
+
+  it("forces skill by slash directory name", () => {
+    expect(detectSkillIntent("/startup-design 随便聊聊")).toBe("startup_design");
+    expect(detectSkillIntent("/acquisition-gate 买不买")).toBe(
+      "acquisition_gate",
+    );
+  });
+
   it("routes newer specialist skills instead of project-intake", () => {
     expect(detectSkillIntent("做一份合规分析")).toBe("compliance_check");
     expect(detectSkillIntent("帮我看竞品分析")).toBe("startup_competitors");

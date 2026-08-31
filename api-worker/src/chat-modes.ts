@@ -1,4 +1,6 @@
 import { isKnowledgeNetworkDeliveryIntent } from "./knowledge-network-intent";
+import type { AnalysisKind } from "./analysis-kind";
+import { skillNameToIntent } from "./skill-intent-map";
 
 /**
  * 网站对话 ↔ Hermes skills 意图映射（内部用，用户不可见 skill 名）
@@ -131,13 +133,62 @@ const INTENT_RULES: IntentRule[] = [
   },
 ];
 
-export function detectSkillIntent(message: string): SkillIntent {
+export function parseSlashSkill(
+  message: string,
+): { skill: string; rest: string } | null {
+  const m = /^\/([a-zA-Z0-9][a-zA-Z0-9._-]*)(?:\s+([\s\S]*))?$/u.exec(
+    message.trim(),
+  );
+  if (!m?.[1]) return null;
+  return { skill: m[1], rest: (m[2] ?? "").trim() };
+}
+
+function remapIntentForKind(
+  intent: SkillIntent,
+  kind: AnalysisKind | null | undefined,
+): SkillIntent {
+  if (!kind || intent === "standard" || intent === "knowledge_network") {
+    return intent;
+  }
+  if (kind === "early") {
+    if (intent === "project_intake") return "startup_design";
+    if (intent === "industry_due_diligence") return "startup_competitors";
+    if (intent === "ic_memo") return "startup_pitch";
+  }
+  if (kind === "acquire") {
+    if (intent === "project_intake") return "acquisition_intake";
+    if (intent === "business_due_diligence") return "acquisition_due_diligence";
+    if (intent === "ic_memo") return "acquisition_gate";
+  }
+  return intent;
+}
+
+export function detectSkillIntent(
+  message: string,
+  kind?: AnalysisKind | null,
+): SkillIntent {
   const m = message.trim();
-  if (isKnowledgeNetworkDeliveryIntent(m)) return "knowledge_network";
+  const slash = parseSlashSkill(m);
+  if (slash) {
+    const forced = skillNameToIntent(slash.skill);
+    if (forced && forced !== "knowledge_network") return forced;
+  }
+  const text = slash?.rest || m;
+  if (isKnowledgeNetworkDeliveryIntent(text) || isKnowledgeNetworkDeliveryIntent(m)) {
+    return "knowledge_network";
+  }
   for (const { intent, re } of INTENT_RULES) {
-    if (re.test(m)) return intent;
+    if (re.test(text) || re.test(m)) {
+      return remapIntentForKind(intent, kind);
+    }
   }
   return "standard";
+}
+
+/** 斜杠点名后送给模型的正文（去掉 /skill-name） */
+export function messageForSkillModel(message: string): string {
+  const slash = parseSlashSkill(message);
+  return slash?.rest || message.trim();
 }
 
 /** @deprecated */

@@ -5,6 +5,7 @@ import {
 } from "./analysis-kind";
 import { filterTemplateByKind } from "./kn-template-kind";
 import { CHAPTER_SKILL_MAP, skillsForChapter } from "./chapter-skill-map";
+import { researchSectionsForKind } from "./kn-catalog";
 import {
   buildChapterSkillMethodBlock,
   condenseSkillMarkdown,
@@ -48,54 +49,51 @@ tail`;
 });
 
 describe("chapter-skill-map", () => {
-  it("covers every knowledge-network chapter id", () => {
-    const ids = [
-      "project-overview",
-      "snapshot",
-      "objectives",
-      "industry",
-      "capabilities",
-      "legal",
-      "benchmarks",
-      "business",
-      "returns",
-      "ownership",
-      "diligence",
-      "risks",
-      "questions",
-      "framework",
-    ];
-    for (const id of ids) {
-      expect(skillsForChapter(id, "mature").length).toBeGreaterThan(0);
-      expect(skillsForChapter(id, "early").length).toBeGreaterThan(0);
-      expect(skillsForChapter(id, "acquire").length).toBeGreaterThan(0);
+  it("covers every catalog chapter for its own analysis kind", () => {
+    for (const kind of ["early", "mature", "acquire"] as const) {
+      expect(skillsForChapter("project-overview", kind).length).toBeGreaterThan(
+        0,
+      );
+      for (const section of researchSectionsForKind(kind)) {
+        expect(skillsForChapter(section.id, kind).length).toBeGreaterThan(0);
+      }
     }
   });
 
-  it("maps diligence to dd-checklist", () => {
-    expect(CHAPTER_SKILL_MAP.diligence).toEqual(["dd-checklist"]);
+  it("maps diligence-gaps to gap-tracking plus dd-checklist", () => {
+    expect(CHAPTER_SKILL_MAP["diligence-gaps"]).toEqual([
+      "gap-tracking",
+      "dd-checklist",
+    ]);
   });
 
-  it("maps ownership to background-check for mature", () => {
-    expect(skillsForChapter("ownership", "mature")).toEqual(["background-check"]);
+  it("maps company-team to background-check for mature", () => {
+    expect(skillsForChapter("company-team", "mature")).toEqual([
+      "background-check",
+      "compliance-check",
+    ]);
   });
 
-  it("uses business-due-diligence for mature business, startup-design for early", () => {
-    expect(skillsForChapter("business", "mature")).toEqual([
+  it("uses business-due-diligence for mature business-technology, startup-design for early product", () => {
+    expect(skillsForChapter("business-technology", "mature")).toEqual([
       "business-due-diligence",
     ]);
-    expect(skillsForChapter("business", "early")[0]).toBe("startup-design");
+    expect(skillsForChapter("product", "early")[0]).toBe("startup-design");
   });
 
-  it("puts battle-card skills on early benchmarks only as primary", () => {
-    expect(skillsForChapter("benchmarks", "early")[0]).toBe("startup-competitors");
-    expect(skillsForChapter("benchmarks", "mature")).not.toContain(
+  it("puts competitor skills on early market-discovery as primary", () => {
+    expect(skillsForChapter("market-discovery", "early")).toContain(
+      "startup-competitors",
+    );
+    expect(skillsForChapter("industry-competition", "mature")).not.toContain(
       "startup-positioning",
     );
   });
 
-  it("uses acquisition-gate for acquire framework", () => {
-    expect(skillsForChapter("framework", "acquire")[0]).toBe("acquisition-gate");
+  it("uses acquisition-gate for acquire exec-verdict", () => {
+    expect(skillsForChapter("exec-verdict", "acquire")[0]).toBe(
+      "acquisition-gate",
+    );
   });
 
   it("drops node-monitoring from overview", () => {
@@ -174,7 +172,7 @@ from-skill: public-info-search
 
 describe("buildChapterSkillMethodBlock", () => {
   it("reads SKILL.md from the repo and wraps a fill-only lock", async () => {
-    const block = await buildChapterSkillMethodBlock("diligence");
+    const block = await buildChapterSkillMethodBlock("diligence-gaps");
     expect(block).toContain("【分析方法 · 只用于填写模板中的「待补」】");
     expect(block).toContain("dd-checklist");
     expect(block).toContain("禁止改表头或替换【章节 Markdown 模板】");
@@ -185,21 +183,29 @@ describe("buildChapterSkillMethodBlock", () => {
     expect(await buildChapterSkillMethodBlock("sources")).toBe("");
   });
 
-  it("loads business-due-diligence for mature business", async () => {
-    const business = await buildChapterSkillMethodBlock("business", undefined, "mature");
-    expect(business).toContain("本章 business 对应 skill：business-due-diligence");
+  it("loads business-due-diligence for mature business-technology", async () => {
+    const business = await buildChapterSkillMethodBlock(
+      "business-technology",
+      undefined,
+      "mature",
+    );
+    expect(business).toContain(
+      "本章 business-technology 对应 skill：business-due-diligence",
+    );
     expect(business).toContain("Business Due Diligence");
-    const framework = await buildChapterSkillMethodBlock("framework");
-    expect(framework).toContain("value-creation-plan");
+    const conclusion = await buildChapterSkillMethodBlock(
+      "investment-conclusion",
+    );
+    expect(conclusion).toContain("value-creation-plan");
   });
 
-  it("injects honesty protocol for early industry via startup-design", async () => {
-    const industry = await buildChapterSkillMethodBlock(
-      "industry",
+  it("injects honesty protocol for early market-discovery via startup-design", async () => {
+    const market = await buildChapterSkillMethodBlock(
+      "market-discovery",
       undefined,
       "early",
     );
-    expect(industry).toContain("startup-design");
-    expect(industry).toContain("startup-competitors");
+    expect(market).toContain("startup-design");
+    expect(market).toContain("startup-competitors");
   });
 });

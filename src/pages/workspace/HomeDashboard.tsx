@@ -202,7 +202,7 @@ export default function HomeDashboard() {
     }
     const investorIds = filterMemberProjectsForUser(userId, projects)
       .filter((p) =>
-        isInvestorRole(getProjectRole(userId, p.id, p.createdBy)),
+        isInvestorRole(getProjectRole(userId, p.id, p.createdBy, p.analysisKind)),
       )
       .map((p) => p.id);
     if (investorIds.length === 0) {
@@ -243,10 +243,10 @@ export default function HomeDashboard() {
     [shortList],
   );
   const hasInvestorProject = memberProjects.some((p) =>
-    isInvestorRole(getProjectRole(userId ?? "", p.id, p.createdBy)),
+    isInvestorRole(getProjectRole(userId ?? "", p.id, p.createdBy, p.analysisKind)),
   );
   const hasIssuerProject = memberProjects.some((p) =>
-    isIssuerRole(getProjectRole(userId ?? "", p.id, p.createdBy)),
+    isIssuerRole(getProjectRole(userId ?? "", p.id, p.createdBy, p.analysisKind)),
   );
 
   const todos = useMemo(() => {
@@ -310,7 +310,9 @@ export default function HomeDashboard() {
   const canPublishForProject = (projectId: string) => {
     const project = projects.find((p) => p.id === projectId);
     if (!userId || !project) return false;
-    return canPublishToIssuer(getProjectRole(userId, project.id, project.createdBy));
+    return canPublishToIssuer(
+      getProjectRole(userId, project.id, project.createdBy, project.analysisKind),
+    );
   };
   const canSendUnpublished = todos.some(
     (t) => !t.published && canPublishForProject(t.projectId),
@@ -972,7 +974,8 @@ export default function HomeDashboard() {
                 key={p.id}
                 to={projectEntryPath(
                   p.id,
-                  getProjectRole(userId ?? "", p.id, p.createdBy),
+                  getProjectRole(userId ?? "", p.id, p.createdBy, p.analysisKind),
+                  p.analysisKind,
                 )}
                 style={{
                   display: "flex",

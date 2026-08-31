@@ -49,7 +49,9 @@ export function ProjectPermissionsSection({
   const [savedHint, setSavedHint] = useState<string | null>(null);
   const [addKeyword, setAddKeyword] = useState("");
   const [pendingAdd, setPendingAdd] = useState<PendingAdd | null>(null);
-  const [addRole, setAddRole] = useState<AssignableMemberRole>("low");
+  const [addRole, setAddRole] = useState<AssignableMemberRole>(
+    project.analysisKind === "early" ? "core" : "low",
+  );
   const onMembersChangeRef = useRef(onMembersChange);
   onMembersChangeRef.current = onMembersChange;
 
@@ -128,7 +130,7 @@ export function ProjectPermissionsSection({
   const resetAddForm = () => {
     setPendingAdd(null);
     setAddKeyword("");
-    setAddRole("low");
+    setAddRole(project.analysisKind === "early" ? "core" : "low");
   };
 
   const onAddMember = async () => {
@@ -309,7 +311,7 @@ export function ProjectPermissionsSection({
                             name: option.name,
                           });
                           setAddKeyword("");
-                          setAddRole("low");
+                          setAddRole(project.analysisKind === "early" ? "core" : "low");
                         }}
                         className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/60 disabled:opacity-50"
                       >
@@ -334,6 +336,7 @@ export function ProjectPermissionsSection({
                 <MemberRoleFields
                   role={addRole}
                   disabled={busy}
+                  analysisKind={project.analysisKind}
                   onChange={setAddRole}
                 />
                 <button
@@ -408,13 +411,14 @@ export function ProjectPermissionsSection({
                       <p className="text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
                         {m.isPlatformAdmin
                           ? "平台管理员"
-                          : roleLabelForProject("admin")}
+                          : roleLabelForProject("admin", project.analysisKind)}
                       </p>
                     ) : (
                       <MemberRoleFields
                         role={value}
                         disabled={busy}
                         size="sm"
+                        analysisKind={project.analysisKind}
                         onChange={(role) => {
                           setDraft((prev) => ({ ...prev, [m.userId]: role }));
                           setSavedHint(null);

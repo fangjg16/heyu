@@ -130,7 +130,7 @@ export function ProjectWorkspaceHeader({
 }: ProjectWorkspaceHeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const role = getProjectRole(userId, project.id, project.createdBy);
+  const role = getProjectRole(userId, project.id, project.createdBy, project.analysisKind);
   const judgment = judgmentFromPhase(project.phase);
   const canManage = canManageProjectPermissions(userId, project);
   const [members, setMembers] = useState<ProjectPermissionMember[] | null>(null);
@@ -181,11 +181,15 @@ export function ProjectWorkspaceHeader({
       label: "源文件",
       to: `/app/projects/${project.id}/materials`,
     },
-    {
-      id: "collab",
-      label: "项目协作",
-      to: `/app/projects/${project.id}/collab`,
-    },
+    ...(project.analysisKind === "early"
+      ? []
+      : [
+          {
+            id: "collab" as const,
+            label: "项目协作",
+            to: `/app/projects/${project.id}/collab`,
+          },
+        ]),
   ];
 
   const confirmCopy =
@@ -234,7 +238,7 @@ export function ProjectWorkspaceHeader({
               {judgment.label}
             </span>
             <span className="rounded-md bg-[rgba(78,66,57,0.07)] px-2.5 py-0.5 text-xs text-[hsl(var(--warm-charcoal-muted))]">
-              {roleLabelForProject(role as WorkspaceRole)}
+              {roleLabelForProject(role as WorkspaceRole, project.analysisKind)}
             </span>
           </div>
         </div>

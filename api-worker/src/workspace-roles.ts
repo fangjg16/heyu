@@ -1,4 +1,5 @@
 import type { AppDatabase } from "./app-database";
+import { getStoredAnalysisKind } from "./analysis-kind";
 import { getProjectMemberRoleOverride } from "./project-member-roles-db";
 import { isPlatformAdminUser } from "./workspace-users-db";
 
@@ -37,6 +38,11 @@ export function roleWithCreatorFloor(
   return role ?? "guest";
 }
 
+function normalizeEarlyRole(role: WorkspaceRole, early: boolean): WorkspaceRole {
+  if (early && role === "issuer") return "core";
+  return role;
+}
+
 type RoleEnv = { DB: AppDatabase };
 
 export function isInvestorRole(role: WorkspaceRole): boolean {
@@ -65,7 +71,9 @@ export async function resolveProjectRole(
 
   const creator = (createdBy ?? "").trim();
   const override = await getProjectMemberRoleOverride(env, projectId, uid);
-  return roleWithCreatorFloor(uid, creator, override);
+  const floored = roleWithCreatorFloor(uid, creator, override);
+  const kind = await getStoredAnalysisKind(env.DB, projectId).catch(() => null);
+  return normalizeEarlyRole(floored, kind === "early");
 }
 
 /** 上传/覆盖项目知识网络正式版：仅 admin（审核、发布、回滚） */
@@ -171,6 +179,8 @@ export async function canEnterProjectChat(
   createdBy?: string | null,
 ): Promise<boolean> {
   const role = await resolveProjectRole(env, userId, projectId, createdBy);
+  const kind = await getStoredAnalysisKind(env.DB, projectId).catch(() => null);
+  if (kind === "early") return role === "admin" || role === "core";
   return isInvestorRole(role);
 }
 
@@ -180,6 +190,8 @@ export async function canManageProjectCollab(
   projectId: string,
   createdBy?: string | null,
 ): Promise<boolean> {
+  const kind = await getStoredAnalysisKind(env.DB, projectId).catch(() => null);
+  if (kind === "early") return false;
   const role = await resolveProjectRole(env, userId, projectId, createdBy);
   return role === "admin" || role === "core";
 }
@@ -190,6 +202,8 @@ export async function canAccessProjectCollab(
   projectId: string,
   createdBy?: string | null,
 ): Promise<boolean> {
+  const kind = await getStoredAnalysisKind(env.DB, projectId).catch(() => null);
+  if (kind === "early") return false;
   const role = await resolveProjectRole(env, userId, projectId, createdBy);
   return isIssuerRole(role) || isInvestorRole(role);
 }

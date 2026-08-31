@@ -58,28 +58,36 @@ describe("chapter-version", () => {
     expect(formatChapterVersionLabel(bumpChapterVersion(200, "major"))).toBe("v3.0");
   });
 
-  it("researchChaptersComplete requires all 13 research chapters", () => {
+  it("researchChaptersComplete requires all research chapters of that kind", () => {
     const html: Record<string, string> = {
-      snapshot: "<p>a</p>",
-      objectives: "<p>a</p>",
+      "project-summary": "<p>a</p>",
+      "industry-competition": "<p>a</p>",
     };
     expect(researchChaptersComplete(html)).toBe(false);
+    expect(researchChaptersComplete(html, "mature")).toBe(false);
     const full = {
-      snapshot: "<p>a</p>",
-      objectives: "<p>a</p>",
-      industry: "<p>a</p>",
-      legal: "<p>a</p>",
-      benchmarks: "<p>a</p>",
-      business: "<p>a</p>",
-      returns: "<p>a</p>",
-      capabilities: "<p>a</p>",
-      ownership: "<p>a</p>",
-      diligence: "<p>a</p>",
-      risks: "<p>a</p>",
-      questions: "<p>a</p>",
-      framework: "<p>a</p>",
+      "project-summary": "<p>a</p>",
+      "industry-competition": "<p>a</p>",
+      "business-technology": "<p>a</p>",
+      "company-team": "<p>a</p>",
+      "financial-diligence": "<p>a</p>",
+      "investment-structure-returns": "<p>a</p>",
+      "investment-risks": "<p>a</p>",
+      "diligence-gaps": "<p>a</p>",
+      "investment-conclusion": "<p>a</p>",
     };
-    expect(researchChaptersComplete(full)).toBe(true);
+    expect(researchChaptersComplete(full, "mature")).toBe(true);
+    expect(researchChaptersComplete(full, "early")).toBe(false);
+    const early = {
+      "founder-interview": "<p>a</p>",
+      "market-discovery": "<p>a</p>",
+      strategy: "<p>a</p>",
+      brand: "<p>a</p>",
+      product: "<p>a</p>",
+      financials: "<p>a</p>",
+      validation: "<p>a</p>",
+    };
+    expect(researchChaptersComplete(early, "early")).toBe(true);
   });
 
   it("treats overview-only publish separately from knowledge network bump", () => {

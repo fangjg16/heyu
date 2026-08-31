@@ -46,6 +46,7 @@ export type ApiProjectJson = {
   updatedAt?: string;
   /** 0–100；列表接口返回 */
   researchMaturity?: number | null;
+  analysisKind?: "early" | "mature" | "acquire" | null;
 };
 
 function normalizeApiOpenness(raw: unknown): "partial" | "invite" {
@@ -76,6 +77,12 @@ function mapApiProject(row: ApiProjectJson) {
     createdAt: row.createdAt ?? null,
     updatedAt: row.updatedAt ?? null,
     researchMaturity: normalizeResearchMaturity(row.researchMaturity),
+    analysisKind:
+      row.analysisKind === "early" ||
+      row.analysisKind === "mature" ||
+      row.analysisKind === "acquire"
+        ? row.analysisKind
+        : null,
   };
 }
 
@@ -236,6 +243,7 @@ export async function createProjectViaApi(
     detail?: string;
     category?: string;
     openness?: "partial" | "invite";
+    analysisKind?: "early" | "mature" | "acquire";
     userId?: string;
     participants?: { userId: string; role: "admin" | "core" | "low" | "issuer" }[];
   },
@@ -250,7 +258,8 @@ export async function createProjectViaApi(
       name: input.name,
       detail: input.detail,
       category: input.category,
-      openness: input.openness ?? "partial",
+      openness: input.openness ?? "invite",
+      analysisKind: input.analysisKind,
       userId: input.userId,
       createdBy: input.userId,
       participants: input.participants,
@@ -653,6 +662,8 @@ export type ProjectFileRecord = {
   sourceKind?: string | null;
   sharedWithIssuer?: boolean;
   fileCategory?: string | null;
+  versionGroup?: string | null;
+  replacesDocumentId?: string | null;
 };
 
 export const DIRECTORY_MIME = "application/x-directory";
@@ -2271,4 +2282,83 @@ export async function fetchMyCollabInbox(): Promise<
   };
   if (!res.ok) throw new Error(data.error || "协作待办加载失败");
   return data.items ?? [];
+}
+
+export type StartupInterviewDto = {
+  id: string;
+  projectId: string;
+  conversationId: string;
+  status: "in_progress" | "paused" | "ended";
+  roundIndex: number;
+  answererUserId: string;
+  startedBy: string;
+  startedAt: string;
+  pausedAt: string | null;
+  endedAt: string | null;
+  pendingPrompt: string | null;
+};
+
+export async function fetchStartupInterview(
+  projectId: string,
+): Promise<{ interview: StartupInterviewDto | null; enabled: boolean }> {
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/startup-interview`,
+  );
+  const data = (await res.json().catch(() => ({}))) as {
+    interview?: StartupInterviewDto | null;
+    enabled?: boolean;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(data.error || "访谈状态加载失败");
+  return {
+    interview: data.interview ?? null,
+    enabled: Boolean(data.enabled),
+  };
+}
+
+export async function startStartupInterview(
+  projectId: string,
+  answererUserId?: string,
+): Promise<{ interview: StartupInterviewDto; firstMessage?: string }> {
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/startup-interview`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answererUserId }),
+    },
+  );
+  const data = (await res.json().catch(() => ({}))) as {
+    interview?: StartupInterviewDto;
+    firstMessage?: string;
+    error?: string;
+    draftRunId?: string;
+  };
+  if (!res.ok) throw new Error(data.error || "开始访谈失败");
+  if (!data.interview) throw new Error("开始访谈失败");
+  return { interview: data.interview, firstMessage: data.firstMessage };
+}
+
+export async function pauseStartupInterview(projectId: string): Promise<void> {
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/startup-interview/pause`,
+    { method: "POST" },
+  );
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) throw new Error(data.error || "暂停失败");
+}
+
+export async function endStartupInterview(
+  projectId: string,
+): Promise<{ draftRunId: string | null }> {
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/startup-interview/end`,
+    { method: "POST" },
+  );
+  const data = (await res.json().catch(() => ({}))) as {
+    draftRunId?: string | null;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(data.error || "结束访谈失败");
+  return { draftRunId: data.draftRunId ?? null };
 }

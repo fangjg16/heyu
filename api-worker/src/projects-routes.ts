@@ -112,6 +112,7 @@ export async function handleCreateProject(
     category?: string;
     phase?: string;
     openness?: string;
+    analysisKind?: string;
     createdBy?: string;
     userId?: string;
     participants?: { userId?: string; role?: string }[];
@@ -146,6 +147,7 @@ export async function handleCreateProject(
     `${name} 已创建，可上传资料包并在对话中使用 Master Agent 分析。`;
   const guestSummary = summary;
   const createdBy = authUserId;
+  const analysisKindRaw = (body.analysisKind ?? "").trim();
 
   try {
     const project = await createProject(env, {
@@ -157,7 +159,10 @@ export async function handleCreateProject(
       openness:
         body.openness !== undefined && String(body.openness).trim() !== ""
           ? normalizeProjectOpenness(body.openness)
-          : "partial",
+          : analysisKindRaw === "early"
+            ? "invite"
+            : "partial",
+      analysisKind: analysisKindRaw || null,
       createdBy,
     });
 
@@ -166,7 +171,12 @@ export async function handleCreateProject(
         userId: (p.userId ?? "").trim(),
         role: (p.role ?? "core").trim() as WorkspaceRole,
       }))
-      .filter((p) => p.userId.length > 0);
+      .filter((p) => p.userId.length > 0)
+      .map((p) =>
+        analysisKindRaw === "early" && (p.role === "issuer" || p.role === "mid")
+          ? { ...p, role: "core" as WorkspaceRole }
+          : p,
+      );
 
     if (createdBy) {
       try {

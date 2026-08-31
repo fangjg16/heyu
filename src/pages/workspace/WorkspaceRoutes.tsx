@@ -52,6 +52,8 @@ import {
 } from "@/workspace/chat-return";
 import type { WorkspaceProject } from "@/workspace/projects";
 import { formatChapterVersionLabel, formatOverviewVersionLabel } from "@/lib/chapter-version";
+import { resolveAnalysisKind } from "@/lib/analysis-kind";
+import { researchSectionsForKind } from "@/lib/kn-catalog";
 import {
   canEnterChat,
   getProjectRole,
@@ -200,22 +202,10 @@ function saveFailedChapterIds(projectId: string, ids: string[]): void {
   }
 }
 
-/** 与后端 VALID_SECTION_IDS 一致的 13 个研究章节 */
-const ALL_RESEARCH_CHAPTERS: { id: string; label: string }[] = [
-  { id: "snapshot", label: "项目快照" },
-  { id: "objectives", label: "标的概况" },
-  { id: "industry", label: "行业分析" },
-  { id: "legal", label: "合规分析" },
-  { id: "benchmarks", label: "对标分析" },
-  { id: "business", label: "业务模式" },
-  { id: "returns", label: "财务与回报" },
-  { id: "capabilities", label: "资源网络" },
-  { id: "ownership", label: "背景调查" },
-  { id: "diligence", label: "尽职调查" },
-  { id: "risks", label: "风险矩阵" },
-  { id: "questions", label: "待确认问题" },
-  { id: "framework", label: "决策路径与法律结构" },
-];
+/** 与后端当前形态研究章节一致 */
+function researchChaptersForProject(project: WorkspaceProject | null) {
+  return researchSectionsForKind(resolveAnalysisKind(project?.analysisKind));
+}
 
 function ProjectWorkspaceLayout() {
   const { projectId = "" } = useParams();
@@ -414,17 +404,17 @@ function ProjectWorkspaceLayout() {
     );
   }
 
-  const role = getProjectRole(userId, project.id, project.createdBy);
-  if (role === "issuer") {
+  const role = getProjectRole(userId, project.id, project.createdBy, project.analysisKind);
+  if (role === "issuer" && project.analysisKind !== "early") {
     return <Navigate to={`/app/collab/${project.id}`} replace />;
   }
-  const chatOk = canEnterChat(role);
+  const chatOk = canEnterChat(role, project.analysisKind);
   const canUpdateOverview = canUpdateProjectKnowledgeNetwork(userId, project);
   const tab = pathname.includes("/knowledge")
     ? "knowledge"
     : pathname.includes("/materials")
       ? "materials"
-      : pathname.includes("/collab")
+      : pathname.includes("/collab") && project.analysisKind !== "early"
         ? "collab"
         : "overview";
 
@@ -609,7 +599,8 @@ function ProjectWorkspaceLayout() {
 
   const onUpdateAllChapters = async (regen?: "unpublished" | "all-drafts") => {
     if (!canUpdateOverview || allChaptersBusy || overviewBusy) return;
-    const total = ALL_RESEARCH_CHAPTERS.length;
+    const chapters = researchChaptersForProject(project);
+    const total = chapters.length;
     const startedAt = Date.now();
     setAllChaptersBusy(true);
     setUpdatingChapterIds([]);
@@ -669,8 +660,8 @@ function ProjectWorkspaceLayout() {
         }
       }
 
-      const sectionIds = ALL_RESEARCH_CHAPTERS.map((ch) => ch.id);
-      const pendingChapters = ALL_RESEARCH_CHAPTERS.filter((ch) => {
+      const sectionIds = chapters.map((ch) => ch.id);
+      const pendingChapters = chapters.filter((ch) => {
         if (!created.reused) return true;
         const item = created.items.find((i) => i.sectionId === ch.id);
         return !item || item.status === "pending" || item.status === "failed";
@@ -939,7 +930,7 @@ function ProjectKnowledgeTab() {
   const { projectId = "" } = useParams();
   const userId = loadSessionUserId() ?? "";
   const project = getMergedProjects().find((p) => p.id === projectId);
-  const role = getProjectRole(userId, projectId, project?.createdBy);
+  const role = getProjectRole(userId, projectId, project?.createdBy, project?.analysisKind);
   const {
     knowledgeRefreshKey = 0,
     updatingChapterIds = [],
@@ -1001,6 +992,10 @@ function ProjectMaterialsTab() {
 function ProjectCollabTab() {
   const { projectId = "" } = useParams();
   const userId = loadSessionUserId() ?? "";
+  const project = getMergedProjects().find((p) => p.id === projectId);
+  if (project?.analysisKind === "early") {
+    return <Navigate to={`/app/projects/${projectId}/knowledge`} replace />;
+  }
   return <InvestorCollabSection projectId={projectId} userId={userId} />;
 }
 

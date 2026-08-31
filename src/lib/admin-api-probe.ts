@@ -125,7 +125,7 @@ export async function runSafeProbeSuite(opts?: {
 
   const vars: Record<string, string> = {
     projectId: projectId ?? "",
-    sectionId: "snapshot",
+    sectionId: "project-summary",
     runId: "",
     docId: "",
   };

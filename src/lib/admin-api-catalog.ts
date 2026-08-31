@@ -272,7 +272,7 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     pathTemplate: "/api/projects/:projectId/chapter-draft-runs",
     summary: "创建更新草案",
     risk: "write",
-    sampleBody: '{\n  "scope": "section",\n  "sectionId": "snapshot"\n}',
+    sampleBody: '{\n  "scope": "section",\n  "sectionId": "project-summary"\n}',
   },
   {
     id: "draft-publish",

@@ -74,7 +74,12 @@ import {
   handleMarkMyNoticesRead,
   handleReviewJoinRequest,
 } from "./project-join-routes";
-import { handleListMyOpenQuestions } from "./open-questions-routes";
+import {
+  handleEndStartupInterview,
+  handleGetStartupInterview,
+  handlePauseStartupInterview,
+  handleStartStartupInterview,
+} from "./startup-interview-routes";
 import {
   handleGetCollabItem,
   handleGetCollabOverview,
@@ -411,6 +416,33 @@ export async function routeAuthedApi(
       return handleGetChapterDraftRun(env, projectId, runId, authUserId);
     }
     return json({ error: "Method Not Allowed" }, 405);
+  }
+
+  if (/^\/api\/projects\/[^/]+\/startup-interview$/u.test(path)) {
+    const projectId = decodePathProjectId(path.split("/")[3] ?? "");
+    if (request.method === "GET") {
+      return handleGetStartupInterview(env, projectId, authUserId);
+    }
+    if (request.method === "POST") {
+      return handleStartStartupInterview(request, env, projectId, authUserId);
+    }
+    return json({ error: "Method Not Allowed" }, 405);
+  }
+
+  if (
+    /^\/api\/projects\/[^/]+\/startup-interview\/pause$/u.test(path) &&
+    request.method === "POST"
+  ) {
+    const projectId = decodePathProjectId(path.split("/")[3] ?? "");
+    return handlePauseStartupInterview(env, projectId, authUserId);
+  }
+
+  if (
+    /^\/api\/projects\/[^/]+\/startup-interview\/end$/u.test(path) &&
+    request.method === "POST"
+  ) {
+    const projectId = decodePathProjectId(path.split("/")[3] ?? "");
+    return handleEndStartupInterview(env, ctx, projectId, authUserId);
   }
 
   if (/^\/api\/projects\/[^/]+\/chapter-draft-runs$/u.test(path)) {

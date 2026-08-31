@@ -194,6 +194,12 @@ export async function handlePutProjectPermissions(
       );
     }
     let role: WorkspaceRole = rawRole;
+    if (
+      project.analysisKind === "early" &&
+      (role === "issuer" || role === "mid")
+    ) {
+      role = "core";
+    }
     role = roleWithCreatorFloor(targetId, creator, role);
     await upsertProjectMemberRole(env, projectId, targetId, role, userId);
   }

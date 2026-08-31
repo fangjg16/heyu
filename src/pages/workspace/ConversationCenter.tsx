@@ -1222,7 +1222,7 @@ export default function ConversationCenter() {
 
   const projectRole = useMemo(() => {
     if (!userId || !projectId) return null;
-    return getProjectRole(userId, projectId, project?.createdBy);
+    return getProjectRole(userId, projectId, project?.createdBy, project?.analysisKind);
   }, [userId, projectId, project?.createdBy, apiProjectsTick]);
 
   useEffect(() => {
@@ -1232,11 +1232,14 @@ export default function ConversationCenter() {
       navigate("/app/projects", { replace: true });
       return;
     }
-    if (getProjectRole(userId, projectId, p.createdBy) === "guest") {
+    if (getProjectRole(userId, projectId, p.createdBy, p.analysisKind) === "guest") {
       navigate("/app/projects", { replace: true });
       return;
     }
-    if (getProjectRole(userId, projectId, p.createdBy) === "issuer") {
+    if (
+      getProjectRole(userId, projectId, p.createdBy, p.analysisKind) === "issuer" &&
+      p.analysisKind !== "early"
+    ) {
       navigate(`/app/collab/${projectId}`, { replace: true });
     }
   }, [

@@ -28,6 +28,8 @@ export type ChapterSkillSpecDto = {
 export type ChapterSkillMapDto = {
   kinds: { id: string; label: string }[];
   sections: { id: string; label: string }[];
+  /** 按形态各自的章节；缺省时用 sections */
+  sectionsByKind?: Record<string, { id: string; label: string }[]>;
   cells: Record<string, Record<string, ChapterSkillSpecDto>>;
 };
 
@@ -103,6 +105,7 @@ export async function fetchAdminSkills(): Promise<AdminSkillsList> {
             id: String(s.id ?? ""),
             label: String(s.label ?? s.id ?? ""),
           })),
+          sectionsByKind: rawMap.sectionsByKind,
           cells: rawMap.cells,
         }
       : null;

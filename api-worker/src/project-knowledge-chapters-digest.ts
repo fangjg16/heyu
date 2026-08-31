@@ -2,6 +2,8 @@ import type { AppDatabase } from "./app-database";
 import { loadChunks } from "./chat-data";
 import { extractNamedSubjectsFromText } from "./chapter-named-subjects";
 import { isDirectoryMarker } from "./documents-access";
+import { pickCurrentDocuments } from "./document-versions";
+import { AI_GENERATED_ROOT } from "./ai-generated-path";
 import type { EmbedEnv } from "./embeddings";
 import { embedTexts, scoreChunksByEmbedding } from "./embeddings";
 import { isPlaceholderChunkText, scoreChunks, type ChunkRow } from "./search";
@@ -18,7 +20,24 @@ type PackageDocMeta = {
   filename: string;
   relative_path: string | null;
   mime: string | null;
+  source_kind?: string | null;
+  version_group?: string | null;
+  replaces_document_id?: string | null;
+  created_at?: string | null;
 };
+
+type MaterialSourceGroup = "project" | "interview" | "ai";
+
+function materialSourceGroup(doc: PackageDocMeta): MaterialSourceGroup {
+  const kind = (doc.source_kind ?? "").trim();
+  if (kind === "user_interview") return "interview";
+  if (kind === "ai_generated") return "ai";
+  const path = (doc.relative_path ?? "").trim();
+  if (path === AI_GENERATED_ROOT || path.startsWith(`${AI_GENERATED_ROOT}/`)) {
+    return "ai";
+  }
+  return "project";
+}
 
 type ParseLite = {
   document_id: string;
@@ -34,7 +53,8 @@ async function listPackageDocuments(
   try {
     const q = await db
       .prepare(
-        `SELECT id, filename, relative_path, mime
+        `SELECT id, filename, relative_path, mime, source_kind, version_group,
+                replaces_document_id, created_at
          FROM documents
          WHERE project_id = ?
            AND scope = 'package'
@@ -44,8 +64,8 @@ async function listPackageDocuments(
       )
       .bind(projectId)
       .all<PackageDocMeta>();
-    return (q.results ?? []).filter(
-      (d) => !isDirectoryMarker(d.mime, d.filename),
+    return pickCurrentDocuments(
+      (q.results ?? []).filter((d) => !isDirectoryMarker(d.mime, d.filename)),
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -80,6 +100,27 @@ async function listPackageDocuments(
       return (q.results ?? [])
         .filter((d) => !isDirectoryMarker(d.mime, d.filename))
         .map((d) => ({ ...d, relative_path: null }));
+    }
+    if (
+      /Unknown column ['`]?(source_kind|version_group|replaces_document_id)['`]?/i.test(
+        msg,
+      )
+    ) {
+      const q = await db
+        .prepare(
+          `SELECT id, filename, relative_path, mime, created_at
+           FROM documents
+           WHERE project_id = ?
+             AND scope = 'package'
+             AND (deleted_at IS NULL OR deleted_at = '')
+           ORDER BY created_at ASC
+           LIMIT 200`,
+        )
+        .bind(projectId)
+        .all<PackageDocMeta>();
+      return pickCurrentDocuments(
+        (q.results ?? []).filter((d) => !isDirectoryMarker(d.mime, d.filename)),
+      );
     }
     throw e;
   }
@@ -154,36 +195,84 @@ const SECTION_FILE_BOOST: Record<string, RegExp> = {
   "project-overview":
     /deck|teaser|overview|简介|路演|bp|商业计划|推介|概览/iu,
   snapshot: /deck|teaser|overview|简介|路演|bp|商业计划|推介/iu,
+  "project-summary": /deck|teaser|overview|简介|路演|bp|商业计划|推介|概况/iu,
   objectives: /声明|假设|缺口|待核|审计|claim/iu,
   industry: /行业|市场|赛道|industry|market/iu,
+  "industry-competition": /行业|市场|赛道|竞争|industry|market|竞品/iu,
+  "market-discovery": /市场|客户|竞品|发现|访谈/iu,
   legal: /合规|牌照|许可|监管|compliance|license/iu,
   benchmarks:
     /对标|可比|对比|竞品|对手|\bcomp|\bbenchmark|\bpeer|\bvs\b/iu,
   business: /业务|定价|客户|模式|canvas/iu,
+  "business-technology": /业务|定价|客户|模式|技术|canvas/iu,
+  "business-worth-buying": /业务|定价|客户|值不值得|模式/iu,
   returns: /财务|估值|回报|模型|irr|financial/iu,
+  "financial-diligence": /财务|估值|回报|模型|irr|financial/iu,
+  financials: /财务|收入|成本|预测|irr/iu,
   capabilities: /合作|渠道|顾问|关系|对手方|网络/iu,
   ownership: /股权|股东|权属|工商|ubo|cap\s*table/iu,
+  "company-team": /股权|股东|团队|背景|创始/iu,
   diligence: /尽调|检查|checklist|工作流|清单/iu,
+  "diligence-gaps": /尽调|缺口|待确认|问题|清单/iu,
+  "open-items-exceptions": /未决|例外|缺口|待确认/iu,
   risks: /风险|诉讼|违约|红旗|risk/iu,
+  "investment-risks": /风险|诉讼|违约|红旗|risk/iu,
+  "acquisition-risk-register": /风险|诉讼|违约|红旗|risk/iu,
   questions: /问题|待确认|gap|问题清单/iu,
   framework: /决策|建议|投委会|memo|下一步/iu,
+  "investment-conclusion": /决策|建议|投委会|memo|结论/iu,
+  "exec-verdict": /结论|闸门|买不买|建议/iu,
+  "recommendation-conditions": /建议|条件|闸门/iu,
+  "founder-interview": /访谈|创始|用户访谈/iu,
+  "investment-structure-returns": /回报|结构|IRR|收益|估值/iu,
+  "price-financing-downside": /价格|融资|下行|估值/iu,
+  "buyer-fit-takeover": /买方|接管|适配|团队/iu,
+  strategy: /策略|定位|差异/iu,
+  brand: /品牌|命名|识别/iu,
+  product: /产品|功能|体验|pitch/iu,
+  validation: /验证|实验|该停/iu,
 };
 
 const SECTION_RETRIEVAL_QUERY: Record<string, string> = {
   "project-overview": "项目概览 简介 范围 判断 风险 下一步",
   snapshot: "项目范围 交易要点 类型 辖区 阶段",
+  "project-summary": "项目概况 范围 交易要点 阶段",
   objectives: "声明 假设 证据缺口 待核",
   industry: "行业 市场 赛道 规模 政策",
+  "industry-competition": "行业 市场 赛道 竞争 规模 政策",
+  "market-discovery": "市场 客户 竞品 发现",
   legal: "合规 牌照 许可 监管 权属",
   benchmarks: "对标 竞品 对比 可比 竞争对手 功能矩阵 对战",
   business: "业务模式 定价 客户 单位经济",
+  "business-technology": "业务模式 定价 客户 单位经济 技术",
+  "business-worth-buying": "业务是否值得买 客户 定价 模式",
   returns: "估值 回报 IRR 财务模型 现金流",
+  "financial-diligence": "财务 尽调 利润 现金流",
+  financials: "财务 收入 成本 预测",
   capabilities: "合作方 渠道 顾问 关系网络",
   ownership: "股权 股东 控制权 权属",
+  "company-team": "团队 背景 股权 控制权",
   diligence: "尽调 检查项 工作流 待收资料",
+  "diligence-gaps": "待确认问题 缺口 阻断",
+  "open-items-exceptions": "未决事项 例外 缺口",
   risks: "风险 缓释 诉讼 红旗",
+  "investment-risks": "投资风险 缓释 红旗",
+  "acquisition-risk-register": "收购风险 登记 缓释",
   questions: "待确认问题 缺口 阻断",
   framework: "投资建议 决策 下一步 条件",
+  "investment-conclusion": "投资结论 建议 条件",
+  "exec-verdict": "执行结论 买不买 闸门",
+  "recommendation-conditions": "建议 条件 例外",
+  "founder-interview": "用户访谈 创始人 客户",
+  "investment-structure-returns": "投资方案 收益 IRR 结构",
+  "price-financing-downside": "价格 融资 下行",
+  "buyer-fit-takeover": "买方适配 接管",
+  strategy: "策略 定位",
+  brand: "品牌 命名",
+  product: "产品 功能",
+  validation: "验证 实验 该停",
+  "decision-object": "决策对象 标的 版本",
+  "counterarguments-invalidation": "反论 失效触发",
 };
 
 function docSearchBlob(doc: PackageDocMeta): string {
@@ -370,18 +459,48 @@ export function assembleChapterMaterialsDigest(
   const mustReadIds = new Set(mustRead.map((d) => d.id));
   const docsById = new Map(docs.map((d) => [d.id, d]));
 
-  const catalogLines = docs.map((d) =>
-    formatCatalogEntry(
-      d,
-      parseMap.get(d.id),
-      mustReadIds.has(d.id),
-      (byDoc.get(d.id)?.length ?? 0) > 0,
-    ),
-  );
+  const groups: { id: MaterialSourceGroup; title: string }[] = [
+    { id: "project", title: "项目资料" },
+    { id: "interview", title: "用户访谈" },
+    { id: "ai", title: "AI生成" },
+  ];
+  const byGroup = new Map<MaterialSourceGroup, PackageDocMeta[]>();
+  for (const d of docs) {
+    const g = materialSourceGroup(d);
+    const list = byGroup.get(g) ?? [];
+    list.push(d);
+    byGroup.set(g, list);
+  }
+  const hasInterview = (byGroup.get("interview") ?? []).length > 0;
+  const basis = hasInterview
+    ? "本章依据：项目资料与用户访谈。AI生成稿写明根据项目资料与访谈。"
+    : "本章依据：项目资料。AI生成稿写明根据项目资料。";
+
+  const catalogLines: string[] = [];
+  for (const g of groups) {
+    const list = byGroup.get(g.id) ?? [];
+    catalogLines.push(`【资料目录 · ${g.title}】`);
+    if (list.length === 0) {
+      catalogLines.push("（无）", "");
+      continue;
+    }
+    for (const d of list) {
+      catalogLines.push(
+        formatCatalogEntry(
+          d,
+          parseMap.get(d.id),
+          mustReadIds.has(d.id),
+          (byDoc.get(d.id)?.length ?? 0) > 0,
+        ),
+      );
+    }
+    catalogLines.push("");
+  }
 
   const parts: string[] = [
-    "【资料目录 · 全量】",
-    `共 ${docs.length} 个文件。本层是每份附件的摘要/要点，名单不截断；未标 must-read 的文件默认未读全文。`,
+    basis,
+    "",
+    `共 ${docs.length} 个当前版文件（历史版本不喂本章）。本层是每份附件的摘要/要点，名单不截断；未标 must-read 的文件默认未读全文。`,
     "生成时只能把目录当索引：目录有、深读没有的事实须标「待补」，禁止用常识顶替。",
     "",
     ...catalogLines,
@@ -466,8 +585,16 @@ export function assembleChapterMaterialsDigest(
 
   const digest = parts.join("\n");
   const namedSubjects =
-    sectionId === "benchmarks"
-      ? collectNamedSubjects(docs, byDoc, parseMap, mustReadIds, SECTION_FILE_BOOST.benchmarks)
+    sectionId === "benchmarks" ||
+    sectionId === "industry-competition" ||
+    sectionId === "market-discovery"
+      ? collectNamedSubjects(
+          docs,
+          byDoc,
+          parseMap,
+          mustReadIds,
+          SECTION_FILE_BOOST[sectionId] ?? SECTION_FILE_BOOST.benchmarks,
+        )
       : [];
   return { digest, namedSubjects };
 }

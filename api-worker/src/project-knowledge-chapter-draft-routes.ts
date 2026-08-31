@@ -14,7 +14,12 @@ import {
   completeReviseInstructionLog,
   insertReviseInstructionLog,
 } from "./chapter-revise-logs-db";
-import { getKnChapterTemplate } from "./kn-chapter-templates-db";
+import {
+  DEFAULT_ANALYSIS_KIND,
+  ensureAnalysisKind,
+  getStoredAnalysisKind,
+} from "./analysis-kind";
+import { isGeneratableSectionId, researchSectionIdsForKind } from "./kn-catalog";
 import type { LlmClientEnv } from "./llm-client";
 import {
   handleGenerateProjectKnowledgeChapter,
@@ -44,6 +49,7 @@ import {
   rollbackLiveChaptersToVersion,
 } from "./project-knowledge-chapter-revisions-db";
 import { filterProjectsForDirectory } from "./projects-auth";
+import { findActiveInterview } from "./startup-interview-db";
 import { getProjectById, listProjects } from "./projects-db";
 import { notifyProjectAdminsAndCores } from "./project-role-notify";
 import {
@@ -54,22 +60,12 @@ import {
 
 type Env = { DB: AppDatabase } & LlmClientEnv;
 
-/** 全部章节更新：13 研究章（不含 overview / sources / glossary） */
-export const FULL_UPDATE_SECTION_IDS = [
-  "snapshot",
-  "objectives",
-  "industry",
-  "legal",
-  "benchmarks",
-  "business",
-  "returns",
-  "capabilities",
-  "ownership",
-  "diligence",
-  "risks",
-  "questions",
-  "framework",
-] as const;
+/** 全部章节更新：当前形态研究章（不含 overview / sources / glossary） */
+export function fullUpdateSectionIds(
+  kind: "early" | "mature" | "acquire" = DEFAULT_ANALYSIS_KIND,
+): string[] {
+  return researchSectionIdsForKind(kind);
+}
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -181,17 +177,17 @@ async function notifyProjectAdminsOfDraftReview(
   });
 }
 
-const RESEARCH_SET = new Set<string>(FULL_UPDATE_SECTION_IDS);
-/** 可发起单章/概览草案的主 section */
-const SECTION_DRAFT_SET = new Set<string>([
-  ...FULL_UPDATE_SECTION_IDS,
-  "project-overview",
-]);
 const META_DRAFT_SECTION_IDS = new Set([
   "sources",
   "glossary",
   "project-graph",
 ]);
+
+function isDraftGenerateableSection(sectionId: string): boolean {
+  return (
+    isGeneratableSectionId(sectionId) && !META_DRAFT_SECTION_IDS.has(sectionId)
+  );
+}
 
 function mapRunItems(
   items: Awaited<ReturnType<typeof listDraftItems>>,
@@ -203,12 +199,6 @@ function mapRunItems(
     hasHtml: Boolean(i.html?.trim()),
     updatedAt: i.updatedAt,
   }));
-}
-
-function isDraftGenerateableSection(sectionId: string): boolean {
-  return (
-    SECTION_DRAFT_SET.has(sectionId) && !META_DRAFT_SECTION_IDS.has(sectionId)
-  );
 }
 
 function kickDraftRunGeneration(
@@ -462,6 +452,19 @@ export async function handleCreateChapterDraftRun(
   );
   if (denied) return denied;
 
+  const liveInterview = await findActiveInterview(env.DB, projectId).catch(
+    () => null,
+  );
+  if (liveInterview?.status === "in_progress") {
+    return json(
+      {
+        error: "用户访谈进行中，结束后才会自动更新知识网络",
+        code: "INTERVIEW_LOCK",
+      },
+      409,
+    );
+  }
+
   let scope: "full" | "section" = "full";
   let sectionId: string | null = null;
   let mode: "generate" | "manual" = "generate";
@@ -511,7 +514,7 @@ export async function handleCreateChapterDraftRun(
   }
 
   if (scope === "section") {
-    if (!sectionId || !SECTION_DRAFT_SET.has(sectionId)) {
+    if (!sectionId || !isGeneratableSectionId(sectionId)) {
       return json(
         {
           error: "单章/概览更新需提供有效的章节 id",
@@ -524,10 +527,17 @@ export async function handleCreateChapterDraftRun(
 
   await ensureChapterBundle(env.DB, projectId, userId);
 
+  const analysisKind =
+    (await getStoredAnalysisKind(env.DB, projectId)) ??
+    (await ensureAnalysisKind(
+      env,
+      projectId,
+      `${project.name}\n${project.summary ?? ""}`,
+    ));
   const wantedIds =
     scope === "section" && sectionId
       ? [sectionId]
-      : [...FULL_UPDATE_SECTION_IDS];
+      : fullUpdateSectionIds(analysisKind);
 
   const active = await findActiveDraftRun(env.DB, projectId);
   if (active) {
@@ -579,7 +589,7 @@ export async function handleCreateChapterDraftRun(
         await requeueDraftSections(
           env,
           active.id,
-          [...FULL_UPDATE_SECTION_IDS],
+          [...fullUpdateSectionIds(analysisKind)],
           items,
         );
         kickDraftRunGeneration(env, ctx, projectId, active.id, userId);
@@ -592,7 +602,7 @@ export async function handleCreateChapterDraftRun(
           liveRows.map((row) => [row.sectionId, row.html]),
         );
         const unpublishedIds = unpublishedDraftSectionIds(
-          [...FULL_UPDATE_SECTION_IDS],
+          [...fullUpdateSectionIds(analysisKind)],
           items,
           liveHtmlBySection,
         );
@@ -916,7 +926,7 @@ export async function handleDeleteChapterDraftSection(
       400,
     );
   }
-  if (!SECTION_DRAFT_SET.has(sectionId)) {
+  if (!isGeneratableSectionId(sectionId)) {
     return json({ error: "无效的章节 id", code: "INVALID_SECTION" }, 400);
   }
 
@@ -965,7 +975,7 @@ export async function handlePutChapterDraftSection(
       400,
     );
   }
-  if (!SECTION_DRAFT_SET.has(sectionId)) {
+  if (!isGeneratableSectionId(sectionId)) {
     return json({ error: "无效的章节 id", code: "INVALID_SECTION" }, 400);
   }
 
@@ -1038,7 +1048,7 @@ export async function handleReviseChapterDraftSection(
       400,
     );
   }
-  if (!SECTION_DRAFT_SET.has(sectionId)) {
+  if (!isGeneratableSectionId(sectionId)) {
     return json({ error: "无效的章节 id", code: "INVALID_SECTION" }, 400);
   }
 

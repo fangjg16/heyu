@@ -1,5 +1,9 @@
 import type { AppDatabase } from "./app-database";
 import type { AppObjectStorage } from "./app-storage";
+import {
+  aiGeneratedPathForIntent,
+  interviewNotesPath,
+} from "./ai-generated-path";
 import { invalidateChunkCache } from "./chunk-cache";
 import { packageR2Key } from "./documents-access";
 import { runDocumentParseSummaryBackground } from "./documents-parse-summary";
@@ -77,46 +81,105 @@ function looksLikeDocument(text: string): boolean {
   );
 }
 
-function safeFileStem(raw: string): string {
-  return raw.replace(/[^\w.\-一-龥]/gu, "_").replace(/_+/gu, "_").slice(0, 80) || "分析";
+async function findCurrentAtPath(
+  db: AppDatabase,
+  projectId: string,
+  relativePath: string,
+  filename: string,
+): Promise<{ id: string; versionGroup: string | null } | null> {
+  try {
+    const q = await db
+      .prepare(
+        `SELECT id, version_group, replaces_document_id, created_at
+         FROM documents
+         WHERE project_id = ? AND relative_path = ? AND filename = ?
+           AND (deleted_at IS NULL OR deleted_at = '')
+         ORDER BY created_at DESC
+         LIMIT 40`,
+      )
+      .bind(projectId, relativePath, filename)
+      .all<{
+        id: string;
+        version_group: string | null;
+        replaces_document_id: string | null;
+        created_at: string;
+      }>();
+    const rows = q.results ?? [];
+    if (rows.length === 0) return null;
+    const superseded = new Set(
+      rows.map((r) => (r.replaces_document_id ?? "").trim()).filter(Boolean),
+    );
+    const current = rows.find((r) => !superseded.has(r.id)) ?? rows[0]!;
+    return {
+      id: current.id,
+      versionGroup: current.version_group || current.id,
+    };
+  } catch {
+    try {
+      const row = await db
+        .prepare(
+          `SELECT id FROM documents
+           WHERE project_id = ? AND relative_path = ? AND filename = ?
+             AND (deleted_at IS NULL OR deleted_at = '')
+           ORDER BY created_at DESC
+           LIMIT 1`,
+        )
+        .bind(projectId, relativePath, filename)
+        .first<{ id: string }>();
+      return row?.id ? { id: row.id, versionGroup: row.id } : null;
+    } catch {
+      return null;
+    }
+  }
 }
 
-/** 深度任务完成后，把 Markdown 正文落入源文件「AI生成」 */
-export async function persistAgentAnswerAsMarkdown(
+export async function persistMarkdownAtPath(
   env: Env,
-  job: JobLike,
-  answer: string,
-): Promise<void> {
-  const intent = (job.skill_intent ?? "").trim();
-  if (!intent || intent === "knowledge_network" || intent === "standard") return;
-  const body = extractMarkdownBody(answer);
-  if (!looksLikeDocument(body)) return;
+  input: {
+    projectId: string;
+    userId: string;
+    conversationId?: string | null;
+    relativePath: string;
+    filename: string;
+    body: string;
+    sourceKind: string;
+    fileCategory: string;
+    uploadNote?: string | null;
+  },
+): Promise<string | null> {
+  const projectId = input.projectId.trim();
+  const userId = input.userId.trim();
+  if (!projectId || !userId) return null;
+  const body = input.body.trim();
+  if (!body) return null;
 
-  const projectId = job.project_id.trim();
-  const userId = job.user_id.trim();
-  if (!projectId || !userId) return;
-
-  const note = `agent_job:${job.id}`;
-  try {
-    const existing = await env.DB.prepare(
-      `SELECT id FROM documents
-       WHERE project_id = ? AND upload_note = ?
-         AND (deleted_at IS NULL OR deleted_at = '')
-       LIMIT 1`,
-    )
-      .bind(projectId, note)
-      .first<{ id: string }>();
-    if (existing?.id) return;
-  } catch {
-    /* upload_note / deleted_at 未迁移时继续写入 */
+  const note = (input.uploadNote ?? "").trim();
+  if (note) {
+    try {
+      const existing = await env.DB.prepare(
+        `SELECT id FROM documents
+         WHERE project_id = ? AND upload_note = ?
+           AND (deleted_at IS NULL OR deleted_at = '')
+         LIMIT 1`,
+      )
+        .bind(projectId, note)
+        .first<{ id: string }>();
+      if (existing?.id) return existing.id;
+    } catch {
+      /* upload_note 未迁移时继续写入 */
+    }
   }
 
-  const heading = /^#\s+(.+)$/m.exec(body)?.[1]?.trim() ?? "";
-  const title = heading || INTENT_TITLE[intent] || "深度分析";
-  const day = (job.created_at || new Date().toISOString()).slice(0, 10);
-  const filename = `${day}-${safeFileStem(title)}.md`;
+  const prev = await findCurrentAtPath(
+    env.DB,
+    projectId,
+    input.relativePath,
+    input.filename,
+  );
   const docId = crypto.randomUUID();
-  const r2Key = packageR2Key(projectId, docId, filename);
+  const versionGroup = prev?.versionGroup || prev?.id || docId;
+  const replacesId = prev?.id ?? null;
+  const r2Key = packageR2Key(projectId, docId, input.filename);
   const bytes = new TextEncoder().encode(body);
   const now = new Date().toISOString();
 
@@ -132,9 +195,9 @@ export async function persistAgentAnswerAsMarkdown(
       .bind(
         docId,
         projectId,
-        job.conversation_id,
-        filename,
-        "AI生成",
+        input.conversationId ?? null,
+        input.filename,
+        input.relativePath,
         r2Key,
         "text/markdown",
         bytes.byteLength,
@@ -150,9 +213,9 @@ export async function persistAgentAnswerAsMarkdown(
       .bind(
         docId,
         projectId,
-        job.conversation_id,
-        filename,
-        "AI生成",
+        input.conversationId ?? null,
+        input.filename,
+        input.relativePath,
         r2Key,
         "text/markdown",
         userId,
@@ -163,13 +226,31 @@ export async function persistAgentAnswerAsMarkdown(
 
   try {
     await env.DB.prepare(
-      `UPDATE documents SET source_kind = ?, file_category = ?, upload_note = ?
+      `UPDATE documents SET source_kind = ?, file_category = ?, upload_note = ?,
+          replaces_document_id = ?, version_group = ?
        WHERE id = ? AND project_id = ?`,
     )
-      .bind("ai_generated", INTENT_TITLE[intent] || "AI生成", note, docId, projectId)
+      .bind(
+        input.sourceKind,
+        input.fileCategory,
+        note || null,
+        replacesId,
+        versionGroup,
+        docId,
+        projectId,
+      )
       .run();
   } catch {
-    /* 0026 未迁移时忽略 */
+    try {
+      await env.DB.prepare(
+        `UPDATE documents SET source_kind = ?, file_category = ?, upload_note = ?
+         WHERE id = ? AND project_id = ?`,
+      )
+        .bind(input.sourceKind, input.fileCategory, note || null, docId, projectId)
+        .run();
+    } catch {
+      /* 0026 未迁移时忽略 */
+    }
   }
 
   const parts = chunkPlainText(body);
@@ -181,7 +262,11 @@ export async function persistAgentAnswerAsMarkdown(
       .run();
   }
 
-  await invalidateChunkCache(projectId, userId, job.conversation_id ?? undefined);
+  await invalidateChunkCache(
+    projectId,
+    userId,
+    input.conversationId ?? undefined,
+  );
   if (parts.length > 0) {
     const ctx = backgroundCtx();
     ctx.waitUntil(embedDocumentChunks(env as never, docId));
@@ -193,4 +278,54 @@ export async function persistAgentAnswerAsMarkdown(
       }),
     );
   }
+  return docId;
+}
+
+/** 深度任务完成后，把 Markdown 正文落入源文件「AI生成」分目录 */
+export async function persistAgentAnswerAsMarkdown(
+  env: Env,
+  job: JobLike,
+  answer: string,
+): Promise<void> {
+  const intent = (job.skill_intent ?? "").trim();
+  const path = aiGeneratedPathForIntent(intent);
+  if (!path) return;
+  const body = extractMarkdownBody(answer);
+  if (!looksLikeDocument(body)) return;
+
+  await persistMarkdownAtPath(env, {
+    projectId: job.project_id,
+    userId: job.user_id,
+    conversationId: job.conversation_id,
+    relativePath: path.relativePath,
+    filename: path.filename,
+    body,
+    sourceKind: "ai_generated",
+    fileCategory: INTENT_TITLE[intent] || "AI生成",
+    uploadNote: `agent_job:${job.id}`,
+  });
+}
+
+export async function persistInterviewTranscript(
+  env: Env,
+  input: {
+    projectId: string;
+    userId: string;
+    conversationId: string;
+    body: string;
+    roundIndex: number;
+  },
+): Promise<string | null> {
+  const path = interviewNotesPath();
+  return persistMarkdownAtPath(env, {
+    projectId: input.projectId,
+    userId: input.userId,
+    conversationId: input.conversationId,
+    relativePath: path.relativePath,
+    filename: path.filename,
+    body: input.body,
+    sourceKind: "user_interview",
+    fileCategory: "用户访谈",
+    uploadNote: `startup_interview:round:${input.roundIndex}:${input.conversationId}`,
+  });
 }

@@ -2,28 +2,18 @@
  * 知识网络正式版号（整数存储）
  *
  * - 0：未发布
- * - 1–99：0.x（13 个研究章节尚未第一次齐全）
+ * - 1–99：0.x（当前形态研究章节尚未第一次齐全）
  * - 100–9999：旧编码 major×100+minor（100=1.0，200=2.0）
  * - ≥10000：major×10000 + minor×100 + patch（10000=1.0，10101=1.1.1）
  *
  * 展示时省略为 0 的 patch：1.0.0 → 1.0，1.1.1 保持 1.1.1。
  */
 
-export const RESEARCH_CHAPTER_IDS = [
-  "snapshot",
-  "objectives",
-  "industry",
-  "legal",
-  "benchmarks",
-  "business",
-  "returns",
-  "capabilities",
-  "ownership",
-  "diligence",
-  "risks",
-  "questions",
-  "framework",
-] as const;
+import { researchSectionIdsForKind } from "./kn-catalog";
+import type { AnalysisKind } from "./analysis-kind";
+import { DEFAULT_ANALYSIS_KIND } from "./analysis-kind";
+
+export const RESEARCH_CHAPTER_IDS = researchSectionIdsForKind("mature");
 
 export type ChapterVersionBump = "major" | "minor" | "patch";
 
@@ -92,18 +82,22 @@ export function isPreReleaseChapterVersion(
 
 export function researchChaptersCompleteFromFlags(
   hasHtml: Record<string, boolean | undefined>,
+  kind: AnalysisKind = DEFAULT_ANALYSIS_KIND,
 ): boolean {
-  return RESEARCH_CHAPTER_IDS.every((id) => Boolean(hasHtml[id]));
+  return researchSectionIdsForKind(kind).every((id) => Boolean(hasHtml[id]));
 }
 
 export function researchChaptersComplete(
   htmlBySection:
     | Record<string, string | null | undefined>
     | Map<string, string | null | undefined>,
+  kind: AnalysisKind = DEFAULT_ANALYSIS_KIND,
 ): boolean {
   const get = (id: string) =>
     htmlBySection instanceof Map ? htmlBySection.get(id) : htmlBySection[id];
-  return RESEARCH_CHAPTER_IDS.every((id) => Boolean((get(id) ?? "").trim()));
+  return researchSectionIdsForKind(kind).every((id) =>
+    Boolean((get(id) ?? "").trim()),
+  );
 }
 
 /**

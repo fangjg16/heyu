@@ -84,7 +84,7 @@ export const LIST_FILES_LIMIT = 5000;
 
 export const LIST_FILES_SQL = `
   SELECT d.id, d.filename, d.relative_path, d.scope, d.conversation_id, d.mime, d.byte_size, d.created_at, d.uploaded_by,
-         d.source_kind, d.shared_with_issuer, d.file_category,
+         d.source_kind, d.shared_with_issuer, d.file_category, d.version_group, d.replaces_document_id,
          (SELECT COUNT(*) FROM chunks c WHERE c.document_id = d.id) AS chunk_count,
          (SELECT COUNT(*) FROM document_parse_results p WHERE p.document_id COLLATE utf8mb4_unicode_ci = d.id) AS parse_count
   FROM documents d

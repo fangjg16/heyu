@@ -444,7 +444,11 @@ export async function handleReviewJoinRequest(
 
   let assignedRole: ReturnType<typeof parseApprovedJoinRole> = "low";
   if (next === "approved") {
-    assignedRole = parseApprovedJoinRole(body.role);
+    const fallback = project.analysisKind === "early" ? "core" : "low";
+    assignedRole = parseApprovedJoinRole(body.role, fallback);
+    if (assignedRole && project.analysisKind === "early" && assignedRole === "issuer") {
+      assignedRole = "core";
+    }
     if (!assignedRole) {
       return json(
         {

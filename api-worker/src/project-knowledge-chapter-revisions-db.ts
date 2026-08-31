@@ -6,6 +6,8 @@ import {
   researchChaptersComplete,
   type ChapterVersionBump,
 } from "./chapter-version";
+import { getStoredAnalysisKind } from "./analysis-kind";
+import { DEFAULT_ANALYSIS_KIND } from "./analysis-kind";
 import { repairStoredChapterHtml } from "./chapter-revise-parse";
 import {
   getProjectKnowledgeChapterHtml,
@@ -851,8 +853,12 @@ export async function publishDraftRunToLive(
       db,
       input.run.projectId,
     );
+    const analysisKind =
+      (await getStoredAnalysisKind(db, input.run.projectId)) ??
+      DEFAULT_ANALYSIS_KIND;
     const allResearchComplete = researchChaptersComplete(
       new Map(liveAfter.map((c) => [c.sectionId, c.html])),
+      analysisKind,
     );
     newVersion = nextChapterVersion(currentVersion, {
       bump: input.bump ?? "minor",
@@ -1213,8 +1219,12 @@ export async function rollbackLiveChaptersToVersion(
     throw new Error("该版本没有可回滚的章节内容");
   }
   const liveAfter = await listProjectKnowledgeChapterHtml(db, input.projectId);
+  const analysisKind =
+    (await getStoredAnalysisKind(db, input.projectId)) ??
+    DEFAULT_ANALYSIS_KIND;
   const allResearchComplete = researchChaptersComplete(
     new Map(liveAfter.map((c) => [c.sectionId, c.html])),
+    analysisKind,
   );
   const newVersion = nextChapterVersion(currentVersion, {
     bump: "minor",

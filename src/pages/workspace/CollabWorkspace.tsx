@@ -201,7 +201,7 @@ export function CollabWorkspaceLayout() {
     );
   }
 
-  const role = getProjectRole(userId, project.id, project.createdBy);
+  const role = getProjectRole(userId, project.id, project.createdBy, project.analysisKind);
   if (!isIssuerRole(role)) {
     if (role === "guest") {
       return <Navigate to="/app/projects" replace />;

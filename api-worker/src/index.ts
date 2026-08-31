@@ -36,6 +36,7 @@ import { resolveKnowledgeNetworkSlotsFromMessage } from "./knowledge-network-slo
 import {
   detectSkillIntent,
   KNOWLEDGE_NETWORK_USE_WEB_ANSWER,
+  messageForSkillModel,
   shouldRouteToHermes,
   usesFullPackageCorpus,
   type SkillIntent,
@@ -77,6 +78,7 @@ import { invalidateChunkCache } from "./chunk-cache";
 import { embedDocumentChunks } from "./embeddings";
 import { isGenericProjectQuestion } from "./search";
 import { getProjectById as getDbProjectById } from "./projects-db";
+import { maybeHandleInterviewChat } from "./startup-interview-routes";
 import {
   DIRECTORY_MIME,
   isDirectoryMarker,
@@ -416,6 +418,8 @@ async function handleListFiles(
     source_kind?: string | null;
     shared_with_issuer?: number | null;
     file_category?: string | null;
+    version_group?: string | null;
+    replaces_document_id?: string | null;
   };
 
   let results: Row[] | null = null;
@@ -428,6 +432,8 @@ async function handleListFiles(
       /Unknown column ['`]?source_kind['`]?/i.test(msg) ||
       /Unknown column ['`]?shared_with_issuer['`]?/i.test(msg) ||
       /Unknown column ['`]?file_category['`]?/i.test(msg) ||
+      /Unknown column ['`]?version_group['`]?/i.test(msg) ||
+      /Unknown column ['`]?replaces_document_id['`]?/i.test(msg) ||
       /no such column:\s*(source_kind|shared_with_issuer|file_category)/i.test(msg)
     ) {
       const q = await bindList(LIST_FILES_SQL_NO_COLLAB).all<Row>();
@@ -480,6 +486,8 @@ async function handleListFiles(
     sourceKind: r.source_kind ?? null,
     sharedWithIssuer: Number(r.shared_with_issuer ?? 0) === 1,
     fileCategory: r.file_category ?? null,
+    versionGroup: r.version_group ?? null,
+    replacesDocumentId: r.replaces_document_id ?? null,
   }));
 
   return json({
@@ -1590,7 +1598,18 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
 
   const slots = getCitationSlots(projectId);
   const citationMap = citationMapFromSlots(slots);
-  const chatMode: SkillIntent = detectSkillIntent(message);
+  const interviewRes = await maybeHandleInterviewChat(env, {
+    projectId,
+    userId,
+    conversationId: body.conversationId,
+    message,
+  }).catch(() => null);
+  if (interviewRes) return interviewRes;
+  const analysisKind = await getStoredAnalysisKind(env.DB, projectId).catch(
+    () => null,
+  );
+  const chatMode: SkillIntent = detectSkillIntent(message, analysisKind);
+  const modelMessage = messageForSkillModel(message);
   if (chatMode === "knowledge_network") {
     return json({
       answer: KNOWLEDGE_NETWORK_USE_WEB_ANSWER,
@@ -1766,7 +1785,7 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
       projectId,
       userId,
       conversationId: body.conversationId,
-      message,
+      message: modelMessage,
       history,
       chatMode,
       citationMap,

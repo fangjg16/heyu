@@ -4,6 +4,7 @@
  */
 import type { AnalysisKind } from "./analysis-kind";
 import { DEFAULT_ANALYSIS_KIND } from "./analysis-kind";
+import { researchSectionsForKind } from "./kn-catalog";
 
 export type ChapterSkillSpec = {
   readonly primary: readonly string[];
@@ -14,104 +15,90 @@ const EMPTY: ChapterSkillSpec = { primary: [], borrow: [] };
 
 const MATURE: Record<string, ChapterSkillSpec> = {
   "project-overview": { primary: ["project-intake"], borrow: [] },
-  snapshot: { primary: ["project-intake"], borrow: ["classify-investment-theme"] },
-  objectives: { primary: ["dd-claim-audit"], borrow: [] },
-  industry: {
-    primary: ["industry-due-diligence"],
-    borrow: ["startup-design", "startup-competitors"],
+  "project-summary": {
+    primary: ["project-intake"],
+    borrow: ["classify-investment-theme"],
   },
-  legal: { primary: ["compliance-check"], borrow: ["dd-claim-audit"] },
-  benchmarks: {
-    primary: ["industry-due-diligence", "returns-analysis"],
+  "industry-competition": {
+    primary: ["industry-due-diligence"],
     borrow: ["startup-competitors"],
   },
-  business: { primary: ["business-due-diligence"], borrow: [] },
-  returns: { primary: ["returns-analysis"], borrow: ["financial-due-diligence"] },
-  capabilities: { primary: ["background-check"], borrow: [] },
-  ownership: { primary: ["background-check"], borrow: [] },
-  diligence: { primary: ["dd-checklist"], borrow: [] },
-  risks: { primary: ["risk-matrix"], borrow: [] },
-  questions: { primary: ["gap-tracking"], borrow: [] },
-  framework: { primary: ["value-creation-plan", "ic-memo"], borrow: [] },
+  "business-technology": { primary: ["business-due-diligence"], borrow: [] },
+  "company-team": {
+    primary: ["background-check"],
+    borrow: ["compliance-check"],
+  },
+  "financial-diligence": { primary: ["financial-due-diligence"], borrow: [] },
+  "investment-structure-returns": {
+    primary: ["returns-analysis"],
+    borrow: ["financial-due-diligence"],
+  },
+  "investment-risks": { primary: ["risk-matrix"], borrow: [] },
+  "diligence-gaps": {
+    primary: ["gap-tracking"],
+    borrow: ["dd-checklist"],
+  },
+  "investment-conclusion": {
+    primary: ["ic-memo"],
+    borrow: ["value-creation-plan"],
+  },
 };
 
 const ACQUIRE: Record<string, ChapterSkillSpec> = {
   "project-overview": { primary: ["acquisition-intake"], borrow: [] },
-  snapshot: {
+  "exec-verdict": { primary: ["acquisition-gate"], borrow: [] },
+  "decision-object": {
     primary: ["acquisition-intake"],
-    borrow: ["target-screening", "classify-investment-theme"],
+    borrow: ["target-screening"],
   },
-  objectives: {
-    primary: ["dd-claim-audit"],
-    borrow: ["acquisition-due-diligence"],
+  "business-worth-buying": {
+    primary: ["acquisition-due-diligence"],
+    borrow: ["business-due-diligence"],
   },
-  industry: {
-    primary: ["industry-due-diligence"],
-    borrow: ["startup-design", "startup-competitors"],
-  },
-  legal: {
-    primary: ["compliance-check"],
-    borrow: ["dd-claim-audit", "acquisition-due-diligence"],
-  },
-  benchmarks: {
-    primary: ["industry-due-diligence", "returns-analysis"],
-    borrow: ["startup-competitors"],
-  },
-  business: { primary: ["acquisition-due-diligence"], borrow: [] },
-  returns: {
+  "price-financing-downside": {
     primary: ["acquisition-economics"],
-    borrow: ["financial-due-diligence", "returns-analysis"],
+    borrow: ["financial-due-diligence"],
   },
-  capabilities: {
+  "buyer-fit-takeover": {
     primary: ["buyer-fit-transition"],
     borrow: ["background-check"],
   },
-  ownership: {
-    primary: ["background-check"],
+  "acquisition-risk-register": {
+    primary: ["risk-matrix"],
     borrow: ["acquisition-due-diligence"],
   },
-  diligence: {
-    primary: ["dd-checklist"],
+  "open-items-exceptions": {
+    primary: ["gap-tracking"],
+    borrow: ["dd-checklist"],
+  },
+  "counterarguments-invalidation": {
+    primary: ["dd-claim-audit"],
     borrow: ["acquisition-due-diligence"],
   },
-  risks: { primary: ["risk-matrix"], borrow: ["acquisition-due-diligence"] },
-  questions: { primary: ["gap-tracking"], borrow: [] },
-  framework: {
+  "recommendation-conditions": {
     primary: ["acquisition-gate"],
     borrow: ["value-creation-plan"],
   },
 };
 
 const EARLY: Record<string, ChapterSkillSpec> = {
-  "project-overview": { primary: ["project-intake"], borrow: ["startup-design"] },
-  snapshot: {
-    primary: ["project-intake", "classify-investment-theme"],
-    borrow: ["startup-design"],
-  },
-  objectives: {
-    primary: ["dd-claim-audit"],
-    borrow: ["startup-design", "startup-pitch"],
-  },
-  industry: {
+  "project-overview": { primary: ["startup-design"], borrow: ["project-intake"] },
+  "founder-interview": { primary: ["startup-design"], borrow: [] },
+  "market-discovery": {
     primary: ["startup-design", "startup-competitors"],
     borrow: ["industry-due-diligence"],
   },
-  legal: { primary: ["compliance-check"], borrow: ["dd-claim-audit"] },
-  benchmarks: {
-    primary: ["startup-competitors", "startup-positioning"],
+  strategy: {
+    primary: ["startup-design", "startup-positioning"],
+    borrow: [],
+  },
+  brand: { primary: ["startup-design"], borrow: [] },
+  product: { primary: ["startup-design"], borrow: ["startup-pitch"] },
+  financials: {
+    primary: ["startup-design"],
     borrow: ["returns-analysis"],
   },
-  business: {
-    primary: ["startup-design"],
-    borrow: ["business-due-diligence"],
-  },
-  returns: { primary: ["returns-analysis"], borrow: ["startup-design"] },
-  capabilities: { primary: ["startup-design"], borrow: ["background-check"] },
-  ownership: { primary: ["background-check"], borrow: [] },
-  diligence: { primary: ["dd-checklist"], borrow: ["startup-design"] },
-  risks: { primary: ["risk-matrix"], borrow: ["startup-design"] },
-  questions: { primary: ["gap-tracking"], borrow: ["startup-design"] },
-  framework: { primary: ["ic-memo"], borrow: ["startup-design"] },
+  validation: { primary: ["startup-design"], borrow: [] },
 };
 
 export const CHAPTER_SKILL_BY_KIND: Readonly<
@@ -147,32 +134,18 @@ export const SKILL_REFERENCE_FILES: Readonly<
   "startup-pitch": ["references/honesty-protocol.md"],
 };
 
-export const CHAPTER_SKILL_SECTIONS: readonly { id: string; label: string }[] = [
-  { id: "project-overview", label: "项目概览" },
-  { id: "snapshot", label: "项目快照" },
-  { id: "objectives", label: "标的概况" },
-  { id: "industry", label: "行业分析" },
-  { id: "legal", label: "合规分析" },
-  { id: "benchmarks", label: "对标分析" },
-  { id: "business", label: "业务模式" },
-  { id: "returns", label: "财务与回报" },
-  { id: "capabilities", label: "资源网络" },
-  { id: "ownership", label: "背景调查" },
-  { id: "diligence", label: "尽职调查" },
-  { id: "risks", label: "风险矩阵" },
-  { id: "questions", label: "待确认问题" },
-  { id: "framework", label: "决策路径与法律结构" },
-];
-
 export const ANALYSIS_KIND_LABELS: Readonly<Record<AnalysisKind, string>> = {
-  early: "早期",
-  mature: "成熟投资",
-  acquire: "收购经营",
+  early: "创业",
+  mature: "财务投资",
+  acquire: "收购",
 };
+
+const OVERVIEW_SECTION = { id: "project-overview", label: "项目概览" };
 
 export function serializeChapterSkillMap(): {
   kinds: { id: AnalysisKind; label: string }[];
   sections: { id: string; label: string }[];
+  sectionsByKind: Record<string, { id: string; label: string }[]>;
   cells: Record<string, Record<string, ChapterSkillSpec>>;
 } {
   const kinds = (["early", "mature", "acquire"] as const).map((id) => ({
@@ -180,15 +153,22 @@ export function serializeChapterSkillMap(): {
     label: ANALYSIS_KIND_LABELS[id],
   }));
   const cells: Record<string, Record<string, ChapterSkillSpec>> = {};
+  const sectionsByKind: Record<string, { id: string; label: string }[]> = {};
+  const union = new Map<string, { id: string; label: string }>();
+  union.set(OVERVIEW_SECTION.id, OVERVIEW_SECTION);
   for (const kind of ["early", "mature", "acquire"] as const) {
+    const sections = [OVERVIEW_SECTION, ...researchSectionsForKind(kind)];
+    sectionsByKind[kind] = sections;
     cells[kind] = {};
-    for (const section of CHAPTER_SKILL_SECTIONS) {
+    for (const section of sections) {
       cells[kind]![section.id] = specForChapter(section.id, kind);
+      if (!union.has(section.id)) union.set(section.id, section);
     }
   }
   return {
     kinds,
-    sections: [...CHAPTER_SKILL_SECTIONS],
+    sections: [...union.values()],
+    sectionsByKind,
     cells,
   };
 }

@@ -9,6 +9,11 @@ describe("parseApprovedJoinRole", () => {
     expect(parseApprovedJoinRole("  ")).toBe("low");
   });
 
+  it("can default omitted role to Core for early projects", () => {
+    expect(parseApprovedJoinRole(undefined, "core")).toBe("core");
+    expect(parseApprovedJoinRole("", "core")).toBe("core");
+  });
+
   it("accepts issuer and investor permission tiers", () => {
     expect(parseApprovedJoinRole("issuer")).toBe("issuer");
     expect(parseApprovedJoinRole("admin")).toBe("admin");

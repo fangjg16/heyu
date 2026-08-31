@@ -29,6 +29,7 @@ import {
 } from "@/lib/admin-skills-api";
 import { AdminChapterSkillMap } from "@/components/workspace/AdminChapterSkillMap";
 import { FALLBACK_CHAPTER_SKILL_MAP } from "@/lib/chapter-skill-map";
+import { SKILL_PACKS, skillPackForName } from "@/lib/skill-packs";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import {
   dismissIfBackdropClick,
@@ -397,6 +398,10 @@ export function AdminSkillsSection() {
   };
 
   const skills: AdminSkillRow[] = list?.skills ?? [];
+  const skillsByPack = SKILL_PACKS.map((pack) => ({
+    ...pack,
+    skills: skills.filter((s) => skillPackForName(s.name) === pack.id),
+  })).filter((g) => g.skills.length > 0);
   const restartConfigured = Boolean(list?.hermesRestartConfigured);
   const anyModal = Boolean(
     editName ||
@@ -537,8 +542,17 @@ export function AdminSkillsSection() {
       />
 
       {!loading && skills.length > 0 ? (
-        <ul className="mt-4 space-y-2">
-          {skills.map((s) => (
+        <div className="mt-4 space-y-5">
+          {skillsByPack.map((group) => (
+            <div key={group.id}>
+              <p className="mb-2 text-[11px] font-semibold tracking-wide text-muted-foreground">
+                {group.label}
+                <span className="ml-1 font-mono text-[10px] font-normal">
+                  {group.id}
+                </span>
+              </p>
+              <ul className="space-y-2">
+                {group.skills.map((s) => (
             <li
               id={`admin-skill-${s.name}`}
               key={s.name}
@@ -617,8 +631,11 @@ export function AdminSkillsSection() {
                 </button>
               </div>
             </li>
+                ))}
+              </ul>
+            </div>
           ))}
-        </ul>
+        </div>
       ) : null}
 
       {!loading && !error && skills.length === 0 ? (

@@ -10,7 +10,16 @@ import {
 } from "./chapter-skill-method";
 import { parseReviseChapterAnswer, repairStoredChapterHtml } from "./chapter-revise-parse";
 import { callLlm, type LlmClientEnv } from "./llm-client";
-import { ensureAnalysisKind } from "./analysis-kind";
+import { ensureAnalysisKind, getStoredAnalysisKind } from "./analysis-kind";
+import { DEFAULT_ANALYSIS_KIND } from "./analysis-kind";
+import {
+  DEFAULT_CHAPTER_FORMAT_HINT,
+  fallbackChapterMarkdown,
+  isGeneratableSectionId,
+  isKnownSectionId,
+  researchSectionIdsForKind,
+  sectionLabel,
+} from "./kn-catalog";
 import { filterTemplateByKind } from "./kn-template-kind";
 import {
   countPopulatedProjectKnowledgeChapters,
@@ -113,6 +122,9 @@ export type GenerateChapterTarget =
   | { target: "draft"; runId: string };
 
 const VALID_SECTION_IDS = new Set([
+  ...researchSectionIdsForKind("mature"),
+  ...researchSectionIdsForKind("acquire"),
+  ...researchSectionIdsForKind("early"),
   "snapshot",
   "objectives",
   "industry",
@@ -128,7 +140,7 @@ const VALID_SECTION_IDS = new Set([
   "framework",
 ]);
 
-/** 元页面：可读写落库，但不计入「已有内容 / 13」；其中 project-overview 有模板可生成 */
+/** 元页面：可读写落库，但不计入「已有内容」；其中 project-overview 有模板可生成 */
 const META_SECTION_IDS = new Set([
   "sources",
   "glossary",
@@ -138,8 +150,6 @@ const META_SECTION_IDS = new Set([
 
 /** 有 Markdown 模板、可走 generate 的元页面 */
 const GENERATABLE_META_SECTION_IDS = new Set(["project-overview"]);
-
-const TOTAL_SECTIONS = 13;
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -156,12 +166,12 @@ function normalizeUserId(raw: string | null): string | null {
 function normalizeSectionId(raw: string): string | null {
   const id = decodeURIComponent(raw || "").trim();
   if (!id) return null;
-  if (VALID_SECTION_IDS.has(id) || META_SECTION_IDS.has(id)) return id;
+  if (isKnownSectionId(id) || VALID_SECTION_IDS.has(id)) return id;
   return null;
 }
 
 function hasChapterTemplate(id: string): boolean {
-  return VALID_SECTION_IDS.has(id) || GENERATABLE_META_SECTION_IDS.has(id);
+  return isGeneratableSectionId(id);
 }
 
 /** 将模型输出规范为单段 HTML 片段 */
@@ -342,15 +352,23 @@ export async function handleListProjectKnowledgeChapters(
     projectId,
   );
   const bundle = await ensureChapterBundle(env.DB, projectId, userId);
+  const analysisKind =
+    (await getStoredAnalysisKind(env.DB, projectId)) ?? DEFAULT_ANALYSIS_KIND;
+  const researchIds = researchSectionIdsForKind(analysisKind);
 
   return json({
     ok: true,
     projectId,
-    totalSections: TOTAL_SECTIONS,
+    analysisKind,
+    totalSections: researchIds.length,
     populatedCount,
     currentVersion: bundle.version,
     overviewVersion: bundle.overviewVersion,
     overviewKnVersion: bundle.overviewKnVersion,
+    catalog: researchIds.map((id) => ({
+      id,
+      label: sectionLabel(id, analysisKind),
+    })),
     chapters: chapters.map((c) => ({
       sectionId: c.sectionId,
       hasHtml: Boolean(c.html.trim()),
@@ -430,17 +448,7 @@ export async function handleGetProjectKnowledgeChapter(
     ok: true,
     projectId,
     sectionId,
-    title:
-      template?.title ??
-      (sectionId === "sources"
-        ? "引用来源"
-        : sectionId === "glossary"
-          ? "名词解释"
-          : sectionId === "project-overview"
-            ? "项目概览"
-            : sectionId === "project-graph"
-              ? "项目关系图"
-              : sectionId),
+    title: template?.title ?? sectionLabel(sectionId),
     kicker: template?.kicker ?? null,
     hasHtml: Boolean(html?.trim()),
     html,
@@ -485,10 +493,7 @@ export async function handleGenerateProjectKnowledgeChapter(
     if (run.status === "published" || run.status === "discarded") {
       return json({ error: "该草案已结束，无法继续生成", code: "RUN_CLOSED" }, 409);
     }
-    if (
-      !VALID_SECTION_IDS.has(sectionId) &&
-      sectionId !== "project-overview"
-    ) {
+    if (!isGeneratableSectionId(sectionId)) {
       return json(
         {
           error: "草案仅支持研究章节或项目概览",
@@ -499,7 +504,7 @@ export async function handleGenerateProjectKnowledgeChapter(
     }
   }
 
-  const template =
+  let template =
     sectionId === "sources" ||
     sectionId === "glossary" ||
     sectionId === "project-graph"
@@ -511,13 +516,20 @@ export async function handleGenerateProjectKnowledgeChapter(
     sectionId !== "project-graph" &&
     !template
   ) {
-    return json(
-      {
-        error:
-          "章节模板不存在，请先执行 migration 0017 并 seed:kn-chapter-templates",
-      },
-      404,
-    );
+    const title = sectionLabel(sectionId);
+    template = {
+      id: sectionId,
+      groupId: "fallback",
+      groupLabel: "目录",
+      title,
+      kicker: null,
+      canonicalHint: sectionId,
+      markdown: fallbackChapterMarkdown(sectionId, title),
+      formatHint: DEFAULT_CHAPTER_FORMAT_HINT,
+      sortOrder: 0,
+      updatedAt: new Date().toISOString(),
+      updatedBy: null,
+    };
   }
   if (
     sectionId === "sources" ||
@@ -583,6 +595,7 @@ export async function handleGenerateProjectKnowledgeChapter(
   const formatHint =
     template!.formatHint?.trim() ||
     SECTION_FORMAT_HINT[sectionId] ||
+    DEFAULT_CHAPTER_FORMAT_HINT ||
     "严格按模板结构输出 HTML，禁止增加模板外章节；随后 ===GRAPH=== 写 NONE，再 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。";
 
   let generateSystem = GENERATE_SYSTEM;

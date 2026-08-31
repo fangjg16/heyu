@@ -115,7 +115,7 @@ export function AdminApiProbeSection() {
     try {
       const vars = {
         projectId: projectId.trim(),
-        sectionId: "snapshot",
+        sectionId: "project-summary",
         runId: "",
         docId: "",
       };

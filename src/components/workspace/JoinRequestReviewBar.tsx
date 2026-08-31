@@ -9,6 +9,7 @@ type Props = {
   onApprove: (role: JoinApproveRole) => void;
   onReject: () => void;
   extra?: ReactNode;
+  analysisKind?: string | null;
 };
 
 export function JoinRequestReviewBar({
@@ -17,9 +18,12 @@ export function JoinRequestReviewBar({
   onApprove,
   onReject,
   extra,
+  analysisKind,
 }: Props) {
   const [picking, setPicking] = useState(false);
-  const [role, setRole] = useState<JoinApproveRole>("low");
+  const [role, setRole] = useState<JoinApproveRole>(
+    analysisKind === "early" ? "core" : "low",
+  );
 
   return (
     <div className="mt-3.5">
@@ -27,6 +31,7 @@ export function JoinRequestReviewBar({
         <MemberRoleFields
           role={role}
           disabled={disabled}
+          analysisKind={analysisKind}
           onChange={setRole}
         />
       ) : null}

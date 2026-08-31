@@ -7,12 +7,15 @@ export function isJoinApproveRole(role: string): role is JoinApproveRole {
 
 /**
  * 解析审批通过时指定的身份。
- * 未传或空字符串 → Basic（low）；非法值 → null（调用方应 400）。
+ * 未传或空字符串 → fallback（默认 Basic）；非法值 → null（调用方应 400）。
  */
-export function parseApprovedJoinRole(raw: unknown): JoinApproveRole | null {
-  if (raw == null) return "low";
+export function parseApprovedJoinRole(
+  raw: unknown,
+  fallback: JoinApproveRole = "low",
+): JoinApproveRole | null {
+  if (raw == null) return fallback;
   const role = String(raw).trim().toLowerCase();
-  if (role === "") return "low";
+  if (role === "") return fallback;
   if (isJoinApproveRole(role)) return role;
   return null;
 }

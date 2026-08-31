@@ -13,6 +13,7 @@ import {
   type FileTreeFolderNode,
   type FileTreeNode,
 } from "@/lib/project-file-tree";
+import { pickCurrentDocuments } from "@/lib/document-versions";
 
 export type FileSourceBucket = "project" | "session" | "issuer" | "ai";
 
@@ -186,8 +187,9 @@ function folderAt(root: FileTreeFolderNode, path: string): FileTreeFolderNode | 
 export function buildSourceMaterialsTree(
   files: ProjectFileRecord[],
 ): FileTreeFolderNode {
+  const current = pickCurrentDocuments(files);
   const children: FileTreeNode[] = SOURCE_BUCKETS.map((b) => {
-    const rewritten = files
+    const rewritten = current
       .filter((f) => fileSourceBucket(f) === b.id)
       .map((f) => ({
         ...f,
@@ -214,8 +216,9 @@ export function buildTopicMaterialsTree(
   files: ProjectFileRecord[],
   parsedTypeById: Record<string, string | undefined>,
 ): FileTreeFolderNode {
+  const current = pickCurrentDocuments(files);
   const map = new Map<string, ProjectFileRecord[]>();
-  for (const file of files) {
+  for (const file of current) {
     if (isHiddenKeep(file)) continue;
     const label = topicLabelForFile(file, parsedTypeById[file.id]);
     const list = map.get(label) ?? [];

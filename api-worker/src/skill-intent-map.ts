@@ -39,6 +39,17 @@ export const INTENT_TO_SKILL: Record<
   skill_verify: "jfo-skill-verify",
 };
 
+const SKILL_TO_INTENT = new Map<string, SkillIntent>();
+for (const [intent, skill] of Object.entries(INTENT_TO_SKILL)) {
+  if (!SKILL_TO_INTENT.has(skill)) {
+    SKILL_TO_INTENT.set(skill, intent as SkillIntent);
+  }
+}
+
+export function skillNameToIntent(name: string): SkillIntent | null {
+  return SKILL_TO_INTENT.get(name.trim()) ?? null;
+}
+
 /** skill 目录名 → 关联意图列表 */
 export function skillToIntentsMap(): Record<string, string[]> {
   const out: Record<string, string[]> = {};
