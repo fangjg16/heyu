@@ -1026,3 +1026,31 @@ export async function handlePutChatState(
     ...result,
   });
 }
+
+/** 访谈开场：给回答人（及发起人）写入第一条助手消息，打开对话就能看见题目。 */
+export async function seedInterviewOpeningMessage(
+  env: ChatSyncEnv,
+  input: {
+    userIds: string[];
+    conversationId: string;
+    content: string;
+  },
+): Promise<void> {
+  const now = nowIso();
+  const content = input.content.trim();
+  if (!content) return;
+  const msg: SyncChatMessage = {
+    id: `interview-open-${input.conversationId}`,
+    role: "assistant",
+    content,
+    time: now,
+    sortIndex: 0,
+  };
+  const seen = new Set<string>();
+  for (const raw of input.userIds) {
+    const userId = raw.trim();
+    if (!userId || seen.has(userId)) continue;
+    seen.add(userId);
+    await upsertChatMessage(env, userId, input.conversationId, msg, now);
+  }
+}

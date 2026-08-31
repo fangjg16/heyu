@@ -225,6 +225,8 @@ export function ProjectKnowledgeNetworkSection({
     ProjectPermissionMember[]
   >([]);
   const [interviewAnswererId, setInterviewAnswererId] = useState("");
+  const [interviewError, setInterviewError] = useState<string | null>(null);
+  const [interviewNotice, setInterviewNotice] = useState<string | null>(null);
   useBodyScrollLock(allChaptersConfirm);
 
   const flatSections = useMemo(
@@ -613,27 +615,35 @@ export function ProjectKnowledgeNetworkSection({
       return;
     }
     if (!ENABLE_LIVE_CHAT) {
-      const fallback = (project?.createdBy ?? userId).trim();
-      setInterviewAnswererId(fallback);
+      setInterviewAnswererId(userId);
       return;
     }
     let cancelled = false;
     void fetchProjectPermissions(projectId, userId)
       .then((data) => {
         if (cancelled) return;
-        setInterviewMembers(data.members);
-        const fallback = (project?.createdBy ?? userId).trim();
-        setInterviewAnswererId((prev) => prev || fallback);
+        const eligible = data.members.filter((m) =>
+          canEnterChat(m.effectiveRole, "early"),
+        );
+        const self = eligible.find((m) => m.userId === userId);
+        const ordered = self
+          ? [self, ...eligible.filter((m) => m.userId !== userId)]
+          : eligible;
+        setInterviewMembers(ordered);
+        setInterviewAnswererId((prev) => {
+          if (prev && ordered.some((m) => m.userId === prev)) return prev;
+          return userId;
+        });
       })
       .catch(() => {
         if (cancelled) return;
         setInterviewMembers([]);
-        setInterviewAnswererId((project?.createdBy ?? userId).trim());
+        setInterviewAnswererId(userId);
       });
     return () => {
       cancelled = true;
     };
-  }, [analysisKind, projectId, canPublish, userId, project?.createdBy]);
+  }, [analysisKind, projectId, canPublish, userId]);
 
   useEffect(() => {
     if (view !== "sources") return;
@@ -909,16 +919,26 @@ export function ProjectKnowledgeNetworkSection({
   const onStartInterview = async () => {
     if (interviewBusy || !canPublish) return;
     setInterviewBusy(true);
-    setError(null);
+    setInterviewError(null);
+    setInterviewNotice(null);
     try {
       const data = await startStartupInterview(
         projectId,
-        interviewAnswererId || undefined,
+        interviewAnswererId || userId || undefined,
       );
       setInterview(data.interview);
+      if (data.invited || data.interview.answererUserId !== userId) {
+        const name =
+          interviewMembers.find((m) => m.userId === data.interview.answererUserId)
+            ?.displayName || data.interview.answererUserId;
+        setInterviewNotice(
+          `已邀请「${name}」做用户访谈。对方打开本项目知识网络即可开始回答。`,
+        );
+        return;
+      }
       openInterviewChat(data.interview.conversationId);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "开始访谈失败");
+      setInterviewError(e instanceof Error ? e.message : "开始访谈失败");
     } finally {
       setInterviewBusy(false);
     }
@@ -927,14 +947,14 @@ export function ProjectKnowledgeNetworkSection({
   const onPauseInterview = async () => {
     if (interviewBusy || !canPublish) return;
     setInterviewBusy(true);
-    setError(null);
+    setInterviewError(null);
     try {
       await pauseStartupInterview(projectId);
       setInterview((prev) =>
         prev ? { ...prev, status: "paused", pausedAt: new Date().toISOString() } : prev,
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "暂停失败");
+      setInterviewError(e instanceof Error ? e.message : "暂停失败");
     } finally {
       setInterviewBusy(false);
     }
@@ -943,7 +963,7 @@ export function ProjectKnowledgeNetworkSection({
   const onEndInterview = async () => {
     if (interviewBusy || !canPublish) return;
     setInterviewBusy(true);
-    setError(null);
+    setInterviewError(null);
     try {
       const data = await endStartupInterview(projectId);
       setInterview(null);
@@ -955,7 +975,7 @@ export function ProjectKnowledgeNetworkSection({
         onUpdateAllChapters();
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "结束访谈失败");
+      setInterviewError(e instanceof Error ? e.message : "结束访谈失败");
     } finally {
       setInterviewBusy(false);
     }
@@ -1033,15 +1053,38 @@ export function ProjectKnowledgeNetworkSection({
           <div className="flex flex-wrap items-center gap-2">
             {interview?.status === "in_progress" ? (
               <>
-                <button
-                  type="button"
-                  onClick={() => openInterviewChat(interview.conversationId)}
-                  className="inline-flex h-9 items-center rounded-[10px] border border-[rgba(78,66,57,0.16)] bg-white px-3.5 text-[13px] font-medium text-[#1F2423]"
-                >
-                  继续上次没问完的访谈
-                </button>
+                {interview.answererUserId === userId ? (
+                  <button
+                    type="button"
+                    onClick={() => openInterviewChat(interview.conversationId)}
+                    className="inline-flex h-9 items-center rounded-[10px] border border-[rgba(78,66,57,0.16)] bg-white px-3.5 text-[13px] font-medium text-[#1F2423]"
+                  >
+                    {interview.hasReplies
+                      ? "继续上次没问完的访谈"
+                      : "开始用户访谈"}
+                  </button>
+                ) : (
+                  <span className="text-[12.5px] text-[#59625F]">
+                    已指定{" "}
+                    {interviewMembers.find(
+                      (m) => m.userId === interview.answererUserId,
+                    )?.displayName || interview.answererUserId}{" "}
+                    回答
+                  </span>
+                )}
                 {canPublish ? (
                   <>
+                    {interview.answererUserId !== userId ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openInterviewChat(interview.conversationId)
+                        }
+                        className="h-9 rounded-[10px] px-3 text-[13px] text-[#59625F] hover:bg-[rgba(78,66,57,0.06)]"
+                      >
+                        查看访谈
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       disabled={interviewBusy}
@@ -1068,7 +1111,7 @@ export function ProjectKnowledgeNetworkSection({
                 onClick={() => void onStartInterview()}
                 className="inline-flex h-9 items-center rounded-[10px] border border-[hsl(var(--wine)/0.35)] bg-[hsl(var(--wine-muted))] px-3.5 text-[13px] font-medium text-[hsl(var(--wine))] disabled:opacity-50"
               >
-                继续上次没问完的访谈
+                {interviewBusy ? "正在继续…" : "继续上次没问完的访谈"}
               </button>
             ) : canPublish ? (
               <div className="flex flex-wrap items-center gap-2">
@@ -1076,14 +1119,16 @@ export function ProjectKnowledgeNetworkSection({
                   <label className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[rgba(78,66,57,0.16)] bg-white px-2.5 text-[12px] text-[#59625F]">
                     回答人
                     <select
-                      value={interviewAnswererId}
+                      value={interviewAnswererId || userId}
                       onChange={(e) => setInterviewAnswererId(e.target.value)}
                       disabled={interviewBusy}
                       className="max-w-[9.5rem] bg-transparent text-[13px] font-medium text-[#1F2423] outline-none"
                     >
                       {interviewMembers.map((m) => (
                         <option key={m.userId} value={m.userId}>
-                          {m.displayName || m.userId}
+                          {m.userId === userId
+                            ? `我（${m.displayName || m.userId}）`
+                            : m.displayName || m.userId}
                         </option>
                       ))}
                     </select>
@@ -1095,9 +1140,11 @@ export function ProjectKnowledgeNetworkSection({
                   onClick={() => void onStartInterview()}
                   className="inline-flex h-9 items-center rounded-[10px] border border-[hsl(var(--wine)/0.35)] bg-[hsl(var(--wine-muted))] px-3.5 text-[13px] font-medium text-[hsl(var(--wine))] disabled:opacity-50"
                 >
-                  开始用户访谈
+                  {interviewBusy ? "正在开始…" : "开始用户访谈"}
                 </button>
               </div>
+            ) : interview?.status === "paused" ? (
+              <span className="text-[12.5px] text-[#59625F]">访谈已暂停</span>
             ) : null}
           </div>
         ) : null}
@@ -1122,6 +1169,17 @@ export function ProjectKnowledgeNetworkSection({
           </button>
         ) : null}
       </div>
+
+      {interviewError ? (
+        <p className="mb-3 rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
+          {interviewError}
+        </p>
+      ) : null}
+      {interviewNotice ? (
+        <p className="mb-3 rounded-xl border border-[rgba(78,66,57,0.12)] bg-[rgba(255,252,248,0.9)] px-3.5 py-2 text-[12.5px] text-[#1F2423]">
+          {interviewNotice}
+        </p>
+      ) : null}
 
       {view === "chapters" ? (
         <div className="space-y-3">

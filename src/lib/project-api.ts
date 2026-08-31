@@ -2297,6 +2297,7 @@ export type StartupInterviewDto = {
   pausedAt: string | null;
   endedAt: string | null;
   pendingPrompt: string | null;
+  hasReplies?: boolean;
 };
 
 export async function fetchStartupInterview(
@@ -2320,7 +2321,11 @@ export async function fetchStartupInterview(
 export async function startStartupInterview(
   projectId: string,
   answererUserId?: string,
-): Promise<{ interview: StartupInterviewDto; firstMessage?: string }> {
+): Promise<{
+  interview: StartupInterviewDto;
+  firstMessage?: string;
+  invited?: boolean;
+}> {
   const res = await jfoFetch(
     `/api/projects/${encodeURIComponent(projectId)}/startup-interview`,
     {
@@ -2332,12 +2337,17 @@ export async function startStartupInterview(
   const data = (await res.json().catch(() => ({}))) as {
     interview?: StartupInterviewDto;
     firstMessage?: string;
+    invited?: boolean;
     error?: string;
     draftRunId?: string;
   };
   if (!res.ok) throw new Error(data.error || "开始访谈失败");
   if (!data.interview) throw new Error("开始访谈失败");
-  return { interview: data.interview, firstMessage: data.firstMessage };
+  return {
+    interview: data.interview,
+    firstMessage: data.firstMessage,
+    invited: Boolean(data.invited),
+  };
 }
 
 export async function pauseStartupInterview(projectId: string): Promise<void> {

@@ -10,6 +10,8 @@ export function inferProjectIdFromConversationId(
   if (mainMatch?.[1]) return mainMatch[1];
   const blankMatch = /^(.+)-blank-/u.exec(trimmed);
   if (blankMatch?.[1]) return blankMatch[1];
+  const interviewLegacy = /^interview-(proj-[a-f0-9]+)-/u.exec(trimmed);
+  if (interviewLegacy?.[1]) return interviewLegacy[1];
   if (/^proj-[a-f0-9]+$/u.test(trimmed)) return trimmed;
   const projPrefix = /^(proj-[a-f0-9]+)-/u.exec(trimmed);
   if (projPrefix?.[1]) return projPrefix[1];
@@ -20,10 +22,19 @@ export function conversationBelongsToProject(
   conversationId: string,
   projectId: string,
 ): boolean {
+  if (!conversationId || !projectId) return false;
+  if (conversationId === projectId) return true;
+  if (conversationId === `${projectId}-main`) return true;
+  if (conversationId.startsWith(`${projectId}-`)) return true;
+  if (conversationId.startsWith(`interview-${projectId}-`)) return true;
+  return inferProjectIdFromConversationId(conversationId) === projectId;
+}
+
+export function isInterviewConversationId(conversationId: string): boolean {
+  const id = conversationId.trim();
   return (
-    conversationId === projectId ||
-    conversationId === `${projectId}-main` ||
-    conversationId.startsWith(`${projectId}-`)
+    id.includes("-interview-") ||
+    id.startsWith("interview-")
   );
 }
 

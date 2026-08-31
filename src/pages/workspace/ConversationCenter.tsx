@@ -46,9 +46,11 @@ import {
   fetchProjectByIdFromApi,
   fetchProjectsFromApi,
   fetchProjectFiles,
+  fetchStartupInterview,
   filterConversationSessionFiles,
   SESSION_UPLOAD_FOLDER,
   type ProjectFileRecord,
+  type StartupInterviewDto,
 } from "@/lib/project-api";
 import { apiFetch } from "@/lib/api-auth";
 import { loadSessionToken } from "@/workspace/session";
@@ -98,6 +100,7 @@ import {
   hasConversationIdInUrl,
   inferProjectIdFromConversationId as inferProjectIdFromConvId,
   isBlankConversationId,
+  isInterviewConversationId,
   pickConversationIdForProject,
   resolveConversationIdFromUrl,
 } from "@/workspace/chat-conversation-id";
@@ -1027,6 +1030,8 @@ export default function ConversationCenter() {
   }>();
   const [userId, setUserId] = useState<string | null>(null);
   const [user, setUser] = useState<WorkspaceUser | null>(null);
+  const [activeInterview, setActiveInterview] =
+    useState<StartupInterviewDto | null>(null);
   const [showUploadPanel, setShowUploadPanel] = useState(false);
   const [composerDragActive, setComposerDragActive] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -1259,6 +1264,62 @@ export default function ConversationCenter() {
       liveMessagesByConversation,
     );
   }, [projectId, conversationId, liveMessagesByConversation]);
+
+  const interviewInThisThread = Boolean(
+    activeInterview &&
+      effectiveConversationId &&
+      activeInterview.conversationId === effectiveConversationId &&
+      (activeInterview.status === "in_progress" ||
+        activeInterview.status === "paused"),
+  );
+
+  useEffect(() => {
+    if (!projectId || !ENABLE_LIVE_CHAT) {
+      setActiveInterview(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchStartupInterview(projectId)
+      .then((data) => {
+        if (!cancelled) setActiveInterview(data.interview);
+      })
+      .catch(() => {
+        if (!cancelled) setActiveInterview(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, conversationId]);
+
+  useEffect(() => {
+    if (!interviewInThisThread || !activeInterview?.pendingPrompt?.trim()) {
+      return;
+    }
+    const cid = activeInterview.conversationId;
+    const opening = activeInterview.pendingPrompt.trim();
+    setLiveMessagesByConversation((prev) => {
+      const cur = prev[cid] ?? [];
+      if (cur.length > 0) return prev;
+      return {
+        ...prev,
+        [cid]: [
+          {
+            id: `interview-open-${activeInterview.id}`,
+            role: "assistant",
+            content: opening,
+            time: activeInterview.startedAt,
+            sortIndex: 0,
+          },
+        ],
+      };
+    });
+  }, [
+    interviewInThisThread,
+    activeInterview?.id,
+    activeInterview?.conversationId,
+    activeInterview?.pendingPrompt,
+    activeInterview?.startedAt,
+  ]);
 
   const isLiveAiMode =
     ENABLE_LIVE_CHAT && Boolean(AI_CHAT_ENDPOINT) && projectRole !== "guest";
@@ -3428,6 +3489,19 @@ export default function ConversationCenter() {
           </div>
         </header>
 
+        {interviewInThisThread ||
+        isInterviewConversationId(effectiveConversationId) ? (
+          <div className="border-b border-[hsl(var(--wine)/0.18)] bg-[hsl(var(--wine-muted))] px-4 py-2.5 text-[12.5px] leading-relaxed text-[#1F2423] md:px-6">
+            {activeInterview?.status === "paused"
+              ? "用户访谈已暂停。管理员可在知识网络继续，或先去普通对话。"
+              : userId &&
+                  activeInterview &&
+                  userId !== activeInterview.answererUserId
+                ? "这是指定给其他成员的用户访谈。请让回答人在此作答；管理员可在知识网络暂停或结束。"
+                : "用户访谈进行中。请直接回答下面的问题，一次说清楚即可；聊偏了访谈官会拉回来。"}
+          </div>
+        ) : null}
+
         <div
           ref={chatScrollRef}
           className="flex-1 space-y-5 overflow-y-auto px-4 py-5 md:px-6"
@@ -3769,7 +3843,11 @@ export default function ConversationCenter() {
               autoComplete="off"
               spellCheck={false}
               aria-label="对话输入"
-              placeholder="输入消息并发送"
+              placeholder={
+                interviewInThisThread
+                  ? "回答访谈问题…"
+                  : "输入消息并发送"
+              }
               className={cn(
                 "max-h-[72px] min-h-8 min-w-0 flex-1 resize-none overflow-x-hidden overflow-y-auto border-0 bg-transparent px-0 py-1 text-[13px] leading-5 break-words whitespace-pre-wrap [overflow-wrap:anywhere] placeholder:text-muted-foreground/55 focus-visible:outline-none focus-visible:ring-0",
                 draftMessage ? "text-foreground" : "text-muted-foreground",

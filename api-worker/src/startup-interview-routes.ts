@@ -19,6 +19,7 @@ import {
   canPublishProjectKnowledgeNetwork,
   resolveProjectRole,
 } from "./workspace-roles";
+import { seedInterviewOpeningMessage } from "./chat-sync";
 
 type Env = { DB: AppDatabase; FILES: AppObjectStorage } & LlmClientEnv;
 
@@ -42,8 +43,16 @@ function dto(row: StartupInterview) {
     pausedAt: row.pausedAt,
     endedAt: row.endedAt,
     pendingPrompt: row.pendingPrompt,
+    hasReplies: Boolean(row.transcript?.trim()),
   };
 }
+
+const FIRST_INTERVIEW_QUESTIONS = `这是用户访谈，请直接用自己的话回答，不必写成尽调表。
+
+1. 你们现在做给谁用？最近一个真实用户或使用场景是谁？
+2. 他们现在怎么凑合，最痛的一点是什么？
+3. 你们已经验证过什么（有没有人真的在用，或愿意付钱）？
+4. 接下来四周最想搞清楚的一件事是什么？`;
 
 async function seedConversation(
   db: AppDatabase,
@@ -76,21 +85,6 @@ async function seedConversation(
   } catch {
     /* 对话表未就绪时访谈行仍可工作 */
   }
-}
-
-async function firstQuestions(env: Env, projectName: string): Promise<string> {
-  const { answer } = await callLlm(env, [
-    {
-      role: "system",
-      content:
-        "你在做创业项目的用户访谈。一次只问 3 到 5 个短问题，用中文，编号列出。不要生成知识网络，不要做尽调表。若材料里已有答案就跳过该题。",
-    },
-    {
-      role: "user",
-      content: `项目「${projectName}」开始第一轮用户访谈。请提出第一批问题（客户是谁、痛点、替代方案、当前进展）。`,
-    },
-  ]);
-  return (answer || "1. 现在的目标用户是谁？\n2. 他们现在怎么凑合？\n3. 你们已经验证过什么？").trim();
 }
 
 export async function handleGetStartupInterview(
@@ -137,7 +131,11 @@ export async function handleStartStartupInterview(
   }
   const active = await findActiveInterview(env.DB, projectId).catch(() => null);
   if (active?.status === "in_progress") {
-    return json({ interview: dto(active), reused: true });
+    return json({
+      interview: dto(active),
+      reused: true,
+      invited: userId !== active.answererUserId,
+    });
   }
   if (active?.status === "paused") {
     await updateInterview(env.DB, active.id, {
@@ -145,7 +143,12 @@ export async function handleStartStartupInterview(
       pausedAt: null,
     });
     const resumed = await findActiveInterview(env.DB, projectId);
-    return json({ interview: resumed ? dto(resumed) : dto(active), reused: true });
+    const row = resumed ?? active;
+    return json({
+      interview: dto(row),
+      reused: true,
+      invited: userId !== row.answererUserId,
+    });
   }
   const draft = await findActiveDraftRun(env.DB, projectId).catch(() => null);
   if (draft) {
@@ -158,16 +161,24 @@ export async function handleStartStartupInterview(
       409,
     );
   }
-  let answererUserId = (project.createdBy ?? userId).trim() || userId;
+  let answererUserId = userId;
   try {
     const body = (await request.json()) as { answererUserId?: string };
     if (body.answererUserId?.trim()) answererUserId = body.answererUserId.trim();
   } catch {
-    /* 默认创建人 */
+    /* 默认当前管理员自己答 */
+  }
+  if (
+    !(await canEnterProjectChat(env, answererUserId, projectId, project.createdBy))
+  ) {
+    return json(
+      { error: "回答人必须是可对话的项目成员", code: "INVALID_ANSWERER" },
+      400,
+    );
   }
   const roundIndex = await nextInterviewRound(env.DB, projectId);
-  const conversationId = `interview-${projectId}-${roundIndex}-${crypto.randomUUID().slice(0, 8)}`;
-  const pending = await firstQuestions(env, project.name);
+  const conversationId = `${projectId}-interview-${roundIndex}-${crypto.randomUUID().slice(0, 8)}`;
+  const pending = FIRST_INTERVIEW_QUESTIONS;
   const row = await insertInterview(env.DB, {
     projectId,
     conversationId,
@@ -180,7 +191,21 @@ export async function handleStartStartupInterview(
   if (userId !== answererUserId) {
     await seedConversation(env.DB, userId, projectId, conversationId, pending);
   }
-  return json({ interview: dto(row), firstMessage: pending });
+  await seedInterviewOpeningMessage(env, {
+    userIds: [answererUserId, userId],
+    conversationId,
+    content: pending,
+  }).catch((e) => {
+    console.warn(
+      "[startup-interview] seed opening message",
+      e instanceof Error ? e.message : e,
+    );
+  });
+  return json({
+    interview: dto(row),
+    firstMessage: pending,
+    invited: userId !== answererUserId,
+  });
 }
 
 export async function handlePauseStartupInterview(
@@ -288,17 +313,24 @@ export async function maybeHandleInterviewChat(
   if (interview.status === "ended") return null;
   if (interview.status === "paused") {
     return json({
-      answer: "访谈已暂停。管理员可继续上次没问完的访谈，或去普通对话。",
+      answer: "访谈已暂停。管理员可在知识网络继续上次没问完的访谈，或去普通对话。",
       async: false,
       chatMode: "standard",
       skillIntent: "standard",
       interviewLocked: true,
     });
   }
-  if (
-    input.userId !== interview.answererUserId &&
-    input.userId !== interview.startedBy
-  ) {
+  if (input.userId !== interview.answererUserId) {
+    if (input.userId === interview.startedBy) {
+      return json({
+        answer:
+          "本轮访谈已指定给其他成员回答。你可以在知识网络暂停或结束访谈，但请不要代答。",
+        async: false,
+        chatMode: "standard",
+        skillIntent: "standard",
+        interviewLocked: true,
+      });
+    }
     return json(
       { error: "当前账号不是本轮访谈回答人", code: "NOT_ANSWERER" },
       403,
