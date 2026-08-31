@@ -20,4 +20,12 @@ describe("sanitizeInterviewAssistantText", () => {
       ),
     ).toBe("材料够了，开始生成知识网络。");
   });
+
+  it("strips not-in-materials stage directions", () => {
+    expect(
+      sanitizeInterviewAssistantText(
+        "现在问几个资料里找不到答案的：1. 产品放在哪里？",
+      ),
+    ).toBe("1. 产品放在哪里？");
+  });
 });

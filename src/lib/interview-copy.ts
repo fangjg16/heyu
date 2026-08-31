@@ -17,6 +17,13 @@ const LEAK_PATTERNS: RegExp[] = [
   /请(?:由)?创始人答[^。\n,，]{0,20}/gu,
   /或你转达后回答我[：:]?/gu,
   /startup-design/giu,
+  /现在问几个资料里找不到答案的[：:]?/gu,
+  /资料里找不到答案的[：:]?/gu,
+  /资料里找不到[^。\n]{0,80}[。.]?/gu,
+  /好[，,]\s*我复述一下我听到的[：:]?/gu,
+  /我复述一下我听到的[：:]?/gu,
+  /^缺口[：:].*$/gmu,
+  /不必写成尽调表[。.]?/gu,
 ];
 
 const INTERVIEW_COMPLETE_MARKER = "<<<INTERVIEW_COMPLETE>>>";

@@ -21,14 +21,23 @@ import {
 } from "./workspace-roles";
 import { seedInterviewOpeningMessage } from "./chat-sync";
 import {
+  INTERVIEW_MATERIALS_QUERY,
   ensureInterviewWrapLine,
+  formatInterviewMaterialsBlock,
   interviewFollowUpSystemPrompt,
+  interviewMaterialsAreEmpty,
+  interviewOpeningFallback,
+  interviewOpeningSystemPrompt,
   interviewShouldClose,
+  looksLikeInterviewQuestions,
   parseInterviewLlmOutput,
   countInterviewUserTurns,
+  sanitizeInterviewAssistantText,
 } from "./interview-copy";
+import { buildChapterGenerateMaterials } from "./project-knowledge-chapters-digest";
+import type { EmbedEnv } from "./embeddings";
 
-type Env = { DB: AppDatabase; FILES: AppObjectStorage } & LlmClientEnv;
+type Env = { DB: AppDatabase; FILES: AppObjectStorage } & LlmClientEnv & EmbedEnv;
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -54,12 +63,67 @@ function dto(row: StartupInterview) {
   };
 }
 
-const FIRST_INTERVIEW_QUESTIONS = `这是用户访谈，请直接用自己的话回答，不必写成尽调表。
+function clipInterviewTranscript(text: string, max = 8000): string {
+  if (text.length <= max) return text;
+  return text.slice(-max);
+}
 
-1. 你们现在做给谁用？最近一个真实用户或使用场景是谁？
-2. 他们现在怎么凑合，最痛的一点是什么？
-3. 你们已经验证过什么（有没有人真的在用，或愿意付钱）？
-4. 接下来四周最想搞清楚的一件事是什么？`;
+function clipHead(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max);
+}
+
+async function loadInterviewMaterials(
+  env: Env,
+  projectId: string,
+  userId: string,
+  project: { name?: string; summary?: string } | null,
+): Promise<{ block: string; hasMaterials: boolean }> {
+  let digest = "";
+  try {
+    const bundle = await buildChapterGenerateMaterials(env, projectId, userId, {
+      sectionId: "founder-interview",
+      extraQuery: INTERVIEW_MATERIALS_QUERY,
+    });
+    digest = clipHead(bundle.digest ?? "", 24_000);
+  } catch (e) {
+    console.warn(
+      "[startup-interview] load materials",
+      e instanceof Error ? e.message : e,
+    );
+  }
+  const hasMaterials = !interviewMaterialsAreEmpty(digest);
+  return {
+    hasMaterials,
+    block: formatInterviewMaterialsBlock({
+      projectName: project?.name,
+      projectSummary: project?.summary,
+      digest,
+    }),
+  };
+}
+
+async function generateInterviewOpening(
+  env: Env,
+  materials: { block: string; hasMaterials: boolean },
+): Promise<string> {
+  const fallback = interviewOpeningFallback(materials.hasMaterials);
+  if (!materials.hasMaterials) return fallback;
+  try {
+    const { answer } = await callLlm(env, [
+      { role: "system", content: interviewOpeningSystemPrompt() },
+      { role: "user", content: materials.block },
+    ]);
+    const visible = sanitizeInterviewAssistantText(answer || "");
+    if (looksLikeInterviewQuestions(visible)) return visible;
+  } catch (e) {
+    console.warn(
+      "[startup-interview] opening llm",
+      e instanceof Error ? e.message : e,
+    );
+  }
+  return fallback;
+}
 
 async function seedConversation(
   db: AppDatabase,
@@ -185,7 +249,8 @@ export async function handleStartStartupInterview(
   }
   const roundIndex = await nextInterviewRound(env.DB, projectId);
   const conversationId = `${projectId}-interview-${roundIndex}-${crypto.randomUUID().slice(0, 8)}`;
-  const pending = FIRST_INTERVIEW_QUESTIONS;
+  const materials = await loadInterviewMaterials(env, projectId, userId, project);
+  const pending = await generateInterviewOpening(env, materials);
   const row = await insertInterview(env.DB, {
     projectId,
     conversationId,
@@ -234,11 +299,6 @@ export async function handlePauseStartupInterview(
     pausedAt: new Date().toISOString(),
   });
   return json({ ok: true });
-}
-
-function clipInterviewTranscript(text: string, max = 8000): string {
-  if (text.length <= max) return text;
-  return text.slice(-max);
 }
 
 async function persistEndedInterviewAndDraft(
@@ -374,6 +434,13 @@ export async function maybeHandleInterviewChat(
     );
   }
   const userTurns = countInterviewUserTurns(interview.transcript) + 1;
+  const project = await getProjectById(env, input.projectId).catch(() => null);
+  const materials = await loadInterviewMaterials(
+    env,
+    input.projectId,
+    input.userId,
+    project,
+  );
   const { answer } = await callLlm(env, [
     {
       role: "system",
@@ -382,6 +449,7 @@ export async function maybeHandleInterviewChat(
     {
       role: "user",
       content: [
+        materials.block,
         `已有纪要：\n${clipInterviewTranscript(interview.transcript?.trim() || "（尚无）")}`,
         `上一批问题：\n${interview.pendingPrompt || "（无）"}`,
         `用户刚才说：\n${input.message}`,

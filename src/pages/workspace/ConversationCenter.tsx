@@ -907,9 +907,9 @@ function UserBubble({
 }) {
   const displayTime = formatBubbleTimeLabel(time);
   return (
-    <div className="flex justify-end">
-      <div className="group inline-flex flex-col items-end">
-        <div className="flex items-start gap-1.5">
+    <div className="flex w-full justify-end">
+      <div className="group flex w-full max-w-[85%] flex-col items-end">
+        <div className="flex max-w-full items-start gap-1.5">
           <MessageBubbleToolbar
             copyText={copyText}
             onDeleteMessage={onDeleteMessage}
@@ -917,7 +917,7 @@ function UserBubble({
           />
           <div
             className={cn(
-              "inline-block max-w-[min(85%,40rem)] rounded-2xl rounded-br-md px-4 py-2.5 text-[13px] font-medium leading-relaxed text-wine-deep-foreground break-words whitespace-pre-line",
+              "inline-block w-fit max-w-full rounded-2xl rounded-br-md px-4 py-2.5 text-[13px] font-medium leading-relaxed text-wine-deep-foreground break-words whitespace-pre-line",
               USER_MESSAGE_SHELL,
               "selection:bg-[hsl(var(--wine-muted))] selection:text-[hsl(var(--warm-charcoal))]",
             )}

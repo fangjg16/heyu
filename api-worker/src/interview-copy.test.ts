@@ -5,8 +5,13 @@ import {
   INTERVIEW_WRAP_LINE,
   countInterviewUserTurns,
   ensureInterviewWrapLine,
+  formatInterviewMaterialsBlock,
   interviewFollowUpSystemPrompt,
+  interviewMaterialsAreEmpty,
+  interviewOpeningFallback,
+  interviewOpeningSystemPrompt,
   interviewShouldClose,
+  looksLikeInterviewQuestions,
   parseInterviewLlmOutput,
   sanitizeInterviewAssistantText,
 } from "./interview-copy";
@@ -35,6 +40,14 @@ describe("sanitizeInterviewAssistantText", () => {
         `要点如下。${INTERVIEW_WRAP_LINE}\n${INTERVIEW_COMPLETE_MARKER}`,
       ),
     ).toBe(`要点如下。${INTERVIEW_WRAP_LINE}`);
+  });
+
+  it("strips 'not in materials' stage directions", () => {
+    expect(
+      sanitizeInterviewAssistantText(
+        "现在问几个资料里找不到答案的：1. 产品放在哪里？",
+      ),
+    ).toBe("1. 产品放在哪里？");
   });
 });
 
@@ -108,9 +121,43 @@ describe("parseInterviewLlmOutput", () => {
 });
 
 describe("interviewFollowUpSystemPrompt", () => {
-  it("forbids wrapping on turn 1 and requires wrap on turn 3", () => {
+  it("forbids wrapping on turn 1 and requires wrap on turn 3 without stage words", () => {
     expect(interviewFollowUpSystemPrompt(1)).toContain("不要收工");
+    expect(interviewFollowUpSystemPrompt(1)).toContain("资料里找不到");
     expect(interviewFollowUpSystemPrompt(3)).toContain("必须收工");
-    expect(interviewFollowUpSystemPrompt(3)).toContain(INTERVIEW_WRAP_LINE);
+    expect(interviewFollowUpSystemPrompt(3)).not.toContain("含缺口");
+    expect(interviewOpeningSystemPrompt()).toContain("已经读过");
+  });
+});
+
+describe("interview materials helpers", () => {
+  it("treats empty package copy as no materials", () => {
+    expect(interviewMaterialsAreEmpty("")).toBe(true);
+    expect(
+      interviewMaterialsAreEmpty("【项目上传附件】\n（本项目资料包暂无上传附件。）"),
+    ).toBe(true);
+    expect(interviewMaterialsAreEmpty("── BP.pdf ──\n床头毫米波雷达")).toBe(false);
+  });
+
+  it("detects numbered opening questions", () => {
+    expect(looksLikeInterviewQuestions("1. 谁在用？\n2. 怎么付钱？")).toBe(true);
+    expect(looksLikeInterviewQuestions("我先看看资料。")).toBe(false);
+  });
+
+  it("formats the materials block for the interviewer", () => {
+    const block = formatInterviewMaterialsBlock({
+      projectName: "Somni",
+      projectSummary: "睡眠设备",
+      digest: "床头无屏设备",
+    });
+    expect(block).toContain("【项目】Somni");
+    expect(block).toContain("已经读过的项目资料");
+    expect(block).toContain("床头无屏设备");
+  });
+
+  it("uses a materials-aware fallback when files exist", () => {
+    expect(interviewOpeningFallback(true)).toContain("我看过项目资料了");
+    expect(interviewOpeningFallback(false)).toContain("做给谁用");
+    expect(interviewOpeningFallback(false)).not.toContain("尽调");
   });
 });
