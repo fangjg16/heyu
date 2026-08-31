@@ -20,6 +20,13 @@ import {
   resolveProjectRole,
 } from "./workspace-roles";
 import { seedInterviewOpeningMessage } from "./chat-sync";
+import {
+  countInterviewUserTurns,
+  interviewFollowUpSystemPrompt,
+  MAX_INTERVIEW_ROUNDS,
+  INTERVIEW_WRAP_UP,
+  sanitizeInterviewAssistantText,
+} from "./interview-copy";
 
 type Env = { DB: AppDatabase; FILES: AppObjectStorage } & LlmClientEnv;
 
@@ -76,7 +83,7 @@ async function seedConversation(
         userId,
         projectId,
         "用户访谈",
-        preview.slice(0, 180),
+        "用户访谈",
         now,
         "named",
         "[]",
@@ -336,26 +343,33 @@ export async function maybeHandleInterviewChat(
       403,
     );
   }
+  const userTurns = countInterviewUserTurns(interview.transcript) + 1;
+  const lastRound = userTurns >= MAX_INTERVIEW_ROUNDS;
   const { answer } = await callLlm(env, [
     {
       role: "system",
-      content:
-        "你正在进行创业项目用户访谈。只按 startup-design 问法推进：一次 3–5 个短问题。用户若聊偏了，用一两句短拒并摆回未答题。不要生成知识网络，不要做尽调表。记下更正。",
+      content: interviewFollowUpSystemPrompt(userTurns, MAX_INTERVIEW_ROUNDS),
     },
     {
       role: "user",
-      content: `未答完的问题：\n${interview.pendingPrompt || "（无）"}\n\n用户刚才说：\n${input.message}`,
+      content: lastRound
+        ? `用户最后一次回答：\n${input.message}\n\n请收束，不要再出新题。`
+        : `上一批问题：\n${interview.pendingPrompt || "（无）"}\n\n用户刚才说：\n${input.message}`,
     },
   ]);
-  const next = (answer || "请继续回答上一批未完成的问题。").trim();
+  const next = sanitizeInterviewAssistantText(
+    (answer || (lastRound ? INTERVIEW_WRAP_UP : "请继续回答上面的问题。")).trim(),
+  ) || (lastRound ? INTERVIEW_WRAP_UP : "请继续回答上面的问题。");
+  const wrapped =
+    lastRound && /[1-9]\.\s/.test(next) ? INTERVIEW_WRAP_UP : next;
   const prev = interview.transcript?.trim() ?? "";
-  const transcript = `${prev}\n\n## 用户\n${input.message}\n\n## 访谈官\n${next}`.trim();
+  const transcript = `${prev}\n\n## 用户\n${input.message}\n\n## 访谈官\n${wrapped}`.trim();
   await updateInterview(env.DB, interview.id, {
-    pendingPrompt: next,
+    pendingPrompt: wrapped,
     transcript,
   });
   return json({
-    answer: next,
+    answer: wrapped,
     async: false,
     chatMode: "standard",
     skillIntent: "standard",

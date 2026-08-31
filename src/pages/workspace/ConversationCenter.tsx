@@ -80,6 +80,13 @@ import {
   topicFromFirstUserMessage,
 } from "@/lib/conversation-topic";
 import { isDeepSkillMessage, streamingAssistantDisplayText } from "@/lib/chat-intent";
+import {
+  INTERVIEW_BANNER_ACTIVE,
+  INTERVIEW_BANNER_OTHER,
+  INTERVIEW_BANNER_PAUSED,
+  INTERVIEW_HEADER_TOPIC,
+  sanitizeInterviewAssistantText,
+} from "@/lib/interview-copy";
 import { stripAssistantThinkTags } from "@/lib/chat-think-tags";
 import type { LiveChatMessage } from "@/workspace/chat-types";
 import {
@@ -281,6 +288,17 @@ function applyConversationMetadataFromMessages(
     const msgs = messagesByConversation[c.id];
     if (!msgs?.length) return c;
     const lastTime = latestMessageTimeLabel(msgs);
+    if (isInterviewConversationId(c.id)) {
+      return {
+        ...c,
+        preview: INTERVIEW_HEADER_TOPIC,
+        title: formatProjectConversationTitle(
+          projectDisplayName(c.projectId),
+          INTERVIEW_HEADER_TOPIC,
+        ),
+        updatedAt: lastTime || c.updatedAt,
+      };
+    }
     if (c.variant === "named") {
       return { ...c, updatedAt: lastTime || c.updatedAt };
     }
@@ -381,10 +399,11 @@ function resolveConversationHeaderTitle(
   messages?: { role: string; content: string }[],
 ): string {
   if (!project) return "项目对话";
-  return formatProjectConversationTitle(
-    project.name,
-    resolveConversationTopic(conversation, messages),
-  );
+  const topic =
+    conversation?.id && isInterviewConversationId(conversation.id)
+      ? INTERVIEW_HEADER_TOPIC
+      : resolveConversationTopic(conversation, messages);
+  return formatProjectConversationTitle(project.name, topic);
 }
 
 type SidebarProjectGroup = {
@@ -890,7 +909,7 @@ function UserBubble({
           />
           <div
             className={cn(
-              "inline-block max-w-[32ch] sm:max-w-[42ch] rounded-2xl rounded-br-md px-4 py-2.5 text-[13px] font-medium leading-relaxed text-wine-deep-foreground break-words whitespace-pre-line",
+              "inline-block max-w-[min(85%,40rem)] rounded-2xl rounded-br-md px-4 py-2.5 text-[13px] font-medium leading-relaxed text-wine-deep-foreground break-words whitespace-pre-line",
               USER_MESSAGE_SHELL,
               "selection:bg-[hsl(var(--wine-muted))] selection:text-[hsl(var(--warm-charcoal))]",
             )}
@@ -1296,7 +1315,9 @@ export default function ConversationCenter() {
       return;
     }
     const cid = activeInterview.conversationId;
-    const opening = activeInterview.pendingPrompt.trim();
+    const opening =
+      sanitizeInterviewAssistantText(activeInterview.pendingPrompt.trim()) ||
+      activeInterview.pendingPrompt.trim();
     setLiveMessagesByConversation((prev) => {
       const cur = prev[cid] ?? [];
       if (cur.length > 0) return prev;
@@ -3491,14 +3512,14 @@ export default function ConversationCenter() {
 
         {interviewInThisThread ||
         isInterviewConversationId(effectiveConversationId) ? (
-          <div className="border-b border-[hsl(var(--wine)/0.18)] bg-[hsl(var(--wine-muted))] px-4 py-2.5 text-[12.5px] leading-relaxed text-[#1F2423] md:px-6">
+          <div className="border-b border-[hsl(var(--wine)/0.18)] bg-[hsl(var(--wine-muted))] px-4 py-1.5 text-[12px] text-[#1F2423] md:px-6">
             {activeInterview?.status === "paused"
-              ? "用户访谈已暂停。管理员可在知识网络继续，或先去普通对话。"
+              ? INTERVIEW_BANNER_PAUSED
               : userId &&
                   activeInterview &&
                   userId !== activeInterview.answererUserId
-                ? "这是指定给其他成员的用户访谈。请让回答人在此作答；管理员可在知识网络暂停或结束。"
-                : "用户访谈进行中。请直接回答下面的问题，一次说清楚即可；聊偏了访谈官会拉回来。"}
+                ? INTERVIEW_BANNER_OTHER
+                : INTERVIEW_BANNER_ACTIVE}
           </div>
         ) : null}
 
@@ -3532,10 +3553,15 @@ export default function ConversationCenter() {
                         )
                       : null;
                   const baseAssistantDisplay = knPrepared?.displayContent ?? rawAssistantText;
-                  const displayAssistantText = productizeAssistantBubbleContent(
+                  const productized = productizeAssistantBubbleContent(
                     baseAssistantDisplay,
                     { pendingJobId: m.pendingJobId, skillIntent: m.skillIntent },
                   );
+                  const displayAssistantText =
+                    interviewInThisThread ||
+                    isInterviewConversationId(effectiveConversationId)
+                      ? sanitizeInterviewAssistantText(productized)
+                      : productized;
                   const displayJobProgressLabel = m.pendingJobId
                     ? productizeJobProgressLabelForDisplay(m.jobProgressLabel)
                     : m.jobProgressLabel;
