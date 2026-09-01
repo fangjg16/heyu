@@ -10,7 +10,7 @@ import {
   orderDeliverableDraftIds,
   unpublishedGenerateItemIds,
 } from "./deliverable-catalog";
-import { deliverableDraftId } from "./kn-catalog";
+import { deliverableDraftId, fullDraftSectionIds } from "./kn-catalog";
 import { skillPackForName } from "./skill-packs";
 
 describe("deliverable-catalog", () => {
@@ -52,6 +52,9 @@ describe("deliverable-catalog", () => {
       expect(ids.at(-1)).toBe("project-overview");
     }
     const early = draftGenerateItemIds("early", "full");
+    expect(early).toHaveLength(
+      deliverablesForKind("early").length + fullDraftSectionIds("early").length,
+    );
     expect(early.indexOf(deliverableDraftId("market-analysis"))).toBeLessThan(
       early.indexOf("market-analysis"),
     );

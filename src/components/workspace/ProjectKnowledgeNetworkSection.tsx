@@ -73,22 +73,29 @@ function allChaptersConfirmText(input: {
   published: number;
   failed: number;
   total: number;
+  interviewHint?: "none" | "never" | "paused";
 }): string {
   if (input.loading) return "正在查看当前进度…";
   const pending = Math.max(0, input.total - input.published);
+  let base = "将更新全部章节和项目概览，可能需要较长时间。";
   if (input.hasDraft && input.published > 0 && pending > 0) {
-    return `${input.published} 章已发布、${pending} 章还在草案里。已发布的内容不会改。`;
+    base = `${input.published} 章已发布、${pending} 章还在草案里。已发布的内容不会改。`;
+  } else if (input.hasDraft && input.failed > 0) {
+    base = `将重试失败的 ${input.failed} 章，已成功待审核的会保留。`;
+  } else if (input.hasDraft) {
+    base = `已有待审核草案，不会重新生成。${DISCARD_THEN_REGENERATE_HINT}`;
+  } else if (input.published > 0) {
+    base =
+      "将更新尚未发布的章节和项目概览，可能需要较长时间。已发布的内容在你确认发布前不会改。";
   }
-  if (input.hasDraft && input.failed > 0) {
-    return `将重试失败的 ${input.failed} 章，已成功待审核的会保留。`;
+  if (input.hasDraft) return base;
+  if (input.interviewHint === "paused") {
+    return `${base}访谈还没问完，先问完再更新效果更好。`;
   }
-  if (input.hasDraft) {
-    return `已有待审核草案，不会重新生成。${DISCARD_THEN_REGENERATE_HINT}`;
+  if (input.interviewHint === "never") {
+    return `${base}还没做用户访谈，先访谈再更新效果更好。`;
   }
-  if (input.published > 0) {
-    return "将更新尚未发布的章节和项目概览，可能需要较长时间。已发布的内容在你确认发布前不会改。";
-  }
-  return "将更新全部章节和项目概览，可能需要较长时间。";
+  return base;
 }
 
 function formatVersionTime(iso: string | null | undefined): string {
@@ -1946,6 +1953,16 @@ export function ProjectKnowledgeNetworkSection({
                       published: confirmPublished,
                       failed: confirmFailed,
                       total: researchSectionsForKind(analysisKind).length,
+                      interviewHint:
+                        analysisKind === "early" &&
+                        interview?.status === "paused"
+                          ? "paused"
+                          : analysisKind === "early" &&
+                              !interview &&
+                              !confirmHasDraft &&
+                              confirmPublished === 0
+                            ? "never"
+                            : "none",
                     })}
                   </p>
                 </div>
@@ -2013,16 +2030,45 @@ export function ProjectKnowledgeNetworkSection({
                       前往审核
                     </button>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAllChaptersConfirm(false);
-                        onUpdateAllChapters?.();
-                      }}
-                      className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
-                    >
-                      开始更新全部章节
-                    </button>
+                    <>
+                      {analysisKind === "early" &&
+                      canPublish &&
+                      (interview?.status === "paused" ||
+                        (!interview && confirmPublished === 0)) ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAllChaptersConfirm(false);
+                            void onStartInterview();
+                          }}
+                          className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+                        >
+                          {interview?.status === "paused"
+                            ? "继续访谈"
+                            : "先去访谈"}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAllChaptersConfirm(false);
+                          onUpdateAllChapters?.();
+                        }}
+                        className={
+                          analysisKind === "early" &&
+                          (interview?.status === "paused" ||
+                            (!interview && confirmPublished === 0))
+                            ? "rounded-full border border-[rgba(78,66,57,0.14)] px-4 py-2 text-xs font-semibold text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]"
+                            : "rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+                        }
+                      >
+                        {analysisKind === "early" &&
+                        (interview?.status === "paused" ||
+                          (!interview && confirmPublished === 0))
+                          ? "仍要更新"
+                          : "开始更新全部章节"}
+                      </button>
+                    </>
                   )}
                 </div>
               </div>

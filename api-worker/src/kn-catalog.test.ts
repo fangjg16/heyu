@@ -41,7 +41,7 @@ describe("kn-catalog", () => {
     expect(
       researchSectionsForKind("early").find((s) => s.id === "exec-summary")
         ?.label,
-    ).toBe("1.1 执行摘要");
+    ).toBe("执行摘要");
     expect(researchSectionsForKind("early").some((s) => s.id === "brand")).toBe(
       false,
     );
