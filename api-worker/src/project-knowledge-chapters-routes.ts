@@ -718,8 +718,6 @@ export async function handleGenerateProjectKnowledgeChapter(
     }
   };
 
-  const storedKind =
-    (await getStoredAnalysisKind(env.DB, projectId)) ?? DEFAULT_ANALYSIS_KIND;
   const preferredFilenames = deliverableFilenamesForKnSection(
     storedKind,
     sectionId,
