@@ -12,6 +12,23 @@ export const GENERATE_SYSTEM_SKILL_LOCK =
   "11. 若用户消息含「分析方法」：只用来填模板中的「待补」；禁止改表头、禁止用分析方法里的示例表替换骨架、禁止改成散文。允许按资料增删数据行。版式以章节 Markdown 模板为准。";
 
 const MAX_SKILL_CHARS = 9000;
+const MAX_FILE_SKILL_CHARS = 28000;
+
+export function extractNamedMarkdownSection(
+  md: string,
+  heading: string,
+): string {
+  const want = heading.trim();
+  if (!want || !md.trim()) return "";
+  const escaped = want.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const re = new RegExp(`^#{1,3}\\s+${escaped}\\s*$`, "imu");
+  const m = re.exec(md);
+  if (!m) return "";
+  const rest = md.slice(m.index + m[0].length);
+  const next = /^#{1,3} /mu.exec(rest);
+  const body = (next ? rest.slice(0, next.index) : rest).trim();
+  return `${m[0].trim()}\n\n${body}`.trim();
+}
 
 export function stripSkillFrontmatter(raw: string): string {
   const t = String(raw ?? "").replace(/^\uFEFF/, "");
@@ -53,10 +70,10 @@ function stripPublicSourceTables(md: string): string {
   );
 }
 
-function clipMethod(text: string): string {
+function clipMethod(text: string, maxChars: number = MAX_SKILL_CHARS): string {
   const t = text.trim();
-  if (t.length <= MAX_SKILL_CHARS) return t;
-  return `${t.slice(0, MAX_SKILL_CHARS).trim()}\n\n（方法已截断，以上足够填写本章。）`;
+  if (t.length <= maxChars) return t;
+  return `${t.slice(0, maxChars).trim()}\n\n（方法已截断，以上足够填写本章。）`;
 }
 
 /** 去掉 YAML / Handoff / 公开检索目录；只留 Workflow 等方法步骤。 */
@@ -188,6 +205,7 @@ async function readSkillFile(
       );
     }
     candidates.push(path.join("/opt/data/skills", skill, rel));
+    candidates.push(path.join("/hermes-railway/skills", skill, rel));
     for (const file of candidates) {
       if (fs.existsSync(file)) {
         const text = fs.readFileSync(file, "utf8");
@@ -198,6 +216,39 @@ async function readSkillFile(
     /* Worker 无 fs 时忽略 */
   }
   return null;
+}
+
+async function loadSkillPartsForFile(
+  skillNames: readonly string[],
+  db: AppDatabase | undefined,
+  filename?: string,
+): Promise<Array<{ skill: string; text: string }>> {
+  const names = [...skillNames];
+  if (
+    names.some((n) => n.startsWith("startup-")) &&
+    !names.includes("startup-design")
+  ) {
+    names.unshift("startup-design");
+  }
+  const parts: Array<{ skill: string; text: string }> = [];
+  for (const skill of names) {
+    const chunks: string[] = [];
+    const main = await readSkillFile(db, skill, "SKILL.md");
+    if (main?.trim()) chunks.push(condenseSkillMarkdown(main));
+    for (const extra of SKILL_REFERENCE_FILES[skill] ?? []) {
+      const raw = await readSkillFile(db, skill, extra);
+      if (!raw?.trim()) continue;
+      if (filename && /output-specs\.md$/u.test(extra)) {
+        const spec = extractNamedMarkdownSection(raw, filename);
+        if (spec) chunks.push(spec);
+      } else {
+        chunks.push(condenseSkillMarkdown(raw));
+      }
+    }
+    const text = chunks.filter(Boolean).join("\n\n").trim();
+    if (text) parts.push({ skill, text: clipMethod(text, MAX_FILE_SKILL_CHARS) });
+  }
+  return parts;
 }
 
 async function loadSkillParts(
@@ -257,10 +308,11 @@ export async function buildFileSkillMethodBlock(
   fileId: string,
   skillNames: readonly string[],
   db?: AppDatabase,
+  filename?: string,
 ): Promise<string> {
   if (skillNames.length === 0) return "";
   return wrapMarkdownFileMethodBlock(
     fileId,
-    await loadSkillParts(skillNames, db),
+    await loadSkillPartsForFile(skillNames, db, filename),
   );
 }

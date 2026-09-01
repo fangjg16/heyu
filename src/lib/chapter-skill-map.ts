@@ -96,7 +96,6 @@ const EARLY: Record<string, Spec> = {
   "value-proposition": { primary: ["startup-design"], borrow: [] },
   positioning: { primary: ["startup-design", "startup-positioning"], borrow: [] },
   "go-to-market": { primary: ["startup-design"], borrow: ["startup-pitch"] },
-  brand: { primary: ["startup-design"], borrow: [] },
   "mvp-definition": { primary: ["startup-design"], borrow: ["startup-pitch"] },
   "user-journey": { primary: ["startup-design"], borrow: [] },
   "feature-prioritization": { primary: ["startup-design"], borrow: [] },

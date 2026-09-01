@@ -25,7 +25,6 @@ describe("kn-catalog", () => {
       "value-proposition",
       "positioning",
       "go-to-market",
-      "brand",
       "mvp-definition",
       "user-journey",
       "feature-prioritization",
@@ -37,6 +36,13 @@ describe("kn-catalog", () => {
       "validation-playbook",
       "action-plan-30d",
     ]);
+    expect(
+      researchSectionsForKind("early").find((s) => s.id === "exec-summary")
+        ?.label,
+    ).toBe("1.1 执行摘要");
+    expect(researchSectionsForKind("early").some((s) => s.id === "brand")).toBe(
+      false,
+    );
   });
 
   it("maps pending-question section by kind", () => {

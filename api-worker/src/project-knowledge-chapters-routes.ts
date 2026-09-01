@@ -1,4 +1,4 @@
-import type { AppDatabase } from "./app-database";
+import type { AppObjectStorage } from "./app-storage";
 import {
   getKnChapterTemplate,
   getPromptSetting,
@@ -25,6 +25,10 @@ import {
   sectionLabel,
 } from "./kn-catalog";
 import { deliverableFilenamesForKnSection } from "./deliverable-catalog";
+import {
+  knSectionRendersFromFiles,
+  renderKnSectionFromDeliverables,
+} from "./chapter-from-deliverables";
 import { filterTemplateByKind } from "./kn-template-kind";
 import {
   countPopulatedProjectKnowledgeChapters,
@@ -75,7 +79,7 @@ import {
 } from "./workspace-roles";
 import { syncProjectSourcesFromPublishedChapters } from "./project-knowledge-sources-sync";
 
-type Env = { DB: AppDatabase } & LlmClientEnv;
+type Env = { DB: AppDatabase; FILES?: AppObjectStorage } & LlmClientEnv;
 
 /** 并行 generate 时串行化 sources/glossary 合并写库 */
 async function withNamedLock<T>(
@@ -602,6 +606,54 @@ export async function handleGenerateProjectKnowledgeChapter(
         400,
       );
     }
+  }
+
+  const storedKind =
+    (await getStoredAnalysisKind(env.DB, projectId)) ?? DEFAULT_ANALYSIS_KIND;
+  if (knSectionRendersFromFiles(storedKind, sectionId)) {
+    const html = await renderKnSectionFromDeliverables(
+      { DB: env.DB, FILES: env.FILES },
+      projectId,
+      storedKind,
+      sectionId,
+    );
+    if (isDraft && draftRunId) {
+      await upsertDraftItem(env.DB, {
+        runId: draftRunId,
+        sectionId,
+        status: "ok",
+        html,
+        error: null,
+        llmBackend: "render",
+      });
+      const run = await refreshDraftRunProgress(env.DB, draftRunId);
+      return json({
+        ok: true,
+        target: "draft",
+        rendered: true,
+        projectId,
+        runId: draftRunId,
+        sectionId,
+        html,
+        run,
+      });
+    }
+    await upsertProjectKnowledgeChapterHtml(env.DB, {
+      projectId,
+      sectionId,
+      html,
+      source: "generate",
+      llmBackend: "render",
+      updatedBy: userId,
+    });
+    return json({
+      ok: true,
+      target: "live",
+      rendered: true,
+      projectId,
+      sectionId,
+      html,
+    });
   }
 
   let template =

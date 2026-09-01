@@ -8,6 +8,9 @@ export const CHAPTER_GENERATE_CONCURRENCY = 2;
 /** 资料包 Markdown 总文件必须按阶段串行，后一层要读前一层 */
 export const FILE_GENERATE_CONCURRENCY = 1;
 
+/** 研究章只把已落盘 Markdown 渲成 HTML，不进模型，可以并行 */
+export const RESEARCH_RENDER_CONCURRENCY = 8;
+
 /** 整次草案没有任何 item 更新超过该时间，才把仍 pending 的章标失败（排队等待不算超时） */
 export const DRAFT_RUN_IDLE_STALE_MS = 20 * 60 * 1000;
 

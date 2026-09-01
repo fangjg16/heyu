@@ -127,6 +127,7 @@ export async function handleGenerateDeliverableDraft(
     file.id,
     [file.skill],
     env.DB,
+    file.filename,
   );
   const relativePath = deliverableRelativePath(file);
   const userPrompt = [

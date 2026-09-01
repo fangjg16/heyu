@@ -10,6 +10,7 @@ import { researchSectionsForKind } from "./kn-catalog";
 import {
   buildChapterSkillMethodBlock,
   condenseSkillMarkdown,
+  extractNamedMarkdownSection,
 } from "./chapter-skill-method";
 
 describe("analysis-kind", () => {
@@ -134,6 +135,31 @@ describe("chapter-skill-map", () => {
   it("returns no skills for meta pages", () => {
     expect(skillsForChapter("sources")).toEqual([]);
     expect(skillsForChapter("glossary")).toEqual([]);
+  });
+});
+
+describe("extractNamedMarkdownSection", () => {
+  it("pulls the file spec heading and stops at the next heading", () => {
+    const md = `## Phase 4
+
+### lean-canvas.md
+
+Build a complete Lean Canvas.
+
+### value-proposition.md
+
+The value proposition canvas.
+`;
+    const spec = extractNamedMarkdownSection(md, "lean-canvas.md");
+    expect(spec).toContain("### lean-canvas.md");
+    expect(spec).toContain("Build a complete Lean Canvas.");
+    expect(spec).not.toContain("value-proposition.md");
+  });
+
+  it("returns empty when the filename heading is missing", () => {
+    expect(extractNamedMarkdownSection("# Phase 5\n\nBrand", "README.md")).toBe(
+      "",
+    );
   });
 });
 

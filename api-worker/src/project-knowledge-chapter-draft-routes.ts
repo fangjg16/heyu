@@ -1,6 +1,7 @@
 import type { AppDatabase } from "./app-database";
 import {
   CHAPTER_GENERATE_CONCURRENCY,
+  RESEARCH_RENDER_CONCURRENCY,
   DRAFT_RUN_IDLE_STALE_MS,
   FILE_GENERATE_CONCURRENCY,
   draftGenerateJobKey,
@@ -286,7 +287,7 @@ async function requeueFailedDraftSections(
   );
 }
 
-/** 同一草案内排队生成，最多 CHAPTER_GENERATE_CONCURRENCY 路过模型。 */
+/** 同一草案内排队：文件串行过模型；研究章渲染可并行；概览仍受限。 */
 async function processPendingDraftRun(
   env: Env,
   projectId: string,
@@ -335,6 +336,7 @@ async function processPendingDraftRun(
       maxConcurrent = FILE_GENERATE_CONCURRENCY;
     } else if (researchStillOpen) {
       queue = pending.filter((i) => i.sectionId !== "project-overview");
+      maxConcurrent = RESEARCH_RENDER_CONCURRENCY;
     }
     while (working.size < maxConcurrent && queue.length > 0) {
       const item = queue.shift();
@@ -388,7 +390,7 @@ async function runOneDraftSectionGenerate(
     });
     await refreshDraftRunProgress(env.DB, runId);
     console.log(`[draft-generate] start ${runId} ${sectionId}`);
-    const res = await withChapterGenerateGate(() =>
+    const runGenerate = () =>
       isDeliverableDraftId(sectionId)
         ? handleGenerateDeliverableDraft(
             env,
@@ -403,8 +405,12 @@ async function runOneDraftSectionGenerate(
             sectionId,
             userId,
             { target: "draft", runId },
-          ),
-    );
+          );
+    const needsLlm =
+      isDeliverableDraftId(sectionId) || sectionId === "project-overview";
+    const res = await (needsLlm
+      ? withChapterGenerateGate(runGenerate)
+      : runGenerate());
     if (res.ok) {
       console.log(`[draft-generate] ok ${runId} ${sectionId}`);
       return;

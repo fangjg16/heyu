@@ -1,6 +1,6 @@
 /**
  * 网页知识网络章节 → skill 方法来源（按项目形态混用三包）。
- * 网页 Tab 框架是权威；skill 只提供「怎么填这个格子」。
+ * 资料包 Markdown 写文件时读完整说明书；知识网络研究章由这些文件渲染。
  */
 import type { AnalysisKind } from "./analysis-kind";
 import {
@@ -109,7 +109,6 @@ const EARLY: Record<string, ChapterSkillSpec> = {
   "value-proposition": { primary: ["startup-design"], borrow: [] },
   positioning: { primary: ["startup-design", "startup-positioning"], borrow: [] },
   "go-to-market": { primary: ["startup-design"], borrow: ["startup-pitch"] },
-  brand: { primary: ["startup-design"], borrow: [] },
   "mvp-definition": { primary: ["startup-design"], borrow: ["startup-pitch"] },
   "user-journey": { primary: ["startup-design"], borrow: [] },
   "feature-prioritization": { primary: ["startup-design"], borrow: [] },
@@ -161,7 +160,12 @@ export const SKILL_REFERENCE_FILES: Readonly<
     "references/taxonomy.md",
     "references/decision-rules.md",
   ],
-  "startup-design": ["references/honesty-protocol.md"],
+  "startup-design": [
+    "references/honesty-protocol.md",
+    "references/output-guidelines.md",
+    "references/output-specs.md",
+    "references/frameworks.md",
+  ],
   "startup-competitors": ["references/honesty-protocol.md"],
   "startup-positioning": ["references/honesty-protocol.md"],
   "startup-pitch": ["references/honesty-protocol.md"],

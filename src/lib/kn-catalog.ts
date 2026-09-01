@@ -65,67 +65,62 @@ const EARLY_GROUPS: readonly KnCatalogGroup[] = [
     id: "overview",
     label: "项目概况",
     sections: [
-      { id: "exec-summary", label: "执行摘要" },
-      { id: "project-scorecard", label: "综合总评" },
+      { id: "exec-summary", label: "1.1 执行摘要" },
+      { id: "project-scorecard", label: "1.2 综合总评" },
     ],
   },
   {
     id: "discovery",
     label: "市场发现",
     sections: [
-      { id: "research-gate", label: "研究结论" },
-      { id: "target-audience", label: "目标客户" },
-      { id: "market-analysis", label: "市场分析" },
-      { id: "competitor-landscape", label: "竞争格局" },
-      { id: "industry-trends", label: "行业趋势" },
+      { id: "research-gate", label: "2.1 研究结论" },
+      { id: "target-audience", label: "2.2 目标客户" },
+      { id: "market-analysis", label: "2.3 市场分析" },
+      { id: "competitor-landscape", label: "2.4 竞争格局" },
+      { id: "industry-trends", label: "2.5 行业趋势" },
     ],
   },
   {
     id: "strategy",
     label: "战略定位",
     sections: [
-      { id: "lean-business-model", label: "商业模式" },
-      { id: "value-proposition", label: "价值主张" },
-      { id: "positioning", label: "差异化定位" },
-      { id: "go-to-market", label: "市场进入" },
+      { id: "lean-business-model", label: "3.1 商业模式" },
+      { id: "value-proposition", label: "3.2 价值主张" },
+      { id: "positioning", label: "3.3 差异化定位" },
+      { id: "go-to-market", label: "3.4 市场进入" },
     ],
-  },
-  {
-    id: "brand",
-    label: "品牌设计",
-    sections: [{ id: "brand", label: "品牌设计" }],
   },
   {
     id: "product",
     label: "产品设计",
     sections: [
-      { id: "mvp-definition", label: "MVP产品" },
-      { id: "user-journey", label: "用户旅程" },
-      { id: "feature-prioritization", label: "功能规划" },
+      { id: "mvp-definition", label: "4.1 MVP产品" },
+      { id: "user-journey", label: "4.2 用户旅程" },
+      { id: "feature-prioritization", label: "4.3 功能规划" },
     ],
   },
   {
     id: "finance",
     label: "财务测算",
     sections: [
-      { id: "projections", label: "三年预测" },
-      { id: "revenue-model", label: "收入模式" },
-      { id: "cost-structure", label: "成本结构" },
+      { id: "projections", label: "5.1 三年预测" },
+      { id: "revenue-model", label: "5.2 收入模式" },
+      { id: "cost-structure", label: "5.3 成本结构" },
     ],
   },
   {
     id: "prove",
     label: "风险验证",
     sections: [
-      { id: "risk-analysis", label: "风险清单" },
-      { id: "assumptions-tracker", label: "关键假设" },
-      { id: "validation-playbook", label: "假设验证" },
+      { id: "risk-analysis", label: "6.1 风险清单" },
+      { id: "assumptions-tracker", label: "6.2 关键假设" },
+      { id: "validation-playbook", label: "6.3 假设验证" },
     ],
   },
   {
     id: "next",
     label: "未来行动",
-    sections: [{ id: "action-plan-30d", label: "下一步行动" }],
+    sections: [{ id: "action-plan-30d", label: "行动" }],
   },
 ];
 
@@ -157,6 +152,7 @@ export const LEGACY_RESEARCH_SECTION_IDS = [
   "product",
   "financials",
   "validation",
+  "brand",
 ] as const;
 
 export function catalogGroupsForKind(
@@ -248,6 +244,7 @@ export function sectionLabel(
     product: "产品",
     financials: "财务",
     validation: "验证",
+    brand: "品牌设计",
   };
   return legacy[id] ?? id;
 }

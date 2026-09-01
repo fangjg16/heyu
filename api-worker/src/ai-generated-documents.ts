@@ -86,11 +86,15 @@ async function findCurrentAtPath(
   projectId: string,
   relativePath: string,
   filename: string,
-): Promise<{ id: string; versionGroup: string | null } | null> {
+): Promise<{
+  id: string;
+  versionGroup: string | null;
+  r2Key: string | null;
+} | null> {
   try {
     const q = await db
       .prepare(
-        `SELECT id, version_group, replaces_document_id, created_at
+        `SELECT id, r2_key, version_group, replaces_document_id, created_at
          FROM documents
          WHERE project_id = ? AND relative_path = ? AND filename = ?
            AND (deleted_at IS NULL OR deleted_at = '')
@@ -100,6 +104,7 @@ async function findCurrentAtPath(
       .bind(projectId, relativePath, filename)
       .all<{
         id: string;
+        r2_key: string | null;
         version_group: string | null;
         replaces_document_id: string | null;
         created_at: string;
@@ -113,23 +118,49 @@ async function findCurrentAtPath(
     return {
       id: current.id,
       versionGroup: current.version_group || current.id,
+      r2Key: current.r2_key ?? null,
     };
   } catch {
     try {
       const row = await db
         .prepare(
-          `SELECT id FROM documents
+          `SELECT id, r2_key FROM documents
            WHERE project_id = ? AND relative_path = ? AND filename = ?
              AND (deleted_at IS NULL OR deleted_at = '')
            ORDER BY created_at DESC
            LIMIT 1`,
         )
         .bind(projectId, relativePath, filename)
-        .first<{ id: string }>();
-      return row?.id ? { id: row.id, versionGroup: row.id } : null;
+        .first<{ id: string; r2_key?: string | null }>();
+      return row?.id
+        ? { id: row.id, versionGroup: row.id, r2Key: row.r2_key ?? null }
+        : null;
     } catch {
       return null;
     }
+  }
+}
+
+export async function readCurrentMarkdownAtPath(
+  env: Env,
+  projectId: string,
+  relativePath: string,
+  filename: string,
+): Promise<string | null> {
+  const current = await findCurrentAtPath(
+    env.DB,
+    projectId,
+    relativePath,
+    filename,
+  );
+  if (!current?.r2Key) return null;
+  try {
+    const obj = await env.FILES.get(current.r2Key);
+    if (!obj) return null;
+    const text = await obj.text();
+    return text.trim() || null;
+  } catch {
+    return null;
   }
 }
 
