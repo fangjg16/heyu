@@ -38,13 +38,28 @@ const FILES = [
   { rel: "acquire/open-items-exceptions.md", sort: 160, base: chaptersRoot },
   { rel: "acquire/counterarguments-invalidation.md", sort: 170, base: chaptersRoot },
   { rel: "acquire/recommendation-conditions.md", sort: 180, base: chaptersRoot },
-  { rel: "early/founder-interview.md", sort: 200, base: chaptersRoot },
-  { rel: "early/market-discovery.md", sort: 210, base: chaptersRoot },
-  { rel: "early/strategy.md", sort: 220, base: chaptersRoot },
-  { rel: "early/brand.md", sort: 230, base: chaptersRoot },
-  { rel: "early/product.md", sort: 240, base: chaptersRoot },
-  { rel: "early/financials.md", sort: 250, base: chaptersRoot },
-  { rel: "early/validation.md", sort: 260, base: chaptersRoot },
+  { rel: "early/exec-summary.md", sort: 200, base: chaptersRoot },
+  { rel: "early/project-scorecard.md", sort: 205, base: chaptersRoot },
+  { rel: "early/research-gate.md", sort: 210, base: chaptersRoot },
+  { rel: "early/target-audience.md", sort: 215, base: chaptersRoot },
+  { rel: "early/market-analysis.md", sort: 220, base: chaptersRoot },
+  { rel: "early/competitor-landscape.md", sort: 225, base: chaptersRoot },
+  { rel: "early/industry-trends.md", sort: 230, base: chaptersRoot },
+  { rel: "early/lean-business-model.md", sort: 235, base: chaptersRoot },
+  { rel: "early/value-proposition.md", sort: 240, base: chaptersRoot },
+  { rel: "early/positioning.md", sort: 245, base: chaptersRoot },
+  { rel: "early/go-to-market.md", sort: 250, base: chaptersRoot },
+  { rel: "early/brand.md", sort: 255, base: chaptersRoot },
+  { rel: "early/mvp-definition.md", sort: 260, base: chaptersRoot },
+  { rel: "early/user-journey.md", sort: 265, base: chaptersRoot },
+  { rel: "early/feature-prioritization.md", sort: 270, base: chaptersRoot },
+  { rel: "early/projections.md", sort: 275, base: chaptersRoot },
+  { rel: "early/revenue-model.md", sort: 280, base: chaptersRoot },
+  { rel: "early/cost-structure.md", sort: 285, base: chaptersRoot },
+  { rel: "early/risk-analysis.md", sort: 290, base: chaptersRoot },
+  { rel: "early/assumptions-tracker.md", sort: 295, base: chaptersRoot },
+  { rel: "early/validation-playbook.md", sort: 300, base: chaptersRoot },
+  { rel: "early/action-plan-30d.md", sort: 305, base: chaptersRoot },
   { rel: "overview/snapshot.md", sort: 400, base: chaptersRoot },
   { rel: "overview/objectives.md", sort: 410, base: chaptersRoot },
   { rel: "research/industry.md", sort: 420, base: chaptersRoot },
@@ -58,6 +73,12 @@ const FILES = [
   { rel: "risk/risks.md", sort: 500, base: chaptersRoot },
   { rel: "risk/questions.md", sort: 510, base: chaptersRoot },
   { rel: "risk/framework.md", sort: 520, base: chaptersRoot },
+  { rel: "early/founder-interview.md", sort: 530, base: chaptersRoot },
+  { rel: "early/market-discovery.md", sort: 540, base: chaptersRoot },
+  { rel: "early/strategy.md", sort: 550, base: chaptersRoot },
+  { rel: "early/product.md", sort: 560, base: chaptersRoot },
+  { rel: "early/financials.md", sort: 570, base: chaptersRoot },
+  { rel: "early/validation.md", sort: 580, base: chaptersRoot },
 ];
 
 /** 与 project-knowledge-chapters-routes.ts GENERATE_SYSTEM 对齐 */
@@ -123,12 +144,54 @@ const DEFAULT_FORMAT_HINTS = {
     "===CHAPTER=== 建议判断条 + 可以买的条件/不应买 左右对照 + 路线图。不要再做一盏闸门灯。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "founder-interview":
     "===CHAPTER=== 有访谈：访谈摘要 + 引用条 + 已覆盖/待澄清议题。无访谈：只留「尚未开展」，删掉引用和表。禁止尽调三列表。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "exec-summary":
+    "===CHAPTER=== 有材料：判断条 + 要点表 + 红黄旗。无材料：只留尚未开展。禁止散文。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "project-scorecard":
+    "===CHAPTER=== 有材料：建议判断条 + 维度评分表。无材料：只留尚未开展。禁止 IRR。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "research-gate":
+    "===CHAPTER=== 有材料：闸门灯三态只亮一态（继续/调整/停止）+ 判断条 + 结论可靠度表。无材料：只留尚未开展。不要投资买/不买文案。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "target-audience":
+    "===CHAPTER=== 有材料：判断条 + 客群表。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "market-analysis":
+    "===CHAPTER=== 有材料：判断条 + 总市场/可服务市场/可获得份额数字条（不要写 TAM/SAM/SOM 当主标题）+ 切法表。无材料：只留尚未开展。不要对战卡。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "competitor-landscape":
+    "===CHAPTER=== 有材料：判断条 + 对战卡 + 功能对比表。无材料：只留尚未开展。不要总市场投资版数字条。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "industry-trends":
+    "===CHAPTER=== 有材料：判断条 + 趋势表 + 红黄旗。无材料：只留尚未开展。不要对战卡。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "lean-business-model":
+    "===CHAPTER=== 有材料：判断条 + Lean 宫格 + 单位经济表。无材料：只留尚未开展。禁止 IRR。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "value-proposition":
+    "===CHAPTER=== 有材料：判断条 + 痛点/收益对照表。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  positioning:
+    "===CHAPTER=== 有材料：判断条 + 替代方案/我们独有 左右对照 + 定位表。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "go-to-market":
+    "===CHAPTER=== 有材料：判断条 + 路径 + 渠道表。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  brand:
+    "===CHAPTER=== 有材料：判断条 + 调性板（语气/关键词/禁区）。无材料：只留尚未开展。禁止 Canvas。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "mvp-definition":
+    "===CHAPTER=== 有材料：判断条 + 必须有/后做/不做范围表。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "user-journey":
+    "===CHAPTER=== 有材料：判断条 + 路径 + 阶段表。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "feature-prioritization":
+    "===CHAPTER=== 有材料：判断条 + 优先级表。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  projections:
+    "===CHAPTER=== 有材料：判断条 + 三年收入/成本/现金流表 + 敏感假设表。禁止三情景和 IRR。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "revenue-model":
+    "===CHAPTER=== 有材料：判断条 + 收入线表。禁止 IRR。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "cost-structure":
+    "===CHAPTER=== 有材料：判断条 + 跑道/消耗/收入数字条 + 成本表。禁止三情景和 IRR。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "risk-analysis":
+    "===CHAPTER=== 有材料：判断条 + 4×4 热力图（保留 kn-heat-* 底色）+ 带徽章的风险登记表。禁止 SVG。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "assumptions-tracker":
+    "===CHAPTER=== 有材料：判断条 + 假设表 + P1/P2/P3 kn-fold 折叠。允许增删 li。禁止改成只剩三列表。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "validation-playbook":
+    "===CHAPTER=== 有实验：判断条 + 通过/未通过/进行中计数 + 实验表 + 失效条件。禁止 IRR。无实验：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "action-plan-30d":
+    "===CHAPTER=== 有材料：判断条 + 路径 + 30 天动作表。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "market-discovery":
     "===CHAPTER=== 有材料：判断条 + 对战卡 + 功能对比表。无材料：只留尚未开展。不要总市场投资版数字条。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   strategy:
     "===CHAPTER=== 有材料：判断条 + Lean 宫格。无材料：只留尚未开展。禁止尽调表。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
-  brand:
-    "===CHAPTER=== 有材料：判断条 + 调性板（语气/关键词/禁区）。无材料：只留尚未开展。禁止 Canvas。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   product:
     "===CHAPTER=== 有材料：判断条 + 路径 + 功能现状表。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   financials:

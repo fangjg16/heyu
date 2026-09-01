@@ -370,6 +370,27 @@ const SECTION_QUESTION_KEYWORDS: Record<string, string[]> = {
   "recommendation-conditions": ["建议", "条件", "推荐"],
   "founder-interview": ["访谈", "创始人", "用户"],
   "market-discovery": ["市场", "竞争", "客户", "发现"],
+  "exec-summary": ["摘要", "简报", "一句话"],
+  "project-scorecard": ["评分", "总评"],
+  "research-gate": ["结论", "继续", "假设"],
+  "target-audience": ["客户", "客群", "痛点"],
+  "market-analysis": ["市场", "规模", "切法"],
+  "competitor-landscape": ["竞争", "竞品", "对手"],
+  "industry-trends": ["趋势", "时机"],
+  "lean-business-model": ["模式", "定价", "单位经济"],
+  "value-proposition": ["价值", "痛点", "收益"],
+  positioning: ["定位", "差异", "品类"],
+  "go-to-market": ["获客", "渠道", "进入"],
+  "mvp-definition": ["MVP", "首版", "范围"],
+  "user-journey": ["旅程", "路径", "触点"],
+  "feature-prioritization": ["功能", "优先级"],
+  projections: ["预测", "现金流", "三年"],
+  "revenue-model": ["收入", "定价"],
+  "cost-structure": ["成本", "跑道"],
+  "risk-analysis": ["风险", "缓释", "失败"],
+  "assumptions-tracker": [],
+  "validation-playbook": ["验证", "实验", "该停"],
+  "action-plan-30d": ["行动", "下一步"],
   strategy: ["策略", "定位", "差异"],
   brand: ["品牌", "命名", "识别"],
   product: ["产品", "功能", "体验"],
@@ -389,6 +410,7 @@ export function pickRelatedOpenQuestions(
     sectionId === "questions" ||
     sectionId === "diligence-gaps" ||
     sectionId === "open-items-exceptions" ||
+    sectionId === "assumptions-tracker" ||
     sectionId === "validation" ||
     all.length === 0 ||
     max <= 0

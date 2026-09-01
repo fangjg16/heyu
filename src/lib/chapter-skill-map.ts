@@ -73,15 +73,48 @@ const ACQUIRE: Record<string, Spec> = {
 
 const EARLY: Record<string, Spec> = {
   "project-overview": { primary: ["startup-design"], borrow: ["project-intake"] },
+  "exec-summary": { primary: ["startup-design"], borrow: [] },
+  "project-scorecard": { primary: ["startup-design"], borrow: [] },
+  "research-gate": {
+    primary: ["startup-design", "startup-competitors"],
+    borrow: [],
+  },
+  "target-audience": { primary: ["startup-design"], borrow: [] },
+  "market-analysis": {
+    primary: ["startup-design"],
+    borrow: ["industry-due-diligence"],
+  },
+  "competitor-landscape": {
+    primary: ["startup-design", "startup-competitors"],
+    borrow: [],
+  },
+  "industry-trends": { primary: ["startup-design"], borrow: [] },
+  "lean-business-model": {
+    primary: ["startup-design", "startup-positioning"],
+    borrow: [],
+  },
+  "value-proposition": { primary: ["startup-design"], borrow: [] },
+  positioning: { primary: ["startup-design", "startup-positioning"], borrow: [] },
+  "go-to-market": { primary: ["startup-design"], borrow: ["startup-pitch"] },
+  brand: { primary: ["startup-design"], borrow: [] },
+  "mvp-definition": { primary: ["startup-design"], borrow: ["startup-pitch"] },
+  "user-journey": { primary: ["startup-design"], borrow: [] },
+  "feature-prioritization": { primary: ["startup-design"], borrow: [] },
+  projections: { primary: ["startup-design"], borrow: [] },
+  "revenue-model": { primary: ["startup-design"], borrow: [] },
+  "cost-structure": { primary: ["startup-design"], borrow: [] },
+  "risk-analysis": { primary: ["startup-design"], borrow: [] },
+  "assumptions-tracker": { primary: ["startup-design"], borrow: [] },
+  "validation-playbook": { primary: ["startup-design"], borrow: [] },
+  "action-plan-30d": { primary: ["startup-design"], borrow: [] },
   "founder-interview": { primary: ["startup-design"], borrow: [] },
   "market-discovery": {
     primary: ["startup-design", "startup-competitors"],
     borrow: ["industry-due-diligence"],
   },
   strategy: { primary: ["startup-design", "startup-positioning"], borrow: [] },
-  brand: { primary: ["startup-design"], borrow: [] },
   product: { primary: ["startup-design"], borrow: ["startup-pitch"] },
-  financials: { primary: ["startup-design"], borrow: ["returns-analysis"] },
+  financials: { primary: ["startup-design"], borrow: [] },
   validation: { primary: ["startup-design"], borrow: [] },
 };
 

@@ -103,15 +103,15 @@ describe("chapter-skill-map", () => {
     ]);
   });
 
-  it("uses business-due-diligence for mature business-technology, startup-design for early product", () => {
+  it("uses business-due-diligence for mature business-technology, startup-design for early mvp", () => {
     expect(skillsForChapter("business-technology", "mature")).toEqual([
       "business-due-diligence",
     ]);
-    expect(skillsForChapter("product", "early")[0]).toBe("startup-design");
+    expect(skillsForChapter("mvp-definition", "early")[0]).toBe("startup-design");
   });
 
-  it("puts competitor skills on early market-discovery as primary", () => {
-    expect(skillsForChapter("market-discovery", "early")).toContain(
+  it("puts competitor skills on early competitor-landscape as primary", () => {
+    expect(skillsForChapter("competitor-landscape", "early")).toContain(
       "startup-competitors",
     );
     expect(skillsForChapter("industry-competition", "mature")).not.toContain(
@@ -228,9 +228,9 @@ describe("buildChapterSkillMethodBlock", () => {
     expect(conclusion).toContain("value-creation-plan");
   });
 
-  it("injects honesty protocol for early market-discovery via startup-design", async () => {
+  it("injects honesty protocol for early competitor-landscape via startup-design", async () => {
     const market = await buildChapterSkillMethodBlock(
-      "market-discovery",
+      "competitor-landscape",
       undefined,
       "early",
     );

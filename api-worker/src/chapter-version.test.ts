@@ -9,6 +9,7 @@ import {
   parseChapterVersion,
   researchChaptersComplete,
 } from "./chapter-version";
+import { researchSectionIdsForKind } from "./kn-catalog";
 
 describe("chapter-version", () => {
   it("formats the old 200 encoding as 2.0, not 200", () => {
@@ -78,15 +79,9 @@ describe("chapter-version", () => {
     };
     expect(researchChaptersComplete(full, "mature")).toBe(true);
     expect(researchChaptersComplete(full, "early")).toBe(false);
-    const early = {
-      "founder-interview": "<p>a</p>",
-      "market-discovery": "<p>a</p>",
-      strategy: "<p>a</p>",
-      brand: "<p>a</p>",
-      product: "<p>a</p>",
-      financials: "<p>a</p>",
-      validation: "<p>a</p>",
-    };
+    const early = Object.fromEntries(
+      researchSectionIdsForKind("early").map((id) => [id, "<p>a</p>"]),
+    );
     expect(researchChaptersComplete(early, "early")).toBe(true);
   });
 

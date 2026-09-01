@@ -104,18 +104,26 @@ function wrapMethodBlock(
       ? "综合成熟度只填右上角那一个数或状态词；禁止输出 Factor A/B 分卡、十一段完整度表。"
       : sectionId === "project-summary" || sectionId === "snapshot"
         ? "只填项目范围与交易要点；禁止输出 Factor A/B 分卡、十一段完整度表或综合成熟度表。"
-        : sectionId === "diligence-gaps" ||
+            : sectionId === "diligence-gaps" ||
             sectionId === "open-items-exceptions" ||
-            sectionId === "questions"
+            sectionId === "questions" ||
+            sectionId === "assumptions-tracker"
           ? "待确认问题必须用 P1/P2/P3 三组 <details> 折叠卡片，组内 <ol><li>；禁止改成缺口登记大表。"
           : sectionId === "business-technology" ||
               sectionId === "business-worth-buying" ||
-              sectionId === "business"
+              sectionId === "business" ||
+              sectionId === "lean-business-model"
             ? "写目标公司怎么赚钱（客户/定价/单位经济）；禁止 IRR/MOIC/投资人回报。模板里只有一张画布，禁止再叠一套九格。"
             : sectionId === "industry-competition" ||
-                sectionId === "market-discovery" ||
+                sectionId === "market-analysis" ||
+                sectionId === "industry-trends" ||
                 sectionId === "industry"
               ? "写市场切法、政策、与标的咬合、红黄旗；禁止对战卡和出价区间。"
+              : sectionId === "projections" ||
+                  sectionId === "revenue-model" ||
+                  sectionId === "cost-structure" ||
+                  sectionId === "financials"
+                ? "写跑道、收入与成本假设；禁止 IRR/MOIC/投资人三情景。"
               : sectionId === "investment-conclusion" ||
                   sectionId === "recommendation-conditions" ||
                   sectionId === "framework"

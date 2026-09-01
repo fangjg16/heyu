@@ -14,26 +14,47 @@ describe("kn-catalog", () => {
       "exec-verdict",
     );
     expect(researchSectionsForKind("early").map((s) => s.id)).toEqual([
-      "founder-interview",
-      "market-discovery",
-      "strategy",
+      "exec-summary",
+      "project-scorecard",
+      "research-gate",
+      "target-audience",
+      "market-analysis",
+      "competitor-landscape",
+      "industry-trends",
+      "lean-business-model",
+      "value-proposition",
+      "positioning",
+      "go-to-market",
       "brand",
-      "product",
-      "financials",
-      "validation",
+      "mvp-definition",
+      "user-journey",
+      "feature-prioritization",
+      "projections",
+      "revenue-model",
+      "cost-structure",
+      "risk-analysis",
+      "assumptions-tracker",
+      "validation-playbook",
+      "action-plan-30d",
     ]);
   });
 
   it("maps pending-question section by kind", () => {
     expect(questionsSectionIdForKind("mature")).toBe("diligence-gaps");
     expect(questionsSectionIdForKind("acquire")).toBe("open-items-exceptions");
-    expect(questionsSectionIdForKind("early")).toBe("validation");
+    expect(questionsSectionIdForKind("early")).toBe("assumptions-tracker");
   });
 
   it("puts project overview last on a full draft run", () => {
     const early = fullDraftSectionIds("early");
     expect(early.at(-1)).toBe("project-overview");
-    expect(early).toContain("founder-interview");
+    expect(early).toContain("competitor-landscape");
+    expect(early).toContain("exec-summary");
+    expect(early.indexOf("research-gate")).toBeLessThan(
+      early.indexOf("exec-summary"),
+    );
+    expect(early.at(-2)).toBe("project-scorecard");
+    expect(early).not.toContain("founder-interview");
     expect(fullDraftSectionIds("mature").at(-1)).toBe("project-overview");
     expect(fullDraftSectionIds("acquire").at(-1)).toBe("project-overview");
   });
