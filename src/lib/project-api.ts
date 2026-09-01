@@ -244,7 +244,7 @@ export async function createProjectViaApi(
     detail?: string;
     category?: string;
     openness?: "partial" | "invite";
-    analysisKind?: "early" | "mature" | "acquire";
+    analysisKind: "early" | "mature" | "acquire";
     userId?: string;
     participants?: { userId: string; role: "admin" | "core" | "low" | "issuer" }[];
   },
@@ -286,6 +286,7 @@ export async function updateProjectViaApi(
     category?: string;
     phase?: string;
     openness?: "partial" | "invite";
+    analysisKind?: "early" | "mature" | "acquire";
     userId: string;
   },
   chatEndpoint = AI_CHAT_ENDPOINT,
@@ -305,6 +306,7 @@ export async function updateProjectViaApi(
         category: input.category,
         phase: input.phase,
         openness: input.openness,
+        analysisKind: input.analysisKind,
         userId: input.userId,
       }),
     });

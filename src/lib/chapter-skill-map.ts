@@ -100,8 +100,8 @@ function sectionsForKind(kind: string): { id: string; label: string }[] {
 export const FALLBACK_CHAPTER_SKILL_MAP: ChapterSkillMapDto = {
   kinds: [
     { id: "early", label: "创业" },
-    { id: "mature", label: "财务投资" },
-    { id: "acquire", label: "收购" },
+    { id: "mature", label: "投资" },
+    { id: "acquire", label: "收购经营" },
   ],
   sections: [
     OVERVIEW,

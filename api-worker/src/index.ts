@@ -79,6 +79,7 @@ import { embedDocumentChunks } from "./embeddings";
 import { isGenericProjectQuestion } from "./search";
 import { getProjectById as getDbProjectById } from "./projects-db";
 import { maybeHandleInterviewChat } from "./startup-interview-routes";
+import { getStoredAnalysisKind } from "./analysis-kind";
 import {
   DIRECTORY_MIME,
   isDirectoryMarker,

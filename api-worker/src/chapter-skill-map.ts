@@ -3,7 +3,10 @@
  * 网页 Tab 框架是权威；skill 只提供「怎么填这个格子」。
  */
 import type { AnalysisKind } from "./analysis-kind";
-import { DEFAULT_ANALYSIS_KIND } from "./analysis-kind";
+import {
+  ANALYSIS_KIND_LABELS,
+  DEFAULT_ANALYSIS_KIND,
+} from "./analysis-kind";
 import { researchSectionsForKind } from "./kn-catalog";
 
 export type ChapterSkillSpec = {
@@ -134,11 +137,7 @@ export const SKILL_REFERENCE_FILES: Readonly<
   "startup-pitch": ["references/honesty-protocol.md"],
 };
 
-export const ANALYSIS_KIND_LABELS: Readonly<Record<AnalysisKind, string>> = {
-  early: "创业",
-  mature: "财务投资",
-  acquire: "收购",
-};
+export { ANALYSIS_KIND_LABELS };
 
 const OVERVIEW_SECTION = { id: "project-overview", label: "项目概览" };
 

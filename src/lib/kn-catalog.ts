@@ -12,29 +12,23 @@ export type KnCatalogGroup = {
   sections: readonly KnCatalogSection[];
 };
 
-const MATURE_GROUPS: readonly KnCatalogGroup[] = [
-  {
-    id: "research",
-    label: "投资研究",
-    sections: [
-      { id: "project-summary", label: "项目概况" },
-      { id: "industry-competition", label: "行业与竞争" },
-      { id: "business-technology", label: "业务与技术" },
-      { id: "company-team", label: "公司与团队" },
-      { id: "financial-diligence", label: "财务研究" },
-    ],
-  },
-  {
-    id: "decision",
-    label: "方案与结论",
-    sections: [
-      { id: "investment-structure-returns", label: "投资方案与收益预测" },
-      { id: "investment-risks", label: "投资风险" },
-      { id: "diligence-gaps", label: "待解决问题" },
-      { id: "investment-conclusion", label: "结论" },
-    ],
-  },
+const MATURE_SECTIONS: readonly KnCatalogSection[] = [
+  { id: "investment-conclusion", label: "结论" },
+  { id: "project-summary", label: "项目概况" },
+  { id: "industry-competition", label: "行业与竞争" },
+  { id: "business-technology", label: "业务与技术" },
+  { id: "company-team", label: "公司与团队" },
+  { id: "financial-diligence", label: "财务研究" },
+  { id: "investment-structure-returns", label: "投资方案与收益预测" },
+  { id: "investment-risks", label: "投资风险" },
+  { id: "diligence-gaps", label: "待解决问题" },
 ];
+
+const MATURE_GROUPS: readonly KnCatalogGroup[] = MATURE_SECTIONS.map((s) => ({
+  id: s.id,
+  label: s.label,
+  sections: [s],
+}));
 
 const ACQUIRE_GROUPS: readonly KnCatalogGroup[] = [
   {
@@ -136,11 +130,16 @@ export function researchSectionIdsForKind(
   return researchSectionsForKind(kind).map((s) => s.id);
 }
 
-/** 「更新全部」：研究章 + 最后生成项目概览 */
+/** 「更新全部」：研究章 + 最后生成项目概览。投资形态的结论放在研究章之后、概览之前生成。 */
 export function fullDraftSectionIds(
   kind: AnalysisKind = DEFAULT_ANALYSIS_KIND,
 ): string[] {
-  return [...researchSectionIdsForKind(kind), "project-overview"];
+  const ids = researchSectionIdsForKind(kind);
+  if (kind === "mature") {
+    const rest = ids.filter((id) => id !== "investment-conclusion");
+    return [...rest, "investment-conclusion", "project-overview"];
+  }
+  return [...ids, "project-overview"];
 }
 
 export function sectionLabel(

@@ -4,6 +4,8 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { updateProjectViaApi } from "@/lib/project-api";
 import { IndustryCategoryFields, RequiredMark } from "@/components/workspace/IndustryCategoryFields";
+import { AnalysisKindFields } from "@/components/workspace/AnalysisKindFields";
+import { parseAnalysisKind, type AnalysisKind } from "@/lib/analysis-kind";
 import {
   formatIndustryCategory,
   parseIndustryCategory,
@@ -69,6 +71,9 @@ export function ProjectEditModal({
   const industryTaxonomy = useIndustryTaxonomy();
   const canEditTaxonomyMd = isPlatformAdminUser(userId);
   const [phase, setPhase] = useState<ProjectPhase>(project.phase);
+  const [analysisKind, setAnalysisKind] = useState<AnalysisKind | "">(
+    parseAnalysisKind(project.analysisKind) ?? "",
+  );
   const [openness, setOpenness] = useState<ProjectOpenness>(
     normalizeOpenness(project.openness),
   );
@@ -88,6 +93,7 @@ export function ProjectEditModal({
         : null,
     );
     setPhase(project.phase);
+    setAnalysisKind(parseAnalysisKind(project.analysisKind) ?? "");
     setOpenness(normalizeOpenness(project.openness));
     setError(null);
   }, [open, project]);
@@ -100,6 +106,10 @@ export function ProjectEditModal({
       setError("请填写项目名称");
       return;
     }
+    if (!analysisKind) {
+      setError("请选择项目形态");
+      return;
+    }
     setSaving(true);
     setError(null);
     void updateProjectViaApi(projectId, {
@@ -108,6 +118,7 @@ export function ProjectEditModal({
       category: formatIndustryCategory(industryTheme, industrySector),
       phase,
       openness,
+      analysisKind,
       userId,
     })
       .then((updated) => {
@@ -194,6 +205,14 @@ export function ProjectEditModal({
               ))}
             </select>
           </label>
+          <AnalysisKindFields
+            value={analysisKind}
+            onChange={(kind) => {
+              setAnalysisKind(kind);
+              if (kind === "early") setOpenness("invite");
+            }}
+            originalKind={parseAnalysisKind(project.analysisKind)}
+          />
           <div className="block text-sm">
             <span className="font-medium text-foreground">
               项目开放程度

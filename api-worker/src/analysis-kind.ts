@@ -1,8 +1,8 @@
 /**
- * 项目形态由生成时根据资料判断，不出现在入库表单。
- * early = 早期/idea（可以已有标的）
- * acquire = 买下来经营
- * mature = 成熟经营体上的财务投资
+ * 项目形态由创建/编辑时选定，生成章节时只读取、不改写。
+ * early = 创业（用户访谈 + 策略/品牌/验证）
+ * acquire = 买下来过手经营
+ * mature = 运转中经营体上的投资 / 尽调
  */
 import type { AppDatabase } from "./app-database";
 import { callLlm, type LlmClientEnv } from "./llm-client";
@@ -11,6 +11,42 @@ export const ANALYSIS_KINDS = ["early", "mature", "acquire"] as const;
 export type AnalysisKind = (typeof ANALYSIS_KINDS)[number];
 
 export const DEFAULT_ANALYSIS_KIND: AnalysisKind = "mature";
+
+export const ANALYSIS_KIND_LABELS: Readonly<Record<AnalysisKind, string>> = {
+  early: "创业",
+  mature: "投资",
+  acquire: "收购经营",
+};
+
+export const ANALYSIS_KIND_DESCRIPTIONS: Readonly<
+  Record<AnalysisKind, string>
+> = {
+  early: "从零验证产品与市场。知识网络走用户访谈、策略、品牌、验证；没有项目协作工作台。",
+  mature: "对已在运转的经营体做尽调与投资研究。",
+  acquire: "交易目的是买下来过手经营（控股收购、接手）。",
+};
+
+export const ANALYSIS_KIND_OPTIONS: readonly {
+  id: AnalysisKind;
+  label: string;
+  description: string;
+}[] = [
+  {
+    id: "mature",
+    label: ANALYSIS_KIND_LABELS.mature,
+    description: ANALYSIS_KIND_DESCRIPTIONS.mature,
+  },
+  {
+    id: "early",
+    label: ANALYSIS_KIND_LABELS.early,
+    description: ANALYSIS_KIND_DESCRIPTIONS.early,
+  },
+  {
+    id: "acquire",
+    label: ANALYSIS_KIND_LABELS.acquire,
+    description: ANALYSIS_KIND_DESCRIPTIONS.acquire,
+  },
+];
 
 export function parseAnalysisKind(raw: unknown): AnalysisKind | null {
   const v = String(raw ?? "")
@@ -77,9 +113,10 @@ export async function saveAnalysisKind(
 const CLASSIFY_SYSTEM = `你判断家办投资项目的形态。只输出一个英文词，不要解释。
 early = 创业/极早期/idea，或已有公司但客户、交付、财务仍主要靠叙事，PMF 未钉住。
 acquire = 交易目的是买下来过手经营（控股收购、接手、买下来自己开）。
-mature = 已经在运转的经营体上的财务投资（少数股权、成长期但仍有稳定交付/财务可核对）。
+mature = 已经在运转的经营体上的投资（少数股权、成长期但仍有稳定交付/财务可核对）。尽调标的一律 mature，不因名字含 AI/剧本/创业而改判。
 有公司名字不等于 mature。买股权不等于 acquire。`;
 
+/** 仅供排查；生成路径不得调用，以免覆盖用户选定的形态。 */
 export async function inferAnalysisKindFromDigest(
   env: LlmClientEnv,
   digest: string,
@@ -99,16 +136,13 @@ export async function inferAnalysisKindFromDigest(
   }
 }
 
-/** 已落库的形态一律沿用。禁止在生成概览/章节时重判，否则会把 mature 项目翻成 early。 */
+/** 已落库的形态一律沿用。未选定则按投资生成，不写回、不重判。 */
 export async function ensureAnalysisKind(
-  env: { DB: AppDatabase } & LlmClientEnv,
+  env: { DB: AppDatabase } & Partial<LlmClientEnv>,
   projectId: string,
-  digest: string,
+  _digest?: string,
   _opts?: { refresh?: boolean },
 ): Promise<AnalysisKind> {
   const stored = await getStoredAnalysisKind(env.DB, projectId);
-  if (stored) return stored;
-  const kind = await inferAnalysisKindFromDigest(env, digest);
-  await saveAnalysisKind(env.DB, projectId, kind);
-  return kind;
+  return stored ?? DEFAULT_ANALYSIS_KIND;
 }

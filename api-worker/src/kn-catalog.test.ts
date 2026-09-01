@@ -37,4 +37,23 @@ describe("kn-catalog", () => {
     expect(fullDraftSectionIds("mature").at(-1)).toBe("project-overview");
     expect(fullDraftSectionIds("acquire").at(-1)).toBe("project-overview");
   });
+
+  it("shows 结论 first in the mature catalog but generates it after other research chapters", () => {
+    expect(researchSectionsForKind("mature").map((s) => s.id)).toEqual([
+      "investment-conclusion",
+      "project-summary",
+      "industry-competition",
+      "business-technology",
+      "company-team",
+      "financial-diligence",
+      "investment-structure-returns",
+      "investment-risks",
+      "diligence-gaps",
+    ]);
+    const mature = fullDraftSectionIds("mature");
+    expect(mature.at(-2)).toBe("investment-conclusion");
+    expect(mature.indexOf("project-summary")).toBeLessThan(
+      mature.indexOf("investment-conclusion"),
+    );
+  });
 });

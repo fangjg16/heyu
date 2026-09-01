@@ -23,7 +23,7 @@ export type WorkspaceProject = {
   updatedAt?: string | null;
   /** 知识网络研究成熟度 0–100（列表接口聚合；缺省表示未知） */
   researchMaturity?: number | null;
-  /** early | mature | acquire；未判断时为空，界面按 mature 目录 */
+  /** early | mature | acquire；创建/编辑时选定，未选时界面按 mature 目录 */
   analysisKind?: "early" | "mature" | "acquire" | null;
 };
 

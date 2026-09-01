@@ -20,6 +20,7 @@ import {
   getStoredAnalysisKind,
 } from "./analysis-kind";
 import { fullDraftSectionIds, isGeneratableSectionId } from "./kn-catalog";
+import { presentMatureDraftItems } from "./kn-legacy-map";
 import type { LlmClientEnv } from "./llm-client";
 import {
   handleGenerateProjectKnowledgeChapter,
@@ -72,6 +73,21 @@ function json(data: unknown, status = 200): Response {
     status,
     headers: { "Content-Type": "application/json; charset=utf-8" },
   });
+}
+
+async function resolveDraftItemForEdit(
+  env: Env,
+  projectId: string,
+  runId: string,
+  sectionId: string,
+) {
+  const own = await getDraftItem(env.DB, runId, sectionId);
+  if (own?.html?.trim()) return own;
+  const kind =
+    (await getStoredAnalysisKind(env.DB, projectId)) ?? DEFAULT_ANALYSIS_KIND;
+  if (kind !== "mature") return own;
+  const presented = presentMatureDraftItems(await listDraftItems(env.DB, runId));
+  return presented.find((i) => i.sectionId === sectionId) ?? own;
 }
 
 function normalizeUserId(raw: string | null | undefined): string | null {
@@ -815,6 +831,11 @@ export async function handleGetChapterDraftRun(
     if (marked) await refreshDraftRunProgress(env.DB, runId);
   }
   items = await listDraftItems(env.DB, runId);
+  const analysisKind =
+    (await getStoredAnalysisKind(env.DB, projectId)) ?? DEFAULT_ANALYSIS_KIND;
+  if (analysisKind === "mature") {
+    items = presentMatureDraftItems(items);
+  }
   const latestRun = (await getDraftRun(env.DB, runId)) ?? run;
 
   return json({
@@ -1011,7 +1032,12 @@ export async function handlePutChapterDraftSection(
     return json({ error: "html 不能为空" }, 400);
   }
 
-  const existing = await getDraftItem(env.DB, runId, sectionId);
+  const existing = await resolveDraftItemForEdit(
+    env,
+    projectId,
+    runId,
+    sectionId,
+  );
   if (!existing) {
     return json({ error: "该章节草案不存在", code: "NO_DRAFT_ITEM" }, 404);
   }
@@ -1087,7 +1113,12 @@ export async function handleReviseChapterDraftSection(
     return json({ error: "instruction 过长" }, 400);
   }
 
-  const existing = await getDraftItem(env.DB, runId, sectionId);
+  const existing = await resolveDraftItemForEdit(
+    env,
+    projectId,
+    runId,
+    sectionId,
+  );
   if (!existing?.html?.trim()) {
     return json(
       { error: "本章草案尚无内容，无法改写", code: "NO_HTML" },

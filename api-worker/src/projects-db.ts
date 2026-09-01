@@ -310,6 +310,7 @@ export async function updateProject(
     category?: string;
     phase?: ProjectPhase;
     openness?: ProjectOpenness | string;
+    analysisKind?: string | null;
   },
 ): Promise<ProjectJson | null> {
   const existing = await getProjectById(env, id);
@@ -344,6 +345,12 @@ export async function updateProject(
       id,
     )
     .run();
+
+  if (input.analysisKind !== undefined) {
+    const kind = parseAnalysisKind(input.analysisKind);
+    if (!kind) throw new Error("项目形态无效");
+    await saveAnalysisKind(env.DB, id, kind);
+  }
 
   return getProjectById(env, id);
 }

@@ -8,6 +8,7 @@ import {
 } from "./chapter-version";
 import { getStoredAnalysisKind } from "./analysis-kind";
 import { DEFAULT_ANALYSIS_KIND } from "./analysis-kind";
+import { mergeMatureDraftItemsForPublish } from "./kn-legacy-map";
 import { repairStoredChapterHtml } from "./chapter-revise-parse";
 import {
   getProjectKnowledgeChapterHtml,
@@ -797,11 +798,18 @@ export async function publishDraftRunToLive(
     }
   }
 
-  const willApply = items.filter(
-    (item) =>
-      item.status === "ok" &&
-      Boolean(item.html?.trim()) &&
-      (!filterSet || filterSet.has(item.sectionId)),
+  const readyItems = items.filter(
+    (item) => item.status === "ok" && Boolean(item.html?.trim()),
+  );
+  const analysisKind =
+    (await getStoredAnalysisKind(db, input.run.projectId)) ??
+    DEFAULT_ANALYSIS_KIND;
+  const remapped =
+    analysisKind === "mature"
+      ? mergeMatureDraftItemsForPublish(readyItems)
+      : readyItems;
+  const willApply = remapped.filter(
+    (item) => !filterSet || filterSet.has(item.sectionId),
   );
   if (willApply.length === 0) {
     throw new Error("没有可发布的章节");
@@ -853,9 +861,6 @@ export async function publishDraftRunToLive(
       db,
       input.run.projectId,
     );
-    const analysisKind =
-      (await getStoredAnalysisKind(db, input.run.projectId)) ??
-      DEFAULT_ANALYSIS_KIND;
     const allResearchComplete = researchChaptersComplete(
       new Map(liveAfter.map((c) => [c.sectionId, c.html])),
       analysisKind,

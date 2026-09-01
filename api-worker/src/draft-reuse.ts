@@ -17,6 +17,9 @@ function normHtml(html: string | null | undefined): string {
 /**
  * 还没上正式版、或草案与正式版不一致的研究章。
  * 已发布且草案仍等于正式版的章不在此列。
+ *
+ * 只看传入 id 自己在 live 表里的 HTML，不要把旧 13 格对照结果当成「已发布」——
+ * 否则「更新全部」会跳过新章，永远写不进新目录 id。
  */
 export function unpublishedDraftSectionIds(
   researchIds: string[],

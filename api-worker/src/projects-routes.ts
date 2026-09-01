@@ -22,6 +22,7 @@ import {
 import { listResearchChapterHtmlForProjects } from "./project-knowledge-chapters-db";
 import type { WorkspaceRole } from "./workspace-roles";
 import { decodePathProjectId, resolveProjectForManage } from "./projects-resolve";
+import { parseAnalysisKind } from "./analysis-kind";
 
 type Env = { DB: AppDatabase; FILES: AppObjectStorage };
 
@@ -147,7 +148,13 @@ export async function handleCreateProject(
     `${name} 已创建，可上传资料包并在对话中使用 Master Agent 分析。`;
   const guestSummary = summary;
   const createdBy = authUserId;
-  const analysisKindRaw = (body.analysisKind ?? "").trim();
+  const analysisKind = parseAnalysisKind(body.analysisKind);
+  if (!analysisKind) {
+    return json(
+      { error: "请选择项目形态：投资、创业或收购经营" },
+      400,
+    );
+  }
 
   try {
     const project = await createProject(env, {
@@ -159,10 +166,10 @@ export async function handleCreateProject(
       openness:
         body.openness !== undefined && String(body.openness).trim() !== ""
           ? normalizeProjectOpenness(body.openness)
-          : analysisKindRaw === "early"
+          : analysisKind === "early"
             ? "invite"
             : "partial",
-      analysisKind: analysisKindRaw || null,
+      analysisKind,
       createdBy,
     });
 
@@ -173,7 +180,7 @@ export async function handleCreateProject(
       }))
       .filter((p) => p.userId.length > 0)
       .map((p) =>
-        analysisKindRaw === "early" && (p.role === "issuer" || p.role === "mid")
+        analysisKind === "early" && (p.role === "issuer" || p.role === "mid")
           ? { ...p, role: "core" as WorkspaceRole }
           : p,
       );
@@ -223,6 +230,7 @@ export async function handleUpdateProject(
     category?: string;
     phase?: string;
     openness?: string;
+    analysisKind?: string;
     userId?: string;
   };
   try {
@@ -248,6 +256,17 @@ export async function handleUpdateProject(
 
   const projectId = existing.id;
   const detail = (body.detail ?? body.summary)?.trim();
+  const analysisKindRaw = body.analysisKind;
+  const analysisKind =
+    analysisKindRaw === undefined
+      ? undefined
+      : parseAnalysisKind(analysisKindRaw);
+  if (analysisKindRaw !== undefined && !analysisKind) {
+    return json(
+      { error: "请选择项目形态：投资、创业或收购经营" },
+      400,
+    );
+  }
   try {
     const project = await updateProject(env, projectId, {
       name: body.name?.trim(),
@@ -258,6 +277,7 @@ export async function handleUpdateProject(
         body.openness !== undefined
           ? normalizeProjectOpenness(body.openness)
           : undefined,
+      analysisKind,
     });
     if (!project) return json({ error: "项目不存在" }, 404);
     return json({ project });

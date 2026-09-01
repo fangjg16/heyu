@@ -233,6 +233,7 @@ export function ProjectKnowledgeNetworkSection({
     () => chapterGroups.flatMap((g) => g.sections),
     [chapterGroups],
   );
+  const singleLevelCatalog = chapterGroups.every((g) => g.sections.length === 1);
 
   useEffect(() => {
     const loc = resolveSectionLocation(searchParams.get("section"), analysisKind);
@@ -1190,6 +1191,38 @@ export function ProjectKnowledgeNetworkSection({
           ) : null}
 
           <div className="overflow-hidden rounded-2xl border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.74)]">
+            {singleLevelCatalog ? (
+              <div className="flex items-center gap-0.5 overflow-x-auto border-b border-[rgba(78,66,57,0.08)] px-[18px]">
+                {chapterGroups.map((g) => {
+                  const sid = g.sections[0]!.id;
+                  const active = sid === sectionId;
+                  const sidBusy =
+                    busyBySection[sid] ??
+                    (updatingChapterIds.includes(sid) ? "generate" : null);
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => selectGroup(g.id)}
+                      className={cn(
+                        "h-[42px] whitespace-nowrap border-b-2 px-3.5 text-[13px] transition-colors",
+                        active
+                          ? "border-[#A06358] font-semibold text-[#A06358]"
+                          : "border-transparent font-normal text-[#59625F] hover:text-[#1F2423]",
+                      )}
+                    >
+                      {g.label}
+                      {sidBusy ? (
+                        <span className="ml-1 text-[11px] font-normal text-[#969E9A]">
+                          ·更新中
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <>
             <div className="flex items-center gap-1 overflow-x-auto border-b border-[rgba(78,66,57,0.1)] px-3.5 py-2.5">
               {chapterGroups.map((g) => {
                 const active = g.id === activeGroup.id;
@@ -1238,6 +1271,8 @@ export function ProjectKnowledgeNetworkSection({
                 );
               })}
             </div>
+              </>
+            )}
 
             <div className="grid min-h-[470px] grid-cols-1 lg:grid-cols-[minmax(0,1fr)_304px]">
               <article className="border-[rgba(78,66,57,0.08)] px-[34px] py-[34px] lg:border-r">
@@ -1371,7 +1406,7 @@ export function ProjectKnowledgeNetworkSection({
 
                   <div className="mt-3 flex items-baseline justify-between gap-2">
                     <span className="text-[11px] text-[#59625F]">
-                      项目阶段
+                      项目状态
                     </span>
                     <span className="font-[family-name:var(--font-serif,serif)] text-[18px] font-semibold leading-snug text-[#1F2423]">
                       {project ? projectPhaseLabel(project.phase) : "—"}

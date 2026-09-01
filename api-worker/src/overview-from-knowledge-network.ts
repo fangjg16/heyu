@@ -7,12 +7,6 @@ import {
 import { formatChapterVersionLabel } from "./chapter-version";
 
 const PER_CHAPTER_CHARS = 2_800;
-const SKIP_IDS = new Set([
-  "project-overview",
-  "sources",
-  "glossary",
-  "project-graph",
-]);
 
 function compactChapterHtml(html: string, maxChars: number): string {
   const compact = html
@@ -21,23 +15,6 @@ function compactChapterHtml(html: string, maxChars: number): string {
     .trim();
   if (compact.length <= maxChars) return compact;
   return `${compact.slice(0, maxChars)}\n…(截断)`;
-}
-
-function orderedResearchIds(
-  kind: AnalysisKind,
-  chapters: { sectionId: string; html?: string | null }[],
-): string[] {
-  const catalog = researchSectionIdsForKind(kind);
-  const seen = new Set(catalog);
-  const extra: string[] = [];
-  for (const c of chapters) {
-    const id = c.sectionId;
-    if (!id || SKIP_IDS.has(id) || seen.has(id)) continue;
-    if (!(c.html ?? "").trim()) continue;
-    seen.add(id);
-    extra.push(id);
-  }
-  return [...catalog, ...extra];
 }
 
 export function mergeChaptersPreferringDraft(
@@ -67,7 +44,7 @@ export function buildKnowledgeNetworkSourceBlock(input: {
     input.chapters.map((c) => [c.sectionId, (c.html ?? "").trim()] as const),
   );
   const parts: string[] = [];
-  for (const id of orderedResearchIds(kind, input.chapters)) {
+  for (const id of researchSectionIdsForKind(kind)) {
     const html = byId.get(id) ?? "";
     if (!html) continue;
     parts.push(

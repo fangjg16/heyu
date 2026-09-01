@@ -7,10 +7,10 @@ import { projectCardMarksFor } from "@/workspace/project-card-mark";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import { ProjectEditModal } from "@/components/workspace/ProjectEditModal";
 import { IndustryCategoryFields, RequiredMark } from "@/components/workspace/IndustryCategoryFields";
+import { AnalysisKindFields } from "@/components/workspace/AnalysisKindFields";
 import { cn } from "@/lib/utils";
 import {
-  ANALYSIS_KIND_LABELS,
-  ANALYSIS_KINDS,
+  ANALYSIS_KIND_OPTIONS,
   type AnalysisKind,
 } from "@/lib/analysis-kind";
 import {
@@ -366,7 +366,7 @@ export default function ProjectOverview() {
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDetail, setNewProjectDetail] = useState("");
   const [newProjectOpenness, setNewProjectOpenness] = useState<ProjectOpenness>("invite");
-  const [newAnalysisKind, setNewAnalysisKind] = useState<AnalysisKind>("mature");
+  const [newAnalysisKind, setNewAnalysisKind] = useState<AnalysisKind | "">("");
   const [newIndustryTheme, setNewIndustryTheme] = useState("");
   const [newIndustrySector, setNewIndustrySector] = useState("");
   const [participantKeyword, setParticipantKeyword] = useState("");
@@ -512,7 +512,7 @@ export default function ProjectOverview() {
     setNewProjectName("");
     setNewProjectDetail("");
     setNewProjectOpenness("invite");
-    setNewAnalysisKind("mature");
+    setNewAnalysisKind("");
     setNewIndustryTheme("");
     setNewIndustrySector("");
     setParticipantKeyword("");
@@ -530,6 +530,10 @@ export default function ProjectOverview() {
     }
     if (!newIndustryTheme.trim()) {
       setCreateHint("请填写一级分类。");
+      return;
+    }
+    if (!newAnalysisKind) {
+      setCreateHint("请选择项目形态。");
       return;
     }
     if (!ENABLE_LIVE_CHAT) {
@@ -750,9 +754,9 @@ export default function ProjectOverview() {
                 className="bg-transparent outline-none"
               >
                 <option value="all">全部形态</option>
-                {ANALYSIS_KINDS.map((k) => (
-                  <option key={k} value={k}>
-                    {ANALYSIS_KIND_LABELS[k]}
+                {ANALYSIS_KIND_OPTIONS.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.label}
                   </option>
                 ))}
               </select>
@@ -964,38 +968,22 @@ export default function ProjectOverview() {
                 />
               </div>
 
-              <div>
-                <span className="mb-1 block text-xs font-medium text-[hsl(var(--warm-charcoal))]">
-                  项目形态
-                </span>
-                <select
-                  value={newAnalysisKind}
-                  onChange={(e) => {
-                    const kind = e.target.value as AnalysisKind;
-                    setNewAnalysisKind(kind);
-                    if (kind === "early") {
-                      setNewProjectOpenness("invite");
-                      setParticipants((prev) =>
-                        prev.map((m) =>
-                          m.permission === "issuer"
-                            ? { ...m, permission: "core" }
-                            : m,
-                        ),
-                      );
-                    }
-                  }}
-                  className="w-full rounded-lg border border-[hsl(var(--sand)/0.9)] bg-white px-2.5 py-2 text-sm text-[hsl(var(--warm-charcoal))] outline-none transition focus:border-[hsl(var(--wine-deep)/0.45)] focus:ring-1 focus:ring-[hsl(var(--wine-deep)/0.12)]"
-                >
-                  {ANALYSIS_KINDS.map((k) => (
-                    <option key={k} value={k}>
-                      {ANALYSIS_KIND_LABELS[k]}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-[11px] text-[hsl(var(--warm-charcoal-muted))]">
-                  创业项目默认内部邀请，仍可改为全开放。
-                </p>
-              </div>
+              <AnalysisKindFields
+                value={newAnalysisKind}
+                onChange={(kind) => {
+                  setNewAnalysisKind(kind);
+                  if (kind === "early") {
+                    setNewProjectOpenness("invite");
+                    setParticipants((prev) =>
+                      prev.map((m) =>
+                        m.permission === "issuer"
+                          ? { ...m, permission: "core" }
+                          : m,
+                      ),
+                    );
+                  }
+                }}
+              />
 
               <div>
                 <span className="mb-1 block text-xs font-medium text-[hsl(var(--warm-charcoal))]">

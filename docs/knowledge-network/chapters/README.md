@@ -71,7 +71,7 @@ npm run seed:kn-chapter-templates -- --force
 | `questions` | gap-tracking 方法，版式为 P1/P2/P3 `<details>` 折叠卡片 |
 | `framework` | 按形态换双列闸门用语 + 论点/法律路径/杠杆/路线图 |
 
-项目形态 `early` / `mature` / `acquire` **由生成时根据资料判断并写入 `projects.analysis_kind`**，用户不用选。模板里用 `<!-- kn:begin early -->` … `<!-- kn:end -->` 圈块，服务端生成前剥掉不适用块。
+项目形态 `early` / `mature` / `acquire` **在创建或编辑项目时选定并写入 `projects.analysis_kind`**，生成章节时只读取、不改写。模板里用 `<!-- kn:begin early -->` … `<!-- kn:end -->` 圈块，服务端生成前剥掉不适用块。
 
 待填处统一写「待补」，由「更新本章」据项目上传附件填充。行数可按资料增减，表头不可改。
 

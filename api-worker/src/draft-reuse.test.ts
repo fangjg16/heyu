@@ -70,4 +70,21 @@ describe("unpublishedDraftSectionIds", () => {
       "industry",
     ]);
   });
+
+  it("does not treat mapped old 13-grid html as published on the new catalog id", () => {
+    const newIds = ["project-summary", "industry-competition"];
+    const items = [
+      { sectionId: "project-summary", status: "ok", html: "<p>草案概况</p>" },
+      {
+        sectionId: "industry-competition",
+        status: "ok",
+        html: "<p>草案行业</p>",
+      },
+    ];
+    const live = new Map([["snapshot", "<p>旧快照</p>"]]);
+    expect(unpublishedDraftSectionIds(newIds, items, live)).toEqual([
+      "project-summary",
+      "industry-competition",
+    ]);
+  });
 });

@@ -13,6 +13,10 @@ import { callLlm, type LlmClientEnv } from "./llm-client";
 import { ensureAnalysisKind, getStoredAnalysisKind } from "./analysis-kind";
 import { DEFAULT_ANALYSIS_KIND } from "./analysis-kind";
 import {
+  mapHasHtmlFromLegacy,
+  resolveMappedChapterHtml,
+} from "./kn-legacy-map";
+import {
   DEFAULT_CHAPTER_FORMAT_HINT,
   fallbackChapterMarkdown,
   isGeneratableSectionId,
@@ -348,6 +352,7 @@ export async function handleListProjectKnowledgeChapters(
   if (denied) return denied;
 
   const chapters = await listProjectKnowledgeChapterHtml(env.DB, projectId);
+  const htmlById = new Map(chapters.map((c) => [c.sectionId, c.html]));
   const populatedCount = await countPopulatedProjectKnowledgeChapters(
     env.DB,
     projectId,
@@ -356,6 +361,29 @@ export async function handleListProjectKnowledgeChapters(
   const analysisKind =
     (await getStoredAnalysisKind(env.DB, projectId)) ?? DEFAULT_ANALYSIS_KIND;
   const researchIds = researchSectionIdsForKind(analysisKind);
+
+  const listed = chapters.map((c) => ({
+    sectionId: c.sectionId,
+    hasHtml: Boolean(c.html.trim()),
+    source: c.source,
+    llmBackend: c.llmBackend,
+    updatedAt: c.updatedAt,
+    updatedBy: c.updatedBy,
+  }));
+  if (analysisKind === "mature") {
+    for (const id of researchIds) {
+      if (listed.some((c) => c.sectionId === id && c.hasHtml)) continue;
+      if (!mapHasHtmlFromLegacy(id, htmlById)) continue;
+      listed.push({
+        sectionId: id,
+        hasHtml: true,
+        source: "generate",
+        llmBackend: null,
+        updatedAt: "",
+        updatedBy: null,
+      });
+    }
+  }
 
   return json({
     ok: true,
@@ -370,14 +398,7 @@ export async function handleListProjectKnowledgeChapters(
       id,
       label: sectionLabel(id, analysisKind),
     })),
-    chapters: chapters.map((c) => ({
-      sectionId: c.sectionId,
-      hasHtml: Boolean(c.html.trim()),
-      source: c.source,
-      llmBackend: c.llmBackend,
-      updatedAt: c.updatedAt,
-      updatedBy: c.updatedBy,
-    })),
+    chapters: listed,
   });
 }
 
@@ -406,6 +427,14 @@ export async function handleGetProjectKnowledgeChapter(
     : null;
 
   let html = row?.html ?? null;
+  if (!html?.trim()) {
+    const all = await listProjectKnowledgeChapterHtml(env.DB, projectId);
+    const mapped = resolveMappedChapterHtml(
+      sectionId,
+      new Map(all.map((c) => [c.sectionId, c.html])),
+    );
+    if (mapped.trim()) html = mapped;
+  }
   if (html?.trim()) {
     if (sectionId === "project-graph") {
       /* JSON 原文，不做 HTML polish */
@@ -614,6 +643,7 @@ export async function handleGenerateProjectKnowledgeChapter(
   let overviewKnBlock = "";
   let overviewFromKnowledge = false;
   if (isOverview) {
+    // 概览生成只读当前形态目录 id 上自己的 HTML，不把旧 13 格对照进来。
     const [bundle, liveChapters] = await Promise.all([
       ensureChapterBundle(env.DB, projectId, userId),
       listProjectKnowledgeChapterHtml(env.DB, projectId),
@@ -659,7 +689,7 @@ export async function handleGenerateProjectKnowledgeChapter(
   const userPrompt = [
     `章节：${template!.title}`,
     template!.kicker ? `副标：${template!.kicker}` : "",
-    `项目形态（系统判断，勿向用户索要选项）：${analysisKind}`,
+    `项目形态（创建/编辑时选定，生成时不得改判）：${analysisKind}`,
     "",
     `版式锁定：${formatHint}`,
     "",
@@ -1202,7 +1232,15 @@ export async function handleReviseProjectKnowledgeChapter(
     projectId,
     sectionId,
   );
-  if (!existing?.html.trim()) {
+  let existingHtml = existing?.html ?? "";
+  if (!existingHtml.trim()) {
+    const all = await listProjectKnowledgeChapterHtml(env.DB, projectId);
+    existingHtml = resolveMappedChapterHtml(
+      sectionId,
+      new Map(all.map((c) => [c.sectionId, c.html])),
+    );
+  }
+  if (!existingHtml.trim()) {
     return json(
       { error: "本章尚无内容，请先点击「更新本章」生成", code: "NO_HTML" },
       400,
@@ -1227,7 +1265,7 @@ export async function handleReviseProjectKnowledgeChapter(
     const revised = await reviseChapterHtmlContent(env, {
       title,
       kicker: template?.kicker,
-      html: repairStoredChapterHtml(existing.html),
+      html: repairStoredChapterHtml(existingHtml),
       instruction,
       projectId,
       userId,

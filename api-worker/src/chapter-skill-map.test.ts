@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   parseAnalysisKind,
   parseAnalysisKindFromModel,
+  ensureAnalysisKind,
 } from "./analysis-kind";
 import { filterTemplateByKind } from "./kn-template-kind";
 import { CHAPTER_SKILL_MAP, skillsForChapter } from "./chapter-skill-map";
@@ -25,6 +26,34 @@ describe("analysis-kind", () => {
     expect(parseAnalysisKindFromModel("early\n因为还没收入")).toBe("early");
     expect(parseAnalysisKindFromModel("`acquire`")).toBe("acquire");
     expect(parseAnalysisKindFromModel("乱七八糟")).toBe("mature");
+  });
+
+  it("uses stored kind and does not infer when unset", async () => {
+    const storedEnv = {
+      DB: {
+        prepare: () => ({
+          bind: () => ({
+            first: async () => ({ analysis_kind: "early" }),
+          }),
+        }),
+      },
+    };
+    expect(
+      await ensureAnalysisKind(storedEnv as never, "p1", "创业 AI 剧本"),
+    ).toBe("early");
+
+    const unsetEnv = {
+      DB: {
+        prepare: () => ({
+          bind: () => ({
+            first: async () => ({ analysis_kind: null }),
+          }),
+        }),
+      },
+    };
+    expect(
+      await ensureAnalysisKind(unsetEnv as never, "p2", "创业 AI 剧本"),
+    ).toBe("mature");
   });
 });
 
