@@ -17,6 +17,10 @@ function escapeHtml(s: string): string {
 function inline(s: string): string {
   let t = escapeHtml(s);
   t = t.replace(
+    /\[((?:Data|Opinion|Assumption|Gap|Estimate)[^\]]*)\]/giu,
+    (_m, label: string) => `<span class="kn-md-tag">${label}</span>`,
+  );
+  t = t.replace(
     /`([^`]+)`/gu,
     (_m, code: string) => `<code>${code}</code>`,
   );
@@ -60,10 +64,96 @@ function tableHtml(rows: string[]): string {
   return `<div class="kn-table-wrap"><table>${thead}${tbody}</table></div>`;
 }
 
-function calloutClass(title: string): string {
-  if (/red flag|红旗/iu.test(title)) return "kn-callout";
-  if (/yellow flag|黄旗/iu.test(title)) return "kn-callout";
-  return "kn-callout";
+function parseMetaLine(line: string): { key: string; value: string } | null {
+  const m = /^\*\*([^*]+?)[:：]\s*\*\*\s*(.+)$/u.exec(line.trim());
+  if (!m) return null;
+  const key = m[1]!.trim();
+  const value = m[2]!.trim();
+  if (!key || !value) return null;
+  return { key, value };
+}
+
+function isMetaLine(line: string): boolean {
+  return parseMetaLine(line) != null;
+}
+
+function metaHtml(lines: string[]): string {
+  const parts = lines
+    .map((line) => {
+      const m = parseMetaLine(line);
+      if (!m) return "";
+      return `<span>${inline(m.key)} <b>${inline(m.value)}</b></span>`;
+    })
+    .filter(Boolean);
+  if (parts.length === 0) return "";
+  return `<div class="kn-score-sum">${parts.join("")}</div>`;
+}
+
+function renderFlagsBlock(title: string, bodyLines: string[]): string {
+  let tone: "red" | "amber" | "none" = /red\s*flag|红旗/iu.test(title)
+    ? "red"
+    : /yellow\s*flag|黄旗|amber/iu.test(title)
+      ? "amber"
+      : "none";
+  const items: Array<{ tone: "red" | "amber"; text: string }> = [];
+  for (const raw of bodyLines) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (/red\s*flags?|红旗/iu.test(line) && !/^[-*]\s+/u.test(line)) {
+      tone = "red";
+      const rest = line
+        .replace(/^\*\*/, "")
+        .replace(/\*\*:?\s*$/u, "")
+        .replace(/^red\s*flags?:?\s*/iu, "")
+        .replace(/^红旗[:：]?\s*/u, "")
+        .trim();
+      if (rest && !/^[-*]\s+/u.test(rest)) {
+        /* heading only */
+      }
+      continue;
+    }
+    if (/yellow\s*flags?|黄旗|amber/iu.test(line) && !/^[-*]\s+/u.test(line)) {
+      tone = "amber";
+      continue;
+    }
+    const bullet = /^[-*]\s+(.+)$/u.exec(line);
+    const text = (bullet?.[1] ?? line).trim();
+    if (!text) continue;
+    const itemTone: "red" | "amber" =
+      /红旗/u.test(text) || tone === "red"
+        ? "red"
+        : "amber";
+    if (tone === "none") {
+      items.push({
+        tone: /红旗|red flag/iu.test(text) ? "red" : "amber",
+        text,
+      });
+    } else {
+      items.push({ tone: itemTone, text });
+    }
+  }
+  if (items.length === 0) {
+    return `<div class="kn-callout"><p class="kn-callout__label">${inline(title)}</p></div>`;
+  }
+  return `<div class="kn-flags">${items
+    .map(
+      (it) =>
+        `<div class="kn-flag kn-flag--${it.tone === "red" ? "red" : "amber"}">${inline(it.text)}</div>`,
+    )
+    .join("")}</div>`;
+}
+
+function collectUntilNextHeading(
+  lines: string[],
+  start: number,
+): { body: string[]; next: number } {
+  let i = start;
+  const body: string[] = [];
+  while (i < lines.length && !/^(#{1,3})\s+/u.test((lines[i] ?? "").trim())) {
+    body.push((lines[i] ?? "").trim());
+    i += 1;
+  }
+  return { body, next: i };
 }
 
 export function markdownToKnHtml(md: string): string {
@@ -132,23 +222,54 @@ export function markdownToKnHtml(md: string): string {
       const level = Math.min(3, h[1]!.length) + 1;
       const title = h[2]!.trim();
       const tag = `h${level}`;
+      i += 1;
       if (/flag|红旗|黄旗|flags/iu.test(title)) {
-        out.push(
-          `<div class="${calloutClass(title)}"><p class="kn-callout__label">${inline(title)}</p>`,
-        );
-        i += 1;
-        const body: string[] = [];
-        while (i < lines.length && (lines[i] ?? "").trim() && !/^(#{1,3})\s+/u.test((lines[i] ?? "").trim())) {
-          body.push((lines[i] ?? "").trim());
-          i += 1;
-        }
-        out.push(
-          `<div class="kn-callout__body">${body.map((b) => `<p>${inline(b.replace(/^[-*]\s+/u, ""))}</p>`).join("")}</div></div>`,
-        );
+        const { body, next } = collectUntilNextHeading(lines, i);
+        i = next;
+        out.push(renderFlagsBlock(title, body));
         continue;
       }
       out.push(`<${tag}>${inline(title)}</${tag}>`);
+      if (h[1]!.length === 1) {
+        const meta: string[] = [];
+        while (i < lines.length) {
+          const peek = (lines[i] ?? "").trim();
+          if (!peek) {
+            i += 1;
+            continue;
+          }
+          if (isMetaLine(peek)) {
+            meta.push(peek);
+            i += 1;
+            continue;
+          }
+          break;
+        }
+        if (meta.length > 0) out.push(metaHtml(meta));
+      }
+      continue;
+    }
+
+    if (/^\*\*VERDICT\b/iu.test(trimmed) || /^\*\*总评[:：]/u.test(trimmed)) {
+      flushPara();
+      flushList();
+      out.push(
+        `<div class="kn-callout"><p class="kn-callout__label">判断</p><p class="kn-callout__body">${inline(trimmed.replace(/^\*\*|\*\*$/gu, ""))}</p></div>`,
+      );
       i += 1;
+      continue;
+    }
+
+    if (isMetaLine(trimmed) && out.length > 0) {
+      flushPara();
+      flushList();
+      const meta = [trimmed];
+      i += 1;
+      while (i < lines.length && isMetaLine((lines[i] ?? "").trim())) {
+        meta.push((lines[i] ?? "").trim());
+        i += 1;
+      }
+      out.push(metaHtml(meta));
       continue;
     }
 

@@ -24,8 +24,43 @@ describe("markdownToKnHtml", () => {
     expect(html).toContain('class="kn-table-wrap"');
     expect(html).toContain("<th>切法</th>");
     expect(html).toContain("国内 SaaS");
-    expect(html).toContain('class="kn-callout"');
+    expect(html).toContain("kn-flag--red");
     expect(html).toContain("客户访谈不足");
+  });
+
+  it("turns scorecard metadata, verdict, and red/yellow flags into kn blocks", () => {
+    const html = markdownToKnHtml(`# Startup Validation Scorecard
+
+**Phase:** 8 — Validation
+**Confidence:** Medium
+
+## Verdict
+
+**VERDICT: CONDITIONAL — 有条件继续。**
+
+## Flags
+
+**Red Flags:**
+
+- 商业模式清晰度仅 4/10
+
+**Yellow Flags:**
+
+- 6/10 不是基本验证通过
+`);
+    expect(html).toContain("kn-score-sum");
+    expect(html).toContain("Phase");
+    expect(html).toContain("判断");
+    expect(html).toContain("CONDITIONAL");
+    expect(html).toContain("kn-flag--red");
+    expect(html).toContain("kn-flag--amber");
+    expect(html).toContain("商业模式清晰度");
+  });
+
+  it("marks [Data] tags", () => {
+    const html = markdownToKnHtml("**[Data]** 官网可核验。");
+    expect(html).toContain("kn-md-tag");
+    expect(html).toContain("Data");
   });
 
   it("turns block quotes into callouts", () => {

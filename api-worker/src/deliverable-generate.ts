@@ -22,6 +22,12 @@ import {
   isDeliverableDraftId,
 } from "./kn-catalog";
 import { callLlm, type LlmClientEnv } from "./llm-client";
+import {
+  extractMarkdownBody,
+  FILE_WRITE_RETRY_HINT,
+  isWriteReceiptMarkdown,
+  looksLikeMarkdownFile,
+} from "./deliverable-markdown-quality";
 import { buildChapterGenerateMaterials } from "./project-knowledge-chapters-digest";
 import {
   getDraftRun,
@@ -32,34 +38,21 @@ import { getProjectById } from "./projects-db";
 
 type Env = { DB: AppDatabase; FILES: AppObjectStorage } & LlmClientEnv;
 
-const FILE_SYSTEM = `你是投研资料撰写助手。根据项目资料包事实，写出一份完整的 Markdown 总文件。
+const FILE_SYSTEM = `你是投研资料撰写助手。根据项目资料包事实，写出一份完整的 Markdown 分析正文。
 
 硬性规则：
-1. 只输出 Markdown 正文，不要 HTML，不要 \`\`\` 围栏，不要 ===CHAPTER=== 等标记。
-2. 用二级/三级标题组织；缺证据处写「待补」，禁止编造。
+1. 只输出 Markdown 正文。第一行必须是 # 或 ## 标题。不要 HTML，不要 \`\`\` 围栏，不要 ===CHAPTER===。
+2. 用二级/三级标题、表格、列表把分析写完整。缺证据处写「待补」，禁止编造。
 3. 事实必须来自【资料目录】【本章深读】【相关段落补充】和【已生成总文件】。目录里有、深读未覆盖的细节写「待补」。
 4. 创业财务不要 IRR、MOIC、投资人 Down/Base/Up 三情景。市场规模写「总市场 / 可服务市场 / 可获得份额」，不要把 TAM/SAM/SOM 当主标题。
-5. 这是写入项目资料包的总文件，不是知识网络章节；不要输出 kn-* class 或 HTML 表格骨架。`;
+5. 不要输出 kn-* class 或 HTML 表格骨架。
+6. 你没有写文件工具。禁止输出「已写入」「文件已保存到」「写到 AI生成/…」「14.2KB」「下一层知识网络可填模板」这类回执。你的回复本身就是文件内容。`;
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { "Content-Type": "application/json; charset=utf-8" },
   });
-}
-
-function extractMarkdownBody(answer: string): string {
-  const t = answer.trim();
-  const fenced = /```(?:markdown|md)?\s*\n([\s\S]*?)```/iu.exec(t);
-  if (fenced?.[1]?.trim()) return fenced[1].trim();
-  return t.replace(/^===CHAPTER===\s*/u, "").trim();
-}
-
-function looksLikeMarkdownFile(text: string): boolean {
-  if (text.length < 120) return false;
-  if (/^深度分析失败/.test(text)) return false;
-  if (/class=["']kn-/iu.test(text) && /<table/iu.test(text)) return false;
-  return true;
 }
 
 function preferredNamesForFile(
@@ -163,11 +156,11 @@ export async function handleGenerateDeliverableDraft(
     `项目：${project.name}`,
     project.summary ? `简介：${project.summary}` : "",
     `项目形态：${kind}`,
-    `要写入的资料文件：${relativePath}/${file.filename}`,
-    `文件标题：${file.title}`,
-    `对应知识网络章节：${file.knSectionIds.join("、")}`,
+    `请直接输出「${file.title}」的完整 Markdown 分析（对应 ${file.filename}）。`,
+    `结构可对照知识网络「${file.knSectionIds.join("、")}」，但不要在正文里提章节模板或路径。`,
     "",
-    "任务：写出这份 Markdown 总文件。后一层知识网络会根据它来填章节模板。",
+    "从第一个 # 或 ## 标题起写完整分析、表格和判断。缺证据写「待补」。",
+    "不要写已写入、不要写路径、不要写下一层怎么用。你的回复就是这份文件。",
     "",
     skillMethod,
     "",
@@ -177,55 +170,63 @@ export async function handleGenerateDeliverableDraft(
     .filter(Boolean)
     .join("\n");
 
+  const runModel = (user: string) =>
+    callLlm(env, [
+      { role: "system", content: FILE_SYSTEM },
+      { role: "user", content: user },
+    ]);
+
   let answer: string;
   let llmBackend: string;
   try {
-    const result = await callLlm(env, [
-      { role: "system", content: FILE_SYSTEM },
-      { role: "user", content: userPrompt },
-    ]);
-    answer = result.answer;
-    llmBackend = result.llmBackend;
+    const first = await runModel(userPrompt);
+    answer = first.answer;
+    llmBackend = first.llmBackend;
+    let body = extractMarkdownBody(answer);
+    if (isWriteReceiptMarkdown(body) || !looksLikeMarkdownFile(body)) {
+      const second = await runModel(`${userPrompt}\n\n${FILE_WRITE_RETRY_HINT}`);
+      answer = second.answer;
+      llmBackend = second.llmBackend;
+      body = extractMarkdownBody(answer);
+    }
+    if (isWriteReceiptMarkdown(body) || !looksLikeMarkdownFile(body)) {
+      await markFailed("这次没有写出完整分析，请再生成一次");
+      return json({ error: "这次没有写出完整分析，请再生成一次" }, 502);
+    }
+
+    const docId = await persistMarkdownAtPath(env, {
+      projectId,
+      userId,
+      relativePath,
+      filename: file.filename,
+      body,
+      sourceKind: "ai_generated",
+      fileCategory: file.title,
+    });
+    if (!docId) {
+      await markFailed("写入资料包失败");
+      return json({ error: "写入资料包失败" }, 500);
+    }
+
+    const marker = deliverableDraftHtmlMarker(file);
+    await upsertDraftItem(env.DB, {
+      runId,
+      sectionId: draftItemId,
+      status: "ok",
+      html: marker,
+      error: null,
+      llmBackend,
+    });
+    await refreshDraftRunProgress(env.DB, runId);
+    return json({
+      ok: true,
+      sectionId: draftItemId,
+      path: `${relativePath}/${file.filename}`,
+      documentId: docId,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     await markFailed(`生成失败：${msg}`);
     return json({ error: `生成失败：${msg}` }, 502);
   }
-
-  const body = extractMarkdownBody(answer);
-  if (!looksLikeMarkdownFile(body)) {
-    await markFailed("模型未返回有效 Markdown");
-    return json({ error: "模型未返回有效 Markdown" }, 502);
-  }
-
-  const docId = await persistMarkdownAtPath(env, {
-    projectId,
-    userId,
-    relativePath,
-    filename: file.filename,
-    body,
-    sourceKind: "ai_generated",
-    fileCategory: file.title,
-  });
-  if (!docId) {
-    await markFailed("写入资料包失败");
-    return json({ error: "写入资料包失败" }, 500);
-  }
-
-  const marker = deliverableDraftHtmlMarker(file);
-  await upsertDraftItem(env.DB, {
-    runId,
-    sectionId: draftItemId,
-    status: "ok",
-    html: marker,
-    error: null,
-    llmBackend,
-  });
-  await refreshDraftRunProgress(env.DB, runId);
-  return json({
-    ok: true,
-    sectionId: draftItemId,
-    path: `${relativePath}/${file.filename}`,
-    documentId: docId,
-  });
 }
