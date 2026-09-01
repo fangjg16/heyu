@@ -1027,7 +1027,14 @@
 .kn-from-md > .kn-split,
 .kn-from-md > .kn-journey,
 .kn-from-md > .kn-timeline,
-.kn-from-md > .kn-stats {
+.kn-from-md > .kn-stats,
+.kn-from-md > .kn-gate,
+.kn-from-md > .kn-tripwires,
+.kn-from-md > .kn-coverage,
+.kn-from-md > .kn-scenarios,
+.kn-from-md > .kn-score-sum,
+.kn-from-md > .kn-quote,
+.kn-from-md > .kn-table-wrap {
   margin-top: 0;
 }
 

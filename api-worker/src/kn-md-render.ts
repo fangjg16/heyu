@@ -56,14 +56,49 @@ function tableHtml(rows: string[]): string {
       .map((c) => c.trim());
   const head = cells(rows[0] ?? "");
   const body = rows.slice(2).map(cells);
+  const heatmap =
+    head.length >= 5 &&
+    body.length >= 4 &&
+    /可能性|likelihood/iu.test(head.join(" "));
+  const badgeTone = (plain: string): "crit" | "high" | "mid" | "low" | null => {
+    const t = plain.replace(/\*/gu, "").trim();
+    if (/^(Critical|Crit|严重)$/iu.test(t)) return "crit";
+    if (/^(High|Major|高)$/iu.test(t)) return "high";
+    if (/^(Medium|Moderate|Mid|中)$/iu.test(t)) return "mid";
+    if (/^(Low|Minor|低)$/iu.test(t)) return "low";
+    return null;
+  };
+  const cellHtml = (c: string) => {
+    const tone = badgeTone(c);
+    const inner = inline(c);
+    if (!tone) return inner;
+    return `<span class="kn-badge kn-badge--${tone}">${inner}</span>`;
+  };
   const thead = `<thead><tr>${head.map((c) => `<th>${inline(c)}</th>`).join("")}</tr></thead>`;
   const tbody = `<tbody>${body
-    .map(
-      (r) =>
-        `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`,
-    )
+    .map((r, ri) => {
+      const tds = r
+        .map((c, ci) => {
+          if (heatmap && ci > 0) {
+            const lik = 4 - Math.min(ri, 3);
+            const imp = Math.min(ci, 4);
+            const tones = [
+              ["idle", "idle", "low", "mid"],
+              ["idle", "low", "mid", "high"],
+              ["low", "mid", "high", "crit"],
+              ["mid", "high", "crit", "crit"],
+            ];
+            const tone = tones[lik - 1]?.[imp - 1] ?? "idle";
+            return `<td class="kn-heat--${tone}">${inline(c)}</td>`;
+          }
+          return `<td>${cellHtml(c)}</td>`;
+        })
+        .join("");
+      return `<tr>${tds}</tr>`;
+    })
     .join("")}</tbody>`;
-  return `<div class="kn-table-wrap"><table>${thead}${tbody}</table></div>`;
+  const cls = heatmap ? ' class="kn-heatmap"' : "";
+  return `<div class="kn-table-wrap"><table${cls}>${thead}${tbody}</table></div>`;
 }
 
 function parseMetaLine(line: string): { key: string; value: string } | null {

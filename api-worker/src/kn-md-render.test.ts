@@ -88,6 +88,18 @@ describe("markdownToKnHtml", () => {
     expect(html).toContain("<details");
     expect(html).toContain("官网");
   });
+
+  it("wraps Critical/High cells as badges", () => {
+    const html = markdownToKnHtml(`# 风险
+
+| 编号 | 级别 | 情景 |
+| --- | --- | --- |
+| R-001 | Critical | 付费意愿 |
+| R-002 | High | 成本 |
+`);
+    expect(html).toContain("kn-badge--crit");
+    expect(html).toContain("kn-badge--high");
+  });
 });
 
 describe("renderDeliverableChapterHtml", () => {
