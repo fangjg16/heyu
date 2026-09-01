@@ -81,6 +81,16 @@ function looksLikeDocument(text: string): boolean {
   );
 }
 
+/** 一次性种子：有此标记的资料文件在「更新全部」时沿用、不重写；用过后改成 used。 */
+export const SEED_FIRST_VERSION_NOTE = "seed:startup-heyu-v1";
+const SEED_FIRST_VERSION_USED_NOTE = "seed:startup-heyu-v1:used";
+
+export function isUnconsumedSeedFirstVersionNote(
+  note: string | null | undefined,
+): boolean {
+  return (note ?? "").trim() === SEED_FIRST_VERSION_NOTE;
+}
+
 async function findCurrentAtPath(
   db: AppDatabase,
   projectId: string,
@@ -162,6 +172,76 @@ export async function readCurrentMarkdownAtPath(
   } catch {
     return null;
   }
+}
+
+async function readUploadNote(
+  db: AppDatabase,
+  projectId: string,
+  documentId: string,
+): Promise<string | null> {
+  try {
+    const row = await db
+      .prepare(
+        `SELECT upload_note FROM documents WHERE id = ? AND project_id = ?`,
+      )
+      .bind(documentId, projectId)
+      .first<{ upload_note: string | null }>();
+    return row?.upload_note ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function hasUnconsumedSeedFirstVersionDeliverable(
+  env: { DB: AppDatabase },
+  projectId: string,
+  relativePath: string,
+  filename: string,
+): Promise<boolean> {
+  const current = await findCurrentAtPath(
+    env.DB,
+    projectId,
+    relativePath,
+    filename,
+  );
+  if (!current?.id) return false;
+  const note = await readUploadNote(env.DB, projectId, current.id);
+  return isUnconsumedSeedFirstVersionNote(note);
+}
+
+/** 种子第一版仍在：沿用正文并吃掉标记，下次「更新全部」会重新写文件。 */
+export async function tryReuseSeedFirstVersionDeliverable(
+  env: Env,
+  projectId: string,
+  relativePath: string,
+  filename: string,
+): Promise<{ documentId: string } | null> {
+  const current = await findCurrentAtPath(
+    env.DB,
+    projectId,
+    relativePath,
+    filename,
+  );
+  if (!current?.id || !current.r2Key) return null;
+  const note = await readUploadNote(env.DB, projectId, current.id);
+  if (!isUnconsumedSeedFirstVersionNote(note)) return null;
+  try {
+    const obj = await env.FILES.get(current.r2Key);
+    const text = (await obj?.text())?.trim() ?? "";
+    if (!text) return null;
+  } catch {
+    return null;
+  }
+  try {
+    await env.DB.prepare(
+      `UPDATE documents SET upload_note = ? WHERE id = ? AND project_id = ?`,
+    )
+      .bind(SEED_FIRST_VERSION_USED_NOTE, current.id, projectId)
+      .run();
+  } catch {
+    /* 标记改不了也沿用正文，避免这次被模型盖掉 */
+  }
+  return { documentId: current.id };
 }
 
 export async function persistMarkdownAtPath(

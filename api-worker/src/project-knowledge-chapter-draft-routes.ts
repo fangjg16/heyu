@@ -21,13 +21,16 @@ import {
   ensureAnalysisKind,
   getStoredAnalysisKind,
 } from "./analysis-kind";
-import { fullDraftSectionIds, isDeliverableDraftId, isGeneratableSectionId } from "./kn-catalog";
+import { fullDraftSectionIds, deliverableFileIdFromDraft, isDeliverableDraftId, isGeneratableSectionId } from "./kn-catalog";
 import {
   draftGenerateItemIds,
+  deliverableById,
+  deliverableRelativePath,
   orderDeliverableDraftIds,
   unpublishedGenerateItemIds,
 } from "./deliverable-catalog";
 import { handleGenerateDeliverableDraft } from "./deliverable-generate";
+import { hasUnconsumedSeedFirstVersionDeliverable } from "./ai-generated-documents";
 import type { AppObjectStorage } from "./app-storage";
 import { presentMatureDraftItems } from "./kn-legacy-map";
 import type { LlmClientEnv } from "./llm-client";
@@ -406,8 +409,28 @@ async function runOneDraftSectionGenerate(
             userId,
             { target: "draft", runId },
           );
-    const needsLlm =
+    let needsLlm =
       isDeliverableDraftId(sectionId) || sectionId === "project-overview";
+    if (needsLlm && isDeliverableDraftId(sectionId)) {
+      const kind =
+        (await getStoredAnalysisKind(env.DB, projectId)) ??
+        DEFAULT_ANALYSIS_KIND;
+      const file = deliverableById(
+        kind,
+        deliverableFileIdFromDraft(sectionId),
+      );
+      if (
+        file &&
+        (await hasUnconsumedSeedFirstVersionDeliverable(
+          env,
+          projectId,
+          deliverableRelativePath(file),
+          file.filename,
+        ))
+      ) {
+        needsLlm = false;
+      }
+    }
     const res = await (needsLlm
       ? withChapterGenerateGate(runGenerate)
       : runGenerate());

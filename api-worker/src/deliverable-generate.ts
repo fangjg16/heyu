@@ -4,7 +4,10 @@
  */
 import type { AppDatabase } from "./app-database";
 import type { AppObjectStorage } from "./app-storage";
-import { persistMarkdownAtPath } from "./ai-generated-documents";
+import {
+  persistMarkdownAtPath,
+  tryReuseSeedFirstVersionDeliverable,
+} from "./ai-generated-documents";
 import { getStoredAnalysisKind, DEFAULT_ANALYSIS_KIND } from "./analysis-kind";
 import { buildFileSkillMethodBlock } from "./chapter-skill-method";
 import {
@@ -117,6 +120,33 @@ export async function handleGenerateDeliverableDraft(
     await refreshDraftRunProgress(env.DB, runId);
   };
 
+  const relativePath = deliverableRelativePath(file);
+  const reused = await tryReuseSeedFirstVersionDeliverable(
+    env,
+    projectId,
+    relativePath,
+    file.filename,
+  );
+  if (reused) {
+    const marker = deliverableDraftHtmlMarker(file);
+    await upsertDraftItem(env.DB, {
+      runId,
+      sectionId: draftItemId,
+      status: "ok",
+      html: marker,
+      error: null,
+      llmBackend: "reuse",
+    });
+    await refreshDraftRunProgress(env.DB, runId);
+    return json({
+      ok: true,
+      reused: true,
+      sectionId: draftItemId,
+      path: `${relativePath}/${file.filename}`,
+      documentId: reused.documentId,
+    });
+  }
+
   const preferredFilenames = preferredNamesForFile(kind, file);
   const materials = await buildChapterGenerateMaterials(env, projectId, userId, {
     sectionId: file.knSectionIds[0],
@@ -129,7 +159,6 @@ export async function handleGenerateDeliverableDraft(
     env.DB,
     file.filename,
   );
-  const relativePath = deliverableRelativePath(file);
   const userPrompt = [
     `项目：${project.name}`,
     project.summary ? `简介：${project.summary}` : "",
