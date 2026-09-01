@@ -207,12 +207,63 @@ export function deliverableFileIdFromDraft(id: string): string {
     : id;
 }
 
+const DELIVERABLE_FILE_LABELS: Record<string, string> = {
+  "market-analysis": "市场分析",
+  "competitor-landscape": "竞争格局",
+  "industry-trends": "行业趋势",
+  "target-audience": "目标客户",
+  "confidence-dashboard": "结论可靠度",
+  "research-gate": "研究结论",
+  "lean-canvas": "商业模式画布",
+  "business-model": "商业模式",
+  "value-proposition": "价值主张",
+  positioning: "差异化定位",
+  "go-to-market": "市场进入",
+  "mvp-definition": "MVP产品",
+  "user-journey": "用户旅程",
+  "feature-prioritization": "功能规划",
+  "revenue-model": "收入模式",
+  "cost-structure": "成本结构",
+  projections: "三年预测",
+  "risk-analysis": "风险清单",
+  "assumptions-tracker": "关键假设",
+  "validation-playbook": "假设验证",
+  "experiment-design": "实验设计",
+  "kill-criteria": "停止标准",
+  scorecard: "综合总评",
+  readme: "执行摘要",
+  "action-plan-30-days": "行动",
+  brief: "项目简报",
+  theme: "投资主题",
+  "industry-due-diligence": "行业尽调",
+  "business-due-diligence": "商业尽调",
+  "background-check": "背景调查",
+  "compliance-check": "合规检查",
+  "financial-due-diligence": "财务尽调",
+  returns: "回报测算",
+  "risk-matrix": "风险矩阵",
+  gaps: "信息缺口",
+  "dd-checklist": "尽调清单",
+  "investment-analysis-report": "投资分析",
+  "value-creation-plan": "增值方案",
+  intake: "收购立项",
+  screening: "标的筛选",
+  "acquisition-due-diligence": "收购尽调",
+  "acquisition-economics": "收购经济性",
+  "buyer-fit": "买方适配",
+  "acquisition-risk-matrix": "收购风险",
+  "acquisition-gaps": "未决事项",
+  "claim-audit": "声明审计",
+  "acquisition-decision": "收购闸门",
+};
+
 export function sectionLabel(
   id: string,
   kind: AnalysisKind = DEFAULT_ANALYSIS_KIND,
 ): string {
   if (isDeliverableDraftId(id)) {
-    return `文件 · ${deliverableFileIdFromDraft(id)}`;
+    const fileId = deliverableFileIdFromDraft(id);
+    return DELIVERABLE_FILE_LABELS[fileId] ?? fileId;
   }
   if (id === "project-overview") return "项目概览";
   if (id === "sources") return "引用来源";

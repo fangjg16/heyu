@@ -10,8 +10,7 @@ export const ANALYSIS_KIND_LABELS: Record<AnalysisKind, string> = {
 };
 
 export const ANALYSIS_KIND_DESCRIPTIONS: Record<AnalysisKind, string> = {
-  early:
-    "从零验证产品与市场。知识网络走用户访谈、策略、品牌、验证；没有项目协作工作台。",
+  early: "从零验证产品与市场，可做用户访谈。没有项目协作工作台。",
   mature: "对已在运转的经营体做尽调与投资研究。",
   acquire: "交易目的是买下来过手经营（控股收购、接手）。",
 };

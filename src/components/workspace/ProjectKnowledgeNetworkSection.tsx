@@ -77,7 +77,7 @@ function allChaptersConfirmText(input: {
   if (input.loading) return "正在查看当前进度…";
   const pending = Math.max(0, input.total - input.published);
   if (input.hasDraft && input.published > 0 && pending > 0) {
-    return `${input.published} 章已发布、${pending} 章还在草案里。已发布的正式章不会改。`;
+    return `${input.published} 章已发布、${pending} 章还在草案里。已发布的内容不会改。`;
   }
   if (input.hasDraft && input.failed > 0) {
     return `将重试失败的 ${input.failed} 章，已成功待审核的会保留。`;
@@ -86,9 +86,9 @@ function allChaptersConfirmText(input: {
     return `已有待审核草案，不会重新生成。${DISCARD_THEN_REGENERATE_HINT}`;
   }
   if (input.published > 0) {
-    return "将先把研究总文件写入项目资料包，再根据这些文件生成知识网络章节和项目概览。已发布的正式章在发布前不会改变。";
+    return "将更新尚未发布的章节和项目概览，可能需要较长时间。已发布的内容在你确认发布前不会改。";
   }
-  return "将先按阶段把 Markdown 总文件写入项目资料包，再根据这些文件生成知识网络章节，最后生成项目概览，可能需要较长时间。";
+  return "将更新全部章节和项目概览，可能需要较长时间。";
 }
 
 function formatVersionTime(iso: string | null | undefined): string {

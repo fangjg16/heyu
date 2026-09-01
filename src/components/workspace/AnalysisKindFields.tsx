@@ -10,7 +10,7 @@ type AnalysisKindFieldsProps = {
   value: AnalysisKind | "";
   onChange: (kind: AnalysisKind) => void;
   required?: boolean;
-  /** 编辑时传入原形态，改选后提示知识网络目录会切换 */
+  /** 编辑时传入原形态，改选后提示目录会切换 */
   originalKind?: AnalysisKind | null;
   className?: string;
 };
@@ -67,11 +67,11 @@ export function AnalysisKindFields({
       </div>
       {switched ? (
         <p className="mt-1.5 text-[11px] leading-relaxed text-amber-800/90">
-          形态会立刻切换知识网络目录。已生成的旧形态章节仍留在库里，需要再「更新全部章节」才会按新形态出章。
+          改形态后目录会跟着变。已有内容不会自动重写，需要再点「更新全部章节」。
         </p>
       ) : (
         <p className="mt-1.5 text-[11px] leading-relaxed text-[hsl(var(--warm-charcoal-muted))]">
-          决定知识网络用哪一套章节，创建后也可在编辑项目里改。
+          创建后可在编辑项目里改。
         </p>
       )}
     </fieldset>

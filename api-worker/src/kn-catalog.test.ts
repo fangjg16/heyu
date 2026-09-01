@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  deliverableDraftId,
   fullDraftSectionIds,
   questionsSectionIdForKind,
   researchSectionsForKind,
+  sectionLabel,
 } from "./kn-catalog";
 
 describe("kn-catalog", () => {
@@ -82,5 +84,10 @@ describe("kn-catalog", () => {
     expect(mature.indexOf("project-summary")).toBeLessThan(
       mature.indexOf("investment-conclusion"),
     );
+  });
+
+  it("labels deliverable draft items with the file title, not a path", () => {
+    expect(sectionLabel(deliverableDraftId("market-analysis"))).toBe("市场分析");
+    expect(sectionLabel(deliverableDraftId("readme"))).toBe("执行摘要");
   });
 });

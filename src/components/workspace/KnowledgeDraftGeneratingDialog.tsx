@@ -75,12 +75,12 @@ function runningBody(opts: {
     return `正在生成「${opts.chapterName}」。可关闭此窗口，完成后在审核页查看。`;
   }
   if (opts.regen === "unpublished") {
-    return "正在生成未发布章节对应的资料文件和知识网络草案。已发布的正式章不会改。可关闭此窗口，完成后在审核页查看。";
+    return "正在更新尚未发布的章节，可能需要较长时间。已发布的内容不会改。可关闭此窗口，完成后在审核页查看。";
   }
   if (opts.regen === "all-drafts") {
-    return "正在先重写资料包总文件，再生成全部章节草案。已发布的正式章在发布前不会改变。可关闭此窗口，完成后在审核页查看。";
+    return "正在重新生成全部草案，可能需要较长时间。已发布的内容在你确认发布前不会改。可关闭此窗口，完成后在审核页查看。";
   }
-  return "正在先把研究总文件写入项目资料包，再生成知识网络章节；研究章完成后会再生成项目概览草案。可关闭此窗口，完成后在审核页查看。";
+  return "正在更新全部章节，可能需要较长时间。可关闭此窗口，完成后在审核页查看。";
 }
 
 function finishedBody(opts: {
@@ -94,7 +94,7 @@ function finishedBody(opts: {
 }): string {
   const { failed, done, total, reused, mode, chapterName, regen } = opts;
   if (failed > 0 && done - failed > 0) {
-    return `已完成 ${done - failed}/${total} 项（含资料文件与章节），${failed} 项失败。可去审核；再点「更新全部」会重试失败项。`;
+    return `已完成 ${done - failed}/${total} 项，${failed} 项失败。可去审核；再点「更新全部」会重试失败项。`;
   }
   if (failed > 0) {
     return mode === "section"
@@ -104,16 +104,16 @@ function finishedBody(opts: {
   if (reused) {
     return mode === "section"
       ? `「${chapterName}」已有待审核草案，未重新生成。要重来，请先放弃草案。`
-      : `未发布的还在草案里，已发布的正式章也不改。${DISCARD_THEN_REGENERATE_HINT}`;
+      : `未发布的还在草案里，已发布的内容也不改。${DISCARD_THEN_REGENERATE_HINT}`;
   }
   if (mode === "section") {
     return `「${chapterName}」已生成，可以去审核。`;
   }
   if (regen === "unpublished") {
-    return "未发布章节的草案已生成，可以去审核。已发布的正式章未改。";
+    return "未发布章节的草案已生成，可以去审核。已发布的内容未改。";
   }
   if (regen === "all-drafts") {
-    return "全部章节草案已生成，可以去审核。已发布的正式章在发布前不会改变。";
+    return "全部章节草案已生成，可以去审核。已发布的内容在你确认发布前不会改。";
   }
   return "全部章节（含项目概览草案）已生成，可以去审核。";
 }
@@ -196,7 +196,7 @@ export function KnowledgeDraftGeneratingDialog({
             <div className="flex flex-wrap items-center justify-between gap-2 text-[12.5px]">
               <span className="font-medium text-[#1F2423]">
                 {progress?.phase === "creating"
-                  ? "正在创建草案…"
+                  ? "正在准备…"
                   : `进度 ${done}/${total}`}
                 {progress?.lastLabel ? ` · ${progress.lastLabel}` : ""}
                 {progress
@@ -251,7 +251,7 @@ export function KnowledgeDraftGeneratingDialog({
               onClick={onClose}
               className="inline-flex h-10 items-center rounded-[11px] border border-[rgba(78,66,57,0.18)] bg-transparent px-4 text-[13.5px] font-medium text-[#1F2423] hover:bg-[rgba(78,66,57,0.04)]"
             >
-              {finished ? "关闭" : "后台进行"}
+              {finished ? "关闭" : "先离开"}
             </button>
             <button
               type="button"
