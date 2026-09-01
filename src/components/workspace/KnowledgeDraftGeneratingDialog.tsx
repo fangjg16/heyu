@@ -72,15 +72,15 @@ function runningBody(opts: {
   regen?: "unpublished" | "all-drafts" | null;
 }): string {
   if (opts.mode === "section") {
-    return `正在生成「${opts.chapterName}」。可关闭此窗口，完成后在审核页查看。`;
+    return `正在生成「${opts.chapterName}」。可先离开，之后再点「查看进度」。完成后在审核页查看。`;
   }
   if (opts.regen === "unpublished") {
-    return "正在更新尚未发布的章节，可能需要较长时间。已发布的内容不会改。可关闭此窗口，完成后在审核页查看。";
+    return "正在更新尚未发布的章节，可能需要较长时间。已发布的内容不会改。可先离开，之后再点「查看进度」。";
   }
   if (opts.regen === "all-drafts") {
-    return "正在重新生成全部草案，可能需要较长时间。已发布的内容在你确认发布前不会改。可关闭此窗口，完成后在审核页查看。";
+    return "正在重新生成全部草案，可能需要较长时间。已发布的内容在你确认发布前不会改。可先离开，之后再点「查看进度」。";
   }
-  return "正在更新全部章节，可能需要较长时间。可关闭此窗口，完成后在审核页查看。";
+  return "正在更新全部章节，可能需要较长时间。可先离开，之后再点「查看进度」。完成后去审核页查看。";
 }
 
 function finishedBody(opts: {
@@ -265,5 +265,45 @@ export function KnowledgeDraftGeneratingDialog({
         </div>
       </div>
     </div>
+  );
+}
+
+/** 关掉进度窗后停在页面右下角，点开可继续看同一条进度 */
+export function DraftProgressDock({
+  progress,
+  onOpen,
+}: {
+  progress: DraftGeneratingProgress;
+  onOpen: () => void;
+}) {
+  const done = progress.done ?? 0;
+  const total = progress.total || 1;
+  const pct = Math.min(100, Math.round((done / total) * 100));
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="fixed bottom-5 right-5 z-[90] w-[min(calc(100%-2rem),280px)] rounded-[14px] border border-[rgba(78,66,57,0.14)] bg-[hsl(var(--paper))] px-4 py-3 text-left shadow-xl hover:border-[rgba(160,99,88,0.35)]"
+    >
+      <div className="flex items-center justify-between gap-2 text-[12.5px]">
+        <span className="font-semibold text-[#A06358]">查看进度</span>
+        <span className="text-[#59625F]">
+          {done}/{total}
+        </span>
+      </div>
+      {progress.lastLabel ? (
+        <p className="mt-1 truncate text-[12px] text-[#1F2423]">
+          {progress.lastLabel}
+        </p>
+      ) : (
+        <p className="mt-1 text-[12px] text-[#59625F]">生成中</p>
+      )}
+      <div className="mt-2 h-1 overflow-hidden rounded-full bg-[rgba(78,66,57,0.1)]">
+        <div
+          className="h-full bg-[#A06358] transition-[width] duration-300"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </button>
   );
 }

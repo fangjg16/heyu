@@ -15,6 +15,7 @@ import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import { cn } from "@/lib/utils";
 import {
   DISCARD_THEN_REGENERATE_HINT,
+  DraftProgressDock,
   KnowledgeDraftGeneratingDialog,
   type DraftGeneratingProgress,
 } from "@/components/workspace/KnowledgeDraftGeneratingDialog";
@@ -862,6 +863,7 @@ function ProjectWorkspaceLayout() {
               canUpdateAllChapters: canUpdateOverview,
               onUpdateAllChapters: (regen?: "unpublished" | "all-drafts") =>
                 void onUpdateAllChapters(regen),
+              onViewDraftProgress: () => setDraftDialogOpen(true),
               updatingChapterIds,
               failedChapterIds,
               onChapterGenerateSucceeded,
@@ -907,6 +909,12 @@ function ProjectWorkspaceLayout() {
         stopping={draftStopping}
         onStop={() => void onStopDraft()}
       />
+      {allChaptersBusy && allChaptersProgress && !draftDialogOpen ? (
+        <DraftProgressDock
+          progress={allChaptersProgress}
+          onOpen={() => setDraftDialogOpen(true)}
+        />
+      ) : null}
     </WorkspaceShell>
   );
 }
@@ -945,6 +953,7 @@ function ProjectKnowledgeTab() {
     overviewBusy = false,
     canUpdateAllChapters = false,
     onUpdateAllChapters,
+    onViewDraftProgress,
   } = useOutletContext<{
     knowledgeRefreshKey?: number;
     updatingChapterIds?: string[];
@@ -955,6 +964,7 @@ function ProjectKnowledgeTab() {
     overviewBusy?: boolean;
     canUpdateAllChapters?: boolean;
     onUpdateAllChapters?: (regen?: "unpublished" | "all-drafts") => void;
+    onViewDraftProgress?: () => void;
   }>();
   return (
     <ProjectKnowledgeNetworkSection
@@ -971,6 +981,7 @@ function ProjectKnowledgeTab() {
       overviewBusy={overviewBusy}
       canUpdateAllChapters={canUpdateAllChapters}
       onUpdateAllChapters={onUpdateAllChapters}
+      onViewDraftProgress={onViewDraftProgress}
     />
   );
 }

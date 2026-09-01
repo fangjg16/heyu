@@ -128,6 +128,7 @@ type ProjectKnowledgeNetworkSectionProps = {
   overviewBusy?: boolean;
   canUpdateAllChapters?: boolean;
   onUpdateAllChapters?: (regen?: "unpublished" | "all-drafts") => void;
+  onViewDraftProgress?: () => void;
 };
 
 export function ProjectKnowledgeNetworkSection({
@@ -144,6 +145,7 @@ export function ProjectKnowledgeNetworkSection({
   overviewBusy = false,
   canUpdateAllChapters = false,
   onUpdateAllChapters,
+  onViewDraftProgress,
 }: ProjectKnowledgeNetworkSectionProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -1160,6 +1162,15 @@ export function ProjectKnowledgeNetworkSection({
           </div>
         ) : null}
         {canUpdateAllChapters || canUpdate ? (
+          allChaptersBusy && onViewDraftProgress ? (
+            <button
+              type="button"
+              onClick={() => onViewDraftProgress()}
+              className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[hsl(var(--wine)/0.35)] bg-[hsl(var(--wine-muted))] px-3.5 text-[13px] font-medium text-[hsl(var(--wine))] transition-colors hover:bg-[#EFE7E6]"
+            >
+              查看进度
+            </button>
+          ) : (
           <button
             type="button"
             onClick={() => void openAllChaptersConfirm()}
@@ -1178,6 +1189,7 @@ export function ProjectKnowledgeNetworkSection({
             />
             {allChaptersBusy ? "生成草案中…" : "更新全部章节"}
           </button>
+          )
         ) : null}
       </div>
 
