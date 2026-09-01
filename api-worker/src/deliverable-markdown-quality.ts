@@ -36,4 +36,11 @@ export function looksLikeMarkdownFile(text: string): boolean {
   return hasHeading || (hasTable && t.length >= 800);
 }
 
+/** 资料包里已是完整分析（不是回执）时，更新全部不要再让模型重写。 */
+export function shouldReuseExistingDeliverable(
+  existing: string | null | undefined,
+): boolean {
+  return Boolean(existing && looksLikeMarkdownFile(existing));
+}
+
 export const FILE_WRITE_RETRY_HINT = `上次回复不是正文，而是「已写入某路径」之类的说明。请重新输出完整 Markdown 分析，第一行必须是 # 或 ## 标题。禁止提及路径、已写入、KB、章节模板、下一层怎么用。`;

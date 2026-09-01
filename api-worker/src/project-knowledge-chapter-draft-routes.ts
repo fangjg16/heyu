@@ -30,7 +30,11 @@ import {
   unpublishedGenerateItemIds,
 } from "./deliverable-catalog";
 import { handleGenerateDeliverableDraft } from "./deliverable-generate";
-import { hasUnconsumedSeedFirstVersionDeliverable } from "./ai-generated-documents";
+import {
+  hasUnconsumedSeedFirstVersionDeliverable,
+  readCurrentMarkdownAtPath,
+} from "./ai-generated-documents";
+import { shouldReuseExistingDeliverable } from "./deliverable-markdown-quality";
 import type { AppObjectStorage } from "./app-storage";
 import { presentMatureDraftItems } from "./kn-legacy-map";
 import type { LlmClientEnv } from "./llm-client";
@@ -429,6 +433,14 @@ async function runOneDraftSectionGenerate(
         ))
       ) {
         needsLlm = false;
+      } else if (file && env.FILES) {
+        const currentMd = await readCurrentMarkdownAtPath(
+          { DB: env.DB, FILES: env.FILES },
+          projectId,
+          deliverableRelativePath(file),
+          file.filename,
+        );
+        if (shouldReuseExistingDeliverable(currentMd)) needsLlm = false;
       }
     }
     const res = await (needsLlm

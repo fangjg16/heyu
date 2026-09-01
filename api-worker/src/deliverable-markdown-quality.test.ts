@@ -3,6 +3,7 @@ import {
   extractMarkdownBody,
   isWriteReceiptMarkdown,
   looksLikeMarkdownFile,
+  shouldReuseExistingDeliverable,
 } from "./deliverable-markdown-quality";
 
 const SCORECARD_RECEIPT = `综合总评文件已写入 \`AI生成/startup/00-overview/scorecard.md\`（14.2KB）。
@@ -46,6 +47,24 @@ describe("isWriteReceiptMarkdown", () => {
 `;
     expect(isWriteReceiptMarkdown(md)).toBe(false);
     expect(looksLikeMarkdownFile(md.repeat(8))).toBe(true);
+  });
+});
+
+describe("shouldReuseExistingDeliverable", () => {
+  it("reuses a long analysis and refuses a write receipt", () => {
+    const analysis = `# Lean Canvas
+
+## 1. Problem
+
+家族办公室月报对不上决策。
+
+## 2. Customer Segments
+
+独立家族办公室 CIO。
+`.repeat(6);
+    expect(shouldReuseExistingDeliverable(analysis)).toBe(true);
+    expect(shouldReuseExistingDeliverable(SCORECARD_RECEIPT)).toBe(false);
+    expect(shouldReuseExistingDeliverable(null)).toBe(false);
   });
 });
 

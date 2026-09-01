@@ -3,6 +3,8 @@
  * 模板不再让模型填骨架，只做呈现：class + kn-elements.css。
  */
 
+import { renderSpecialLead } from "./kn-md-specials";
+
 const EMPTY_CHAPTER_HTML =
   '<div class="kn-callout"><p class="kn-callout__body">尚未开展</p></div>';
 
@@ -156,13 +158,20 @@ function collectUntilNextHeading(
   return { body, next: i };
 }
 
-export function markdownToKnHtml(md: string): string {
+export function markdownToKnHtml(md: string, fileId?: string): string {
   let src = (md ?? "").replace(/^\uFEFF/, "").trim();
   if (!src) return EMPTY_CHAPTER_HTML;
   const fm = /^---\r?\n[\s\S]*?\r?\n---\r?\n([\s\S]*)$/u.exec(src);
   if (fm?.[1]) src = fm[1].trim();
   if (!src) return EMPTY_CHAPTER_HTML;
 
+  const lead = renderSpecialLead(src, fileId);
+  const inner = markdownToKnHtmlInner(src);
+  if (!lead && !inner) return EMPTY_CHAPTER_HTML;
+  return `<div class="kn-from-md">${lead}${inner}</div>`;
+}
+
+function markdownToKnHtmlInner(src: string): string {
   const lines = src.split(/\r?\n/u);
   const out: string[] = [];
   let i = 0;
@@ -227,6 +236,15 @@ export function markdownToKnHtml(md: string): string {
         const { body, next } = collectUntilNextHeading(lines, i);
         i = next;
         out.push(renderFlagsBlock(title, body));
+        continue;
+      }
+      if (/^(\d+\.\s+)?(sources|references|来源|参考文献|附录)\b/iu.test(title)) {
+        const { body, next } = collectUntilNextHeading(lines, i);
+        i = next;
+        const inner = markdownToKnHtmlInner(body.join("\n"));
+        out.push(
+          `<details class="kn-fold kn-md-sources"><summary><span class="kn-fold__title">${inline(title)}</span></summary>${inner}</details>`,
+        );
         continue;
       }
       out.push(`<${tag}>${inline(title)}</${tag}>`);
@@ -338,21 +356,21 @@ export function markdownToKnHtml(md: string): string {
   flushList();
 
   const html = out.join("\n").trim();
-  return html
-    ? `<div class="kn-from-md">${html}</div>`
-    : EMPTY_CHAPTER_HTML;
+  return html;
 }
 
 export function renderDeliverableChapterHtml(
-  files: { title: string; markdown: string }[],
+  files: { title: string; markdown: string; id?: string }[],
 ): string {
   const nonempty = files.filter((f) => f.markdown.trim());
   if (nonempty.length === 0) return EMPTY_CHAPTER_HTML;
-  if (nonempty.length === 1) return markdownToKnHtml(nonempty[0]!.markdown);
+  if (nonempty.length === 1) {
+    return markdownToKnHtml(nonempty[0]!.markdown, nonempty[0]!.id);
+  }
   return nonempty
     .map(
       (f) =>
-        `<section class="kn-from-md-file"><h2>${escapeHtml(f.title)}</h2>${markdownToKnHtml(f.markdown)}</section>`,
+        `<section class="kn-from-md-file"><h2>${escapeHtml(f.title)}</h2>${markdownToKnHtml(f.markdown, f.id)}</section>`,
     )
     .join("\n");
 }

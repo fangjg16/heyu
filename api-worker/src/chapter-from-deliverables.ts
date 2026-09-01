@@ -18,7 +18,7 @@ export async function renderKnSectionFromDeliverables(
   sectionId: string,
 ): Promise<string> {
   const files = deliverablesForKnSection(kind, sectionId);
-  const loaded: { title: string; markdown: string }[] = [];
+  const loaded: { title: string; markdown: string; id: string }[] = [];
   for (const file of files) {
     const markdown =
       env.FILES
@@ -29,7 +29,7 @@ export async function renderKnSectionFromDeliverables(
             file.filename,
           )) ?? "")
         : "";
-    loaded.push({ title: file.title, markdown });
+    loaded.push({ title: file.title, markdown, id: file.id });
   }
   return renderDeliverableChapterHtml(loaded);
 }

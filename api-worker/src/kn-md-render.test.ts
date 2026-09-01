@@ -74,6 +74,20 @@ describe("markdownToKnHtml", () => {
     expect(markdownToKnHtml("")).toBe(EMPTY_CHAPTER_HTML);
     expect(markdownToKnHtml("   ")).toBe(EMPTY_CHAPTER_HTML);
   });
+
+  it("folds Sources into details", () => {
+    const html = markdownToKnHtml(`# 市场分析
+
+正文一段。
+
+## Sources
+
+- [A-1] 官网
+`);
+    expect(html).toContain("kn-md-sources");
+    expect(html).toContain("<details");
+    expect(html).toContain("官网");
+  });
 });
 
 describe("renderDeliverableChapterHtml", () => {

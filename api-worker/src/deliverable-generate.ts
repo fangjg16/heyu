@@ -6,6 +6,7 @@ import type { AppDatabase } from "./app-database";
 import type { AppObjectStorage } from "./app-storage";
 import {
   persistMarkdownAtPath,
+  readCurrentMarkdownAtPath,
   tryReuseSeedFirstVersionDeliverable,
 } from "./ai-generated-documents";
 import { getStoredAnalysisKind, DEFAULT_ANALYSIS_KIND } from "./analysis-kind";
@@ -27,6 +28,7 @@ import {
   FILE_WRITE_RETRY_HINT,
   isWriteReceiptMarkdown,
   looksLikeMarkdownFile,
+  shouldReuseExistingDeliverable,
 } from "./deliverable-markdown-quality";
 import { buildChapterGenerateMaterials } from "./project-knowledge-chapters-digest";
 import {
@@ -137,6 +139,32 @@ export async function handleGenerateDeliverableDraft(
       sectionId: draftItemId,
       path: `${relativePath}/${file.filename}`,
       documentId: reused.documentId,
+    });
+  }
+
+  const currentMd = await readCurrentMarkdownAtPath(
+    env,
+    projectId,
+    relativePath,
+    file.filename,
+  );
+  if (shouldReuseExistingDeliverable(currentMd)) {
+    const marker = deliverableDraftHtmlMarker(file);
+    await upsertDraftItem(env.DB, {
+      runId,
+      sectionId: draftItemId,
+      status: "ok",
+      html: marker,
+      error: null,
+      llmBackend: "reuse",
+    });
+    await refreshDraftRunProgress(env.DB, runId);
+    return json({
+      ok: true,
+      reused: true,
+      reusedCurrent: true,
+      sectionId: draftItemId,
+      path: `${relativePath}/${file.filename}`,
     });
   }
 

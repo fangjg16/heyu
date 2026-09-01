@@ -186,6 +186,7 @@
   font-size: 22px;
   font-weight: 700;
   line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 
 .kn-stat__note {
@@ -1020,6 +1021,24 @@
   color: hsl(var(--ink-soft));
 }
 
+.kn-from-md > .kn-canvas,
+.kn-from-md > .kn-battles,
+.kn-from-md > .kn-hero,
+.kn-from-md > .kn-split,
+.kn-from-md > .kn-journey,
+.kn-from-md > .kn-timeline,
+.kn-from-md > .kn-stats {
+  margin-top: 0;
+}
+
+.kn-md-sources {
+  margin: 0.85rem 0 1.15rem;
+}
+
+.kn-md-sources .kn-fold__title {
+  font-size: 14px;
+}
+
 .kn-pre {
   margin: 0.85rem 0 1.15rem;
   padding: 0.85rem 1rem;
@@ -1042,6 +1061,11 @@
   .kn-overview-tri,
   .kn-canvas {
     grid-template-columns: 1fr;
+  }
+
+  .kn-canvas__cell--span2 {
+    grid-row: auto;
+    min-height: 5.5rem;
   }
 
   .kn-tripwire {
