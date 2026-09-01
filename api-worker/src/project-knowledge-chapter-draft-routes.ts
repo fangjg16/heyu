@@ -2,6 +2,7 @@ import type { AppDatabase } from "./app-database";
 import {
   CHAPTER_GENERATE_CONCURRENCY,
   DRAFT_RUN_IDLE_STALE_MS,
+  FILE_GENERATE_CONCURRENCY,
   draftGenerateJobKey,
   isDraftGenerateInFlight,
   releaseDraftGenerateJob,
@@ -19,7 +20,14 @@ import {
   ensureAnalysisKind,
   getStoredAnalysisKind,
 } from "./analysis-kind";
-import { fullDraftSectionIds, isGeneratableSectionId } from "./kn-catalog";
+import { fullDraftSectionIds, isDeliverableDraftId, isGeneratableSectionId } from "./kn-catalog";
+import {
+  draftGenerateItemIds,
+  orderDeliverableDraftIds,
+  unpublishedGenerateItemIds,
+} from "./deliverable-catalog";
+import { handleGenerateDeliverableDraft } from "./deliverable-generate";
+import type { AppObjectStorage } from "./app-storage";
 import { presentMatureDraftItems } from "./kn-legacy-map";
 import type { LlmClientEnv } from "./llm-client";
 import {
@@ -59,13 +67,19 @@ import {
   canUpdateProjectKnowledgeNetwork,
 } from "./workspace-roles";
 
-type Env = { DB: AppDatabase } & LlmClientEnv;
+type Env = { DB: AppDatabase; FILES: AppObjectStorage } & LlmClientEnv;
 
-/** 全部章节更新：当前形态研究章 + 最后一项项目概览 */
+/** 全部更新：先资料包 Markdown，再研究章，最后项目概览 */
 export function fullUpdateSectionIds(
   kind: "early" | "mature" | "acquire" = DEFAULT_ANALYSIS_KIND,
 ): string[] {
-  return fullDraftSectionIds(kind);
+  return draftGenerateItemIds(kind, "full");
+}
+
+function knPrimaryIds(ids: string[]): string[] {
+  return ids.filter(
+    (id) => !META_DRAFT_SECTION_IDS.has(id) && !isDeliverableDraftId(id),
+  );
 }
 
 function json(data: unknown, status = 200): Response {
@@ -201,7 +215,8 @@ const META_DRAFT_SECTION_IDS = new Set([
 
 function isDraftGenerateableSection(sectionId: string): boolean {
   return (
-    isGeneratableSectionId(sectionId) && !META_DRAFT_SECTION_IDS.has(sectionId)
+    isDeliverableDraftId(sectionId) ||
+    (isGeneratableSectionId(sectionId) && !META_DRAFT_SECTION_IDS.has(sectionId))
   );
 }
 
@@ -278,6 +293,8 @@ async function processPendingDraftRun(
   runId: string,
   userId: string,
 ): Promise<void> {
+  const kind =
+    (await getStoredAnalysisKind(env.DB, projectId)) ?? DEFAULT_ANALYSIS_KIND;
   const working = new Set<Promise<void>>();
   for (;;) {
     const run = await getDraftRun(env.DB, runId);
@@ -292,17 +309,34 @@ async function processPendingDraftRun(
         isDraftGenerateableSection(i.sectionId) &&
         !isDraftGenerateInFlight(draftGenerateJobKey(runId, i.sectionId)),
     );
+    const fileStillOpen = items.some(
+      (i) =>
+        isDeliverableDraftId(i.sectionId) &&
+        (i.status === "pending" ||
+          isDraftGenerateInFlight(draftGenerateJobKey(runId, i.sectionId))),
+    );
     const researchStillOpen = items.some(
       (i) =>
         i.sectionId !== "project-overview" &&
+        !isDeliverableDraftId(i.sectionId) &&
         isDraftGenerateableSection(i.sectionId) &&
         (i.status === "pending" ||
           isDraftGenerateInFlight(draftGenerateJobKey(runId, i.sectionId))),
     );
-    const queue = researchStillOpen
-      ? pending.filter((i) => i.sectionId !== "project-overview")
-      : pending;
-    while (working.size < CHAPTER_GENERATE_CONCURRENCY && queue.length > 0) {
+    let queue = pending;
+    let maxConcurrent = CHAPTER_GENERATE_CONCURRENCY;
+    if (fileStillOpen) {
+      const fileIds = orderDeliverableDraftIds(
+        kind,
+        pending.filter((i) => isDeliverableDraftId(i.sectionId)).map((i) => i.sectionId),
+      );
+      const byId = new Map(pending.map((i) => [i.sectionId, i]));
+      queue = fileIds.map((id) => byId.get(id)).filter((i): i is NonNullable<typeof i> => Boolean(i));
+      maxConcurrent = FILE_GENERATE_CONCURRENCY;
+    } else if (researchStillOpen) {
+      queue = pending.filter((i) => i.sectionId !== "project-overview");
+    }
+    while (working.size < maxConcurrent && queue.length > 0) {
       const item = queue.shift();
       if (!item) break;
       let job!: Promise<void>;
@@ -355,13 +389,21 @@ async function runOneDraftSectionGenerate(
     await refreshDraftRunProgress(env.DB, runId);
     console.log(`[draft-generate] start ${runId} ${sectionId}`);
     const res = await withChapterGenerateGate(() =>
-      handleGenerateProjectKnowledgeChapter(
-        env,
-        projectId,
-        sectionId,
-        userId,
-        { target: "draft", runId },
-      ),
+      isDeliverableDraftId(sectionId)
+        ? handleGenerateDeliverableDraft(
+            env,
+            projectId,
+            sectionId,
+            userId,
+            runId,
+          )
+        : handleGenerateProjectKnowledgeChapter(
+            env,
+            projectId,
+            sectionId,
+            userId,
+            { target: "draft", runId },
+          ),
     );
     if (res.ok) {
       console.log(`[draft-generate] ok ${runId} ${sectionId}`);
@@ -562,7 +604,7 @@ export async function handleCreateChapterDraftRun(
     ));
   const wantedIds =
     scope === "section" && sectionId
-      ? [sectionId]
+      ? draftGenerateItemIds(analysisKind, "section", sectionId)
       : fullUpdateSectionIds(analysisKind);
 
   const active = await findActiveDraftRun(env.DB, projectId);
@@ -571,11 +613,12 @@ export async function handleCreateChapterDraftRun(
     const primaryIds = items
       .map((i) => i.sectionId)
       .filter((id) => !META_DRAFT_SECTION_IDS.has(id));
+    const knIds = knPrimaryIds(primaryIds);
     const sameScope =
       active.scope === scope &&
       (scope === "full"
         ? true
-        : primaryIds.length === 1 && primaryIds[0] === sectionId);
+        : knIds.length === 1 && knIds[0] === sectionId);
 
     if (sameScope) {
       if (mode === "manual") {
@@ -608,6 +651,11 @@ export async function handleCreateChapterDraftRun(
           sectionIds: [sectionId!],
         });
       }
+      const willGenerate =
+        Boolean(regen) ||
+        draftReuseShouldRetryFailed(active.status, items) ||
+        active.status === "generating";
+      let unpublishedKn: string[] = [];
       if (draftReuseShouldRetryFailed(active.status, items) && !regen) {
         await requeueFailedDraftSections(env, active.id, items);
         kickDraftRunGeneration(env, ctx, projectId, active.id, userId);
@@ -627,10 +675,14 @@ export async function handleCreateChapterDraftRun(
         const liveHtmlBySection = new Map(
           liveRows.map((row) => [row.sectionId, row.html]),
         );
-        const unpublishedIds = unpublishedDraftSectionIds(
-          [...fullUpdateSectionIds(analysisKind)],
+        unpublishedKn = unpublishedDraftSectionIds(
+          [...fullDraftSectionIds(analysisKind)],
           items,
           liveHtmlBySection,
+        );
+        const unpublishedIds = unpublishedGenerateItemIds(
+          analysisKind,
+          unpublishedKn,
         );
         if (unpublishedIds.length > 0) {
           await requeueDraftSections(
@@ -642,9 +694,13 @@ export async function handleCreateChapterDraftRun(
           kickDraftRunGeneration(env, ctx, projectId, active.id, userId);
         }
       }
-      if (scope === "full") {
+      if (willGenerate) {
         const have = new Set(items.map((i) => i.sectionId));
-        const missing = wantedIds.filter((id) => !have.has(id));
+        const fillIds =
+          scope === "full" && regen === "unpublished"
+            ? unpublishedGenerateItemIds(analysisKind, unpublishedKn)
+            : wantedIds;
+        const missing = fillIds.filter((id) => !have.has(id));
         if (missing.length > 0) {
           await requeueDraftSections(env, active.id, missing, items);
           kickDraftRunGeneration(env, ctx, projectId, active.id, userId);
@@ -667,9 +723,9 @@ export async function handleCreateChapterDraftRun(
     const activeLabel =
       active.scope === "full"
         ? "全部章节更新草案"
-        : primaryIds[0] === "project-overview"
+        : knIds[0] === "project-overview"
           ? "项目概览更新草案"
-          : `单章更新草案（${primaryIds[0] ?? "未知"}）`;
+          : `单章更新草案（${knIds[0] ?? "未知"}）`;
     return json(
       {
         error: `已有进行中的${activeLabel}，请先完成审核发布或放弃后再发起新的更新`,
@@ -1455,7 +1511,13 @@ export async function handleSubmitChapterDraftRun(
   const items = await listDraftItems(env.DB, runId);
   const sectionIds = items
     .map((i) => i.sectionId)
-    .filter((id) => id !== "sources" && id !== "glossary" && id !== "project-graph");
+    .filter(
+      (id) =>
+        id !== "sources" &&
+        id !== "glossary" &&
+        id !== "project-graph" &&
+        !isDeliverableDraftId(id),
+    );
   await notifyProjectAdminsOfDraftReview(env, {
     project,
     actorUserId: userId,

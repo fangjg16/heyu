@@ -75,12 +75,12 @@ function runningBody(opts: {
     return `正在生成「${opts.chapterName}」。可关闭此窗口，完成后在审核页查看。`;
   }
   if (opts.regen === "unpublished") {
-    return "正在生成未发布章节的草案。已发布的正式章不会改。可关闭此窗口，完成后在审核页查看。";
+    return "正在生成未发布章节对应的资料文件和知识网络草案。已发布的正式章不会改。可关闭此窗口，完成后在审核页查看。";
   }
   if (opts.regen === "all-drafts") {
-    return "正在生成全部章节的草案。已发布的正式章在发布前不会改变。可关闭此窗口，完成后在审核页查看。";
+    return "正在先重写资料包总文件，再生成全部章节草案。已发布的正式章在发布前不会改变。可关闭此窗口，完成后在审核页查看。";
   }
-  return "正在生成全部章节（研究章完成后会再生成项目概览草案）。可关闭此窗口，完成后在审核页查看。";
+  return "正在先把研究总文件写入项目资料包，再生成知识网络章节；研究章完成后会再生成项目概览草案。可关闭此窗口，完成后在审核页查看。";
 }
 
 function finishedBody(opts: {
@@ -94,7 +94,7 @@ function finishedBody(opts: {
 }): string {
   const { failed, done, total, reused, mode, chapterName, regen } = opts;
   if (failed > 0 && done - failed > 0) {
-    return `已生成 ${done - failed}/${total} 章，${failed} 章失败。可去审核；再点「更新全部」会重试失败章。`;
+    return `已完成 ${done - failed}/${total} 项（含资料文件与章节），${failed} 项失败。可去审核；再点「更新全部」会重试失败项。`;
   }
   if (failed > 0) {
     return mode === "section"

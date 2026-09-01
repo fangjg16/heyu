@@ -53,7 +53,7 @@ import {
 import type { WorkspaceProject } from "@/workspace/projects";
 import { formatChapterVersionLabel, formatOverviewVersionLabel } from "@/lib/chapter-version";
 import { resolveAnalysisKind } from "@/lib/analysis-kind";
-import { fullDraftSectionIds } from "@/lib/kn-catalog";
+import { fullDraftSectionIds, isDeliverableDraftId } from "@/lib/kn-catalog";
 import {
   canEnterChat,
   getProjectRole,
@@ -599,8 +599,6 @@ function ProjectWorkspaceLayout() {
 
   const onUpdateAllChapters = async (regen?: "unpublished" | "all-drafts") => {
     if (!canUpdateOverview || allChaptersBusy || overviewBusy) return;
-    const sectionIds = fullDraftIdsForProject(project);
-    const total = sectionIds.length;
     const startedAt = Date.now();
     setAllChaptersBusy(true);
     setUpdatingChapterIds([]);
@@ -616,7 +614,7 @@ function ProjectWorkspaceLayout() {
     setDraftDialogOpen(true);
     setAllChaptersProgress({
       done: 0,
-      total,
+      total: fullDraftIdsForProject(project).length,
       failed: 0,
       elapsedMs: 0,
       phase: "creating",
@@ -644,11 +642,11 @@ function ProjectWorkspaceLayout() {
         );
         if (!needsRetry) {
           setDraftDialogReused(true);
-          const done = created.run.progressDone || total;
+          const done = created.run.progressDone || created.sectionIds.length;
           const failed = created.run.failedCount || 0;
           setAllChaptersProgress({
             done,
-            total: created.run.progressTotal || total,
+            total: created.run.progressTotal || created.sectionIds.length,
             failed,
             elapsedMs: Date.now() - startedAt,
             phase: "done",
@@ -660,6 +658,11 @@ function ProjectWorkspaceLayout() {
         }
       }
 
+      const sectionIds =
+        created.sectionIds.length > 0
+          ? created.sectionIds
+          : fullDraftIdsForProject(project);
+      const total = sectionIds.length;
       const pendingChapters = sectionIds.filter((id) => {
         if (!created.reused) return true;
         const item = created.items.find((i) => i.sectionId === id);
@@ -692,8 +695,10 @@ function ProjectWorkspaceLayout() {
         });
         const summary = summarizeDraftRunProgress(snap.items, sectionIds);
         persistFailedChapterIds(
-          sectionIds.filter((id) =>
-            snap.items.some((i) => i.sectionId === id && i.status === "failed"),
+          sectionIds.filter(
+            (id) =>
+              !isDeliverableDraftId(id) &&
+              snap.items.some((i) => i.sectionId === id && i.status === "failed"),
           ),
         );
         const successCount = total - summary.failed;

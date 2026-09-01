@@ -5,6 +5,9 @@
 
 export const CHAPTER_GENERATE_CONCURRENCY = 2;
 
+/** 资料包 Markdown 总文件必须按阶段串行，后一层要读前一层 */
+export const FILE_GENERATE_CONCURRENCY = 1;
+
 /** 整次草案没有任何 item 更新超过该时间，才把仍 pending 的章标失败（排队等待不算超时） */
 export const DRAFT_RUN_IDLE_STALE_MS = 20 * 60 * 1000;
 

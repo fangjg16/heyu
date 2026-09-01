@@ -387,6 +387,7 @@ function scoreMustRead(
   byDoc: Map<string, ChunkRow[]>,
   boostRe: RegExp | undefined,
   extraTokens: string[],
+  preferredFilenames: string[] = [],
 ): number {
   const meta = docMetaBlob(doc, parsed);
   const head = firstChunksBlob(doc, byDoc);
@@ -396,6 +397,12 @@ function scoreMustRead(
   if (boostRe?.test(blob)) n += 8;
   for (const tok of extraTokens) {
     if (blobLc.includes(tok.toLowerCase())) n += 5;
+  }
+  const fn = (doc.filename ?? "").toLowerCase();
+  for (const name of preferredFilenames) {
+    const want = name.trim().toLowerCase();
+    if (!want) continue;
+    if (fn === want || fn.endsWith(`/${want}`)) n += 40;
   }
   return n;
 }
@@ -407,6 +414,7 @@ export function selectMustReadDocs(
   sectionId?: string,
   extraQuery?: string,
   maxFiles: number = MAX_MUST_READ_FILES,
+  preferredFilenames: string[] = [],
 ): PackageDocMeta[] {
   const boostRe = sectionId ? SECTION_FILE_BOOST[sectionId] : undefined;
   const extraTokens = extractMaterialQueryTokens(extraQuery);
@@ -419,6 +427,7 @@ export function selectMustReadDocs(
         byDoc,
         boostRe,
         extraTokens,
+        preferredFilenames,
       ),
     }))
     .filter((x) => x.score > 0)
@@ -726,7 +735,11 @@ export async function buildChapterGenerateMaterials(
   env: { DB: AppDatabase } & EmbedEnv,
   projectId: string,
   userId: string,
-  options?: { sectionId?: string; extraQuery?: string },
+  options?: {
+    sectionId?: string;
+    extraQuery?: string;
+    preferredFilenames?: string[];
+  },
 ): Promise<ChapterMaterialsBundle> {
   const docs = await listPackageDocuments(env.DB, projectId);
   if (docs.length === 0) {
@@ -757,6 +770,8 @@ export async function buildChapterGenerateMaterials(
     byDoc,
     options?.sectionId,
     options?.extraQuery,
+    MAX_MUST_READ_FILES,
+    options?.preferredFilenames,
   );
   const mustReadIds = new Set(mustRead.map((d) => d.id));
   const usedChunkIds = new Set<string>();

@@ -127,4 +127,23 @@ describe("three-layer chapter materials", () => {
     expect(chapterRetrievalQuery("benchmarks")).toContain("对标");
     expect(chapterRetrievalQuery("benchmarks", "补上剧云")).toContain("剧云");
   });
+
+  it("boosts preferred AI-generated filenames into must-read", () => {
+    const extra = {
+      id: "md",
+      filename: "market-analysis.md",
+      relative_path: "AI生成/startup/01-discovery",
+      mime: "text/markdown",
+    };
+    const mustRead = selectMustReadDocs(
+      [...docs, extra],
+      parseMap,
+      new Map([...byDoc, ["md", []]]),
+      "market-analysis",
+      "",
+      8,
+      ["market-analysis.md"],
+    );
+    expect(mustRead.some((d) => d.id === "md")).toBe(true);
+  });
 });

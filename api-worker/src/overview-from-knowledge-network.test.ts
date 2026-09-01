@@ -76,4 +76,25 @@ describe("mergeChaptersPreferringDraft", () => {
       { sectionId: "company-team", html: "<p>草案团队</p>" },
     ]);
   });
+
+  it("does not treat package-file draft markers as knowledge chapters", () => {
+    const merged = mergeChaptersPreferringDraft(
+      [{ sectionId: "project-summary", html: "<p>正式概况</p>" }],
+      [
+        {
+          sectionId: "dlv:market-analysis",
+          status: "ok",
+          html: "file:AI生成/startup/01-discovery/market-analysis.md",
+        },
+        {
+          sectionId: "project-summary",
+          status: "ok",
+          html: "file:AI生成/capitallens/00-intake/brief.md",
+        },
+      ],
+    );
+    expect(merged).toEqual([
+      { sectionId: "project-summary", html: "<p>正式概况</p>" },
+    ]);
+  });
 });

@@ -195,10 +195,29 @@ export function fullDraftSectionIds(
   return [...ids, "project-overview"];
 }
 
+export const DELIVERABLE_DRAFT_PREFIX = "dlv:";
+
+export function isDeliverableDraftId(id: string): boolean {
+  return id.startsWith(DELIVERABLE_DRAFT_PREFIX);
+}
+
+export function deliverableDraftId(fileId: string): string {
+  return `${DELIVERABLE_DRAFT_PREFIX}${fileId}`;
+}
+
+export function deliverableFileIdFromDraft(id: string): string {
+  return isDeliverableDraftId(id)
+    ? id.slice(DELIVERABLE_DRAFT_PREFIX.length)
+    : id;
+}
+
 export function sectionLabel(
   id: string,
   kind: AnalysisKind = DEFAULT_ANALYSIS_KIND,
 ): string {
+  if (isDeliverableDraftId(id)) {
+    return `文件 · ${deliverableFileIdFromDraft(id)}`;
+  }
   if (id === "project-overview") return "项目概览";
   if (id === "sources") return "引用来源";
   if (id === "glossary") return "名词解释";

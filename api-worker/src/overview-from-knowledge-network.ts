@@ -1,9 +1,11 @@
 import type { AnalysisKind } from "./analysis-kind";
 import { DEFAULT_ANALYSIS_KIND } from "./analysis-kind";
 import {
+  isDeliverableDraftId,
   researchSectionIdsForKind,
   sectionLabel,
 } from "./kn-catalog";
+import { isDeliverableDraftHtml } from "./deliverable-catalog";
 import { formatChapterVersionLabel } from "./chapter-version";
 
 const PER_CHAPTER_CHARS = 2_800;
@@ -26,8 +28,9 @@ export function mergeChaptersPreferringDraft(
   );
   for (const d of drafts) {
     if (d.status !== "ok") continue;
+    if (isDeliverableDraftId(d.sectionId)) continue;
     const html = (d.html ?? "").trim();
-    if (!html) continue;
+    if (!html || isDeliverableDraftHtml(html)) continue;
     byId.set(d.sectionId, { sectionId: d.sectionId, html });
   }
   return [...byId.values()];

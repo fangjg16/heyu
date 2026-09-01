@@ -24,6 +24,7 @@ import {
   researchSectionIdsForKind,
   sectionLabel,
 } from "./kn-catalog";
+import { deliverableFilenamesForKnSection } from "./deliverable-catalog";
 import { filterTemplateByKind } from "./kn-template-kind";
 import {
   countPopulatedProjectKnowledgeChapters,
@@ -223,6 +224,7 @@ const GENERATE_SYSTEM = `你是投研知识网络章节撰写助手。根据「�
 8. 事实必须来自【资料目录】【本章深读】【相关段落补充】。目录里有、深读/补充未覆盖的细节写「待补」，禁止编造，禁止把未深读文件当成已读全文。
 9. 标记外禁止任何说明文字。章节内图表用 HTML <table>（含热力图格子），禁止 SVG。关系图禁止输出 SVG/HTML，只输出 JSON。
 10. 附件文件名或摘录里反复出现的对标主体、产品名、公司名必须写入对应章节（尤其对标分析），禁止只列通用海外模型而漏国内点名对象。
+12. 若资料中有「AI生成」目录下与本章对应的 Markdown 总文件，以该文件为正文来源填模板；附件仅作核对。禁止把 Markdown 原文当 HTML 贴出。
 ${GENERATE_SYSTEM_SKILL_LOCK}`;
 
 const SECTION_FORMAT_HINT: Record<string, string> = {
@@ -664,11 +666,21 @@ export async function handleGenerateProjectKnowledgeChapter(
     }
   };
 
+  const storedKind =
+    (await getStoredAnalysisKind(env.DB, projectId)) ?? DEFAULT_ANALYSIS_KIND;
+  const preferredFilenames = deliverableFilenamesForKnSection(
+    storedKind,
+    sectionId,
+  );
   const materialsBundle = await buildChapterGenerateMaterials(
     env,
     projectId,
     userId,
-    { sectionId },
+    {
+      sectionId,
+      extraQuery: preferredFilenames.join(" "),
+      preferredFilenames,
+    },
   );
   const digest = materialsBundle.digest;
   const namedSubjectsBlock = formatNamedSubjectsBlock(
@@ -765,7 +777,9 @@ export async function handleGenerateProjectKnowledgeChapter(
       ? overviewFromKnowledge
         ? "任务：根据下方知识网络研究章节填写项目概览 HTML（含时间轴）并输出关系图 JSON；保持现有概览版式，不要把各章揉成一篇。附件仅供核对引用。增量补充引用来源与非常用名词。"
         : "任务：知识网络尚无研究章节。可暂按附件生成项目概览 HTML（含时间轴）并输出关系图 JSON；缺处标「待补」。增量补充引用来源与非常用名词。"
-      : "任务：基于下方「项目上传附件」按模板生成本章内容；===GRAPH=== 写 NONE；并仅增量补充引用来源与非常用名词。",
+      : preferredFilenames.length > 0
+        ? "任务：先根据资料包中「AI生成」目录下与本章对应的 Markdown 总文件填写模板；附件只作核对。禁止把 Markdown 当 HTML 贴出。无对应文件时再综合附件，缺处标「待补」。===GRAPH=== 写 NONE；并仅增量补充引用来源与非常用名词。"
+        : "任务：基于下方「项目上传附件」按模板生成本章内容；===GRAPH=== 写 NONE；并仅增量补充引用来源与非常用名词。",
     "",
     "【章节 Markdown 模板】",
     skeleton,

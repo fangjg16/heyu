@@ -6,6 +6,7 @@ import {
   researchChaptersComplete,
   type ChapterVersionBump,
 } from "./chapter-version";
+import { isDeliverableDraftId } from "./kn-catalog";
 import { getStoredAnalysisKind } from "./analysis-kind";
 import { DEFAULT_ANALYSIS_KIND } from "./analysis-kind";
 import { mergeMatureDraftItemsForPublish } from "./kn-legacy-map";
@@ -313,7 +314,9 @@ export async function listResearchSectionIdsForRun(
     )
     .bind(runId)
     .all<{ section_id: string }>();
-  return (q.results ?? []).map((r) => r.section_id);
+  return (q.results ?? [])
+    .map((r) => r.section_id)
+    .filter((id) => !isDeliverableDraftId(id));
 }
 
 export async function findActiveDraftRun(
@@ -809,7 +812,9 @@ export async function publishDraftRunToLive(
       ? mergeMatureDraftItemsForPublish(readyItems)
       : readyItems;
   const willApply = remapped.filter(
-    (item) => !filterSet || filterSet.has(item.sectionId),
+    (item) =>
+      !isDeliverableDraftId(item.sectionId) &&
+      (!filterSet || filterSet.has(item.sectionId)),
   );
   if (willApply.length === 0) {
     throw new Error("没有可发布的章节");

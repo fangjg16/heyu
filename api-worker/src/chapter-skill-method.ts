@@ -200,16 +200,12 @@ async function readSkillFile(
   return null;
 }
 
-/** 生成提示词中的分析方法块；读不到 skill 时返回空串，不阻断生成 */
-export async function buildChapterSkillMethodBlock(
-  sectionId: string,
+async function loadSkillParts(
+  skillNames: readonly string[],
   db?: AppDatabase,
-  kind: AnalysisKind = DEFAULT_ANALYSIS_KIND,
-): Promise<string> {
-  const skills = skillsForChapter(sectionId, kind);
-  if (skills.length === 0) return "";
+): Promise<Array<{ skill: string; text: string }>> {
   const parts: Array<{ skill: string; text: string }> = [];
-  for (const skill of skills) {
+  for (const skill of skillNames) {
     const chunks: string[] = [];
     const main = await readSkillFile(db, skill, "SKILL.md");
     if (main?.trim()) chunks.push(condenseSkillMarkdown(main));
@@ -221,5 +217,50 @@ export async function buildChapterSkillMethodBlock(
     const text = chunks.filter(Boolean).join("\n\n").trim();
     if (text) parts.push({ skill, text: clipMethod(text) });
   }
-  return wrapMethodBlock(sectionId, parts);
+  return parts;
+}
+
+function wrapMarkdownFileMethodBlock(
+  fileId: string,
+  parts: Array<{ skill: string; text: string }>,
+): string {
+  if (parts.length === 0) return "";
+  const body = parts
+    .map((p) => `## ${p.skill}\n${p.text}`.trim())
+    .join("\n\n")
+    .trim();
+  if (!body) return "";
+  return [
+    "【撰写方法】",
+    `本文件 ${fileId} 对应 skill：${parts.map((p) => p.skill).join("、")}。`,
+    "按方法组织项目事实，输出 Markdown 总文件，不是知识网络 HTML，不要标记分段，不要完整页面。",
+    "网页生成不上网检索；方法里的搜索步骤改为组织已有附件中的事实。",
+    "缺证据写「待补」。禁止编造。创业财务不要 IRR / 投资人三情景。市场规模写总市场 / 可服务市场 / 可获得份额。",
+    "",
+    body,
+  ].join("\n");
+}
+
+/** 生成提示词中的分析方法块；读不到 skill 时返回空串，不阻断生成 */
+export async function buildChapterSkillMethodBlock(
+  sectionId: string,
+  db?: AppDatabase,
+  kind: AnalysisKind = DEFAULT_ANALYSIS_KIND,
+): Promise<string> {
+  const skills = skillsForChapter(sectionId, kind);
+  if (skills.length === 0) return "";
+  return wrapMethodBlock(sectionId, await loadSkillParts(skills, db));
+}
+
+/** 资料包 Markdown 总文件用的 skill 方法（输出 md，不是 HTML 模板） */
+export async function buildFileSkillMethodBlock(
+  fileId: string,
+  skillNames: readonly string[],
+  db?: AppDatabase,
+): Promise<string> {
+  if (skillNames.length === 0) return "";
+  return wrapMarkdownFileMethodBlock(
+    fileId,
+    await loadSkillParts(skillNames, db),
+  );
 }

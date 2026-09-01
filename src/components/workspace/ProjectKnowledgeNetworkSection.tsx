@@ -28,6 +28,7 @@ import {
   reviseProjectKnowledgeChapter,
   rollbackKnowledgeChapterVersion,
   startStartupInterview,
+  summarizeDraftRunProgress,
   waitForDraftRunSettled,
   type KnowledgeChapterVersionMeta,
   type OverviewVersionMeta,
@@ -85,9 +86,9 @@ function allChaptersConfirmText(input: {
     return `已有待审核草案，不会重新生成。${DISCARD_THEN_REGENERATE_HINT}`;
   }
   if (input.published > 0) {
-    return "将生成新的全部章节草案（含项目概览）。已发布的正式章在发布前不会改变。";
+    return "将先把研究总文件写入项目资料包，再根据这些文件生成知识网络章节和项目概览。已发布的正式章在发布前不会改变。";
   }
-  return "将更新全部研究章节，完成后生成项目概览草案，可能需要几分钟。";
+  return "将先按阶段把 Markdown 总文件写入项目资料包，再根据这些文件生成知识网络章节，最后生成项目概览，可能需要较长时间。";
 }
 
 function formatVersionTime(iso: string | null | undefined): string {
@@ -746,16 +747,20 @@ export function ProjectKnowledgeNetworkSection({
         return;
       }
 
-      const item = created.items.find((i) => i.sectionId === targetSectionId);
-      const needGenerate =
-        !created.reused ||
-        !item ||
-        item.status === "pending" ||
-        item.status === "failed";
+      const waitIds =
+        created.sectionIds.length > 0
+          ? created.sectionIds
+          : [targetSectionId];
+      const pendingItems = waitIds.filter((id) => {
+        const row = created.items.find((i) => i.sectionId === id);
+        return !row || row.status === "pending" || row.status === "failed";
+      });
+      const needGenerate = !created.reused || pendingItems.length > 0;
+      const waitTotal = waitIds.length;
 
       setDraftProgress({
-        done: needGenerate ? 0 : 1,
-        total: 1,
+        done: waitTotal - pendingItems.length,
+        total: waitTotal,
         failed: 0,
         elapsedMs: Date.now() - startedAt,
         phase: needGenerate ? "generating" : "done",
@@ -765,32 +770,30 @@ export function ProjectKnowledgeNetworkSection({
       if (needGenerate) {
         try {
           const snap = await waitForDraftRunSettled(projectId, runId, userId, {
-            sectionIds: [targetSectionId],
+            sectionIds: waitIds,
             onProgress: (summary) => {
               setDraftProgress({
                 done: summary.done,
-                total: 1,
+                total: summary.total,
                 failed: summary.failed,
                 elapsedMs: Date.now() - startedAt,
                 phase: summary.settled ? "done" : "generating",
-                lastLabel: targetLabel,
+                lastLabel: summary.lastLabel || targetLabel,
                 failedDetails: summary.failedDetails,
               });
             },
           });
           const latest = snap.items.find((i) => i.sectionId === targetSectionId);
           const ok = latest?.status === "ok";
+          const summary = summarizeDraftRunProgress(snap.items, waitIds);
           setDraftProgress({
-            done: 1,
-            total: 1,
-            failed: ok ? 0 : 1,
+            done: summary.done,
+            total: waitTotal,
+            failed: summary.failed,
             elapsedMs: Date.now() - startedAt,
             phase: "done",
             lastLabel: targetLabel,
-            failedDetails:
-              !ok && latest?.error
-                ? [`${targetLabel}：${latest.error}`]
-                : undefined,
+            failedDetails: summary.failedDetails,
           });
           if (!ok) {
             setDraftDialogError(latest?.error?.trim() || "生成草案失败");
