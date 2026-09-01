@@ -14,6 +14,7 @@ import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/500.css";
 import "@fontsource/jetbrains-mono/600.css";
 import "./index.css";
+import "./styles/kn-elements.css";
 import App from "./App.tsx";
 import { clerkPublishableKey, isClerkEnabled } from "@/lib/clerk-enabled";
 

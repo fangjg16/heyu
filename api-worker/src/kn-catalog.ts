@@ -224,49 +224,46 @@ export function sectionLabel(
 }
 
 export function fallbackChapterMarkdown(id: string, title: string): string {
-  const emptyHint =
+  const early =
     id === "founder-interview" ||
     id === "market-discovery" ||
     id === "strategy" ||
     id === "brand" ||
     id === "product" ||
     id === "financials" ||
-    id === "validation"
-      ? "若这一步还没做，正文写「这一步还没做」，并说明缺什么材料或访谈，禁止用空尽调格充数。"
-      : "缺依据写「待补」，禁止编造。";
+    id === "validation";
+  if (early) {
+    return `---
+id: ${id}
+title: ${title}
+---
+
+<div class="kn-empty">
+  <p class="kn-empty__title">尚未开展</p>
+  <p class="kn-empty__purpose">待补</p>
+  <p class="kn-empty__label">待备材料</p>
+  <ul><li>待补</li></ul>
+  <p class="kn-empty__next"><span>建议动作</span>待补</p>
+</div>
+`;
+  }
   return `---
 id: ${id}
 title: ${title}
 ---
 
-<h2 style="margin:0 0 12px;font-size:18px;font-weight:600;color:#1F2423">${title}</h2>
-<p style="margin:0 0 16px;font-size:13.5px;line-height:1.75;color:#59625F">待补（一句话结论）</p>
-<p style="margin:0 0 16px;font-size:12.5px;line-height:1.65;color:#969E9A">${emptyHint}</p>
-<div style="overflow-x:auto">
-<table style="width:100%;border-collapse:collapse;border:1px solid rgba(78,66,57,0.12)">
+<aside class="kn-callout">
+  <p class="kn-callout__label">判断</p>
+  <p class="kn-callout__body">待补</p>
+</aside>
+<div class="kn-table-wrap">
+<table>
   <thead>
-    <tr style="background:rgba(78,66,57,0.05);font-size:12px;font-weight:600;color:#59625F">
-      <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">要点</th>
-      <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">内容</th>
-      <th style="white-space:nowrap;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(78,66,57,0.12)">证据/来源</th>
-    </tr>
+    <tr><th>要点</th><th>内容</th><th>证据/来源</th></tr>
   </thead>
   <tbody>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)">
-      <td style="padding:13px 14px">结论</td>
-      <td style="padding:13px 14px">待补</td>
-      <td style="padding:13px 14px">[A-1]</td>
-    </tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)">
-      <td style="padding:13px 14px">已核实事实</td>
-      <td style="padding:13px 14px">待补</td>
-      <td style="padding:13px 14px">[A-1]</td>
-    </tr>
-    <tr style="font-size:13px;line-height:1.6;border-top:1px solid rgba(78,66,57,0.1)">
-      <td style="padding:13px 14px">缺口 / 下一步</td>
-      <td style="padding:13px 14px">待补</td>
-      <td style="padding:13px 14px">[A-1]</td>
-    </tr>
+    <tr><td>结论</td><td>待补</td><td>[A-1]</td></tr>
+    <tr><td>已核实事实</td><td>待补</td><td>[A-1]</td></tr>
   </tbody>
 </table>
 </div>
@@ -274,4 +271,4 @@ title: ${title}
 }
 
 export const DEFAULT_CHAPTER_FORMAT_HINT =
-  "===CHAPTER=== 按模板填 HTML：一句话结论 + 要点表（要点｜内容｜证据/来源）。证据/来源列只写 [A-1]。缺依据写待补。早期阶段若该步尚未开展，写「这一步还没做」。禁止散文、禁止完整页面、禁止 SVG。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。";
+  "===CHAPTER=== 按模板填 HTML，保留 class。一句话用判断条，明细用表。证据/来源列只写 [A-1]。缺依据写待补。创业章若该环节尚未开展，只保留「尚未开展」块。禁止散文、禁止完整页面、禁止 SVG。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。";

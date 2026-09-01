@@ -136,7 +136,7 @@ export function ProjectOverviewPanel({
       {displayHtml ? (
         <div
           className={cn(
-            "kn-project-overview-html text-[13.5px] leading-[1.75] text-[#1F2423] [&_b]:font-semibold [&_li]:my-1 [&_table]:my-3 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[rgba(78,66,57,0.12)] [&_td]:px-3 [&_td]:py-2 [&_th]:whitespace-nowrap [&_th]:border [&_th]:border-[rgba(78,66,57,0.12)] [&_th]:bg-[rgba(78,66,57,0.05)] [&_th]:px-3 [&_th]:py-2 [&_ul]:my-2 [&_ul]:list-disc",
+            "kn-project-overview-html",
             graph ? "[&_#project-graph-slot]:hidden" : "",
           )}
           onClick={onOverviewHtmlClick}

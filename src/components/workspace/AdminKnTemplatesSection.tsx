@@ -17,7 +17,7 @@ type GroupBlock = {
 };
 
 const PREVIEW_PANE =
-  "kn-chapter-html max-h-[min(48vh,520px)] overflow-auto text-[13px] leading-[1.65] text-[#1F2423] [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[rgba(78,66,57,0.12)] [&_td]:px-3 [&_td]:py-2.5 [&_th]:border [&_th]:border-[rgba(78,66,57,0.12)] [&_th]:bg-[rgba(78,66,57,0.05)] [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:text-[12px]";
+  "kn-chapter-html max-h-[min(48vh,520px)] overflow-auto";
 
 /** 去掉 YAML frontmatter，得到可预览的 HTML 正文 */
 function stripFrontmatter(markdown: string): string {

@@ -20,19 +20,44 @@ const force = process.argv.includes("--force");
 
 const FILES = [
   { rel: "project-overview.md", sort: 5, base: knRoot },
-  { rel: "overview/snapshot.md", sort: 10, base: chaptersRoot },
-  { rel: "overview/objectives.md", sort: 20, base: chaptersRoot },
-  { rel: "research/industry.md", sort: 30, base: chaptersRoot },
-  { rel: "research/legal.md", sort: 40, base: chaptersRoot },
-  { rel: "research/benchmarks.md", sort: 50, base: chaptersRoot },
-  { rel: "structure/business.md", sort: 60, base: chaptersRoot },
-  { rel: "structure/returns.md", sort: 70, base: chaptersRoot },
-  { rel: "structure/capabilities.md", sort: 80, base: chaptersRoot },
-  { rel: "structure/ownership.md", sort: 90, base: chaptersRoot },
-  { rel: "structure/diligence.md", sort: 100, base: chaptersRoot },
-  { rel: "risk/risks.md", sort: 110, base: chaptersRoot },
-  { rel: "risk/questions.md", sort: 120, base: chaptersRoot },
-  { rel: "risk/framework.md", sort: 130, base: chaptersRoot },
+  { rel: "mature/investment-conclusion.md", sort: 10, base: chaptersRoot },
+  { rel: "mature/project-summary.md", sort: 20, base: chaptersRoot },
+  { rel: "mature/industry-competition.md", sort: 30, base: chaptersRoot },
+  { rel: "mature/business-technology.md", sort: 40, base: chaptersRoot },
+  { rel: "mature/company-team.md", sort: 50, base: chaptersRoot },
+  { rel: "mature/financial-diligence.md", sort: 60, base: chaptersRoot },
+  { rel: "mature/investment-structure-returns.md", sort: 70, base: chaptersRoot },
+  { rel: "mature/investment-risks.md", sort: 80, base: chaptersRoot },
+  { rel: "mature/diligence-gaps.md", sort: 90, base: chaptersRoot },
+  { rel: "acquire/exec-verdict.md", sort: 100, base: chaptersRoot },
+  { rel: "acquire/decision-object.md", sort: 110, base: chaptersRoot },
+  { rel: "acquire/business-worth-buying.md", sort: 120, base: chaptersRoot },
+  { rel: "acquire/price-financing-downside.md", sort: 130, base: chaptersRoot },
+  { rel: "acquire/buyer-fit-takeover.md", sort: 140, base: chaptersRoot },
+  { rel: "acquire/acquisition-risk-register.md", sort: 150, base: chaptersRoot },
+  { rel: "acquire/open-items-exceptions.md", sort: 160, base: chaptersRoot },
+  { rel: "acquire/counterarguments-invalidation.md", sort: 170, base: chaptersRoot },
+  { rel: "acquire/recommendation-conditions.md", sort: 180, base: chaptersRoot },
+  { rel: "early/founder-interview.md", sort: 200, base: chaptersRoot },
+  { rel: "early/market-discovery.md", sort: 210, base: chaptersRoot },
+  { rel: "early/strategy.md", sort: 220, base: chaptersRoot },
+  { rel: "early/brand.md", sort: 230, base: chaptersRoot },
+  { rel: "early/product.md", sort: 240, base: chaptersRoot },
+  { rel: "early/financials.md", sort: 250, base: chaptersRoot },
+  { rel: "early/validation.md", sort: 260, base: chaptersRoot },
+  { rel: "overview/snapshot.md", sort: 400, base: chaptersRoot },
+  { rel: "overview/objectives.md", sort: 410, base: chaptersRoot },
+  { rel: "research/industry.md", sort: 420, base: chaptersRoot },
+  { rel: "research/legal.md", sort: 430, base: chaptersRoot },
+  { rel: "research/benchmarks.md", sort: 440, base: chaptersRoot },
+  { rel: "structure/business.md", sort: 450, base: chaptersRoot },
+  { rel: "structure/returns.md", sort: 460, base: chaptersRoot },
+  { rel: "structure/capabilities.md", sort: 470, base: chaptersRoot },
+  { rel: "structure/ownership.md", sort: 480, base: chaptersRoot },
+  { rel: "structure/diligence.md", sort: 490, base: chaptersRoot },
+  { rel: "risk/risks.md", sort: 500, base: chaptersRoot },
+  { rel: "risk/questions.md", sort: 510, base: chaptersRoot },
+  { rel: "risk/framework.md", sort: 520, base: chaptersRoot },
 ];
 
 /** 与 project-knowledge-chapters-routes.ts GENERATE_SYSTEM 对齐 */
@@ -53,13 +78,63 @@ const DEFAULT_GENERATE_SYSTEM = `你是投研知识网络章节撰写助手。�
 4. 名词解释只收非常用术语（如多字母缩写 GRS、rPTA、AHPRA、BPC-157、FTO、Schedule 4）；常识词（公司、投资、市场、股权、利润等）禁止加入。
 5. 凡表格「证据/来源」列：单元格内**只输出**引用标记如 [A-1]，禁止「项目协作方整理」「项目方整理」「BP称」等说明文字；多个引用用空格分隔。
 6. 表格表头须可单行完整显示（勿把长表头拆成多行文字）。
-7. 若模板已含带 style 的 HTML 骨架：必须保留这些 style，只替换「待补」内容。
+7. 若模板已含 class 或内联 style：必须保留，只替换「待补」内容。禁止拆掉 kn-callout、kn-gate、kn-stats 等 class。
 8. 事实必须来自附件摘录；缺依据写「待补」，禁止编造。
 9. 标记外禁止任何说明文字。章节内图表用 HTML <table>（含热力图格子），禁止 SVG。关系图禁止输出 SVG/HTML，只输出 JSON。
 10. 若用户消息含「分析方法」：只用来填模板中的「待补」；禁止改表头、禁止用分析方法里的示例表替换骨架、禁止改成散文。允许按资料增删数据行。版式以章节 Markdown 模板为准。`;
 
 /** 与 project-knowledge-chapters-routes.ts SECTION_FORMAT_HINT 对齐 */
 const DEFAULT_FORMAT_HINTS = {
+  "project-summary":
+    "===CHAPTER=== 判断条 + 类型/辖区/阶段数字条 + 范围表 + 交易要点表。保留 class。证据列只写 [A-1]。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "industry-competition":
+    "===CHAPTER=== 判断条 + 总市场/可服务市场/可获得份额数字条（不要写 TAM/SAM/SOM 当主标题）+ 可比表 + 红黄旗。不要对战卡。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "business-technology":
+    "===CHAPTER=== 判断条 + 客户路径 + BMC 宫格 + 单位经济表。禁止 IRR/三情景。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "company-team":
+    "===CHAPTER=== 判断条 + 控制链卡片 + 主体表 + 关键个人表 + 红黄旗。禁止 SVG。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "financial-diligence":
+    "===CHAPTER=== 判断条 + 收入/毛利率/现金数字条 + 账实质量表。禁止三情景、禁止 IRR。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "investment-structure-returns":
+    "===CHAPTER=== 判断条 + 估值大数字 + Down/Base/Up 三情景 + 结构敏感性表。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "investment-risks":
+    "===CHAPTER=== 判断条 + 4×4 热力图（保留 kn-heat-* 底色）+ 带徽章的风险登记表。禁止 SVG。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "diligence-gaps":
+    "===CHAPTER=== 判断条 + P1/P2/P3 kn-fold 折叠。允许增删 li。禁止改成三列表。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "investment-conclusion":
+    "===CHAPTER=== 建议判断条 + 推进/暂缓左右对照 + 路线图。不要闸门灯。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "exec-verdict":
+    "===CHAPTER=== 闸门灯三态只亮一态（买/有条件/不买）+ 理由 + 建议判断条。不要概况数字条。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "decision-object":
+    "===CHAPTER=== 判断条 + 标的/版本/范围数字条 + 边界表。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "business-worth-buying":
+    "===CHAPTER=== 判断条 + 客户路径 + 值不值得买表。不要行业总市场数字条。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "price-financing-downside":
+    "===CHAPTER=== 判断条 + 拟买价大数字 + 下行存活/基准/上行三情景 + 融资表。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "buyer-fit-takeover":
+    "===CHAPTER=== 判断条 + 接手节奏路径 + 适配表。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "acquisition-risk-register":
+    "===CHAPTER=== 判断条 + 热力图 + 徽章登记表。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "open-items-exceptions":
+    "===CHAPTER=== 判断条 + P1/P2/P3 折叠。禁止三列表。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "counterarguments-invalidation":
+    "===CHAPTER=== 判断条 + 声称/反例左右对照 + 失效条件（信号→处置）。不要总市场数字条。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "recommendation-conditions":
+    "===CHAPTER=== 建议判断条 + 可以买的条件/不应买 左右对照 + 路线图。不要再做一盏闸门灯。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "founder-interview":
+    "===CHAPTER=== 有访谈：访谈摘要 + 引用条 + 已覆盖/待澄清议题。无访谈：只留「尚未开展」，删掉引用和表。禁止尽调三列表。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "market-discovery":
+    "===CHAPTER=== 有材料：判断条 + 对战卡 + 功能对比表。无材料：只留尚未开展。不要总市场投资版数字条。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  strategy:
+    "===CHAPTER=== 有材料：判断条 + Lean 宫格。无材料：只留尚未开展。禁止尽调表。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  brand:
+    "===CHAPTER=== 有材料：判断条 + 调性板（语气/关键词/禁区）。无材料：只留尚未开展。禁止 Canvas。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  product:
+    "===CHAPTER=== 有材料：判断条 + 路径 + 功能现状表。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  financials:
+    "===CHAPTER=== 有材料：判断条 + 跑道/消耗/收入数字条 + 假设表。禁止三情景和 IRR。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  validation:
+    "===CHAPTER=== 有实验：判断条 + 通过/未通过/进行中计数 + 实验表。禁止 IRR。无实验：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   snapshot:
     "===CHAPTER=== 按模板：一句话范围 + 类型/辖区/阶段三色事实卡 + 项目范围表 + 交易要点表。不要输出 Factor A/B 十一段表或综合成熟度三卡；成熟度只在项目概览右上角。保留表头、卡片与内联 style；证据/来源列只写 [A-1]。禁止散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   objectives:

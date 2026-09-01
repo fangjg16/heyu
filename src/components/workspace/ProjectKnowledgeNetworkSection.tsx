@@ -1296,7 +1296,7 @@ export function ProjectKnowledgeNetworkSection({
                     contentEditable={liveEditing}
                     suppressContentEditableWarning
                     className={cn(
-                      "kn-chapter-html text-[13.5px] leading-[1.75] text-[#1F2423] [&_a.kn-cite]:cursor-pointer [&_h2]:mb-3 [&_h2]:mt-6 [&_h2]:text-[18px] [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:mt-5 [&_h3]:text-[15px] [&_h3]:font-semibold [&_p]:my-2 [&_table]:my-3 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[rgba(78,66,57,0.12)] [&_td]:px-3 [&_td]:py-2 [&_th]:whitespace-nowrap [&_th]:border [&_th]:border-[rgba(78,66,57,0.12)] [&_th]:bg-[rgba(78,66,57,0.05)] [&_th]:px-3 [&_th]:py-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5",
+                      "kn-chapter-html [&_a.kn-cite]:cursor-pointer",
                       (sectionId === "project-summary" ||
                         sectionId === "decision-object") &&
                         "[&_tbody_td:first-child]:whitespace-nowrap [&_tbody_td:first-child]:font-medium",
@@ -1633,7 +1633,7 @@ export function ProjectKnowledgeNetworkSection({
               <div className="space-y-4">
                 {overviewBrowseHtml?.trim() ? (
                   <div
-                    className="kn-project-overview-html text-[13px] leading-[1.65] text-[#1F2423] [&_#project-graph-slot]:hidden [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[rgba(78,66,57,0.12)] [&_td]:px-3.5 [&_td]:py-3.5 [&_th]:border [&_th]:border-[rgba(78,66,57,0.12)] [&_th]:bg-[rgba(78,66,57,0.05)] [&_th]:px-3.5 [&_th]:py-3"
+                    className="kn-project-overview-html [&_#project-graph-slot]:hidden"
                     dangerouslySetInnerHTML={{ __html: overviewBrowseHtml }}
                   />
                 ) : (
@@ -1716,7 +1716,7 @@ export function ProjectKnowledgeNetworkSection({
               <p className="text-[13px] text-[#969E9A]">加载中…</p>
             ) : browsingHtml?.trim() ? (
               <div
-                className="kn-chapter-html text-[13px] leading-[1.65] text-[#1F2423] [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[rgba(78,66,57,0.12)] [&_td]:px-3.5 [&_td]:py-3.5 [&_th]:border [&_th]:border-[rgba(78,66,57,0.12)] [&_th]:bg-[rgba(78,66,57,0.05)] [&_th]:px-3.5 [&_th]:py-3 [&_th]:text-left [&_th]:text-[12px]"
+                className="kn-chapter-html"
                 dangerouslySetInnerHTML={{ __html: browsingHtml }}
               />
             ) : (

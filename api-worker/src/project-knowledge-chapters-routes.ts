@@ -219,13 +219,37 @@ const GENERATE_SYSTEM = `你是投研知识网络章节撰写助手。根据「�
 4. 名词解释只收非常用术语（如多字母缩写 GRS、rPTA、AHPRA、BPC-157、FTO、Schedule 4）；常识词（公司、投资、市场、股权、利润等）禁止加入。
 5. 凡表格「证据/来源」列：单元格内**只输出**引用标记如 [A-1]，禁止「项目协作方整理」「项目方整理」「BP称」等说明文字；多个引用用空格分隔。
 6. 表格表头须可单行完整显示（勿把长表头拆成多行文字）。
-7. 若模板已含带 style 的 HTML 骨架：必须保留这些 style，只替换「待补」内容。
+7. 若模板已含 class 或内联 style：必须保留这些 class 与 style，只替换「待补」内容。禁止拆掉 kn-callout、kn-gate、kn-stats 等 class。
 8. 事实必须来自【资料目录】【本章深读】【相关段落补充】。目录里有、深读/补充未覆盖的细节写「待补」，禁止编造，禁止把未深读文件当成已读全文。
 9. 标记外禁止任何说明文字。章节内图表用 HTML <table>（含热力图格子），禁止 SVG。关系图禁止输出 SVG/HTML，只输出 JSON。
 10. 附件文件名或摘录里反复出现的对标主体、产品名、公司名必须写入对应章节（尤其对标分析），禁止只列通用海外模型而漏国内点名对象。
 ${GENERATE_SYSTEM_SKILL_LOCK}`;
 
 const SECTION_FORMAT_HINT: Record<string, string> = {
+  "project-summary":
+    "===CHAPTER=== 判断条 + 类型/辖区/阶段数字条 + 范围表 + 交易要点表。保留 class。证据列只写 [A-1]。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "industry-competition":
+    "===CHAPTER=== 判断条 + 总市场/可服务市场/可获得份额数字条（不要写 TAM/SAM/SOM 当主标题）+ 可比表 + 红黄旗。不要对战卡。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "business-technology":
+    "===CHAPTER=== 判断条 + 客户路径 + BMC 宫格 + 单位经济表。禁止 IRR/三情景。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "company-team":
+    "===CHAPTER=== 判断条 + 控制链卡片 + 主体表 + 关键个人表 + 红黄旗。禁止 SVG。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "financial-diligence":
+    "===CHAPTER=== 判断条 + 收入/毛利率/现金数字条 + 账实质量表。禁止三情景、禁止 IRR。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "investment-structure-returns":
+    "===CHAPTER=== 判断条 + 估值大数字 + Down/Base/Up 三情景 + 结构敏感性表。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "investment-risks":
+    "===CHAPTER=== 判断条 + 4×4 热力图（保留 kn-heat-* 底色）+ 带徽章的风险登记表。禁止 SVG。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "diligence-gaps":
+    "===CHAPTER=== 判断条 + P1/P2/P3 kn-fold 折叠。允许增删 li。禁止改成三列表。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "investment-conclusion":
+    "===CHAPTER=== 建议判断条 + 推进/暂缓左右对照 + 路线图。不要闸门灯。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "exec-verdict":
+    "===CHAPTER=== 闸门灯三态只亮一态（买/有条件/不买）+ 理由 + 建议判断条。不要概况数字条。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "founder-interview":
+    "===CHAPTER=== 有访谈：访谈摘要 + 引用条 + 已覆盖/待澄清议题。无访谈：只留「尚未开展」。禁止尽调三列表。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  validation:
+    "===CHAPTER=== 有实验：判断条 + 通过/未通过/进行中计数 + 实验表。禁止 IRR。无实验：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   snapshot:
     "===CHAPTER=== 按模板：一句话范围 + 类型/辖区/阶段三色事实卡 + 项目范围表 + 交易要点表。不要输出 Factor A/B 十一段表或综合成熟度三卡；成熟度只在项目概览右上角。保留表头、卡片与内联 style；证据/来源列只写 [A-1]。禁止散文。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   objectives:
