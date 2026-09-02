@@ -138,64 +138,90 @@ function isDocMetaLine(line: string): boolean {
   return DOC_META_KEY.test(m.key);
 }
 
-const META_LABELS: Record<string, string> = {
-  phase: "阶段",
-  project: "项目",
-  date: "日期",
-  confidence: "把握",
-  status: "进度",
-  verdict: "判断",
-  overall: "综合",
-  阶段: "阶段",
-  项目: "项目",
-  日期: "日期",
-  把握: "把握",
-  进度: "进度",
-  判断: "判断",
-  综合: "综合",
-};
-
-function metaLabel(key: string): string {
-  return META_LABELS[key.trim().toLowerCase()] ?? key;
+function metaId(key: string): string {
+  const k = key.trim().toLowerCase();
+  if (/^(phase|阶段)$/u.test(k)) return "phase";
+  if (/^(project|项目)$/u.test(k)) return "project";
+  if (/^(date|日期)$/u.test(k)) return "date";
+  if (/^(confidence|把握)$/u.test(k)) return "confidence";
+  if (/^(status|进度)$/u.test(k)) return "status";
+  if (/^(verdict|判断)$/u.test(k)) return "verdict";
+  if (/^(overall|综合)$/u.test(k)) return "overall";
+  return k;
 }
 
-function isMetaNote(key: string, value: string): boolean {
-  if (value.length > 42) return true;
-  return (
-    /^(Status|Confidence|进度|把握)$/iu.test(key) && value.length > 24
-  );
+function isProjectSlug(value: string): boolean {
+  return /^[a-z0-9][a-z0-9-]{7,}$/u.test(value.trim());
 }
 
-function isMetaVerdict(key: string): boolean {
-  return /^(Verdict|Overall|判断|综合)$/iu.test(key);
+function tidyPhase(value: string): string {
+  const stripped = value.replace(/^\d+\s*[—–\-:]\s*/u, "").trim();
+  const map: Record<string, string> = {
+    "final deliverable": "终稿",
+    validation: "验证",
+    "market research synthesis": "市场研究综合",
+    "customer discovery": "用户访谈",
+  };
+  return map[stripped.toLowerCase()] ?? stripped;
 }
 
-function metaCellHtml(m: { key: string; value: string }): string {
-  const note = isMetaNote(m.key, m.value);
-  const verdict = isMetaVerdict(m.key);
-  const extra = [
-    note ? " kn-masthead__cell--wide kn-masthead__cell--note" : "",
-    verdict ? " kn-masthead__cell--verdict" : "",
-  ].join("");
-  return `<div class="kn-masthead__cell${extra}"><span class="kn-masthead__k">${escapeHtml(metaLabel(m.key))}</span><span class="kn-masthead__v">${inline(m.value)}</span></div>`;
+function tidyConfidence(value: string): string {
+  const map: Record<string, string> = {
+    low: "把握偏低",
+    medium: "把握中等",
+    "medium-low": "把握中偏低",
+    "medium-high": "把握中高",
+    high: "把握较高",
+  };
+  return map[value.trim().toLowerCase()] ?? value;
 }
 
-function metaHtml(lines: string[]): string {
+function tidyVerdict(value: string): { word: string; score: string } {
+  const score = /(\d+(?:\.\d+)?)\s*\/\s*10/u.exec(value)?.[1] ?? "";
+  let word = value
+    .replace(/\bVERDICT[:：]?\s*/iu, "")
+    .replace(/\s*[—–-]\s*\d+(?:\.\d+)?\s*\/\s*10.*$/u, "")
+    .trim();
+  if (/^conditional\b/iu.test(word)) word = "有条件继续";
+  else if (/^go\b/iu.test(word)) word = "可以继续";
+  else if (/^no[- ]?go\b/iu.test(word)) word = "不宜继续";
+  return { word, score };
+}
+
+function coverHtml(lines: string[]): string {
   const parsed = lines
     .map((line) => parseMetaLine(line))
     .filter((m): m is { key: string; value: string } => Boolean(m));
   if (parsed.length === 0) return "";
-  const facts = parsed.filter((m) => !isMetaNote(m.key, m.value));
-  const notes = parsed.filter((m) => isMetaNote(m.key, m.value));
-  const factsHtml =
-    facts.length > 0
-      ? `<div class="kn-masthead__facts">${facts.map(metaCellHtml).join("")}</div>`
-      : "";
-  const notesHtml =
-    notes.length > 0
-      ? `<div class="kn-masthead__notes">${notes.map(metaCellHtml).join("")}</div>`
-      : "";
-  return `<div class="kn-masthead">${factsHtml}${notesHtml}</div>`;
+  const by: Record<string, string> = {};
+  for (const m of parsed) by[metaId(m.key)] = m.value;
+
+  const chips: string[] = [];
+  if (by.phase) chips.push(escapeHtml(tidyPhase(by.phase)));
+  if (by.date) chips.push(escapeHtml(by.date));
+  if (by.project && !isProjectSlug(by.project)) {
+    chips.push(escapeHtml(by.project));
+  }
+  const byline = chips.length
+    ? `<p class="kn-dochead__byline">${chips.map((c) => `<span>${c}</span>`).join("")}</p>`
+    : "";
+
+  const rawVerdict = by.verdict || by.overall || "";
+  let verdict = "";
+  if (rawVerdict) {
+    const { word, score } = tidyVerdict(rawVerdict);
+    verdict = `<p class="kn-dochead__verdict">${score ? `<b>${escapeHtml(score)}</b>` : ""}<span>${inline(word)}</span></p>`;
+  }
+
+  const ledeBits = [
+    by.status,
+    by.confidence ? tidyConfidence(by.confidence) : "",
+  ].filter(Boolean);
+  const lede = ledeBits.length
+    ? `<div class="kn-dochead__lede">${ledeBits.map((t) => `<p>${inline(t)}</p>`).join("")}</div>`
+    : "";
+
+  return `${byline}${verdict}${lede}`;
 }
 
 function sectionConfHtml(value: string): string {
@@ -407,7 +433,18 @@ export function markdownToKnHtml(md: string, fileId?: string): string {
   const lead = renderSpecialLead(src, fileId);
   const inner = markdownToKnHtmlInner(src);
   if (!lead && !inner) return EMPTY_CHAPTER_HTML;
-  return `<div class="kn-from-md">${lead}${inner}</div>`;
+  let body = inner;
+  if (lead) {
+    if (/class="kn-dochead"/u.test(inner) && /kn-doc-title/u.test(inner)) {
+      body = inner.replace(
+        /(<h2 class="kn-doc-title">[\s\S]*?<\/h2>)/u,
+        `$1${lead}`,
+      );
+    } else {
+      body = `${lead}${inner}`;
+    }
+  }
+  return `<div class="kn-from-md">${body}</div>`;
 }
 
 function markdownToKnHtmlInner(src: string): string {
@@ -541,8 +578,12 @@ function markdownToKnHtmlInner(src: string): string {
           }
           break;
         }
+        const cover = coverHtml(meta);
+        const byline =
+          /<p class="kn-dochead__byline">[\s\S]*?<\/p>/u.exec(cover)?.[0] ?? "";
+        const rest = cover.replace(byline, "");
         out.push(
-          `<header class="kn-dochead">${open}${parts.inner}</${tag}>${metaHtml(meta)}</header>`,
+          `<header class="kn-dochead">${byline}${open}${parts.inner}</${tag}>${rest}</header>`,
         );
         if (meta.length > 0) i = skipFollowingRule(lines, i);
         continue;
@@ -636,7 +677,8 @@ function markdownToKnHtmlInner(src: string): string {
         meta.push((lines[i] ?? "").trim());
         i += 1;
       }
-      out.push(metaHtml(meta));
+      const cover = coverHtml(meta);
+      if (cover) out.push(`<aside class="kn-dochead kn-dochead--inline">${cover}</aside>`);
       i = skipFollowingRule(lines, i);
       continue;
     }

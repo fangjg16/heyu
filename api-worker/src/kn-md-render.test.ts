@@ -48,9 +48,9 @@ describe("markdownToKnHtml", () => {
 
 - 6/10 不是基本验证通过
 `);
-    expect(html).toContain("kn-masthead");
-    expect(html).toContain("阶段");
-    expect(html).toContain("把握");
+    expect(html).toContain("kn-dochead");
+    expect(html).toContain("kn-dochead__byline");
+    expect(html).toContain("验证");
     expect(html).not.toContain("kn-score-sum");
     expect(html).toContain("判断");
     expect(html).toContain("CONDITIONAL");
@@ -105,7 +105,7 @@ describe("markdownToKnHtml", () => {
     expect(html).toContain("kn-badge--high");
   });
 
-  it("turns file headers into a masthead grid", () => {
+  it("composes a cover instead of a metadata grid", () => {
     const html = markdownToKnHtml(`# 合域家族办公室 AI 项目投研与协作平台
 
 **Phase:** Final Deliverable
@@ -121,15 +121,17 @@ describe("markdownToKnHtml", () => {
 `);
     expect(html).toContain("kn-dochead");
     expect(html).toContain("kn-doc-title");
-    expect(html).toContain("kn-masthead");
-    expect(html).toContain("kn-masthead__cell--wide");
-    expect(html).toContain("阶段");
-    expect(html).toContain("项目");
-    expect(html).toContain("进度");
-    expect(html).toContain("日期");
-    expect(html).toContain("判断");
-    expect(html).toContain("把握");
-    expect(html).toContain("jfo-ai-investment-platform");
+    expect(html).toContain("kn-dochead__byline");
+    expect(html).toContain("终稿");
+    expect(html).toContain("2026-09-01");
+    expect(html).toContain("kn-dochead__verdict");
+    expect(html).toContain("有条件继续");
+    expect(html).toContain("6.0");
+    expect(html).toContain("kn-dochead__lede");
+    expect(html).toContain("Customer Discovery");
+    expect(html).not.toContain("jfo-ai-investment-platform");
+    expect(html).not.toContain("kn-masthead");
+    expect(html).not.toContain('kn-dochead__byline">阶段');
     expect(html).not.toContain("<hr");
   });
 
@@ -174,7 +176,9 @@ describe("markdownToKnHtml", () => {
 **总体威胁: High.** 公开产品面已挤。
 `);
     expect(html).toContain("kn-dochead");
-    expect(html).toContain("kn-masthead");
+    expect(html).toContain("kn-dochead__byline");
+    expect(html).toContain("市场研究综合");
+    expect(html).not.toContain("jfo-ai-investment-platform");
     expect(html).toContain("kn-md-section");
     expect(html).toContain("kn-md-h");
     expect(html).toContain("kn-md-h__t");
