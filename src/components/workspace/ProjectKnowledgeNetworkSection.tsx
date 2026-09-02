@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import {
-  DISCARD_THEN_REGENERATE_HINT,
   KnowledgeDraftGeneratingDialog,
   type DraftGeneratingProgress,
 } from "@/components/workspace/KnowledgeDraftGeneratingDialog";
@@ -59,7 +58,10 @@ import {
   markBackdropPointerDown,
 } from "@/lib/backdrop-dismiss";
 import { resolveAnalysisKind } from "@/lib/analysis-kind";
-import { isHeyuRerenderOnceProject } from "@/lib/heyu-rerender-once";
+import {
+  analysisAiFolderHref,
+  analysisAiFolderLabel,
+} from "@/lib/analysis-ai-folder";
 import {
   catalogGroupsForKind,
   questionsSectionIdForKind,
@@ -76,30 +78,14 @@ function allChaptersConfirmText(input: {
   failed: number;
   total: number;
   interviewHint?: "none" | "never" | "paused";
-  heyuRerenderOnce?: boolean;
 }): string {
   if (input.loading) return "正在查看当前进度…";
-  const pending = Math.max(0, input.total - input.published);
+  if (input.hasDraft) return "";
   let base = "将更新全部章节和项目概览，可能需要较长时间。";
-  if (input.hasDraft && input.published > 0 && pending > 0) {
-    base = `${input.published} 章已发布、${pending} 章还在草案里。已发布的内容不会改。`;
-    if (input.heyuRerenderOnce) {
-      base += "也可以用现有分析重新排版，不重写内容。";
-    }
-  } else if (input.hasDraft && input.failed > 0) {
-    base = `将重试失败的 ${input.failed} 章，已成功待审核的会保留。`;
-    if (input.heyuRerenderOnce) {
-      base += "也可以用现有分析重新排版，不重写内容。";
-    }
-  } else if (input.hasDraft) {
-    base = input.heyuRerenderOnce
-      ? "已有待审核草案。可以用现有分析重新排版（不重写内容，只换版式），也可以直接前往审核。"
-      : `已有待审核草案，不会重新生成。${DISCARD_THEN_REGENERATE_HINT}`;
-  } else if (input.published > 0) {
+  if (input.published > 0) {
     base =
       "将更新尚未发布的章节和项目概览，可能需要较长时间。已发布的内容在你确认发布前不会改。";
   }
-  if (input.hasDraft) return base;
   if (input.interviewHint === "paused") {
     return `${base}访谈还没问完，先问完再更新效果更好。`;
   }
@@ -107,6 +93,59 @@ function allChaptersConfirmText(input: {
     return `${base}还没做用户访谈，先访谈再更新效果更好。`;
   }
   return base;
+}
+
+const CONFIRM_BTN_GHOST =
+  "rounded-full px-4 py-2 text-xs font-semibold text-[#59625F] hover:bg-[rgba(78,66,57,0.05)]";
+const CONFIRM_BTN_SECONDARY =
+  "rounded-full border border-[hsl(var(--wine)/0.35)] px-4 py-2 text-xs font-semibold text-[hsl(var(--wine))] hover:bg-[hsl(var(--wine-muted))]";
+const CONFIRM_BTN_PRIMARY =
+  "rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]";
+
+function HasDraftConfirmCopy({
+  published,
+  failed,
+  total,
+  projectId,
+  analysisKind,
+  onLeave,
+}: {
+  published: number;
+  failed: number;
+  total: number;
+  projectId: string;
+  analysisKind: ReturnType<typeof resolveAnalysisKind>;
+  onLeave: () => void;
+}) {
+  const pending = Math.max(0, total - published);
+  let lead = "已有待审核草案。";
+  if (published > 0 && pending > 0) {
+    lead = `${published} 章已发布、${pending} 章还在草案里。已发布的内容不会改。`;
+  } else if (failed > 0) {
+    lead = `有 ${failed} 章生成失败，已成功待审核的会保留。`;
+  }
+  return (
+    <div className="mt-2 text-[12.5px] leading-relaxed text-[#59625F]">
+      <p>{lead}</p>
+      <ul className="mt-2 list-disc space-y-1.5 pl-[1.15em]">
+        <li>
+          如果想连分析一起重做：去审核页放弃当前草案，再重新生成。
+        </li>
+        <li>如果只想换版式、不改内容：点「重新排版」。</li>
+      </ul>
+      <p className="mt-2">
+        现有分析可在
+        <Link
+          to={analysisAiFolderHref(projectId, analysisKind)}
+          onClick={onLeave}
+          className="mx-0.5 font-medium text-[hsl(var(--wine))] underline-offset-2 hover:underline"
+        >
+          {analysisAiFolderLabel(analysisKind)}
+        </Link>
+        查看。
+      </p>
+    </div>
+  );
 }
 
 function formatVersionTime(iso: string | null | undefined): string {
@@ -249,9 +288,6 @@ export function ProjectKnowledgeNetworkSection({
   const [interviewError, setInterviewError] = useState<string | null>(null);
   const [interviewNotice, setInterviewNotice] = useState<string | null>(null);
   useBodyScrollLock(allChaptersConfirm);
-  const canHeyuRerenderOnce =
-    isHeyuRerenderOnceProject(projectId, project?.name) &&
-    Boolean(onUpdateAllChapters);
 
   const flatSections = useMemo(
     () => chapterGroups.flatMap((g) => g.sections),
@@ -1964,7 +2000,7 @@ export function ProjectKnowledgeNetworkSection({
                 dismissIfBackdropClick(e, () => setAllChaptersConfirm(false))
               }
             >
-              <div className="w-full max-w-md overflow-hidden rounded-xl border border-[rgba(78,66,57,0.12)] bg-white shadow-2xl">
+              <div className="w-full max-w-lg overflow-hidden rounded-xl border border-[rgba(78,66,57,0.12)] bg-white shadow-2xl">
                 <div className="border-b border-[rgba(78,66,57,0.1)] px-5 py-4">
                   <h3
                     id="all-chapters-confirm-title"
@@ -1972,32 +2008,46 @@ export function ProjectKnowledgeNetworkSection({
                   >
                     确认更新全部章节
                   </h3>
-                  <p className="mt-2 text-[12.5px] leading-relaxed text-[#59625F]">
-                    {allChaptersConfirmText({
-                      loading: confirmLoading,
-                      hasDraft: confirmHasDraft,
-                      published: confirmPublished,
-                      failed: confirmFailed,
-                      total: researchSectionsForKind(analysisKind).length,
-                      heyuRerenderOnce: canHeyuRerenderOnce,
-                      interviewHint:
-                        analysisKind === "early" &&
-                        interview?.status === "paused"
-                          ? "paused"
-                          : analysisKind === "early" &&
-                              !interview &&
-                              !confirmHasDraft &&
-                              confirmPublished === 0
-                            ? "never"
-                            : "none",
-                    })}
-                  </p>
+                  {confirmLoading ? (
+                    <p className="mt-2 text-[12.5px] leading-relaxed text-[#59625F]">
+                      正在查看当前进度…
+                    </p>
+                  ) : confirmHasDraft ? (
+                    <HasDraftConfirmCopy
+                      published={confirmPublished}
+                      failed={confirmFailed}
+                      total={researchSectionsForKind(analysisKind).length}
+                      projectId={projectId}
+                      analysisKind={analysisKind}
+                      onLeave={() => setAllChaptersConfirm(false)}
+                    />
+                  ) : (
+                    <p className="mt-2 text-[12.5px] leading-relaxed text-[#59625F]">
+                      {allChaptersConfirmText({
+                        loading: false,
+                        hasDraft: false,
+                        published: confirmPublished,
+                        failed: confirmFailed,
+                        total: researchSectionsForKind(analysisKind).length,
+                        interviewHint:
+                          analysisKind === "early" &&
+                          interview?.status === "paused"
+                            ? "paused"
+                            : analysisKind === "early" &&
+                                !interview &&
+                                !confirmHasDraft &&
+                                confirmPublished === 0
+                              ? "never"
+                              : "none",
+                      })}
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col-reverse gap-2 px-5 py-3 sm:flex-row sm:flex-wrap sm:justify-end">
                   <button
                     type="button"
                     onClick={() => setAllChaptersConfirm(false)}
-                    className="rounded-full border border-[rgba(78,66,57,0.14)] px-4 py-2 text-xs font-semibold text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]"
+                    className={CONFIRM_BTN_GHOST}
                   >
                     取消
                   </button>
@@ -2005,7 +2055,7 @@ export function ProjectKnowledgeNetworkSection({
                     <button
                       type="button"
                       disabled
-                      className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      className={`${CONFIRM_BTN_PRIMARY} disabled:cursor-not-allowed disabled:opacity-50`}
                     >
                       请稍候…
                     </button>
@@ -2013,25 +2063,23 @@ export function ProjectKnowledgeNetworkSection({
                     confirmPublished > 0 &&
                     researchSectionsForKind(analysisKind).length - confirmPublished > 0 ? (
                     <>
-                      {canHeyuRerenderOnce ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAllChaptersConfirm(false);
-                            onUpdateAllChapters?.("from-files");
-                          }}
-                          className="rounded-full border border-[rgba(78,66,57,0.14)] px-4 py-2 text-xs font-semibold text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]"
-                        >
-                          用现有分析重新排版
-                        </button>
-                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAllChaptersConfirm(false);
+                          onUpdateAllChapters?.("from-files");
+                        }}
+                        className={CONFIRM_BTN_SECONDARY}
+                      >
+                        重新排版
+                      </button>
                       <button
                         type="button"
                         onClick={() => {
                           setAllChaptersConfirm(false);
                           onUpdateAllChapters?.("all-drafts");
                         }}
-                        className="rounded-full border border-[rgba(78,66,57,0.14)] px-4 py-2 text-xs font-semibold text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]"
+                        className={CONFIRM_BTN_SECONDARY}
                       >
                         更新全部草案
                       </button>
@@ -2041,73 +2089,56 @@ export function ProjectKnowledgeNetworkSection({
                           setAllChaptersConfirm(false);
                           onUpdateAllChapters?.("unpublished");
                         }}
-                        className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+                        className={CONFIRM_BTN_PRIMARY}
                       >
-                        更新未发布草案
+                        更新未发布
                       </button>
                     </>
                   ) : confirmHasDraft && confirmFailed > 0 ? (
                     <>
-                      {canHeyuRerenderOnce ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAllChaptersConfirm(false);
-                            onUpdateAllChapters?.("from-files");
-                          }}
-                          className="rounded-full border border-[rgba(78,66,57,0.14)] px-4 py-2 text-xs font-semibold text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]"
-                        >
-                          用现有分析重新排版
-                        </button>
-                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAllChaptersConfirm(false);
+                          onUpdateAllChapters?.("from-files");
+                        }}
+                        className={CONFIRM_BTN_SECONDARY}
+                      >
+                        重新排版
+                      </button>
                       <button
                         type="button"
                         onClick={() => {
                           setAllChaptersConfirm(false);
                           onUpdateAllChapters?.();
                         }}
-                        className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+                        className={CONFIRM_BTN_PRIMARY}
                       >
                         重试失败
                       </button>
                     </>
                   ) : confirmHasDraft ? (
                     <>
-                      {canHeyuRerenderOnce ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAllChaptersConfirm(false);
-                            goDraftReview();
-                          }}
-                          className="rounded-full border border-[rgba(78,66,57,0.14)] px-4 py-2 text-xs font-semibold text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]"
-                        >
-                          前往审核
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAllChaptersConfirm(false);
-                            goDraftReview();
-                          }}
-                          className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
-                        >
-                          前往审核
-                        </button>
-                      )}
-                      {canHeyuRerenderOnce ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAllChaptersConfirm(false);
-                            onUpdateAllChapters?.("from-files");
-                          }}
-                          className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
-                        >
-                          用现有分析重新排版
-                        </button>
-                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAllChaptersConfirm(false);
+                          goDraftReview();
+                        }}
+                        className={CONFIRM_BTN_SECONDARY}
+                      >
+                        去审核
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAllChaptersConfirm(false);
+                          onUpdateAllChapters?.("from-files");
+                        }}
+                        className={CONFIRM_BTN_PRIMARY}
+                      >
+                        重新排版
+                      </button>
                     </>
                   ) : (
                     <>
@@ -2121,7 +2152,7 @@ export function ProjectKnowledgeNetworkSection({
                             setAllChaptersConfirm(false);
                             void onStartInterview();
                           }}
-                          className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+                          className={CONFIRM_BTN_PRIMARY}
                         >
                           {interview?.status === "paused"
                             ? "继续访谈"
@@ -2138,15 +2169,15 @@ export function ProjectKnowledgeNetworkSection({
                           analysisKind === "early" &&
                           (interview?.status === "paused" ||
                             (!interview && confirmPublished === 0))
-                            ? "rounded-full border border-[rgba(78,66,57,0.14)] px-4 py-2 text-xs font-semibold text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]"
-                            : "rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+                            ? CONFIRM_BTN_SECONDARY
+                            : CONFIRM_BTN_PRIMARY
                         }
                       >
                         {analysisKind === "early" &&
                         (interview?.status === "paused" ||
                           (!interview && confirmPublished === 0))
                           ? "仍要更新"
-                          : "开始更新全部章节"}
+                          : "开始更新"}
                       </button>
                     </>
                   )}

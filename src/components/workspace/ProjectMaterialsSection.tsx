@@ -8,6 +8,7 @@ import {
   type SetStateAction,
 } from "react";
 import { createPortal } from "react-dom";
+import { useSearchParams } from "react-router-dom";
 import {
   dismissIfBackdropClick,
   markBackdropPointerDown,
@@ -41,6 +42,7 @@ import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-auth";
 import {
   AI_CHAT_ENDPOINT,
+  AI_GENERATED_FOLDER,
   createProjectPackageFolder,
   deleteProjectFile,
   ENABLE_LIVE_CHAT,
@@ -69,6 +71,7 @@ import {
   buildTopicMaterialsTree,
   canShareWithIssuer,
   fileSourceBucket,
+  AI_SOURCE_PATH,
   ISSUER_SOURCE_PATH,
   isSourceRootPath,
   isTopicPath,
@@ -343,6 +346,35 @@ function filterTree(
   return { ...node, children };
 }
 
+function expandFolderPrefixes(path: string): Record<string, boolean> {
+  const next: Record<string, boolean> = { "": true };
+  if (!path) return next;
+  const parts = path.split("/").filter(Boolean);
+  let acc = "";
+  for (const part of parts) {
+    acc = acc ? `${acc}/${part}` : part;
+    next[acc] = true;
+  }
+  return next;
+}
+
+function virtualPathFromFolderQuery(folder: string | null): string | null {
+  if (!folder) return null;
+  let raw = folder.trim();
+  try {
+    raw = decodeURIComponent(raw);
+  } catch {
+    /* 已是明文 */
+  }
+  const p = normalizeRelativePath(raw);
+  if (!p) return null;
+  if (sourceBucketFromVirtualPath(p)) return p;
+  if (p === AI_GENERATED_FOLDER || p.startsWith(`${AI_GENERATED_FOLDER}/`)) {
+    return toVirtualFolder(p, "ai");
+  }
+  return toVirtualFolder(p, "project");
+}
+
 function findFolder(
   root: FileTreeFolderNode,
   path: string,
@@ -461,6 +493,10 @@ export function ProjectMaterialsSection({
   canManage = true,
   canDownload = false,
 }: ProjectMaterialsSectionProps) {
+  const [searchParams] = useSearchParams();
+  const folderFromQuery = virtualPathFromFolderQuery(searchParams.get("folder"));
+  const skipFacetResetRef = useRef(Boolean(folderFromQuery));
+  const appliedFolderQueryRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const folderInputRef = useRef<HTMLInputElement | null>(null);
   const uploadTargetRef = useRef<string>("");
@@ -474,15 +510,17 @@ export function ProjectMaterialsSection({
   const [unzippingId, setUnzippingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragOverPath, setDragOverPath] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(() => ({
     "": true,
     [PROJECT_SOURCE_PATH]: true,
     [SESSION_SOURCE_PATH]: true,
     [ISSUER_SOURCE_PATH]: true,
-  });
+    [AI_SOURCE_PATH]: true,
+    ...(folderFromQuery ? expandFolderPrefixes(folderFromQuery) : {}),
+  }));
   const [selection, setSelection] = useState<Selection>({
     kind: "folder",
-    path: PROJECT_SOURCE_PATH,
+    path: folderFromQuery ?? PROJECT_SOURCE_PATH,
   });
   const [facet, setFacet] = useState<"source" | "topic">("source");
   const [sharingId, setSharingId] = useState<string | null>(null);
@@ -585,17 +623,43 @@ export function ProjectMaterialsSection({
       });
     }
     if (selection.kind === "folder" && selection.path && !findFolder(fullTree, selection.path)) {
+      if (liveFiles === null) return;
+      const parent = selection.path.includes("/")
+        ? selection.path.slice(0, selection.path.lastIndexOf("/"))
+        : "";
       const fallback =
-        facet === "topic"
+        (parent && findFolder(fullTree, parent)?.path) ||
+        (facet === "topic"
           ? fullTree.children[0]?.kind === "folder"
             ? fullTree.children[0].path
             : ""
-          : PROJECT_SOURCE_PATH;
+          : PROJECT_SOURCE_PATH);
       setSelection({ kind: "folder", path: fallback });
     }
-  }, [facet, fullTree, selection]);
+  }, [facet, fullTree, selection, liveFiles]);
 
   useEffect(() => {
+    if (!folderFromQuery || liveFiles === null) return;
+    if (appliedFolderQueryRef.current === folderFromQuery) return;
+    appliedFolderQueryRef.current = folderFromQuery;
+    setFacet("source");
+    setExpanded((prev) => ({
+      ...prev,
+      ...expandFolderPrefixes(folderFromQuery),
+      [AI_SOURCE_PATH]: true,
+    }));
+    const found = findFolder(fullTree, folderFromQuery);
+    setSelection({
+      kind: "folder",
+      path: found ? folderFromQuery : AI_SOURCE_PATH,
+    });
+  }, [folderFromQuery, liveFiles, fullTree]);
+
+  useEffect(() => {
+    if (skipFacetResetRef.current) {
+      skipFacetResetRef.current = false;
+      return;
+    }
     if (facet === "source") {
       setSelection({ kind: "folder", path: PROJECT_SOURCE_PATH });
       setExpanded((prev) => ({
@@ -603,6 +667,7 @@ export function ProjectMaterialsSection({
         [PROJECT_SOURCE_PATH]: true,
         [SESSION_SOURCE_PATH]: true,
         [ISSUER_SOURCE_PATH]: true,
+        [AI_SOURCE_PATH]: true,
       }));
       return;
     }

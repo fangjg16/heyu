@@ -1299,7 +1299,7 @@ export async function createChapterDraftRun(
     sectionId?: string;
     mode?: "generate" | "manual";
     html?: string;
-    /** 沿用草案时：unpublished=只重跑未上线章；all-drafts=全部草案重来；from-files=合域临时候只重排研究章 */
+    /** 沿用草案时：unpublished=只重跑未上线章；all-drafts=全部草案重来；from-files=按现有分析只重排研究章 */
     regen?: ChapterDraftRegenMode;
   },
 ): Promise<CreateChapterDraftRunResponse> {

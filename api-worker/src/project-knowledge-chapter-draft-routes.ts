@@ -48,11 +48,7 @@ import {
   unpublishedDraftSectionIds,
   type DraftRegenMode,
 } from "./draft-reuse";
-import {
-  isHeyuRerenderOnceProject,
-  knSectionsToRerenderFromFiles,
-  markHeyuRerenderOnceUsed,
-} from "./kn-rerender-from-files-once";
+import { knSectionsToRerenderFromFiles } from "./kn-rerender-from-files";
 import { listProjectKnowledgeChapterHtml } from "./project-knowledge-chapters-db";
 import {
   createDraftRun,
@@ -619,16 +615,6 @@ export async function handleCreateChapterDraftRun(
     /* 无 body 时默认 full */
   }
 
-  if (
-    regen === "from-files" &&
-    !isHeyuRerenderOnceProject(projectId, project.name)
-  ) {
-    return json(
-      { error: "这次临时候只用于合域项目", code: "NOT_ALLOWED" },
-      400,
-    );
-  }
-
   if (mode === "manual") {
     if (scope !== "section" || !sectionId) {
       return json(
@@ -735,7 +721,6 @@ export async function handleCreateChapterDraftRun(
           );
         }
         await requeueDraftSections(env, active.id, knIds, items);
-        await markHeyuRerenderOnceUsed(env.DB, projectId);
         kickDraftRunGeneration(env, ctx, projectId, active.id, userId);
         const latest = await listDraftItems(env.DB, active.id);
         const latestRun = (await getDraftRun(env.DB, active.id)) ?? active;
