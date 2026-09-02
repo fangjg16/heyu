@@ -8,6 +8,7 @@ import {
   listHermesChatCompletionsUrls,
 } from "./hermes-url";
 import {
+  DEFAULT_LLM_CHAT_MODEL,
   withResolvedDashscopeEnv,
   type LlmRuntimeEnv,
 } from "./llm-runtime-config";
@@ -100,7 +101,7 @@ export async function callChatCompletions(
 export async function callQwen(env: LlmClientEnv, messages: LlmMessage[]) {
   const resolved = await withResolvedDashscopeEnv(env);
   const key = (resolved.DASHSCOPE_API_KEY || "").trim();
-  const model = (resolved.HERMES_MODEL || "qwen-plus").trim();
+  const model = (resolved.HERMES_MODEL || DEFAULT_LLM_CHAT_MODEL).trim();
   const base = (
     resolved.DASHSCOPE_BASE_URL ||
     "https://dashscope.aliyuncs.com/compatible-mode/v1"
@@ -136,7 +137,9 @@ export async function callDashscopeModel(
   if (!key) {
     throw new Error("未配置 DASHSCOPE_API_KEY（也未在管理台保存 API Key）");
   }
-  const use = (model || "").trim() || (resolved.HERMES_MODEL || "qwen-plus").trim();
+  const use =
+    (model || "").trim() ||
+    (resolved.HERMES_MODEL || DEFAULT_LLM_CHAT_MODEL).trim();
   return callChatCompletions(`${base}/chat/completions`, key, use, messages, label);
 }
 
@@ -144,7 +147,7 @@ export async function callHermes(env: LlmClientEnv, messages: LlmMessage[]) {
   const resolved = await withResolvedDashscopeEnv(env);
   const rawBase = (env.HERMES_BASE_URL || "").trim();
   const key = normalizeHermesApiKey(env.HERMES_API_KEY);
-  const model = (resolved.HERMES_MODEL || "qwen-plus").trim();
+  const model = (resolved.HERMES_MODEL || DEFAULT_LLM_CHAT_MODEL).trim();
   if (!rawBase || !key) {
     throw new Error("HERMES_BASE_URL 或 HERMES_API_KEY 未配置");
   }
@@ -241,7 +244,7 @@ async function callLlmOnce(
     const result = await callDashscopeModel(
       resolved,
       messages,
-      modelOverride || (resolved.HERMES_MODEL || "qwen-plus").trim(),
+      modelOverride || (resolved.HERMES_MODEL || DEFAULT_LLM_CHAT_MODEL).trim(),
       "千问视觉",
     );
     return { ...result, llmBackend: "dashscope-vl" };

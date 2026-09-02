@@ -49,7 +49,7 @@ export function AdminLlmSettingsSection() {
 
   const applySettings = (s: LlmSettings) => {
     setSettings(s);
-    setModel(s.model || s.presets[0] || "qwen-plus");
+    setModel(s.model || s.presets[0] || "qwen3.7-plus");
     setApiKey("");
   };
 

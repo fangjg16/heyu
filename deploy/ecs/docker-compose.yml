@@ -131,7 +131,7 @@ services:
       # workerd 直连 hermes 会变成 internal error；http-server 把 Worker 指到本机反代，Node 再请求 hermes:8642
       HERMES_BASE_URL: http://hermes:8642
       HERMES_API_KEY: ${HERMES_API_KEY}
-      HERMES_MODEL: ${LLM_MODEL:-qwen-plus}
+      HERMES_MODEL: ${LLM_MODEL:-qwen3.7-plus}
       JFO_INTERNAL_KEY: ${JFO_INTERNAL_KEY}
       JFO_API_PUBLIC_BASE: ${JFO_API_PUBLIC_BASE}
       ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-https://fangjg16.github.io}
@@ -179,8 +179,8 @@ services:
       OPENAI_BASE_URL: ${LLM_API_BASE_URL}
       OPENAI_API_KEY: ${LLM_API_KEY}
       DASHSCOPE_API_KEY: ${LLM_API_KEY}
-      MODEL_DEFAULT: ${LLM_MODEL:-qwen-plus}
-      LLM_MODEL: ${LLM_MODEL:-qwen-plus}
+      MODEL_DEFAULT: ${LLM_MODEL:-qwen3.7-plus}
+      LLM_MODEL: ${LLM_MODEL:-qwen3.7-plus}
       HERMES_YOLO_MODE: "1"
       HERMES_ALLOW_ROOT_GATEWAY: "1"
       API_SERVER_PORT: "8642"

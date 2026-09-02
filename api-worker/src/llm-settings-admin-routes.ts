@@ -7,6 +7,7 @@ import {
   LLM_CHAT_MODEL_SEED,
 } from "./llm-model-catalog";
 import {
+  DEFAULT_LLM_CHAT_MODEL,
   resolveLlmRuntimeConfig,
   withResolvedDashscopeEnv,
 } from "./llm-runtime-config";
@@ -95,7 +96,9 @@ export async function handleAdminGetLlmSettings(
     )
       .trim()
       .replace(/\/$/, "");
-    const envModel = (env.HERMES_MODEL || "qwen-plus").trim() || "qwen-plus";
+    const envModel =
+      (env.HERMES_MODEL || DEFAULT_LLM_CHAT_MODEL).trim() ||
+      DEFAULT_LLM_CHAT_MODEL;
 
     const apiKeyConfigured = Boolean(resolved.apiKey);
     const apiKeyHint = stored?.apiKeyHint
@@ -242,7 +245,7 @@ export async function handleAdminTestLlmSettings(
   try {
     const resolved = await withResolvedDashscopeEnv(env);
     const key = (resolved.DASHSCOPE_API_KEY || "").trim();
-    const model = (resolved.HERMES_MODEL || "qwen-plus").trim();
+    const model = (resolved.HERMES_MODEL || DEFAULT_LLM_CHAT_MODEL).trim();
     const base = (
       resolved.DASHSCOPE_BASE_URL || DEFAULT_LLM_BASE_URL
     )

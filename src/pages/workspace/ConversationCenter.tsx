@@ -2782,7 +2782,7 @@ export default function ConversationCenter() {
           : RAGFLOW_MODE === "openai"
             ? {
                 stream: false,
-                model: "qwen-plus",
+                model: "qwen3.7-plus",
                 messages: [...history, { role: "user", content: apiMessage }],
               }
             : {

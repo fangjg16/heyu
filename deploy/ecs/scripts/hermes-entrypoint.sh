@@ -9,7 +9,7 @@ mkdir -p "$DATA"
 BASE="${OPENAI_API_BASE:-${OPENAI_BASE_URL:-${LLM_API_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}}}"
 BASE="${BASE%/}"
 KEY="${OPENAI_API_KEY:-${DASHSCOPE_API_KEY:-${LLM_API_KEY:-}}}"
-MODEL="${MODEL_DEFAULT:-${LLM_MODEL:-qwen-plus}}"
+MODEL="${MODEL_DEFAULT:-${LLM_MODEL:-qwen3.7-plus}}"
 
 if [[ -z "$KEY" ]]; then
   echo "[hermes-entrypoint] ERROR: OPENAI_API_KEY / DASHSCOPE_API_KEY / LLM_API_KEY is empty" >&2

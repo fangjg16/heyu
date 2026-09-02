@@ -61,7 +61,7 @@ export type HermesRunPoll = {
   raw: unknown;
 };
 
-/** Runs API 的 model 字段用服务端 profile 名；勿用 qwen-plus（易与 Dashboard 代理混淆） */
+/** Runs API 的 model 字段用服务端 profile 名；勿用百炼模型 id（易与 Dashboard 代理混淆） */
 function hermesRunModel(_env: HermesAgentEnv): string {
   return "hermes-agent";
 }

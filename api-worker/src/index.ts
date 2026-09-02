@@ -28,7 +28,10 @@ import {
   collectChatVisionImages,
   vlModelName,
 } from "./chat-vision";
-import { withResolvedDashscopeEnv } from "./llm-runtime-config";
+import {
+  DEFAULT_LLM_CHAT_MODEL,
+  withResolvedDashscopeEnv,
+} from "./llm-runtime-config";
 import { buildHermesMaterialsDigest, buildNamedFilesDigest } from "./hermes-materials-digest";
 import { buildKnowledgeNetworkMaterialHints } from "./knowledge-network-material-hints";
 import { buildKnowledgeNetworkReadingPlan } from "./knowledge-network-reading-plan";
@@ -747,7 +750,8 @@ async function streamLlm(
   const resolved = await withResolvedDashscopeEnv(env);
   const dashscopeReady = Boolean((resolved.DASHSCOPE_API_KEY || "").trim());
   const model =
-    (options?.model || resolved.HERMES_MODEL || "qwen-plus").trim() || "qwen-plus";
+    (options?.model || resolved.HERMES_MODEL || DEFAULT_LLM_CHAT_MODEL).trim() ||
+    DEFAULT_LLM_CHAT_MODEL;
   const skipHermes = Boolean(options?.forceDashscope);
 
   if (!skipHermes && isHermesAgentConfigured(env)) {
@@ -762,7 +766,7 @@ async function streamLlm(
           const upstream = await fetchChatCompletionsStream(
             url,
             key,
-            (resolved.HERMES_MODEL || "qwen-plus").trim(),
+            (resolved.HERMES_MODEL || DEFAULT_LLM_CHAT_MODEL).trim(),
             messages,
             "Hermes",
           );
@@ -819,7 +823,8 @@ async function fetchLlmUpstream(
   const resolved = await withResolvedDashscopeEnv(env);
   const dashscopeReady = Boolean((resolved.DASHSCOPE_API_KEY || "").trim());
   const model =
-    (options?.model || resolved.HERMES_MODEL || "qwen-plus").trim() || "qwen-plus";
+    (options?.model || resolved.HERMES_MODEL || DEFAULT_LLM_CHAT_MODEL).trim() ||
+    DEFAULT_LLM_CHAT_MODEL;
   const skipHermes = Boolean(options?.forceDashscope);
 
   if (!skipHermes && isHermesAgentConfigured(env)) {

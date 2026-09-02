@@ -6,6 +6,9 @@ import {
   isPlatformLlmSettingsTableMissing,
 } from "./platform-llm-settings-db";
 
+/** 对话 / 翻译 / 知识网络生成的默认文本模型（百炼当前 Plus 档） */
+export const DEFAULT_LLM_CHAT_MODEL = "qwen3.7-plus";
+
 export type LlmRuntimeEnv = {
   DB?: AppDatabase;
   JFO_INTERNAL_KEY?: string;
@@ -39,7 +42,9 @@ function envDefaults(env: LlmRuntimeEnv): {
       .trim()
       .replace(/\/$/, ""),
     apiKey: (env.DASHSCOPE_API_KEY || "").trim(),
-    model: (env.HERMES_MODEL || "qwen-plus").trim() || "qwen-plus",
+    model:
+      (env.HERMES_MODEL || DEFAULT_LLM_CHAT_MODEL).trim() ||
+      DEFAULT_LLM_CHAT_MODEL,
   };
 }
 

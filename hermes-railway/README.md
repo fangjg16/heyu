@@ -50,7 +50,7 @@ DASHSCOPE_API_KEY=sk-xxxxxxxx
 # MODEL_PROVIDER=custom
 # OPENAI_API_BASE=https://dashscope.aliyuncs.com/compatible-mode/v1
 # OPENAI_API_KEY=同上 DASHSCOPE_API_KEY
-# MODEL_DEFAULT=qwen-plus
+# MODEL_DEFAULT=qwen3.7-plus
 ```
 
 **注意：** 国际站 / 国内站 base_url 不同。Coding Plan 与标准 Key 不能混用 endpoint。  
@@ -62,7 +62,7 @@ DASHSCOPE_API_KEY=sk-xxxxxxxx
 hermes config set model.provider custom
 hermes config set model.base_url https://dashscope.aliyuncs.com/compatible-mode/v1
 hermes config set model.api_key $DASHSCOPE_API_KEY
-hermes config set model.default qwen-plus
+hermes config set model.default qwen3.7-plus
 ```
 
 （国际用户可能用 `https://dashscope-intl.aliyuncs.com/compatible-mode/v1`，以控制台说明为准。）
@@ -76,7 +76,7 @@ Worker 里配置（集群内优先；**不要**加 `/v1` 后缀，Worker 会按�
 ```bash
 HERMES_BASE_URL=http://hermes-gateway.jfo.svc.cluster.local:8642
 HERMES_API_KEY=与 API_SERVER_KEY 相同
-HERMES_MODEL=qwen-plus
+HERMES_MODEL=qwen3.7-plus
 SKILLS_BRIDGE_URL=http://skills-bridge.jfo.svc.cluster.local:8791
 SKILLS_BRIDGE_KEY=与 Bridge 相同
 ```
@@ -96,7 +96,7 @@ curl "https://你的railway域名/v1/models" \
 curl "https://你的railway域名/v1/chat/completions" \
   -H "Authorization: Bearer 你的API_SERVER_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"model":"qwen-plus","messages":[{"role":"user","content":"你好"}],"stream":false}'
+  -d '{"model":"qwen3.7-plus","messages":[{"role":"user","content":"你好"}],"stream":false}'
 ```
 
 

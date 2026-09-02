@@ -1,6 +1,6 @@
 import type { AppDatabase } from "./app-database";
 import { USER_QUICK_PROMPTS } from "./chat-modes";
-import { withResolvedDashscopeEnv } from "./llm-runtime-config";
+import { DEFAULT_LLM_CHAT_MODEL, withResolvedDashscopeEnv } from "./llm-runtime-config";
 
 type TopicEnv = {
   DB?: AppDatabase;
@@ -96,7 +96,7 @@ export async function generateConversationTopic(
   const key = (resolved.DASHSCOPE_API_KEY || "").trim();
   if (!key) return heuristic;
 
-  const model = (resolved.HERMES_MODEL || "qwen-plus").trim();
+  const model = (resolved.HERMES_MODEL || DEFAULT_LLM_CHAT_MODEL).trim();
   const base = (
     resolved.DASHSCOPE_BASE_URL ||
     "https://dashscope.aliyuncs.com/compatible-mode/v1"
