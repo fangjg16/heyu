@@ -211,14 +211,14 @@ export function renderBattleCardsLead(md: string): string {
   const tables = parseTables(md);
   const table = tables.find((t) => {
     const name = colIndex(t.headers, /name|^名称|^对手|^竞品/iu);
-    const str = colIndex(t.headers, /strength|优势|差异/iu);
-    const weak = colIndex(t.headers, /weakness|缺口|弱点/iu);
+    const str = colIndex(t.headers, /strength|优势|差异|强项/iu);
+    const weak = colIndex(t.headers, /weakness|缺口|弱点|劣势|弱项/iu);
     return name >= 0 && str >= 0 && weak >= 0 && t.rows.length >= 2;
   });
   if (!table) return "";
   const nameI = colIndex(table.headers, /name|^名称|^对手|^竞品/iu);
-  const strI = colIndex(table.headers, /strength|优势|差异/iu);
-  const weakI = colIndex(table.headers, /weakness|缺口|弱点/iu);
+  const strI = colIndex(table.headers, /strength|优势|差异|强项/iu);
+  const weakI = colIndex(table.headers, /weakness|缺口|弱点|劣势|弱项/iu);
   const cards = table.rows.slice(0, 8).map((row) => {
     const name = clip(row[nameI] ?? "", 40);
     const diff = clip(row[strI] ?? "", 96);
@@ -233,19 +233,21 @@ export function renderScoreHeroLead(md: string): string {
   const tables = parseTables(md);
   const table = tables.find((t) => {
     const dim = colIndex(t.headers, /dimension|维度/iu);
-    const score = colIndex(t.headers, /score|分数/iu);
+    const score = colIndex(t.headers, /score|分数|评分|得分/iu);
     return dim >= 0 && score >= 0;
   });
   if (!table) return "";
   const dimI = colIndex(table.headers, /dimension|维度/iu);
-  const scoreI = colIndex(table.headers, /score|分数/iu);
+  const scoreI = colIndex(table.headers, /score|分数|评分|得分/iu);
   const overall =
-    table.rows.find((r) => /overall|综合/iu.test(r[dimI] ?? "")) ??
+    table.rows.find((r) => /overall|综合|总分/iu.test(r[dimI] ?? "")) ??
     table.rows[table.rows.length - 1];
   if (!overall) return "";
   const score = stripInlineMd(overall[scoreI] ?? "").replace(/[^\d.]/gu, "");
   if (!score) return "";
-  const verdict = /VERDICT[:：]?\s*([^\n*]+)/iu.exec(md)?.[1]?.trim();
+  const verdict =
+    /VERDICT[:：]?\s*([^\n*]+)/iu.exec(md)?.[1]?.trim() ??
+    /^\*\*总评[:：]\*\*\s*(.+)$/mu.exec(md)?.[1]?.trim();
   const note = verdict
     ? escapeHtml(clip(verdict, 80))
     : escapeHtml("综合评分");
@@ -254,8 +256,8 @@ export function renderScoreHeroLead(md: string): string {
 
 export function renderPositionSplitLead(md: string): string {
   const sections = splitMarkdownH2(md);
-  const alt = sectionBy(sections, /competitive alternative|替代/iu);
-  const uniq = sectionBy(sections, /unique attribute|独有|差异化属性/iu);
+  const alt = sectionBy(sections, /competitive alternative|替代方案|^替代/iu);
+  const uniq = sectionBy(sections, /unique attribute|独有|差异化属性|独特属性/iu);
   if (!alt || !uniq) return "";
   const altItems = (() => {
     const tables = parseTables(alt);
@@ -271,7 +273,7 @@ export function renderPositionSplitLead(md: string): string {
 
 export function renderJourneyLead(md: string): string {
   const journeys = [
-    ...md.matchAll(/^##\s+(?:Journey|旅程)\s+(\d+)\s*[—–:-]\s*(.+)$/gmu),
+    ...md.matchAll(/^##\s+(?:Journey|旅程)\s*(\d+)\s*[—–:-]?\s*(.*)$/gmu),
   ];
   if (journeys.length < 2) return "";
   const steps = journeys.slice(0, 6).map((m) => {
@@ -284,7 +286,7 @@ export function renderJourneyLead(md: string): string {
 }
 
 export function renderWeekTimelineLead(md: string): string {
-  const weeks = [...md.matchAll(/^##\s+(Week\s+\d+|第[一二三四1-4]周)[^\n]*$/gmu)];
+  const weeks = [...md.matchAll(/^##\s+(Week\s+\d+|第\s*[一二三四1-4]\s*周)[^\n]*$/gmu)];
   if (weeks.length < 2) return "";
   const sections = splitMarkdownH2(md);
   const items = weeks.map((m) => {
@@ -308,45 +310,76 @@ export function renderMoscowStatsLead(md: string): string {
     if (tables[0]?.rows.length) return tables[0]!.rows.length;
     return compactItems(sec.body, 40).length;
   };
-  const must = countRows(/must[- ]?have|^must\b/iu);
-  const should = countRows(/should[- ]?have|^should\b/iu);
-  const could = countRows(/could[- ]?have|^could\b/iu);
-  const wont = countRows(/won'?t[- ]?have|^won'?t\b/iu);
+  const must = countRows(/must[- ]?have|^must\b|必须有|必须具备|^必须$/iu);
+  const should = countRows(/should[- ]?have|^should\b|应该有|应当|^应该$/iu);
+  const could = countRows(/could[- ]?have|^could\b|可以有|可有|^可以$/iu);
+  const wont = countRows(/won'?t[- ]?have|^won'?t\b|本次不做|明确不做|^不做$/iu);
   if ([must, should, could, wont].filter((n) => n > 0).length < 3) return "";
   const cell = (label: string, n: number) =>
     `<div class="kn-stat"><div class="kn-stat__label">${escapeHtml(label)}</div><div class="kn-stat__value">${n}</div></div>`;
-  return `<div class="kn-stats kn-stats--4">${cell("Must", must)}${cell("Should", should)}${cell("Could", could)}${cell("Won't", wont)}</div>`;
+  return `<div class="kn-stats kn-stats--4">${cell("必须", must)}${cell("应该", should)}${cell("可以", could)}${cell("不做", wont)}</div>`;
+}
+
+function firstMoney(text: string): string {
+  const t = stripInlineMd(text);
+  const m =
+    /(?:US\$|\$|€|£|¥|￥)\s*[\d.,]+\s*[kmbKMB]?(?:\s*ARR)?/u.exec(t) ??
+    /[\d.,]+\s*(?:亿|万|千万)\s*(?:元|人民币)?/u.exec(t) ??
+    /[\d.,]+\s*(?:万元|元)\s*\/?\s*(?:年|月)?/u.exec(t);
+  return m ? clip(m[0].replace(/\s+/gu, " "), 18) : "";
 }
 
 function baselineArr(table: MdTable | undefined): string {
   if (!table) return "";
   const row =
-    table.rows.find((r) => /基准|base/iu.test(r.join(" "))) ?? table.rows[1];
+    table.rows.find((r) => /基准|base/iu.test(r.join(" "))) ??
+    table.rows.find((r) => firstMoney(r.join(" "))) ??
+    table.rows[0];
   if (!row) return "";
-  const joined = row.join(" ");
-  const m = /US\$[\d.]+[kmb]\s*ARR/iu.exec(joined) ?? /US\$[\d.,]+[kmb]?/iu.exec(joined);
-  return m?.[0] ?? stripInlineMd(row[row.length - 1] ?? "");
+  const moneyCell = row.find((c) => firstMoney(c));
+  if (moneyCell) return firstMoney(moneyCell);
+  return firstMoney(row.join(" ")) || clip(stripInlineMd(row[row.length - 1] ?? ""), 18);
+}
+
+function marketValue(md: string, tableRe: RegExp, headingRe: RegExp): string {
+  const tables = parseTables(md);
+  const table = tables.find(
+    (t) =>
+      t.headers.some((h) => tableRe.test(h)) ||
+      t.rows.some((r) => tableRe.test(r[0] ?? "")),
+  );
+  return (
+    baselineArr(table) ||
+    firstMoney(headingBody(md, headingRe)) ||
+    metricNear(md, headingRe)
+  );
 }
 
 export function renderMarketStatsLead(md: string): string {
-  const tables = parseTables(md);
-  const tam = tables.find((t) =>
-    t.headers.some((h) => /planning tam|\bTAM\b/iu.test(h)),
+  const tamV = marketValue(
+    md,
+    /planning tam|\bTAM\b|总市场/iu,
+    /总市场|^tam\b/iu,
   );
-  const sam = tables.find((t) =>
-    t.headers.some((h) => /planning sam|\bSAM\b/iu.test(h)),
+  const samV = marketValue(
+    md,
+    /planning sam|\bSAM\b|可服务市场|可服务/iu,
+    /可服务市场|^sam\b/iu,
   );
-  if (!tam && !sam) return "";
-  const som = tables.find((t) =>
-    t.headers.some((h) => /planning som|\bSOM\b|可获得/iu.test(h)),
+  const somV = marketValue(
+    md,
+    /planning som|\bSOM\b|可获得份额|可获得/iu,
+    /可获得份额|^som\b/iu,
   );
-  const tamV = baselineArr(tam);
-  const samV = baselineArr(sam);
-  const somV = baselineArr(som);
-  if (!tamV && !samV) return "";
+  if ([tamV, samV, somV].filter(Boolean).length < 2) return "";
   const cell = (label: string, value: string) =>
-    `<div class="kn-stat"><div class="kn-stat__label">${escapeHtml(label)}</div><div class="kn-stat__value">${escapeHtml(clip(value || "待补", 18))}</div><div class="kn-stat__note">规划口径</div></div>`;
-  return `<div class="kn-stats">${cell("总市场", tamV)}${cell("可服务", samV)}${cell("可获得", somV)}</div>`;
+    `<div class="kn-stat"><div class="kn-stat__label">${escapeHtml(label)}</div><div class="kn-stat__value">${escapeHtml(clip(value, 18))}</div><div class="kn-stat__note">规划口径</div></div>`;
+  const parts = [
+    tamV ? cell("总市场", tamV) : "",
+    samV ? cell("可服务", samV) : "",
+    somV ? cell("可获得", somV) : "",
+  ].filter(Boolean);
+  return `<div class="kn-stats">${parts.join("")}</div>`;
 }
 
 function gateState(md: string): "buy" | "conditional" | "pass" | null {
@@ -509,7 +542,7 @@ function firstQuote(md: string): string {
 
 export function renderAudienceLead(md: string): string {
   const serve =
-    headingBody(md, /primary persona|首要|主客群|目标客群/iu) ||
+    headingBody(md, /primary persona|首要|主客群|目标客群|目标用户/iu) ||
     headingBody(md, /^persona\b|客群/iu);
   const avoid = headingBody(
     md,
@@ -533,7 +566,7 @@ export function renderAudienceLead(md: string): string {
 
 export function renderMvpSplitLead(md: string): string {
   const must =
-    headingBody(md, /must[- ]?have|必须有|首版做/iu) ||
+    headingBody(md, /must[- ]?have|必须有|首版做|核心功能/iu) ||
     headingBody(md, /in scope|范围内/iu);
   const wont = headingBody(
     md,
@@ -563,7 +596,7 @@ export function renderTrendSplitLead(md: string): string {
 }
 
 export function renderValuePropLead(md: string): string {
-  const jobs = headingBody(md, /jobs-to-be-done|要完成的事|^jobs?\b/iu);
+  const jobs = headingBody(md, /jobs-to-be-done|要完成的事|要完成的工作|^jobs?\b/iu);
   const pains = headingBody(md, /pains?$|痛点/iu);
   const gains = headingBody(md, /gains?$|收益|所得/iu);
   const tables = parseTables(md);
@@ -654,14 +687,85 @@ export function renderCostStatsLead(md: string): string {
   return `<div class="kn-stats">${cell("跑道", runway)}${cell("月消耗", burn)}${cell("收入 / 预收", rev)}</div>`;
 }
 
+export function renderUnitEconLead(md: string): string {
+  const cac = metricNear(md, /获客成本|^cac\b/iu);
+  const ltv = metricNear(md, /^ltv\b|终身价值|客户终身/iu);
+  const price = metricNear(md, /定价|客单价|年费|订阅价/iu);
+  const margin = metricNear(md, /毛利率|贡献毛利|^margin\b/iu);
+  const parts = [
+    cac ? ["获客成本", cac] : null,
+    ltv ? ["终身价值", ltv] : null,
+    price ? ["定价", price] : null,
+    margin ? ["毛利率", margin] : null,
+  ].filter((x): x is string[] => Boolean(x));
+  if (parts.length < 2) return "";
+  const wrap = parts.length >= 4 ? "kn-stats kn-stats--4" : "kn-stats";
+  return `<div class="${wrap}">${parts
+    .map(
+      ([label, value]) =>
+        `<div class="kn-stat"><div class="kn-stat__label">${escapeHtml(label!)}</div><div class="kn-stat__value">${escapeHtml(value!)}</div></div>`,
+    )
+    .join("")}</div>`;
+}
+
+export function renderProjectionLead(md: string): string {
+  const tables = parseTables(md);
+  const yearRe = /year\s*[123]|第[一二三1-3]年|y[123]\b/iu;
+  const cell = (label: string, value: string) =>
+    `<div class="kn-stat"><div class="kn-stat__label">${escapeHtml(label)}</div><div class="kn-stat__value">${escapeHtml(clip(value || "待补", 18))}</div></div>`;
+  const byRow = tables.find((t) => {
+    const y = colIndex(t.headers, /year|年份|^年$/iu);
+    const r = colIndex(t.headers, /收入|revenue|arr/iu);
+    return y >= 0 && r >= 0 && t.rows.length >= 2;
+  });
+  if (byRow) {
+    const yI = colIndex(byRow.headers, /year|年份|^年$/iu);
+    const rI = colIndex(byRow.headers, /收入|revenue|arr/iu);
+    const items = byRow.rows.slice(0, 3).map((row) =>
+      cell(
+        clip(row[yI] ?? "", 10) || "年",
+        firstMoney(row[rI] ?? "") || clip(row[rI] ?? "", 14),
+      ),
+    );
+    if (items.length >= 2) return `<div class="kn-stats">${items.join("")}</div>`;
+  }
+  const byCol = tables.find(
+    (t) => t.headers.filter((h) => yearRe.test(h)).length >= 2,
+  );
+  if (byCol) {
+    const incomeRow =
+      byCol.rows.find((r) => /收入|revenue|arr/iu.test(r[0] ?? "")) ??
+      byCol.rows[0];
+    if (incomeRow) {
+      const items = byCol.headers
+        .map((h, i) =>
+          yearRe.test(h)
+            ? cell(
+                clip(h, 10),
+                firstMoney(incomeRow[i] ?? "") || clip(incomeRow[i] ?? "", 14),
+              )
+            : "",
+        )
+        .filter(Boolean)
+        .slice(0, 3);
+      if (items.length >= 2) return `<div class="kn-stats">${items.join("")}</div>`;
+    }
+  }
+  const y1 = firstMoney(headingBody(md, /第一年|year\s*1/iu));
+  const y2 = firstMoney(headingBody(md, /第二年|year\s*2/iu));
+  const y3 = firstMoney(headingBody(md, /第三年|year\s*3/iu));
+  if ([y1, y2, y3].filter(Boolean).length < 2) return "";
+  return `<div class="kn-stats">${cell("第一年", y1)}${cell("第二年", y2)}${cell("第三年", y3)}</div>`;
+}
+
 export function renderCoverageLead(md: string): string {
   const solid = headingBody(
     md,
-    /highest confidence|高确信|已覆盖|solid ground/iu,
+    /highest confidence|高确信|已覆盖|solid ground|最高把握|最有把握/iu,
   );
   const open = headingBody(
     md,
-    /critical unknown|最低确信|待澄清|unknown|lowest confidence/iu,
+    /critical unknown|最低确信|待澄清|unknown|lowest confidence|关键未知|最不确定|待验证/iu,
   );
   const left = bodyItems(solid, 5);
   const right = bodyItems(open, 5);
@@ -726,47 +830,344 @@ export function renderExperimentScoreLead(md: string): string {
   return `<div class="kn-score-sum"><span>通过 <b>${pass}</b></span><span>未通过 <b>${fail}</b></span><span>进行中 <b>${mid}</b></span></div>`;
 }
 
+function featTone(
+  cell: string,
+): "strong" | "ok" | "weak" | "none" | "unk" | "" {
+  const t = stripInlineMd(cell).toLowerCase();
+  if (!t) return "";
+  if (/unknown|未知|待补|n\/a/iu.test(t)) return "unk";
+  if (/missing|none|^无$|^缺$|不做|空白/iu.test(t)) return "none";
+  if (/^strong$|^强$|^高$|优秀|齐全/iu.test(t)) return "strong";
+  if (/adequate|enough|^够$|^中$|一般|部分/iu.test(t)) return "ok";
+  if (/^weak$|^弱$|^低$|不足|浅/iu.test(t)) return "weak";
+  return "";
+}
+
+function featScore(tone: ReturnType<typeof featTone>): number {
+  if (tone === "strong") return 4;
+  if (tone === "ok") return 3;
+  if (tone === "weak") return 2;
+  if (tone === "none") return 1;
+  return 0;
+}
+
+function findFeatureMatrix(md: string): MdTable | null {
+  const tables = parseTables(md);
+  return (
+    tables.find((t) => {
+      if (t.headers.length < 3 || t.rows.length < 3) return false;
+      if (colIndex(t.headers, /score|分数|评分|得分/iu) >= 0) return false;
+      const rated = t.rows
+        .flatMap((r) => r.slice(1).map(featTone))
+        .filter(Boolean);
+      return rated.length >= t.rows.length;
+    }) ?? null
+  );
+}
+
+function renderFeatureRadar(table: MdTable): string {
+  const dims = table.rows
+    .map((r) => clip(r[0] ?? "", 16))
+    .filter(Boolean);
+  if (dims.length < 5) return "";
+  const series = table.headers
+    .slice(1)
+    .map((h, j) => ({
+      name: clip(h, 14),
+      values: table.rows.map((r) => featScore(featTone(r[j + 1] ?? ""))),
+    }))
+    .filter((s) => s.name && s.values.some((v) => v > 0));
+  if (series.length < 2) return "";
+  const n = dims.length;
+  const cx = 160;
+  const cy = 160;
+  const maxR = 108;
+  const pt = (i: number, score: number): string => {
+    const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
+    const r = maxR * (Math.max(0.15, score) / 4);
+    return `${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`;
+  };
+  const grid = [1, 2, 3, 4]
+    .map((level) => {
+      const points = dims.map((_, i) => pt(i, level)).join(" ");
+      return `<polygon class="kn-radar__grid" points="${points}" />`;
+    })
+    .join("");
+  const axes = dims
+    .map((d, i) => {
+      const end = pt(i, 4);
+      const [x, y] = end.split(",");
+      const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
+      const lx = (cx + (maxR + 22) * Math.cos(a)).toFixed(1);
+      const ly = (cy + (maxR + 22) * Math.sin(a)).toFixed(1);
+      return `<line class="kn-radar__axis" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" /><text class="kn-radar__label" x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle">${escapeHtml(d)}</text>`;
+    })
+    .join("");
+  const palette = ["#7A3B36", "#4A5E6D", "#A67C4A", "#3D6B52", "#8A5A3C"];
+  const polys = series
+    .slice(0, 5)
+    .map((s, si) => {
+      const color = palette[si % palette.length]!;
+      const points = s.values.map((v, i) => pt(i, v)).join(" ");
+      return `<polygon class="kn-radar__poly" points="${points}" fill="${color}" fill-opacity="0.14" stroke="${color}" stroke-width="1.6" />`;
+    })
+    .join("");
+  const legend = series
+    .slice(0, 5)
+    .map((s, si) => {
+      const color = palette[si % palette.length]!;
+      return `<span class="kn-radar__leg"><i style="background:${color}"></i>${escapeHtml(s.name)}</span>`;
+    })
+    .join("");
+  return `<div class="kn-radar"><svg viewBox="0 0 320 320" role="img" aria-label="能力对比">${grid}${axes}${polys}</svg><div class="kn-radar__legend">${legend}</div></div>`;
+}
+
+export function renderFeatureMatrixLead(md: string): string {
+  const table = findFeatureMatrix(md);
+  if (!table) return "";
+  const head = `<tr>${table.headers
+    .map((h) => `<th>${escapeHtml(clip(h, 18))}</th>`)
+    .join("")}</tr>`;
+  const body = table.rows
+    .slice(0, 16)
+    .map((row) => {
+      const cells = row
+        .map((c, i) => {
+          if (i === 0) return `<th>${escapeHtml(clip(c, 28))}</th>`;
+          const tone = featTone(c);
+          const cls = tone ? ` class="kn-feat kn-feat--${tone}"` : "";
+          const label =
+            tone === "strong"
+              ? "强"
+              : tone === "ok"
+                ? "够"
+                : tone === "weak"
+                  ? "弱"
+                  : tone === "none"
+                    ? "无"
+                    : tone === "unk"
+                      ? "待补"
+                      : clip(c, 10);
+          return `<td${cls}>${escapeHtml(label)}</td>`;
+        })
+        .join("");
+      return `<tr>${cells}</tr>`;
+    })
+    .join("");
+  const heatmap = `<div class="kn-table-wrap"><table class="kn-featmap"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+  return `${heatmap}${renderFeatureRadar(table)}`;
+}
+
+function axisPct(text: string): number | null {
+  const t = stripInlineMd(text);
+  const n = Number.parseFloat(t.replace(/[^\d.]/gu, ""));
+  if (Number.isFinite(n)) {
+    if (n >= 0 && n <= 1) return Math.round(n * 100);
+    if (n >= 0 && n <= 10) return Math.round(n * 10);
+    if (n >= 0 && n <= 100) return Math.round(n);
+  }
+  if (/high|高|贵|完整|深/iu.test(t)) return 82;
+  if (/medium|mid|中|适中/iu.test(t)) return 50;
+  if (/low|低|便宜|窄|浅/iu.test(t)) return 18;
+  return null;
+}
+
+function moneyPct(values: number[], v: number): number {
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  if (max <= min) return 50;
+  return Math.round(((v - min) / (max - min)) * 100);
+}
+
+export function renderPositionAxesLead(md: string): string {
+  const tables = parseTables(md);
+  const table = tables.find((t) => {
+    const name = colIndex(t.headers, /name|^名称|^对手|^竞品|玩家/iu);
+    const x = colIndex(
+      t.headers,
+      /complete|功能|完整|广度|专业|覆盖|x\b/iu,
+    );
+    const y = colIndex(t.headers, /price|价格|定价|客单|y\b/iu);
+    return name >= 0 && x >= 0 && y >= 0 && x !== y && t.rows.length >= 2;
+  });
+  if (!table) return "";
+  const nameI = colIndex(table.headers, /name|^名称|^对手|^竞品|玩家/iu);
+  const xI = colIndex(table.headers, /complete|功能|完整|广度|专业|覆盖|x\b/iu);
+  const yI = colIndex(table.headers, /price|价格|定价|客单|y\b/iu);
+  const xLabel = clip(table.headers[xI] ?? "功能完整", 10);
+  const yLabel = clip(table.headers[yI] ?? "价格", 8);
+  const parsed = table.rows
+    .map((row) => {
+      const name = clip(row[nameI] ?? "", 12);
+      if (!name) return null;
+      const x = axisPct(row[xI] ?? "");
+      const yRaw = axisPct(row[yI] ?? "");
+      const yMoney = Number.parseFloat(
+        (row[yI] ?? "").replace(/[^\d.]/gu, ""),
+      );
+      return { name, x, y: yRaw, yMoney: Number.isFinite(yMoney) ? yMoney : null };
+    })
+    .filter((r): r is NonNullable<typeof r> => Boolean(r));
+  const moneyVals = parsed
+    .map((p) => p.yMoney)
+    .filter((n): n is number => n != null && n > 0);
+  const dots = parsed
+    .map((p) => {
+      const x = p.x ?? 50;
+      const y =
+        p.y ??
+        (p.yMoney != null && moneyVals.length >= 2
+          ? moneyPct(moneyVals, p.yMoney)
+          : null);
+      if (y == null && p.x == null) return null;
+      const left = Math.min(92, Math.max(8, x));
+      const bottom = Math.min(92, Math.max(8, y ?? 50));
+      const ours = /我们|本产品|^us$|^our\b/iu.test(p.name);
+      const cls = ours ? " kn-axes__dot--us" : "";
+      return `<span class="kn-axes__dot${cls}" style="left:${left}%;bottom:${bottom}%">${escapeHtml(p.name)}</span>`;
+    })
+    .filter(Boolean);
+  if (dots.length < 2) return "";
+  return `<div class="kn-axes"><div class="kn-axes__y">${escapeHtml(yLabel)} →</div><div class="kn-axes__plot">${dots.join("")}</div><div class="kn-axes__spacer"></div><div class="kn-axes__x">${escapeHtml(xLabel)} →</div></div>`;
+}
+
+export function renderPriceBandLead(md: string): string {
+  const tables = parseTables(md);
+  const table = tables.find((t) => {
+    const name = colIndex(t.headers, /name|^名称|^对手|^竞品/iu);
+    const price = colIndex(t.headers, /price|价格|定价|年费|客单/iu);
+    return name >= 0 && price >= 0 && t.rows.length >= 2;
+  });
+  if (!table) return "";
+  const nameI = colIndex(table.headers, /name|^名称|^对手|^竞品/iu);
+  const priceI = colIndex(table.headers, /price|价格|定价|年费|客单/iu);
+  const items = table.rows
+    .map((row) => {
+      const name = clip(row[nameI] ?? "", 12);
+      const raw = row[priceI] ?? "";
+      const n = Number.parseFloat(raw.replace(/[^\d.]/gu, ""));
+      if (!name || !Number.isFinite(n) || n <= 0) return null;
+      return { name, n, label: firstMoney(raw) || clip(raw, 12) };
+    })
+    .filter((r): r is NonNullable<typeof r> => Boolean(r));
+  if (items.length < 2) return "";
+  const nums = items.map((i) => i.n);
+  const ticks = items
+    .slice(0, 8)
+    .map((it) => {
+      const left = Math.min(92, Math.max(8, moneyPct(nums, it.n)));
+      const ours = /我们|本产品|^us$|^our\b/iu.test(it.name);
+      const cls = ours ? " kn-priceband__tick--us" : "";
+      return `<span class="kn-priceband__tick${cls}" style="left:${left}%"><b>${escapeHtml(it.name)}</b><i>${escapeHtml(it.label)}</i></span>`;
+    })
+    .join("");
+  return `<div class="kn-priceband"><div class="kn-priceband__track">${ticks}</div><div class="kn-priceband__scale"><span>低价</span><span>高价</span></div></div>`;
+}
+
+export function renderMarketRingsLead(md: string): string {
+  const tamV = marketValue(
+    md,
+    /planning tam|\bTAM\b|总市场/iu,
+    /总市场|^tam\b/iu,
+  );
+  const samV = marketValue(
+    md,
+    /planning sam|\bSAM\b|可服务市场|可服务/iu,
+    /可服务市场|^sam\b/iu,
+  );
+  const somV = marketValue(
+    md,
+    /planning som|\bSOM\b|可获得份额|可获得/iu,
+    /可获得份额|^som\b/iu,
+  );
+  if (!tamV || !samV) return "";
+  const som = somV
+    ? `<div class="kn-ring kn-ring--som"><span>可获得 <b>${escapeHtml(somV)}</b></span></div>`
+    : "";
+  return `<div class="kn-rings"><div class="kn-ring kn-ring--tam"><span>总市场 <b>${escapeHtml(tamV)}</b></span><div class="kn-ring kn-ring--sam"><span>可服务 <b>${escapeHtml(samV)}</b></span>${som}</div></div></div>`;
+}
+
+const FILE_LEADS: Record<string, Array<(md: string) => string>> = {
+  "competitor-landscape": [
+    renderBattleCardsLead,
+    renderFeatureMatrixLead,
+    renderPriceBandLead,
+  ],
+  positioning: [renderPositionSplitLead, renderPositionAxesLead],
+  "market-analysis": [renderMarketStatsLead, renderMarketRingsLead],
+  "lean-canvas": [renderLeanCanvasLead],
+  scorecard: [renderScoreHeroLead],
+  "research-gate": [renderResearchGateLead],
+  "target-audience": [renderAudienceLead],
+  "mvp-definition": [renderMvpSplitLead],
+  "industry-trends": [renderTrendSplitLead],
+  "value-proposition": [renderValuePropLead],
+  "user-journey": [renderJourneyLead],
+  "go-to-market": [renderNumberedJourneyLead],
+  "action-plan-30-days": [renderWeekTimelineLead],
+  "feature-prioritization": [renderMoscowStatsLead],
+  "cost-structure": [renderCostStatsLead],
+  "business-model": [renderUnitEconLead],
+  "revenue-model": [renderUnitEconLead],
+  projections: [renderProjectionLead],
+  "confidence-dashboard": [renderCoverageLead],
+  "risk-analysis": [renderRiskHeatmapLead],
+  "assumptions-tracker": [renderAssumptionFoldsLead],
+  "kill-criteria": [renderTripwireLead],
+  "validation-playbook": [renderTripwireLead, renderExperimentScoreLead],
+  "experiment-design": [renderExperimentScoreLead],
+};
+
 export function renderSpecialLead(md: string, fileId?: string): string {
   const id = (fileId ?? "").trim();
+  const mapped = FILE_LEADS[id];
+  if (mapped) {
+    return mapped
+      .map((fn) => fn(md))
+      .filter(Boolean)
+      .join("\n");
+  }
   const chunks: string[] = [];
   const add = (html: string) => {
     if (html) chunks.push(html);
   };
   add(
-    id === "lean-canvas" || /##\s+\d+\.\s+Problem/iu.test(md)
+    id === "lean-canvas" || /##\s+\d+\.\s+(Problem|问题)/iu.test(md)
       ? renderLeanCanvasLead(md)
       : "",
   );
   add(
-    id === "competitor-landscape" || /Key Strength/iu.test(md)
+    id === "competitor-landscape" || /Key Strength|核心优势|主要优势|强项/iu.test(md)
       ? renderBattleCardsLead(md)
       : "",
   );
   add(
     id === "scorecard" ||
-      /##\s+Scorecard/iu.test(md) ||
-      (/\|\s*Dimension\s*\|/iu.test(md) && /Overall/iu.test(md))
+      /##\s+Scorecard|综合总评/iu.test(md) ||
+      (/\|\s*(Dimension|维度)\s*\|/iu.test(md) && /Overall|综合/iu.test(md))
       ? renderScoreHeroLead(md)
       : "",
   );
   add(
     id === "research-gate" ||
-      /Green light|Yellow light|Red light|研究闸门/iu.test(md)
+      /Green light|Yellow light|Red light|研究闸门|绿灯|黄灯|红灯/iu.test(md)
       ? renderResearchGateLead(md)
       : "",
   );
   add(
-    id === "positioning" || /Competitive Alternatives/iu.test(md)
+    id === "positioning" ||
+      /Competitive Alternatives|竞争替代|替代方案/iu.test(md)
       ? renderPositionSplitLead(md)
       : "",
   );
   add(
-    id === "target-audience" || /Anti-?persona|反客群|不服务谁/iu.test(md)
+    id === "target-audience" ||
+      /Anti-?persona|反客群|不服务谁|目标用户/iu.test(md)
       ? renderAudienceLead(md)
       : "",
   );
   add(
-    id === "mvp-definition" || /out of scope|明确不做/iu.test(md)
+    id === "mvp-definition" || /out of scope|明确不做|首版做/iu.test(md)
       ? renderMvpSplitLead(md)
       : "",
   );
@@ -776,43 +1177,55 @@ export function renderSpecialLead(md: string, fileId?: string): string {
       : "",
   );
   add(
-    id === "value-proposition" || /Jobs-to-be-done|要完成的事/iu.test(md)
+    id === "value-proposition" || /Jobs-to-be-done|要完成的事|要完成的工作/iu.test(md)
       ? renderValuePropLead(md)
       : "",
   );
   add(
-    id === "user-journey" || /##\s+(?:Journey|旅程)\s+1/iu.test(md)
+    id === "user-journey" || /##\s+(?:Journey|旅程)\s*1/iu.test(md)
       ? renderJourneyLead(md)
       : "",
   );
   add(
-    id === "go-to-market" || /First 100|Launch strategy/iu.test(md)
+    id === "go-to-market" || /First 100|Launch strategy|前\s*100|启动策略/iu.test(md)
       ? renderNumberedJourneyLead(md)
       : "",
   );
   add(
-    id === "action-plan-30-days" || /##\s+Week\s+1/iu.test(md)
+    id === "action-plan-30-days" || /##\s+(Week\s+1|第\s*[一1]\s*周)/iu.test(md)
       ? renderWeekTimelineLead(md)
       : "",
   );
   add(
-    id === "feature-prioritization" || /Must Have/iu.test(md)
+    id === "feature-prioritization" || /Must Have|必须有|必须具备/iu.test(md)
       ? renderMoscowStatsLead(md)
       : "",
   );
   add(
-    id === "market-analysis" || /Planning TAM/iu.test(md)
+    id === "market-analysis" || /Planning TAM|总市场|可服务市场/iu.test(md)
       ? renderMarketStatsLead(md)
       : "",
   );
   add(
-    id === "cost-structure" || /Runway|月消耗/iu.test(md)
+    id === "cost-structure" || /Runway|月消耗|跑道/iu.test(md)
       ? renderCostStatsLead(md)
       : "",
   );
   add(
+    id === "business-model" ||
+      id === "revenue-model" ||
+      /获客成本|\bCAC\b|\bLTV\b|单位经济/iu.test(md)
+      ? renderUnitEconLead(md)
+      : "",
+  );
+  add(
+    id === "projections" || /三年预测|第一年[\s\S]{0,80}第二年/iu.test(md)
+      ? renderProjectionLead(md)
+      : "",
+  );
+  add(
     id === "confidence-dashboard" ||
-      /Highest confidence|Critical unknown/iu.test(md)
+      /Highest confidence|Critical unknown|最高把握|关键未知/iu.test(md)
       ? renderCoverageLead(md)
       : "",
   );

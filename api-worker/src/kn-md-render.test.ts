@@ -48,8 +48,10 @@ describe("markdownToKnHtml", () => {
 
 - 6/10 不是基本验证通过
 `);
-    expect(html).toContain("kn-score-sum");
-    expect(html).toContain("Phase");
+    expect(html).toContain("kn-masthead");
+    expect(html).toContain("阶段");
+    expect(html).toContain("把握");
+    expect(html).not.toContain("kn-score-sum");
     expect(html).toContain("判断");
     expect(html).toContain("CONDITIONAL");
     expect(html).toContain("kn-flag--red");
@@ -60,6 +62,8 @@ describe("markdownToKnHtml", () => {
   it("marks [Data] tags", () => {
     const html = markdownToKnHtml("**[Data]** 官网可核验。");
     expect(html).toContain("kn-md-tag");
+    expect(html).toContain("kn-md-tag--data");
+    expect(html).toContain("kn-tagged--data");
     expect(html).toContain("Data");
   });
 
@@ -99,6 +103,83 @@ describe("markdownToKnHtml", () => {
 `);
     expect(html).toContain("kn-badge--crit");
     expect(html).toContain("kn-badge--high");
+  });
+
+  it("turns file headers into a masthead grid", () => {
+    const html = markdownToKnHtml(`# 合域家族办公室 AI 项目投研与协作平台
+
+**Phase:** Final Deliverable
+**Project:** jfo-ai-investment-platform
+**Status:** Startup Design Phase 0.5–8 completed; Customer Discovery and Brand deferred
+**Date:** 2026-09-01
+**Verdict:** CONDITIONAL — 6.0/10
+**Confidence:** Medium for internal problem and product direction; Low for external demand and revenue
+
+---
+
+正文。
+`);
+    expect(html).toContain("kn-masthead");
+    expect(html).toContain("kn-masthead__cell--wide");
+    expect(html).toContain("阶段");
+    expect(html).toContain("项目");
+    expect(html).toContain("进度");
+    expect(html).toContain("日期");
+    expect(html).toContain("判断");
+    expect(html).toContain("把握");
+    expect(html).toContain("jfo-ai-investment-platform");
+    expect(html).not.toContain("<hr");
+  });
+
+  it("pairs strongest evidence with weakest links as a split", () => {
+    const html = markdownToKnHtml(`# 记分卡
+
+**Strongest evidence**
+
+- 内部工作流已经存在
+- 权限与审计有明确需求
+
+**Weakest links**
+
+- 0 次独立客户访谈
+- A+ 产品范围过大
+`);
+    expect(html).toContain("kn-split");
+    expect(html).toContain("kn-split__col--go");
+    expect(html).toContain("kn-split__col--stop");
+    expect(html).toContain("Strongest evidence");
+    expect(html).toContain("Weakest links");
+    expect(html).toContain("内部工作流已经存在");
+    expect(html).toContain("0 次独立客户访谈");
+  });
+
+  it("wraps numbered sections and keeps section confidence off the masthead", () => {
+    const html = markdownToKnHtml(`# 竞争格局
+
+**Phase:** 3 — Market Research Synthesis
+**Project:** jfo-ai-investment-platform
+**Date:** 2026-08-26
+**Confidence:** Medium-Low
+
+## 1. Competitive Overview
+
+**Section confidence:** Medium for public product/pricing facts; Low for traction.
+
+[Data]
+**Category:** Affinity, Addepar, Canoe
+
+[Opinion]
+**总体威胁: High.** 公开产品面已挤。
+`);
+    expect(html).toContain("kn-masthead");
+    expect(html).toContain("kn-md-section");
+    expect(html).toContain("kn-section-conf");
+    expect(html).toContain("本节把握");
+    expect(html).not.toContain('kn-masthead__k">本节把握');
+    expect(html).toContain("kn-tagged--data");
+    expect(html).toContain("kn-tagged--opinion");
+    expect(html).toContain("Affinity");
+    expect(html).toContain("总体威胁");
   });
 });
 

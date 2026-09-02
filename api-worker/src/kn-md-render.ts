@@ -16,11 +16,25 @@ function escapeHtml(s: string): string {
     .replace(/"/gu, "&quot;");
 }
 
+function tagKind(label: string): string {
+  const k = (label.split(/[,\s/]/u)[0] ?? "").trim().toLowerCase();
+  if (k === "data") return "data";
+  if (k === "opinion") return "opinion";
+  if (k === "assumption") return "assumption";
+  if (k === "gap") return "gap";
+  if (k === "estimate") return "estimate";
+  return "";
+}
+
 function inline(s: string): string {
   let t = escapeHtml(s);
   t = t.replace(
     /\[((?:Data|Opinion|Assumption|Gap|Estimate)[^\]]*)\]/giu,
-    (_m, label: string) => `<span class="kn-md-tag">${label}</span>`,
+    (_m, label: string) => {
+      const kind = tagKind(label);
+      const extra = kind ? ` kn-md-tag--${kind}` : "";
+      return `<span class="kn-md-tag${extra}">${label}</span>`;
+    },
   );
   t = t.replace(
     /`([^`]+)`/gu,
@@ -110,20 +124,142 @@ function parseMetaLine(line: string): { key: string; value: string } | null {
   return { key, value };
 }
 
-function isMetaLine(line: string): boolean {
-  return parseMetaLine(line) != null;
+const DOC_META_KEY =
+  /^(Phase|Project|Date|Confidence|Status|Verdict|Overall|阶段|项目|日期|把握|进度|判断|综合)$/iu;
+
+function isSectionConfLine(line: string): boolean {
+  const m = parseMetaLine(line);
+  return Boolean(m && /^section\s+confidence$|^本节把握$/iu.test(m.key));
+}
+
+function isDocMetaLine(line: string): boolean {
+  const m = parseMetaLine(line);
+  if (!m || isSectionConfLine(line)) return false;
+  return DOC_META_KEY.test(m.key);
+}
+
+const META_LABELS: Record<string, string> = {
+  phase: "阶段",
+  project: "项目",
+  date: "日期",
+  confidence: "把握",
+  status: "进度",
+  verdict: "判断",
+  overall: "综合",
+  阶段: "阶段",
+  项目: "项目",
+  日期: "日期",
+  把握: "把握",
+  进度: "进度",
+  判断: "判断",
+  综合: "综合",
+};
+
+function metaLabel(key: string): string {
+  return META_LABELS[key.trim().toLowerCase()] ?? key;
 }
 
 function metaHtml(lines: string[]): string {
-  const parts = lines
+  const cells = lines
     .map((line) => {
       const m = parseMetaLine(line);
-      if (!m) return "";
-      return `<span>${inline(m.key)} <b>${inline(m.value)}</b></span>`;
+      if (!m || isSectionConfLine(line)) return "";
+      const wide = m.value.length > 42 ? " kn-masthead__cell--wide" : "";
+      return `<div class="kn-masthead__cell${wide}"><span class="kn-masthead__k">${escapeHtml(metaLabel(m.key))}</span><span class="kn-masthead__v">${inline(m.value)}</span></div>`;
     })
     .filter(Boolean);
-  if (parts.length === 0) return "";
-  return `<div class="kn-score-sum">${parts.join("")}</div>`;
+  if (cells.length === 0) return "";
+  return `<div class="kn-masthead">${cells.join("")}</div>`;
+}
+
+function sectionConfHtml(value: string): string {
+  return `<p class="kn-section-conf"><span class="kn-section-conf__k">本节把握</span>${inline(value)}</p>`;
+}
+
+function evidenceKind(title: string): "strong" | "weak" | null {
+  const t = title.replace(/\*+/gu, "").trim();
+  if (/strongest evidence|最强证据|最有力证据/iu.test(t)) return "strong";
+  if (/weakest links?|最弱环节|最弱链接|最弱证据/iu.test(t)) return "weak";
+  return null;
+}
+
+function evidenceCol(title: string, kind: "go" | "stop", body: string): string {
+  const inner = markdownToKnHtmlInner(body).trim() || "<p>待补</p>";
+  return `<div class="kn-split__col kn-split__col--${kind}"><div class="kn-split__title">${escapeHtml(title)}</div>${inner}</div>`;
+}
+
+function taggedLine(
+  line: string,
+): { label: string; kind: string; rest: string } | null {
+  const m =
+    /^(?:\*\*)?\[((?:Data|Opinion|Assumption|Gap|Estimate)[^\]]*)\](?:\*\*)?\s*(.*)$/iu.exec(
+      line.trim(),
+    );
+  if (!m) return null;
+  return {
+    label: m[1]!,
+    kind: tagKind(m[1]!) || "plain",
+    rest: (m[2] ?? "").trim(),
+  };
+}
+
+function isStructuralBoundary(line: string): boolean {
+  const t = line.trim();
+  if (!t) return false;
+  if (/^(#{1,3})\s+/u.test(t)) return true;
+  const bold = /^\*\*([^*]+)\*\*$/u.exec(t);
+  return Boolean(bold && evidenceKind(bold[1]!) != null);
+}
+
+function collectUntilBoundary(
+  lines: string[],
+  start: number,
+): { body: string[]; next: number } {
+  let i = start;
+  const body: string[] = [];
+  while (i < lines.length && !isStructuralBoundary(lines[i] ?? "")) {
+    body.push(lines[i] ?? "");
+    i += 1;
+  }
+  return { body, next: i };
+}
+
+function consumeEvidencePair(
+  lines: string[],
+  startAfterTitle: number,
+  firstTitle: string,
+  firstKind: "strong" | "weak",
+): { html: string; next: number } {
+  const first = collectUntilBoundary(lines, startAfterTitle);
+  let i = first.next;
+  let strongTitle = firstKind === "strong" ? firstTitle : "最强证据";
+  let weakTitle = firstKind === "weak" ? firstTitle : "最弱环节";
+  let strongBody = firstKind === "strong" ? first.body : [];
+  let weakBody = firstKind === "weak" ? first.body : [];
+  if (firstKind === "strong") {
+    const peek = (lines[i] ?? "").trim();
+    const nextH = /^(#{1,3})\s+(.+)$/u.exec(peek);
+    const nextBold = /^\*\*([^*]+)\*\*$/u.exec(peek);
+    const nextTitle = (nextH?.[2] ?? nextBold?.[1] ?? "").trim();
+    if (nextTitle && evidenceKind(nextTitle) === "weak") {
+      weakTitle = nextTitle;
+      i += 1;
+      const weak = collectUntilBoundary(lines, i);
+      weakBody = weak.body;
+      i = weak.next;
+    }
+  }
+  return {
+    html: `<div class="kn-split">${evidenceCol(strongTitle, "go", strongBody.join("\n"))}${evidenceCol(weakTitle, "stop", weakBody.join("\n"))}</div>`,
+    next: i,
+  };
+}
+
+function skipFollowingRule(lines: string[], start: number): number {
+  let i = start;
+  while (i < lines.length && !(lines[i] ?? "").trim()) i += 1;
+  if (i < lines.length && /^---+$/u.test((lines[i] ?? "").trim())) i += 1;
+  return i;
 }
 
 function renderFlagsBlock(title: string, bodyLines: string[]): string {
@@ -213,6 +349,7 @@ function markdownToKnHtmlInner(src: string): string {
   let para: string[] = [];
   let listKind: "ul" | "ol" | null = null;
   let listItems: string[] = [];
+  let inMdSection = false;
 
   const flushPara = () => {
     if (para.length === 0) return;
@@ -231,6 +368,11 @@ function markdownToKnHtmlInner(src: string): string {
     );
     listKind = null;
     listItems = [];
+  };
+  const closeMdSection = () => {
+    if (!inMdSection) return;
+    out.push("</section>");
+    inMdSection = false;
   };
 
   while (i < lines.length) {
@@ -263,8 +405,23 @@ function markdownToKnHtmlInner(src: string): string {
     if (h) {
       flushPara();
       flushList();
-      const level = Math.min(3, h[1]!.length) + 1;
       const title = h[2]!.trim();
+      const ev = evidenceKind(title);
+      if (ev) {
+        closeMdSection();
+        i += 1;
+        const pair = consumeEvidencePair(lines, i, title, ev);
+        out.push(pair.html);
+        i = pair.next;
+        continue;
+      }
+      closeMdSection();
+      const numbered = h[1]!.length >= 2 && /^\d+[.)]\s+\S/u.test(title);
+      if (numbered) {
+        out.push('<section class="kn-md-section">');
+        inMdSection = true;
+      }
+      const level = Math.min(3, h[1]!.length) + 1;
       const tag = `h${level}`;
       i += 1;
       if (/flag|红旗|黄旗|flags/iu.test(title)) {
@@ -283,23 +440,91 @@ function markdownToKnHtmlInner(src: string): string {
         continue;
       }
       out.push(`<${tag}>${inline(title)}</${tag}>`);
-      if (h[1]!.length === 1) {
+      while (i < lines.length && !(lines[i] ?? "").trim()) i += 1;
+      const peek = (lines[i] ?? "").trim();
+      if (isSectionConfLine(peek)) {
+        out.push(sectionConfHtml(parseMetaLine(peek)!.value));
+        i += 1;
+      } else if (h[1]!.length === 1) {
         const meta: string[] = [];
         while (i < lines.length) {
-          const peek = (lines[i] ?? "").trim();
-          if (!peek) {
+          const next = (lines[i] ?? "").trim();
+          if (!next) {
             i += 1;
             continue;
           }
-          if (isMetaLine(peek)) {
-            meta.push(peek);
+          if (isDocMetaLine(next)) {
+            meta.push(next);
             i += 1;
             continue;
           }
           break;
         }
-        if (meta.length > 0) out.push(metaHtml(meta));
+        if (meta.length > 0) {
+          out.push(metaHtml(meta));
+          i = skipFollowingRule(lines, i);
+        }
       }
+      continue;
+    }
+
+    const boldOnly = /^\*\*([^*]+)\*\*$/u.exec(trimmed);
+    if (boldOnly && evidenceKind(boldOnly[1]!)) {
+      flushPara();
+      flushList();
+      closeMdSection();
+      i += 1;
+      const pair = consumeEvidencePair(
+        lines,
+        i,
+        boldOnly[1]!.trim(),
+        evidenceKind(boldOnly[1]!)!,
+      );
+      out.push(pair.html);
+      i = pair.next;
+      continue;
+    }
+
+    if (isSectionConfLine(trimmed)) {
+      flushPara();
+      flushList();
+      out.push(sectionConfHtml(parseMetaLine(trimmed)!.value));
+      i += 1;
+      continue;
+    }
+
+    const tagged = taggedLine(trimmed);
+    if (tagged) {
+      flushPara();
+      flushList();
+      const block: string[] = [];
+      if (tagged.rest) block.push(tagged.rest);
+      i += 1;
+      while (i < lines.length) {
+        const next = (lines[i] ?? "").trim();
+        if (!next) {
+          block.push("");
+          i += 1;
+          continue;
+        }
+        if (
+          taggedLine(next) ||
+          /^(#{1,3})\s+/u.test(next) ||
+          /^---+$/u.test(next) ||
+          isDocMetaLine(next) ||
+          isSectionConfLine(next) ||
+          isStructuralBoundary(next)
+        ) {
+          break;
+        }
+        block.push(lines[i] ?? "");
+        i += 1;
+      }
+      const inner = markdownToKnHtmlInner(block.join("\n")).trim();
+      const kindClass = tagged.kind ? ` kn-tagged--${tagged.kind}` : "";
+      out.push(
+        `<div class="kn-tagged${kindClass}"><span class="kn-md-tag kn-md-tag--${tagged.kind}">${escapeHtml(tagged.label)}</span>${inner}</div>`,
+      );
       continue;
     }
 
@@ -313,16 +538,17 @@ function markdownToKnHtmlInner(src: string): string {
       continue;
     }
 
-    if (isMetaLine(trimmed) && out.length > 0) {
+    if (isDocMetaLine(trimmed) && out.length > 0) {
       flushPara();
       flushList();
       const meta = [trimmed];
       i += 1;
-      while (i < lines.length && isMetaLine((lines[i] ?? "").trim())) {
+      while (i < lines.length && isDocMetaLine((lines[i] ?? "").trim())) {
         meta.push((lines[i] ?? "").trim());
         i += 1;
       }
       out.push(metaHtml(meta));
+      i = skipFollowingRule(lines, i);
       continue;
     }
 
@@ -389,6 +615,7 @@ function markdownToKnHtmlInner(src: string): string {
   }
   flushPara();
   flushList();
+  closeMdSection();
 
   const html = out.join("\n").trim();
   return html;

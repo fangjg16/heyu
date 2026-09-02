@@ -746,7 +746,7 @@
   text-decoration: line-through;
 }
 
-/* 验证记分卡 */
+/* 验证记分卡计数条 */
 .kn-score-sum {
   display: flex;
   gap: 16px;
@@ -757,6 +757,134 @@
 
 .kn-score-sum b {
   color: hsl(var(--warm-charcoal));
+}
+
+/* 文首元数据：阶段 / 项目 / 日期 / 把握 */
+.kn-masthead {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 0.7rem 1.15rem;
+  margin: 0.1rem 0 1.15rem;
+  padding: 0.15rem 0 1.05rem;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.kn-masthead__cell {
+  min-width: 0;
+}
+
+.kn-masthead__cell--wide {
+  grid-column: span 2;
+}
+
+.kn-masthead__k {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: hsl(var(--ink-soft));
+}
+
+.kn-masthead__v {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 650;
+  line-height: 1.45;
+  color: hsl(var(--warm-charcoal));
+}
+
+.kn-section-conf {
+  margin: -0.25rem 0 0.85rem;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: hsl(var(--ink-soft));
+}
+
+.kn-section-conf__k {
+  display: inline-block;
+  margin-right: 0.4rem;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 650;
+  color: hsl(var(--wine));
+  background: hsl(var(--wine-muted));
+}
+
+.kn-md-section {
+  margin: 0.2rem 0 0.35rem;
+  padding: 0.15rem 0 1.05rem;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.kn-md-section:last-of-type {
+  border-bottom: 0;
+  padding-bottom: 0.2rem;
+}
+
+.kn-md-section > h3:first-child,
+.kn-md-section > h4:first-child {
+  margin-top: 0.55rem;
+}
+
+.kn-tagged {
+  margin: 0.65rem 0 0.95rem;
+  padding: 0.7rem 0.9rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--paper));
+}
+
+.kn-tagged .kn-md-tag {
+  display: block;
+  width: fit-content;
+  margin: 0 0 0.5rem;
+}
+
+.kn-tagged > p:first-of-type,
+.kn-tagged > ul:first-of-type,
+.kn-tagged > ol:first-of-type {
+  margin-top: 0;
+}
+
+.kn-tagged > p:last-child,
+.kn-tagged > ul:last-child,
+.kn-tagged > ol:last-child {
+  margin-bottom: 0;
+}
+
+.kn-tagged--data {
+  border-left: 3px solid hsl(210 18% 48%);
+  background: hsl(210 20% 97%);
+}
+
+.kn-tagged--opinion {
+  border-left: 3px solid hsl(var(--wine) / 0.7);
+  background: hsl(var(--wine-muted) / 0.35);
+}
+
+.kn-tagged--assumption,
+.kn-tagged--estimate {
+  border-left: 3px solid hsl(32 42% 52%);
+  background: hsl(32 40% 97%);
+}
+
+.kn-tagged--gap {
+  border-left: 3px solid hsl(var(--wine));
+  background: hsl(5 40% 97%);
+}
+
+.kn-split__col p,
+.kn-split__col ul,
+.kn-split__col ol {
+  margin: 0.2rem 0;
+}
+
+.kn-split__col p:last-child,
+.kn-split__col ul:last-child,
+.kn-split__col ol:last-child {
+  margin-bottom: 0;
 }
 
 /* 空态 */
@@ -1021,6 +1149,283 @@
   color: hsl(var(--ink-soft));
 }
 
+.kn-md-tag--data {
+  background: hsl(210 18% 90%);
+  color: hsl(210 22% 32%);
+}
+
+.kn-md-tag--opinion {
+  background: hsl(var(--wine-muted));
+  color: hsl(5 28% 32%);
+}
+
+.kn-md-tag--assumption,
+.kn-md-tag--estimate {
+  background: hsl(32 40% 90%);
+  color: hsl(32 42% 30%);
+}
+
+.kn-md-tag--gap {
+  background: hsl(5 40% 93%);
+  color: hsl(var(--wine));
+}
+
+.kn-featmap th,
+.kn-featmap td {
+  text-align: center;
+  font-size: 12px;
+}
+
+.kn-featmap td:first-child,
+.kn-featmap th:first-child,
+.kn-featmap tbody th {
+  text-align: left;
+  font-weight: 600;
+}
+
+.kn-feat--strong {
+  background: hsl(145 28% 93%);
+  color: hsl(145 25% 28%);
+}
+
+.kn-feat--ok {
+  background: hsl(38 40% 94%);
+  color: hsl(32 32% 32%);
+}
+
+.kn-feat--weak {
+  background: hsl(18 45% 94%);
+  color: hsl(18 40% 32%);
+}
+
+.kn-feat--none {
+  background: hsl(var(--wine-muted));
+  color: hsl(var(--wine));
+}
+
+.kn-featmap tbody th,
+.kn-featmap thead th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: hsl(var(--linen));
+}
+
+.kn-radar {
+  display: grid;
+  justify-items: center;
+  gap: 0.55rem;
+  margin: 0.35rem 0 1.25rem;
+}
+
+.kn-radar svg {
+  width: min(100%, 340px);
+  height: auto;
+}
+
+.kn-radar__grid {
+  fill: none;
+  stroke: hsl(var(--border));
+  stroke-width: 1;
+}
+
+.kn-radar__axis {
+  stroke: hsl(var(--border));
+  stroke-width: 1;
+}
+
+.kn-radar__label {
+  font-size: 10px;
+  fill: hsl(var(--ink-soft));
+}
+
+.kn-radar__legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 14px;
+  font-size: 12px;
+}
+
+.kn-radar__leg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kn-radar__leg i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.kn-axes {
+  display: grid;
+  grid-template-columns: 1.4rem minmax(0, 1fr);
+  grid-template-rows: 220px 1.35rem;
+  gap: 0.35rem 0.45rem;
+  margin: 0.85rem 0 1.25rem;
+}
+
+.kn-axes__y {
+  align-self: center;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: hsl(var(--ink-soft));
+}
+
+.kn-axes__plot {
+  position: relative;
+  border-left: 1px solid hsl(var(--border));
+  border-bottom: 1px solid hsl(var(--border));
+  background:
+    linear-gradient(to top, hsl(var(--linen) / 0.7) 50%, transparent 50%),
+    linear-gradient(to right, transparent 50%, hsl(var(--linen) / 0.55) 50%);
+}
+
+.kn-axes__dot {
+  position: absolute;
+  z-index: 1;
+  transform: translate(-50%, 50%);
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--paper));
+  font-size: 11px;
+  line-height: 1.3;
+  white-space: nowrap;
+  color: hsl(var(--warm-charcoal));
+}
+
+.kn-axes__dot--us {
+  z-index: 2;
+  border-color: hsl(var(--wine) / 0.45);
+  background: hsl(var(--wine));
+  color: #fff;
+}
+
+.kn-axes__x {
+  grid-column: 2;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: hsl(var(--ink-soft));
+}
+
+.kn-priceband {
+  margin: 0.85rem 0 1.25rem;
+}
+
+.kn-priceband__track {
+  position: relative;
+  height: 3.6rem;
+  margin: 0 0.4rem;
+  border-bottom: 2px solid hsl(var(--wine) / 0.35);
+}
+
+.kn-priceband__tick {
+  position: absolute;
+  bottom: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding-bottom: 8px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.kn-priceband__tick b {
+  font-weight: 650;
+}
+
+.kn-priceband__tick i {
+  font-style: normal;
+  color: hsl(var(--ink-soft));
+}
+
+.kn-priceband__tick::after {
+  content: "";
+  position: absolute;
+  bottom: -5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: hsl(var(--paper));
+  border: 1.5px solid hsl(var(--wine) / 0.55);
+}
+
+.kn-priceband__tick--us b {
+  color: hsl(var(--wine));
+}
+
+.kn-priceband__tick--us::after {
+  background: hsl(var(--wine));
+  border-color: hsl(var(--wine));
+}
+
+.kn-priceband__scale {
+  display: flex;
+  justify-content: space-between;
+  margin: 0.35rem 0.4rem 0;
+  font-size: 11px;
+  color: hsl(var(--ink-soft));
+}
+
+.kn-rings {
+  display: flex;
+  justify-content: center;
+  margin: 0.85rem 0 1.25rem;
+}
+
+.kn-ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+
+.kn-ring span {
+  font-size: 11.5px;
+  color: hsl(var(--ink-soft));
+}
+
+.kn-ring b {
+  color: hsl(var(--warm-charcoal));
+}
+
+.kn-ring--tam {
+  width: 220px;
+  height: 220px;
+  background: hsl(var(--linen));
+  border: 1px solid hsl(var(--border));
+}
+
+.kn-ring--sam {
+  width: 150px;
+  height: 150px;
+  margin-top: 0.2rem;
+  background: hsl(var(--wine-muted) / 0.55);
+  border: 1px solid hsl(var(--wine) / 0.18);
+}
+
+.kn-ring--som {
+  width: 88px;
+  height: 88px;
+  margin-top: 0.15rem;
+  background: hsl(var(--wine));
+  color: #fff;
+}
+
+.kn-ring--som span,
+.kn-ring--som b {
+  color: #fff;
+}
+
 .kn-from-md > .kn-canvas,
 .kn-from-md > .kn-battles,
 .kn-from-md > .kn-hero,
@@ -1033,8 +1438,13 @@
 .kn-from-md > .kn-coverage,
 .kn-from-md > .kn-scenarios,
 .kn-from-md > .kn-score-sum,
+.kn-from-md > .kn-masthead,
 .kn-from-md > .kn-quote,
-.kn-from-md > .kn-table-wrap {
+.kn-from-md > .kn-table-wrap,
+.kn-from-md > .kn-axes,
+.kn-from-md > .kn-priceband,
+.kn-from-md > .kn-rings,
+.kn-from-md > .kn-radar {
   margin-top: 0;
 }
 
@@ -1077,6 +1487,10 @@
 
   .kn-tripwire {
     grid-template-columns: 1fr;
+  }
+
+  .kn-masthead__cell--wide {
+    grid-column: span 1;
   }
 
   .kn-hero {

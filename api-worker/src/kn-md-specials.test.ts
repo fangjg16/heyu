@@ -18,6 +18,12 @@ import {
   renderTripwireLead,
   renderValuePropLead,
   renderWeekTimelineLead,
+  renderUnitEconLead,
+  renderProjectionLead,
+  renderFeatureMatrixLead,
+  renderPositionAxesLead,
+  renderPriceBandLead,
+  renderMarketRingsLead,
 } from "./kn-md-specials";
 
 const LEAN = `# Lean Canvas
@@ -211,7 +217,7 @@ describe("special leads from heyu-like drafts", () => {
   it("counts MoSCoW tables into four stats", () => {
     const html = renderMoscowStatsLead(MOSCOW);
     expect(html).toContain("kn-stats--4");
-    expect(html).toContain("Must");
+    expect(html).toContain("必须");
     expect(html).toContain(">2<");
   });
 
@@ -346,6 +352,227 @@ describe("special leads from heyu-like drafts", () => {
     expect(html).toContain("kn-stats");
     expect(html).toContain("9 个月");
     expect(html).toContain("US$12k");
+  });
+
+  it("reads Chinese market sizes without TAM/SAM titles", () => {
+    const html = renderMarketStatsLead(`# 市场分析
+
+## 总市场
+
+国内智能睡眠硬件约 80 亿元 [Estimate]。
+
+## 可服务市场
+
+中产助眠设备约 12 亿元 [Estimate]。
+
+## 可获得份额
+
+首两年约 0.4 亿元 [Assumption]。
+`);
+    expect(html).toContain("kn-stats");
+    expect(html).toContain("80 亿");
+    expect(html).toContain("12 亿");
+    expect(html).toContain("0.4 亿");
+    expect(
+      markdownToKnHtml(
+        `# 市场分析
+
+## 总市场
+
+约 80 亿元。
+
+## 可服务市场
+
+约 12 亿元。
+`,
+        "market-analysis",
+      ),
+    ).toContain("kn-stats");
+  });
+
+  it("counts Chinese MoSCoW headings", () => {
+    const html = renderMoscowStatsLead(`# 功能规划
+
+## 必须有
+
+- 睡眠记录
+- 助眠建议
+
+## 应该有
+
+- 家庭账号
+
+## 可以有
+
+- 社区
+
+## 本次不做
+
+- 医疗诊断
+`);
+    expect(html).toContain("必须");
+    expect(html).toContain("不做");
+    expect(html).toContain(">2<");
+  });
+
+  it("turns 名称/强项/弱项 competitor tables into battle cards", () => {
+    const html = renderBattleCardsLead(`# 竞争格局
+
+| 名称 | 强项 | 弱项 |
+| --- | --- | --- |
+| 华为睡眠 | 硬件渠道 | 没有家办协作 |
+| 小米手环 | 价格带 | 不是空间方案 |
+`);
+    expect(html).toContain("kn-battles");
+    expect(html).toContain("华为睡眠");
+    expect(html).toContain("没有家办协作");
+  });
+
+  it("reads 维度/评分 scorecards", () => {
+    const html = renderScoreHeroLead(`# 综合总评
+
+| 维度 | 评分 | 理由 |
+| --- | --- | --- |
+| 问题严重度 | 7 | 失眠人群真实存在 |
+| **综合** | **6.0** | 有条件继续 |
+
+**总评：** 有条件继续，先补访谈。
+`);
+    expect(html).toContain("kn-hero");
+    expect(html).toContain("6.0");
+    expect(html).toContain("有条件继续");
+  });
+
+  it("reads CAC/LTV/定价 into unit-econ stats", () => {
+    const html = renderUnitEconLead(`# 商业模式
+
+**获客成本:** 800 元
+**LTV:** 4800 元
+**定价:** 1200 元/年
+`);
+    expect(html).toContain("kn-stats");
+    expect(html).toContain("800 元");
+    expect(html).toContain("4800 元");
+    expect(html).toContain("1200 元/年");
+    expect(markdownToKnHtml(`# 商业模式
+
+**获客成本:** 800 元
+**LTV:** 4800 元
+`, "business-model")).toContain("获客成本");
+  });
+
+  it("reads three-year revenue into projection stats", () => {
+    const html = renderProjectionLead(`# 三年预测
+
+| 年份 | 收入 | 成本 |
+| --- | --- | --- |
+| 第一年 | 120 万 | 200 万 |
+| 第二年 | 400 万 | 280 万 |
+| 第三年 | 900 万 | 350 万 |
+`);
+    expect(html).toContain("kn-stats");
+    expect(html).toContain("第一年");
+    expect(html).toContain("120 万");
+    expect(html).toContain("400 万");
+    expect(markdownToKnHtml(`# 三年预测
+
+| 年份 | 收入 |
+| --- | --- |
+| 第一年 | 120 万 |
+| 第二年 | 400 万 |
+`, "projections")).toContain("120 万");
+  });
+
+  it("maps 旅程 headings without an em dash", () => {
+    const html = renderJourneyLead(`# 用户旅程
+
+## 旅程 1 首次配网
+
+发现设备。
+
+## 旅程 2 每晚助眠
+
+形成习惯。
+`);
+    expect(html).toContain("kn-journey");
+    expect(html).toContain("首次配网");
+  });
+
+  it("paints all 10 capability rows and a radar, not a 2-axis plot", () => {
+    const dims = [
+      "硬件采集",
+      "助眠建议",
+      "家办协作",
+      "权限审计",
+      "来源引用",
+      "访谈锁定",
+      "知识网络",
+      "报告导出",
+      "多主体权限",
+      "人工批准",
+    ];
+    const rows = dims
+      .map((d, i) => `| ${d} | ${i % 2 ? "强" : "够"} | 弱 | 无 |`)
+      .join("\n");
+    const md = `# 竞争格局
+
+| 能力 | 我们 | 华为睡眠 | 小米手环 |
+| --- | --- | --- | --- |
+${rows}
+`;
+    const html = renderFeatureMatrixLead(md);
+    expect(html).toContain("kn-featmap");
+    expect(html).toContain("人工批准");
+    expect(html).toContain("kn-radar");
+    expect(html).not.toContain("kn-axes");
+    const page = markdownToKnHtml(md, "competitor-landscape");
+    expect(page).toContain("kn-featmap");
+    expect(page).toContain("kn-radar");
+    expect(page).not.toContain("kn-axes");
+    for (const d of dims) expect(page).toContain(d);
+  });
+
+  it("plots competitors on a two-axis map", () => {
+    const html = renderPositionAxesLead(`# 竞争格局
+
+| 名称 | 功能完整度 | 价格 |
+| --- | --- | --- |
+| 华为睡眠 | 高 | 高 |
+| 小米手环 | 中 | 低 |
+| 我们 | 高 | 中 |
+`);
+    expect(html).toContain("kn-axes");
+    expect(html).toContain("kn-axes__dot--us");
+    expect(html).toContain("华为睡眠");
+  });
+
+  it("places prices on a band", () => {
+    const html = renderPriceBandLead(`# 竞争格局
+
+| 名称 | 价格 |
+| --- | --- |
+| 小米手环 | 199 |
+| 我们 | 1200 |
+| 华为睡眠 | 2600 |
+`);
+    expect(html).toContain("kn-priceband");
+    expect(html).toContain("小米手环");
+    expect(html).toContain("1200");
+  });
+
+  it("draws nested market rings", () => {
+    const html = renderMarketRingsLead(`# 市场分析
+
+## 总市场
+约 80 亿元。
+## 可服务市场
+约 12 亿元。
+## 可获得份额
+约 0.4 亿元。
+`);
+    expect(html).toContain("kn-rings");
+    expect(html).toContain("kn-ring--tam");
+    expect(html).toContain("80 亿");
   });
 
   it("counts experiment results", () => {

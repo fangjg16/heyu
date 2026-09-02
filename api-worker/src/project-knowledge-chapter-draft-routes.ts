@@ -20,6 +20,7 @@ import {
   DEFAULT_ANALYSIS_KIND,
   ensureAnalysisKind,
   getStoredAnalysisKind,
+  type AnalysisKind,
 } from "./analysis-kind";
 import { fullDraftSectionIds, deliverableFileIdFromDraft, isDeliverableDraftId, isGeneratableSectionId } from "./kn-catalog";
 import {
@@ -69,6 +70,7 @@ import {
   upsertDraftItem,
   deleteDraftItem,
   rollbackLiveChaptersToVersion,
+  type DraftRun,
 } from "./project-knowledge-chapter-revisions-db";
 import { filterProjectsForDirectory } from "./projects-auth";
 import { findActiveInterview } from "./startup-interview-db";
@@ -284,6 +286,63 @@ async function requeueDraftSections(
     });
   }
   await refreshDraftRunProgress(env.DB, runId);
+}
+
+async function startRerenderFromFiles(
+  env: Env,
+  ctx: ExecutionContext,
+  input: {
+    projectId: string;
+    userId: string;
+    analysisKind: AnalysisKind;
+    active: DraftRun | null;
+    items: Awaited<ReturnType<typeof listDraftItems>>;
+  },
+): Promise<Response> {
+  const knIds = knSectionsToRerenderFromFiles(input.analysisKind);
+  if (knIds.length === 0) {
+    return json(
+      { error: "没有可按现有分析排版的章节", code: "NO_RENDER_SECTIONS" },
+      400,
+    );
+  }
+  if (input.active) {
+    await requeueDraftSections(env, input.active.id, knIds, input.items);
+    kickDraftRunGeneration(
+      env,
+      ctx,
+      input.projectId,
+      input.active.id,
+      input.userId,
+    );
+    const latest = await listDraftItems(env.DB, input.active.id);
+    const latestRun =
+      (await getDraftRun(env.DB, input.active.id)) ?? input.active;
+    return json({
+      ok: true,
+      reused: true,
+      rerenderFromFiles: true,
+      run: latestRun,
+      items: mapRunItems(latest),
+      sectionIds: knIds,
+    });
+  }
+  const run = await createDraftRun(env.DB, {
+    projectId: input.projectId,
+    createdBy: input.userId,
+    scope: "full",
+    sectionIds: knIds,
+  });
+  kickDraftRunGeneration(env, ctx, input.projectId, run.id, input.userId);
+  const items = await listDraftItems(env.DB, run.id);
+  return json({
+    ok: true,
+    reused: false,
+    rerenderFromFiles: true,
+    run,
+    items: mapRunItems(items),
+    sectionIds: knIds,
+  });
 }
 
 async function requeueFailedDraftSections(
@@ -713,24 +772,12 @@ export async function handleCreateChapterDraftRun(
             409,
           );
         }
-        const knIds = knSectionsToRerenderFromFiles(analysisKind);
-        if (knIds.length === 0) {
-          return json(
-            { error: "没有可按现有分析排版的章节", code: "NO_RENDER_SECTIONS" },
-            400,
-          );
-        }
-        await requeueDraftSections(env, active.id, knIds, items);
-        kickDraftRunGeneration(env, ctx, projectId, active.id, userId);
-        const latest = await listDraftItems(env.DB, active.id);
-        const latestRun = (await getDraftRun(env.DB, active.id)) ?? active;
-        return json({
-          ok: true,
-          reused: true,
-          rerenderFromFiles: true,
-          run: latestRun,
-          items: mapRunItems(latest),
-          sectionIds: knIds,
+        return startRerenderFromFiles(env, ctx, {
+          projectId,
+          userId,
+          analysisKind,
+          active,
+          items,
         });
       }
       const willGenerate =

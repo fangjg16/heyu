@@ -1,5 +1,6 @@
 /**
  * 用资料包里已有分析重新渲知识网络研究章：不重写文件、不跑概览。
+ * 只在已有待审核草案时可用。
  */
 import type { AnalysisKind } from "./analysis-kind";
 import { knSectionRendersFromFiles } from "./chapter-from-deliverables";
