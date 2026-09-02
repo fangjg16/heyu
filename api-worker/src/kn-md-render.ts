@@ -132,7 +132,11 @@ function tableHtml(rows: string[]): string {
     })
     .join("")}</tbody>`;
   const cls = heatmap ? ' class="kn-heatmap"' : "";
-  return `<div class="kn-table-wrap"><table${cls}>${thead}${tbody}</table></div>`;
+  const table = `<div class="kn-table-wrap"><table${cls}>${thead}${tbody}</table></div>`;
+  if (!heatmap && head.length >= 6 && body.length >= 3) {
+    return `<details class="kn-fold kn-wide-table"><summary><span class="kn-fold__title">对照表</span><span class="kn-fold__count">${body.length} 行</span></summary>${table}</details>`;
+  }
+  return table;
 }
 
 function parseMetaLine(line: string): { key: string; value: string } | null {
@@ -297,7 +301,7 @@ function gateBannerHtml(title: string): string {
 }
 
 function isFoldHeading(title: string): boolean {
-  return /^(\d+\.\s+)?(sources|references|来源|参考文献|附录|document index|文件目录|文件索引)\b/iu.test(
+  return /^(?:\d+\.\s+)?(?:sources|references|来源|参考文献|附录|备注|方法说明|methodology|limitations|notes|appendix|document index|文件目录|文件索引)(?:\b|$|[：:\s])/iu.test(
     title,
   );
 }
@@ -329,14 +333,14 @@ function headingInner(title: string): { cls: string; inner: string } {
   if (numbered) {
     return {
       cls: "kn-md-h",
-      inner: `<span class="kn-md-h__n">${escapeHtml(numbered[1]!.padStart(2, "0"))}</span><span class="kn-md-h__t">${inline(numbered[2]!)}</span>`,
+      inner: `<span class="kn-md-h__n">${escapeHtml(numbered[1]!)}.</span><span class="kn-md-h__t">${inline(numbered[2]!)}</span>`,
     };
   }
   const cn = /^([一二三四五六七八九十]+)、(\S.*)$/u.exec(title);
   if (cn) {
     return {
       cls: "kn-md-h",
-      inner: `<span class="kn-md-h__n">${escapeHtml(cn[1]!)}</span><span class="kn-md-h__t">${inline(cn[2]!)}</span>`,
+      inner: `<span class="kn-md-h__n">${escapeHtml(cn[1]!)}、</span><span class="kn-md-h__t">${inline(cn[2]!)}</span>`,
     };
   }
   const code = /^([A-Za-z]\d{1,2})\s*[:：—–-]\s+(\S.*)$/u.exec(title);
@@ -466,26 +470,19 @@ function skipFollowingRule(lines: string[], start: number): number {
 }
 
 function renderFlagsBlock(title: string, bodyLines: string[]): string {
+  const { tables, rest } = splitFlagTables(bodyLines);
   let tone: "red" | "amber" | "none" = /red\s*flag|红旗/iu.test(title)
     ? "red"
     : /yellow\s*flag|黄旗|amber/iu.test(title)
       ? "amber"
       : "none";
   const items: Array<{ tone: "red" | "amber"; text: string }> = [];
-  for (const raw of bodyLines) {
+  for (const raw of rest) {
     const line = raw.trim();
     if (!line) continue;
+    if (line.startsWith("|")) continue;
     if (/red\s*flags?|红旗/iu.test(line) && !/^[-*]\s+/u.test(line)) {
       tone = "red";
-      const rest = line
-        .replace(/^\*\*/, "")
-        .replace(/\*\*:?\s*$/u, "")
-        .replace(/^red\s*flags?:?\s*/iu, "")
-        .replace(/^红旗[:：]?\s*/u, "")
-        .trim();
-      if (rest && !/^[-*]\s+/u.test(rest)) {
-        /* heading only */
-      }
       continue;
     }
     if (/yellow\s*flags?|黄旗|amber/iu.test(line) && !/^[-*]\s+/u.test(line)) {
@@ -496,9 +493,7 @@ function renderFlagsBlock(title: string, bodyLines: string[]): string {
     const text = (bullet?.[1] ?? line).trim();
     if (!text) continue;
     const itemTone: "red" | "amber" =
-      /红旗/u.test(text) || tone === "red"
-        ? "red"
-        : "amber";
+      /红旗/u.test(text) || tone === "red" ? "red" : "amber";
     if (tone === "none") {
       items.push({
         tone: /红旗|red flag/iu.test(text) ? "red" : "amber",
@@ -508,7 +503,9 @@ function renderFlagsBlock(title: string, bodyLines: string[]): string {
       items.push({ tone: itemTone, text });
     }
   }
-  if (items.length === 0) {
+  const tableHtmls = tables.map((rows) => tableHtml(rows)).join("");
+  const tableRows = tables.reduce((n, t) => n + Math.max(0, t.length - 2), 0);
+  if (items.length === 0 && !tableHtmls) {
     return `<div class="kn-callout"><p class="kn-callout__label">${inline(title)}</p></div>`;
   }
   const groups: Array<{
@@ -524,18 +521,79 @@ function renderFlagsBlock(title: string, bodyLines: string[]): string {
     const g = groups.find((x) => x.tone === it.tone);
     if (g) g.items.push(it.text);
   }
-  return groups
-    .filter((g) => g.items.length > 0)
-    .map((g) => {
+  const nonempty = groups.filter((g) => g.items.length > 0);
+  if (nonempty.length === 0 && tableHtmls) {
+    const foldTone = tone === "amber" ? "amber" : "red";
+    const label = foldTone === "red" ? "红旗" : "黄旗";
+    const hint = foldTone === "red" ? "必须先看" : "需要盯住";
+    const count = tableRows || tables.length;
+    return `<details class="kn-fold kn-flags-fold kn-flags-fold--${foldTone}" open><summary><span class="kn-flags-fold__mark" aria-hidden="true"></span><span class="kn-fold__title">${label}</span><span class="kn-flags-fold__hint">${hint}</span><span class="kn-fold__count">${count} 项</span></summary><div class="kn-flags kn-flags--table">${tableHtmls}</div></details>`;
+  }
+  return nonempty
+    .map((g, gi) => {
       const lis = g.items
         .map(
           (text) =>
             `<div class="kn-flag kn-flag--${g.tone}">${inline(text)}</div>`,
         )
         .join("");
-      return `<details class="kn-fold kn-flags-fold kn-flags-fold--${g.tone}" open><summary><span class="kn-flags-fold__mark" aria-hidden="true"></span><span class="kn-fold__title">${g.label}</span><span class="kn-flags-fold__hint">${g.hint}</span><span class="kn-fold__count">${g.items.length} 项</span></summary><div class="kn-flags">${lis}</div></details>`;
+      const extra = gi === 0 ? tableHtmls : "";
+      return `<details class="kn-fold kn-flags-fold kn-flags-fold--${g.tone}" open><summary><span class="kn-flags-fold__mark" aria-hidden="true"></span><span class="kn-fold__title">${g.label}</span><span class="kn-flags-fold__hint">${g.hint}</span><span class="kn-fold__count">${g.items.length} 项</span></summary><div class="kn-flags">${lis}${extra}</div></details>`;
     })
     .join("");
+}
+
+function isWeekHeading(title: string): boolean {
+  return /^(Week\s+\d+|第\s*[一二三四1-4]\s*周)/iu.test(title);
+}
+
+function isSpineHeading(title: string): boolean {
+  return (
+    isWeekHeading(title) || /^(Experiment\s+\d+|实验\s*\d+)/iu.test(title)
+  );
+}
+
+function weekParts(title: string): { num: string; rest: string } {
+  const week = /^(?:Week\s+(\d+)|第\s*([一二三四1-4])\s*周)\s*[—–·\-]*\s*(.*)$/iu.exec(
+    title.trim(),
+  );
+  if (week) {
+    return {
+      num: (week[1] ?? week[2] ?? "").trim(),
+      rest: (week[3] ?? "").trim(),
+    };
+  }
+  const exp = /^(?:Experiment|实验)\s*(\d+)\s*[—–·\-]*\s*(.*)$/iu.exec(
+    title.trim(),
+  );
+  return {
+    num: (exp?.[1] ?? "").trim(),
+    rest: (exp?.[2] ?? "").trim(),
+  };
+}
+
+function splitFlagTables(lines: string[]): { tables: string[][]; rest: string[] } {
+  const tables: string[][] = [];
+  const rest: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = (lines[i] ?? "").trim();
+    if (line.startsWith("|") && i + 1 < lines.length && isTableSep(lines[i + 1] ?? "")) {
+      const rows = [line];
+      i += 1;
+      rows.push((lines[i] ?? "").trim());
+      i += 1;
+      while (i < lines.length && (lines[i] ?? "").trim().startsWith("|")) {
+        rows.push((lines[i] ?? "").trim());
+        i += 1;
+      }
+      tables.push(rows);
+      continue;
+    }
+    rest.push(lines[i] ?? "");
+    i += 1;
+  }
+  return { tables, rest };
 }
 
 function looksLikeLooseItem(line: string): boolean {
@@ -572,10 +630,16 @@ export function markdownToKnHtml(md: string, fileId?: string): string {
   let body = inner;
   if (lead) {
     if (/class="kn-dochead"/u.test(inner) && /kn-doc-title/u.test(inner)) {
-      body = inner.replace(
-        /(<h2 class="kn-doc-title">[\s\S]*?<\/h2>)/u,
-        `$1${lead}`,
+      const placed = inner.replace(
+        /(<header class="kn-dochead">)([\s\S]*?)(<h2 class="kn-doc-title">)/u,
+        `$1$2${lead}$3`,
       );
+      body = placed === inner
+        ? inner.replace(
+            /(<h2 class="kn-doc-title">[\s\S]*?<\/h2>)/u,
+            `$1${lead}`,
+          )
+        : placed;
     } else {
       body = `${lead}${inner}`;
     }
@@ -694,6 +758,20 @@ function markdownToKnHtmlInner(src: string): string {
         );
         continue;
       }
+      if (isSpineHeading(title)) {
+        closeMdSection();
+        i += 1;
+        const { body, next } = collectUntilNextHeading(lines, i);
+        i = next;
+        const inner = markdownToKnHtmlInner(body.join("\n")).trim();
+        const { num, rest } = weekParts(title);
+        const open = num === "1" || num === "一" ? " open" : "";
+        const label = rest || title;
+        out.push(
+          `<details class="kn-week"${open}><summary><span class="kn-week__n">${escapeHtml(num || "·")}</span><span class="kn-week__t">${inline(label)}</span></summary><div class="kn-week__body">${inner}</div></details>`,
+        );
+        continue;
+      }
       const numbered = hashes >= 2 && isNumberedSectionTitle(title);
       const sub = !numbered && (isSubHeadingTitle(title) || hashes >= 4);
       if (numbered) {
@@ -797,7 +875,17 @@ function markdownToKnHtmlInner(src: string): string {
       flushList();
       const keyZh = /^(mitigation|对策|应对)$/iu.test(labeled.key)
         ? "对策"
-        : localizeKnText(labeled.key);
+        : /^(goal|目标)$/iu.test(labeled.key)
+          ? "目标"
+          : /^(deliverables?|产出)$/iu.test(labeled.key)
+            ? "产出"
+            : /^(exit|通过门槛)$/iu.test(labeled.key)
+              ? "通过门槛"
+              : /^(do not do|不要做)$/iu.test(labeled.key)
+                ? "不要做"
+                : /^(expected limitation|预期限制)$/iu.test(labeled.key)
+                  ? "预期限制"
+                  : localizeKnText(labeled.key);
       out.push(
         `<p class="kn-md-kicker">${inline(keyZh)}</p><p>${inline(labeled.value)}</p>`,
       );

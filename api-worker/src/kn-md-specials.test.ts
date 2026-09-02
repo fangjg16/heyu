@@ -214,6 +214,13 @@ describe("special leads from heyu-like drafts", () => {
     expect(renderWeekTimelineLead(WEEKS)).toContain("完成 8 场访谈");
   });
 
+  it("does not stack a week strip above the vertical week spine", () => {
+    const html = markdownToKnHtml(WEEKS, "action-plan-30-days");
+    expect(html).toContain("kn-week");
+    expect(html).not.toContain("kn-timeline");
+    expect(markdownToKnHtml(WEEKS)).not.toContain("kn-timeline");
+  });
+
   it("counts MoSCoW tables into four stats", () => {
     const html = renderMoscowStatsLead(MOSCOW);
     expect(html).toContain("kn-stats--4");
@@ -556,12 +563,42 @@ ${rows}
     expect(html).toContain("kn-featmap");
     expect(html).toContain("人工批准");
     expect(html).toContain("kn-radar");
+    expect(html).toContain('viewBox="0 0 400 400"');
     expect(html).not.toContain("kn-axes");
     const page = markdownToKnHtml(md, "competitor-landscape");
     expect(page).toContain("kn-featmap");
     expect(page).toContain("kn-radar");
     expect(page).not.toContain("kn-axes");
     for (const d of dims) expect(page).toContain(d);
+  });
+
+  it("puts capabilities on radar axes when competitors are rows", () => {
+    const dims = [
+      "邀请网络",
+      "多家办共同评估",
+      "AI尽调",
+      "主张级证据",
+      "分析更新",
+      "权限审计",
+      "来源引用",
+      "访谈锁定",
+    ];
+    const header = `| Name | ${dims.join(" | ")} |`;
+    const sep = `| --- | ${dims.map(() => "---").join(" | ")} |`;
+    const row = (name: string, fill: string) =>
+      `| ${name} | ${dims.map(() => fill).join(" | ")} |`;
+    const html = renderFeatureMatrixLead(`# 竞争格局
+
+${header}
+${sep}
+${row("本项目目标", "✅")}
+${row("Reuben AI", "△")}
+${row("FinBursa", "—")}
+`);
+    expect(html).toContain("kn-radar");
+    expect(html).toContain("邀请网络");
+    expect(html).toContain("本项目目标");
+    expect(html).toContain("#C43C2C");
   });
 
   it("reads ✅ / △ / — competitor cells as a feature heatmap", () => {
@@ -619,6 +656,19 @@ ${rows}
     expect(html).toContain("kn-priceband");
     expect(html).toContain("小米手环");
     expect(html).toContain("1200");
+    expect(html).toContain("kn-priceband__tick--alt");
+  });
+
+  it("keeps longer priceband names instead of clipping at 12", () => {
+    const html = renderPriceBandLead(`# 竞争格局
+
+| 名称 | 价格 |
+| --- | --- |
+| FAAST / Hatton | 18000 |
+| 我们 | 12000 |
+`);
+    expect(html).toContain("FAAST / Hatton");
+    expect(html).not.toContain("Hat...");
   });
 
   it("draws nested market rings", () => {
@@ -700,6 +750,7 @@ BOM 待补。
     expect(html).toContain("/10");
     expect(html).toContain("kn-hero--concern");
     expect(html).toContain("重大疑虑");
+    expect(html).toContain("可靠度");
   });
 
   it("shows 待补 market stats instead of dropping the block", () => {
@@ -713,5 +764,6 @@ BOM 待补。
 `);
     expect(html).toContain("kn-stats");
     expect(html).toContain("待补");
+    expect(html).toContain("kn-stat--pending");
   });
 });

@@ -443,6 +443,106 @@ PwC 2024。
     expect(html).toContain("重大疑虑");
     expect(html).toContain("kn-hero--concern");
   });
+
+  it("writes 三、 and the title on one line", () => {
+    const html = markdownToKnHtml(`# 市场
+
+### 三、行业与市场
+
+切分按场景。
+`);
+    expect(html).toContain("kn-md-h");
+    expect(html).toMatch(/kn-md-h__n">三、</);
+    expect(html).toContain("行业与市场");
+  });
+
+  it("renders a flags table instead of leaking pipe separators", () => {
+    const html = markdownToKnHtml(`# 综合总评
+
+## Flags
+
+| 序号 | 风险 | 说明 |
+| --- | --- | --- |
+| 1 | 零验证状态 | 产品尚未量产 [资料] |
+| 2 | 缺少临床数据 | 没有对照试验 |
+`);
+    expect(html).toContain("kn-table-wrap");
+    expect(html).toContain("零验证状态");
+    expect(html).toContain("<th>");
+    expect(html).not.toContain("|------|");
+    expect(html).not.toContain("| 序号 |");
+  });
+
+  it("folds week headings into a vertical timeline", () => {
+    const html = markdownToKnHtml(`# 四周计划
+
+## 第1周 · 独立用户访谈
+
+**Goal:** 完成 8 场访谈
+
+## 第2周 · 整理证据
+
+**Goal:** 把访谈收进资料包
+`);
+    expect(html).toContain("kn-week");
+    expect(html).toContain("独立用户访谈");
+    expect(html).toContain("目标");
+    expect(html).toContain("open");
+    expect((html.match(/<details class="kn-week"/g) ?? []).length).toBe(2);
+  });
+
+  it("folds experiment headings onto the same vertical spine", () => {
+    const html = markdownToKnHtml(`# 验证手册
+
+## Experiment 1 — 独立访谈
+
+做 8 场。
+
+## Experiment 2 — 假门页面
+
+看点击。
+`);
+    expect(html).toContain("kn-week");
+    expect(html).toContain("独立访谈");
+    expect(html).toContain("open");
+    expect((html.match(/<details class="kn-week"/g) ?? []).length).toBe(2);
+  });
+
+  it("folds wide comparison tables and leaves narrow ones open", () => {
+    const wide = markdownToKnHtml(`# 对照
+
+| A | B | C | D | E | F |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 2 | 3 | 4 | 5 | 6 |
+| 7 | 8 | 9 | 10 | 11 | 12 |
+| 13 | 14 | 15 | 16 | 17 | 18 |
+`);
+    expect(wide).toContain("kn-wide-table");
+    expect(wide).toContain("对照表");
+    expect(wide).toContain("3 行");
+    const narrow = markdownToKnHtml(`# 市场
+
+| 切法 | 规模 | 来源 |
+| --- | --- | --- |
+| 国内 SaaS | 待补 | [A-1] |
+| 海外 | 待补 | [A-2] |
+`);
+    expect(narrow).not.toContain("kn-wide-table");
+  });
+
+  it("folds methodology notes instead of leaving them in the main flow", () => {
+    const html = markdownToKnHtml(`# 分析
+
+正文一段。
+
+## Methodology
+
+口径怎么算。
+`);
+    expect(html).toContain("kn-md-sources");
+    expect(html).toContain("Methodology");
+    expect(html).toContain("口径怎么算");
+  });
 });
 
 describe("renderDeliverableChapterHtml", () => {

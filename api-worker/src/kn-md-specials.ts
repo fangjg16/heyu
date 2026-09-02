@@ -249,9 +249,9 @@ export function scoreHeroHtml(
   const toneCls = tone ? ` kn-hero--${tone}` : "";
   const varCls = variant === "inline" ? " kn-hero--inline" : "";
   const verdict = note.trim()
-    ? `<p class="kn-hero__note"><span class="kn-hero__verdict">${escapeHtml(note)}</span></p>`
+    ? `<span class="kn-hero__verdict">${escapeHtml(note)}</span>`
     : "";
-  return `<div class="kn-hero${varCls}${toneCls}"><div class="kn-hero__score"><div class="kn-hero__label">综合</div><div class="kn-hero__value">${escapeHtml(score)}<span class="kn-hero__den">/10</span></div></div>${verdict}</div>`;
+  return `<div class="kn-hero${varCls}${toneCls}"><div class="kn-hero__value">${escapeHtml(score)}<span class="kn-hero__den">/10</span></div><div class="kn-hero__meta"><div class="kn-hero__label">可靠度</div>${verdict}</div></div>`;
 }
 
 export function renderScoreHeroLead(md: string): string {
@@ -422,8 +422,11 @@ export function renderMarketStatsLead(md: string): string {
     /可获得份额|^som\b/iu,
   );
   if ([tamV, samV, somV].filter(Boolean).length < 2) return "";
-  const cell = (label: string, value: string) =>
-    `<div class="kn-stat"><div class="kn-stat__label">${escapeHtml(label)}</div><div class="kn-stat__value">${escapeHtml(clip(value, 18))}</div><div class="kn-stat__note">规划口径</div></div>`;
+  const cell = (label: string, value: string) => {
+    const pending = /^待补/u.test(value.trim());
+    const cls = pending ? "kn-stat kn-stat--pending" : "kn-stat";
+    return `<div class="${cls}"><div class="kn-stat__label">${escapeHtml(label)}</div><div class="kn-stat__value">${escapeHtml(clip(value, 18))}</div><div class="kn-stat__note">规划口径</div></div>`;
+  };
   const parts = [
     tamV ? cell("总市场", tamV) : "",
     samV ? cell("可服务", samV) : "",
@@ -937,23 +940,61 @@ function findFeatureMatrix(md: string): MdTable | null {
   );
 }
 
+function shouldTransposeFeat(table: MdTable): boolean {
+  const h0 = table.headers[0] ?? "";
+  if (/能力|维度|feature|capability/iu.test(h0)) return false;
+  if (/name|名称|竞品|公司|对手|player/iu.test(h0)) return true;
+  const col0Rated = table.rows.filter((r) => featTone(r[0] ?? "")).length;
+  return col0Rated === 0 && table.headers.length >= 5;
+}
+
+function radarSeriesFrom(table: MdTable): {
+  dims: string[];
+  series: Array<{ name: string; values: number[] }>;
+} {
+  if (shouldTransposeFeat(table)) {
+    return {
+      dims: table.headers.slice(1).map((h) => clip(h, 18)).filter(Boolean),
+      series: table.rows
+        .map((r) => ({
+          name: clip(r[0] ?? "", 16),
+          values: r.slice(1).map((c) => featScore(featTone(c))),
+        }))
+        .filter((s) => s.name && s.values.some((v) => v > 0)),
+    };
+  }
+  return {
+    dims: table.rows.map((r) => clip(r[0] ?? "", 18)).filter(Boolean),
+    series: table.headers
+      .slice(1)
+      .map((h, j) => ({
+        name: clip(h, 16),
+        values: table.rows.map((r) => featScore(featTone(r[j + 1] ?? ""))),
+      }))
+      .filter((s) => s.name && s.values.some((v) => v > 0)),
+  };
+}
+
+function pickRadarSeries(
+  series: Array<{ name: string; values: number[] }>,
+): Array<{ name: string; values: number[] }> {
+  const us = series.filter((s) =>
+    /本项目|我们|^us$|heyu|合域|somni|fullive/iu.test(s.name),
+  );
+  const rest = series.filter((s) => !us.includes(s));
+  return [...us, ...rest].slice(0, 3);
+}
+
 function renderFeatureRadar(table: MdTable): string {
-  const dims = table.rows
-    .map((r) => clip(r[0] ?? "", 16))
-    .filter(Boolean);
+  const oriented = radarSeriesFrom(table);
+  const dims = oriented.dims;
   if (dims.length < 5) return "";
-  const series = table.headers
-    .slice(1)
-    .map((h, j) => ({
-      name: clip(h, 14),
-      values: table.rows.map((r) => featScore(featTone(r[j + 1] ?? ""))),
-    }))
-    .filter((s) => s.name && s.values.some((v) => v > 0));
+  const series = pickRadarSeries(oriented.series);
   if (series.length < 2) return "";
   const n = dims.length;
-  const cx = 160;
-  const cy = 160;
-  const maxR = 108;
+  const cx = 200;
+  const cy = 200;
+  const maxR = 112;
   const pt = (i: number, score: number): string => {
     const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
     const r = maxR * (Math.max(0.15, score) / 4);
@@ -970,18 +1011,18 @@ function renderFeatureRadar(table: MdTable): string {
       const end = pt(i, 4);
       const [x, y] = end.split(",");
       const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
-      const lx = (cx + (maxR + 22) * Math.cos(a)).toFixed(1);
-      const ly = (cy + (maxR + 22) * Math.sin(a)).toFixed(1);
+      const lx = (cx + (maxR + 38) * Math.cos(a)).toFixed(1);
+      const ly = (cy + (maxR + 38) * Math.sin(a)).toFixed(1);
       return `<line class="kn-radar__axis" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" /><text class="kn-radar__label" x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle">${escapeHtml(d)}</text>`;
     })
     .join("");
-  const palette = ["#7A3B36", "#4A5E6D", "#A67C4A", "#3D6B52", "#8A5A3C"];
+  const palette = ["#C43C2C", "#1F6B8A", "#D4A017", "#2E7D4F", "#6B3FA0"];
   const polys = series
     .slice(0, 5)
     .map((s, si) => {
       const color = palette[si % palette.length]!;
       const points = s.values.map((v, i) => pt(i, v)).join(" ");
-      return `<polygon class="kn-radar__poly" points="${points}" fill="${color}" fill-opacity="0.14" stroke="${color}" stroke-width="1.6" />`;
+      return `<polygon class="kn-radar__poly" points="${points}" fill="${color}" fill-opacity="0.07" stroke="${color}" stroke-width="2.2" />`;
     })
     .join("");
   const legend = series
@@ -991,7 +1032,7 @@ function renderFeatureRadar(table: MdTable): string {
       return `<span class="kn-radar__leg"><i style="background:${color}"></i>${escapeHtml(s.name)}</span>`;
     })
     .join("");
-  return `<div class="kn-radar"><svg viewBox="0 0 320 320" role="img" aria-label="能力对比">${grid}${axes}${polys}</svg><div class="kn-radar__legend">${legend}</div></div>`;
+  return `<div class="kn-radar"><svg viewBox="0 0 400 400" role="img" aria-label="能力对比">${grid}${axes}${polys}</svg><div class="kn-radar__legend">${legend}</div></div>`;
 }
 
 export function renderFeatureMatrixLead(md: string): string {
@@ -1115,21 +1156,22 @@ export function renderPriceBandLead(md: string): string {
   const priceI = colIndex(table.headers, /price|价格|定价|年费|客单/iu);
   const items = table.rows
     .map((row) => {
-      const name = clip(row[nameI] ?? "", 12);
+      const name = clip(row[nameI] ?? "", 18);
       const raw = row[priceI] ?? "";
       const n = Number.parseFloat(raw.replace(/[^\d.]/gu, ""));
       if (!name || !Number.isFinite(n) || n <= 0) return null;
-      return { name, n, label: firstMoney(raw) || clip(raw, 12) };
+      return { name, n, label: firstMoney(raw) || clip(raw, 14) };
     })
     .filter((r): r is NonNullable<typeof r> => Boolean(r));
   if (items.length < 2) return "";
   const nums = items.map((i) => i.n);
   const ticks = items
     .slice(0, 8)
-    .map((it) => {
+    .map((it, i) => {
       const left = Math.min(92, Math.max(8, moneyPct(nums, it.n)));
       const ours = /我们|本产品|^us$|^our\b/iu.test(it.name);
-      const cls = ours ? " kn-priceband__tick--us" : "";
+      const alt = i % 2 === 1 ? " kn-priceband__tick--alt" : "";
+      const cls = `${ours ? " kn-priceband__tick--us" : ""}${alt}`;
       return `<span class="kn-priceband__tick${cls}" style="left:${left}%"><b>${escapeHtml(it.name)}</b><i>${escapeHtml(it.label)}</i></span>`;
     })
     .join("");
@@ -1153,6 +1195,7 @@ export function renderMarketRingsLead(md: string): string {
     /可获得份额|^som\b/iu,
   );
   if (!tamV || !samV) return "";
+  if (/^待补/u.test(tamV.trim()) && /^待补/u.test(samV.trim())) return "";
   const som = somV
     ? `<div class="kn-ring kn-ring--som"><span>可获得 <b>${escapeHtml(somV)}</b></span></div>`
     : "";
@@ -1176,7 +1219,7 @@ const FILE_LEADS: Record<string, Array<(md: string) => string>> = {
   "value-proposition": [renderValuePropLead],
   "user-journey": [renderJourneyLead],
   "go-to-market": [renderNumberedJourneyLead],
-  "action-plan-30-days": [renderWeekTimelineLead],
+  "action-plan-30-days": [],
   "feature-prioritization": [renderMoscowStatsLead],
   "cost-structure": [renderCostStatsLead],
   "business-model": [renderUnitEconLead],
@@ -1264,12 +1307,6 @@ export function renderSpecialLead(md: string, fileId?: string): string {
   add(
     id === "go-to-market" || /First 100|Launch strategy|前\s*100|启动策略/iu.test(md)
       ? renderNumberedJourneyLead(md)
-      : "",
-  );
-  add(
-    id === "action-plan-30-days" ||
-      /#{2,6}\s+(Week\s+1|第\s*[一1]\s*周)/iu.test(md)
-      ? renderWeekTimelineLead(md)
       : "",
   );
   add(
