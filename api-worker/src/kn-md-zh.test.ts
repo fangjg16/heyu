@@ -20,6 +20,20 @@ describe("kn-md-zh", () => {
     expect(localizeKnText("Executive summary")).toBe("执行摘要");
     expect(localizeKnText("Key findings")).toBe("要点");
     expect(localizeKnText("Where We Can Win")).toBe("可赢之处");
+    expect(
+      localizeKnText(
+        "Startup Design Phase 0.5–8 completed; Customer Discovery and Brand deferred",
+      ),
+    ).toBe("创业设计第 0.5–8 阶段已完成；用户访谈、品牌暂缓");
+    expect(
+      localizeKnText(
+        "把握中等 for internal problem and product direction; 把握偏低 for external demand and revenue",
+      ),
+    ).toBe("内部问题和产品方向把握中等；外部需求和收入把握偏低");
+    expect(localizeKnText("User Journey")).toBe("用户旅程");
+    expect(localizeKnText("Top three risks and mitigations")).toBe(
+      "三大风险与对策",
+    );
   });
 
   it("localizes GPT dash and founder tags", () => {

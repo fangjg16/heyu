@@ -24,6 +24,10 @@ import {
   renderPositionAxesLead,
   renderPriceBandLead,
   renderMarketRingsLead,
+  renderTopRisksLead,
+  renderNetworkDefLead,
+  renderNetworkScaleLead,
+  renderRoleStripLead,
 } from "./kn-md-specials";
 
 const LEAN = `# Lean Canvas
@@ -563,7 +567,7 @@ ${rows}
     expect(html).toContain("kn-featmap");
     expect(html).toContain("人工批准");
     expect(html).toContain("kn-radar");
-    expect(html).toContain('viewBox="0 0 400 400"');
+    expect(html).toContain("viewBox=\"0 0 480 480\"");
     expect(html).not.toContain("kn-axes");
     const page = markdownToKnHtml(md, "competitor-landscape");
     expect(page).toContain("kn-featmap");
@@ -653,10 +657,10 @@ ${rows}
 | 我们 | 1200 |
 | 华为睡眠 | 2600 |
 `);
-    expect(html).toContain("kn-priceband");
+    expect(html).toContain("kn-pricelist");
     expect(html).toContain("小米手环");
     expect(html).toContain("1200");
-    expect(html).toContain("kn-priceband__tick--alt");
+    expect(html).toContain("价格对照");
   });
 
   it("keeps longer priceband names instead of clipping at 12", () => {
@@ -765,5 +769,95 @@ BOM 待补。
     expect(html).toContain("kn-stats");
     expect(html).toContain("待补");
     expect(html).toContain("kn-stat--pending");
+  });
+
+  it("turns numbered risks with 对策 into cards", () => {
+    const html = renderTopRisksLead(`# 三大风险与对策
+
+1. **外部行为不发生**
+
+家办只收 PDF，对公定位就不成立。
+
+**对策:** 先做 5 场独立访谈。
+
+2. **成功费不成立**
+
+三单不够覆盖人工。
+
+**对策:** 连续三单先写进合同。
+`);
+    expect(html).toContain("kn-risks");
+    expect(html).toContain("外部行为不发生");
+    expect(html).toContain("对策");
+    expect(html).toContain("5 场独立访谈");
+  });
+
+  it("splits network include vs not-a-gate", () => {
+    const html = renderNetworkDefLead(`# 首阶段网络界定
+
+## 首阶段纳入对象
+
+- 老板和分析团队
+- 熟人家办
+
+## 不以以下条件限制
+
+- 国家或注册地
+- 是否购买订阅软件
+`);
+    expect(html).toContain("kn-split");
+    expect(html).toContain("首阶段纳入");
+    expect(html).toContain("不作为门槛");
+    expect(html).toContain("老板和分析团队");
+  });
+
+  it("lays 5 → 10 → 25 out as a scale", () => {
+    const html = renderNetworkScaleLead(`# 启动动作
+
+| 阶段 | 关系来源 | 有效行为门槛 | 商业/运营门槛 |
+| --- | --- | --- | --- |
+| 5 家 | 老板熟人 | 不止浏览 | 三单书面成功费 |
+| 10 家 | 转介 | 有人自己回来 | 至少一单回款 |
+| 25 家 | 第二圈 | 反复协作 | 可比较成交率 |
+`);
+    expect(html).toContain("kn-scale");
+    expect(html).toContain("活跃机构");
+    expect(html).toContain("老板熟人");
+  });
+
+  it("shows five roles as chips", () => {
+    const html = renderRoleStripLead(`# 用户旅程
+
+## 旅程范围
+
+MVP 不是单一用户漏斗，而是五个角色围绕同一项目的协作循环。项目管理员负责正式状态；Core 贡献研究；Basic 消费报告；协作方补件；系统管理员改进分析。
+`);
+    expect(html).toContain("kn-roles");
+    expect(html).toContain("项目管理员");
+    expect(html).toContain("核心成员");
+    expect(html).toContain("只读成员");
+  });
+
+  it("maps Step headings onto a vertical journey", () => {
+    const html = renderJourneyLead(`# 启动动作
+
+## Step 1 — 老板选择项目
+
+真实材料。
+
+## Step 2 — 内部完成可分享版本
+
+事实和来源。
+
+## Step 3 — 老板一对一邀请
+
+口头邀请。
+
+## Step 4 — 观察真实行为
+
+有效行为。
+`);
+    expect(html).toContain("kn-journey--spine");
+    expect(html).toContain("老板选择项目");
   });
 });

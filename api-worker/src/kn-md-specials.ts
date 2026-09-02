@@ -277,7 +277,7 @@ export function renderScoreHeroLead(md: string): string {
     /VERDICT[:：]?\s*([^\n*]+)/iu.exec(md)?.[1]?.trim() ??
     /^\*\*总评[:：]\*\*\s*(.+)$/mu.exec(md)?.[1]?.trim();
   const note = verdict
-    ? clip(localizeKnText(verdict), 80)
+    ? clip(localizeKnText(verdict).replace(/有条件继续\s*[—–-]\s*有条件继续。?/u, "有条件继续"), 80)
     : "综合评分";
   return scoreHeroHtml(score, note);
 }
@@ -311,19 +311,29 @@ export function renderPositionSplitLead(md: string): string {
 }
 
 export function renderJourneyLead(md: string): string {
-  const journeys = [
+  const fromHead = [
     ...md.matchAll(
-      /^#{2,6}\s+(?:Journey|旅程|阶段)\s*(\d+)\s*(?:[—–:：-]\s*)?(.*)$/gmu,
+      /^#{2,6}\s+(?:Journey|旅程|阶段|Step|步骤)\s*(\d+)\s*(?:[—–:：-]\s*)?(.*)$/gmu,
     ),
   ];
+  const fromBold =
+    fromHead.length >= 2
+      ? []
+      : [
+          ...md.matchAll(
+            /^\*\*(?:Step|步骤|Journey|旅程)\s*(\d+)\s*[—–:：-]\s*([^*]+)\*\*$/gmu,
+          ),
+        ];
+  const journeys = fromHead.length >= 2 ? fromHead : fromBold.length >= 2 ? fromBold : fromHead;
   if (journeys.length < 2) return "";
+  const spine = journeys.length >= 4 ? " kn-journey--spine" : "";
   const steps = journeys.slice(0, 6).map((m) => {
     const n = escapeHtml(m[1] ?? "");
-    const raw = (m[2] ?? "").trim();
+    const raw = localizeKnText((m[2] ?? "").trim());
     const [who, what] = raw.split(/：|:\s*/u, 2);
     return `<div class="kn-journey__step"><div class="kn-journey__n">${n}</div><div class="kn-journey__title">${escapeHtml(clip(who || raw, 28))}</div>${what ? `<div class="kn-journey__note">${escapeHtml(clip(what, 64))}</div>` : ""}</div>`;
   });
-  return `<div class="kn-journey">${steps.join("")}</div>`;
+  return `<div class="kn-journey${spine}">${steps.join("")}</div>`;
 }
 
 export function renderWeekTimelineLead(md: string): string {
@@ -370,7 +380,21 @@ function firstMoney(text: string): string {
     /(?:US\$|\$|€|£|¥|￥)\s*[\d.,]+\s*[kmbKMB]?(?:\s*ARR)?/u.exec(t) ??
     /[\d.,]+\s*(?:亿|万|千万)\s*(?:元|人民币)?/u.exec(t) ??
     /[\d.,]+\s*(?:万元|元)\s*\/?\s*(?:年|月)?/u.exec(t);
-  return m ? clip(m[0].replace(/\s+/gu, " "), 18) : "";
+  if (!m) return "";
+  const raw = clip(m[0].replace(/\s+/gu, " "), 18);
+  if (isHollowMetric(raw)) return "";
+  return raw;
+}
+
+function isHollowMetric(value: string): boolean {
+  const t = value.trim();
+  if (!t) return true;
+  if (/^待补/u.test(t)) return true;
+  if (/^(n\/?a|unknown|unquantified|not quantified)$/iu.test(t)) return true;
+  if (/^US$/iu.test(t)) return true;
+  if (/^(US\$?|\$|€|£|¥)?\s*0+(\.0+)?\s*[kmbKMB]?$/iu.test(t)) return true;
+  if (/^0+k?$/iu.test(t)) return true;
+  return false;
 }
 
 function baselineArr(table: MdTable | undefined): string {
@@ -396,13 +420,14 @@ function marketValue(md: string, tableRe: RegExp, headingRe: RegExp): string {
     const scaleI = colIndex(table.headers, /规模|size|金额|数值/iu);
     const row = table.rows.find((r) => tableRe.test(r[0] ?? "")) ?? table.rows[0];
     const scale = stripInlineMd(row?.[scaleI >= 0 ? scaleI : 1] ?? "");
-    if (/^待补/u.test(scale)) return "待补";
+    if (isHollowMetric(scale) || /^待补/u.test(scale)) return "待补";
   }
-  return (
+  const found =
     baselineArr(table) ||
     firstMoney(headingBody(md, headingRe)) ||
-    metricNear(md, headingRe)
-  );
+    metricNear(md, headingRe);
+  if (!found || isHollowMetric(found)) return "待补";
+  return found;
 }
 
 export function renderMarketStatsLead(md: string): string {
@@ -423,16 +448,18 @@ export function renderMarketStatsLead(md: string): string {
   );
   if ([tamV, samV, somV].filter(Boolean).length < 2) return "";
   const cell = (label: string, value: string) => {
-    const pending = /^待补/u.test(value.trim());
+    const pending = isHollowMetric(value) || /^待补/u.test(value.trim());
     const cls = pending ? "kn-stat kn-stat--pending" : "kn-stat";
-    return `<div class="${cls}"><div class="kn-stat__label">${escapeHtml(label)}</div><div class="kn-stat__value">${escapeHtml(clip(value, 18))}</div><div class="kn-stat__note">规划口径</div></div>`;
+    const shown = pending ? "待补" : clip(value, 18);
+    return `<div class="${cls}"><div class="kn-stat__label">${escapeHtml(label)}</div><div class="kn-stat__value">${escapeHtml(shown)}</div><div class="kn-stat__note">规划口径</div></div>`;
   };
   const parts = [
     tamV ? cell("总市场", tamV) : "",
     samV ? cell("可服务", samV) : "",
     somV ? cell("可获得", somV) : "",
   ].filter(Boolean);
-  return `<div class="kn-stats">${parts.join("")}</div>`;
+  const wrap = parts.length === 2 ? "kn-stats kn-stats--2" : "kn-stats";
+  return `<div class="${wrap}">${parts.join("")}</div>`;
 }
 
 function gateState(md: string): "buy" | "conditional" | "pass" | null {
@@ -992,9 +1019,12 @@ function renderFeatureRadar(table: MdTable): string {
   const series = pickRadarSeries(oriented.series);
   if (series.length < 2) return "";
   const n = dims.length;
-  const cx = 200;
-  const cy = 200;
-  const maxR = 112;
+  const size = n >= 8 ? 480 : 400;
+  const cx = size / 2;
+  const cy = size / 2;
+  const maxR = n >= 8 ? 118 : 112;
+  const labelGap = n >= 8 ? 52 : 38;
+  const dimClip = n >= 8 ? 8 : 12;
   const pt = (i: number, score: number): string => {
     const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
     const r = maxR * (Math.max(0.15, score) / 4);
@@ -1011,9 +1041,9 @@ function renderFeatureRadar(table: MdTable): string {
       const end = pt(i, 4);
       const [x, y] = end.split(",");
       const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
-      const lx = (cx + (maxR + 38) * Math.cos(a)).toFixed(1);
-      const ly = (cy + (maxR + 38) * Math.sin(a)).toFixed(1);
-      return `<line class="kn-radar__axis" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" /><text class="kn-radar__label" x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle">${escapeHtml(d)}</text>`;
+      const lx = (cx + (maxR + labelGap) * Math.cos(a)).toFixed(1);
+      const ly = (cy + (maxR + labelGap) * Math.sin(a)).toFixed(1);
+      return `<line class="kn-radar__axis" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" /><text class="kn-radar__label" x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle">${escapeHtml(clip(d, dimClip))}</text>`;
     })
     .join("");
   const palette = ["#C43C2C", "#1F6B8A", "#D4A017", "#2E7D4F", "#6B3FA0"];
@@ -1032,7 +1062,7 @@ function renderFeatureRadar(table: MdTable): string {
       return `<span class="kn-radar__leg"><i style="background:${color}"></i>${escapeHtml(s.name)}</span>`;
     })
     .join("");
-  return `<div class="kn-radar"><svg viewBox="0 0 400 400" role="img" aria-label="能力对比">${grid}${axes}${polys}</svg><div class="kn-radar__legend">${legend}</div></div>`;
+  return `<div class="kn-radar"><p class="kn-chart__cap">能力对比</p><svg viewBox="0 0 ${size} ${size}" role="img" aria-label="能力对比">${grid}${axes}${polys}</svg><div class="kn-radar__legend">${legend}</div></div>`;
 }
 
 export function renderFeatureMatrixLead(md: string): string {
@@ -1160,22 +1190,23 @@ export function renderPriceBandLead(md: string): string {
       const raw = row[priceI] ?? "";
       const n = Number.parseFloat(raw.replace(/[^\d.]/gu, ""));
       if (!name || !Number.isFinite(n) || n <= 0) return null;
+      if (/^\d{4}-\d{2}-\d{2}$/u.test(name) || /^US$/iu.test(name)) return null;
       return { name, n, label: firstMoney(raw) || clip(raw, 14) };
     })
     .filter((r): r is NonNullable<typeof r> => Boolean(r));
   if (items.length < 2) return "";
-  const nums = items.map((i) => i.n);
-  const ticks = items
+  const max = Math.max(...items.map((i) => i.n));
+  const rows = [...items]
+    .sort((a, b) => a.n - b.n)
     .slice(0, 8)
-    .map((it, i) => {
-      const left = Math.min(92, Math.max(8, moneyPct(nums, it.n)));
-      const ours = /我们|本产品|^us$|^our\b/iu.test(it.name);
-      const alt = i % 2 === 1 ? " kn-priceband__tick--alt" : "";
-      const cls = `${ours ? " kn-priceband__tick--us" : ""}${alt}`;
-      return `<span class="kn-priceband__tick${cls}" style="left:${left}%"><b>${escapeHtml(it.name)}</b><i>${escapeHtml(it.label)}</i></span>`;
+    .map((it) => {
+      const ours = /我们|本产品|^us$|^our\b|合域|heyu/iu.test(it.name);
+      const pct = Math.max(8, Math.round((it.n / max) * 100));
+      const cls = ours ? " kn-pricelist__row--us" : "";
+      return `<div class="kn-pricelist__row${cls}"><span class="kn-pricelist__name">${escapeHtml(it.name)}</span><span class="kn-pricelist__bar"><i style="width:${pct}%"></i></span><span class="kn-pricelist__amt">${escapeHtml(it.label)}</span></div>`;
     })
     .join("");
-  return `<div class="kn-priceband"><div class="kn-priceband__track">${ticks}</div><div class="kn-priceband__scale"><span>低价</span><span>高价</span></div></div>`;
+  return `<div class="kn-pricelist"><p class="kn-chart__cap">价格对照</p>${rows}</div>`;
 }
 
 export function renderMarketRingsLead(md: string): string {
@@ -1195,11 +1226,99 @@ export function renderMarketRingsLead(md: string): string {
     /可获得份额|^som\b/iu,
   );
   if (!tamV || !samV) return "";
-  if (/^待补/u.test(tamV.trim()) && /^待补/u.test(samV.trim())) return "";
+  if (isHollowMetric(tamV) || isHollowMetric(samV)) return "";
   const som = somV
     ? `<div class="kn-ring kn-ring--som"><span>可获得 <b>${escapeHtml(somV)}</b></span></div>`
     : "";
   return `<div class="kn-rings"><div class="kn-ring kn-ring--tam"><span>总市场 <b>${escapeHtml(tamV)}</b></span><div class="kn-ring kn-ring--sam"><span>可服务 <b>${escapeHtml(samV)}</b></span>${som}</div></div></div>`;
+}
+
+export function renderRoleStripLead(md: string): string {
+  if (!/五个角色|Journey Scope|旅程范围/iu.test(md)) return "";
+  const roles = [
+    [/项目管理员/u, "项目管理员"],
+    [/\bCore\b|核心成员/u, "核心成员"],
+    [/\bBasic\b|只读/u, "只读成员"],
+    [/协作方/u, "协作方"],
+    [/系统管理员/u, "系统管理员"],
+  ] as const;
+  const hits = roles.filter(([re]) => re.test(md)).map(([, label]) => label);
+  if (hits.length < 3) return "";
+  return `<div class="kn-roles">${hits.map((r) => `<span>${escapeHtml(r)}</span>`).join("")}</div>`;
+}
+
+export function renderNetworkDefLead(md: string): string {
+  const included = bodyItems(
+    headingBody(md, /纳入对象|included|首阶段纳入/iu),
+    6,
+  );
+  const notLimit = bodyItems(
+    headingBody(md, /不以以下|不限制|not limited|不作为门槛/iu),
+    6,
+  );
+  if (included.length < 2 || notLimit.length < 2) return "";
+  return splitHtml(
+    "首阶段纳入",
+    included.map((s) => localizeKnText(s)),
+    "不作为门槛",
+    notLimit.map((s) => localizeKnText(s)),
+    "go",
+    "stop",
+  );
+}
+
+export function renderNetworkScaleLead(md: string): string {
+  const tables = parseTables(md);
+  const table = tables.find(
+    (t) =>
+      t.rows.length >= 2 &&
+      t.rows.filter((r) => /^(5|10|25)\b/u.test(stripInlineMd(r[0] ?? ""))).length >= 2,
+  );
+  if (!table) return "";
+  const srcI = Math.max(1, colIndex(table.headers, /关系|来源|source/iu));
+  const actI = colIndex(table.headers, /行为|门槛|threshold|有效/iu);
+  const bizI = colIndex(table.headers, /商业|运营|business/iu);
+  const nodes = table.rows
+    .map((row) => {
+      const n = stripInlineMd(row[0] ?? "").replace(/[^\d]/gu, "");
+      if (!n) return "";
+      const src = clip(row[srcI] ?? "", 36);
+      const act = actI >= 0 ? clip(row[actI] ?? "", 48) : "";
+      const biz = bizI >= 0 ? clip(row[bizI] ?? "", 48) : "";
+      return `<li class="kn-scale__node"><div class="kn-scale__n">${escapeHtml(n)}</div><div class="kn-scale__body"><p class="kn-scale__src">${escapeHtml(src)}</p>${act ? `<p>${escapeHtml(act)}</p>` : ""}${biz ? `<p>${escapeHtml(biz)}</p>` : ""}</div></li>`;
+    })
+    .filter(Boolean);
+  if (nodes.length < 2) return "";
+  return `<div class="kn-scale"><p class="kn-chart__cap">活跃机构 5 → 10 → 25</p><ol>${nodes.join("")}</ol></div>`;
+}
+
+export function renderTopRisksLead(md: string): string {
+  const matches = [
+    ...md.matchAll(/^(\d+)[.)]\s+\*\*([^*]+)\*\*\s*$/gmu),
+  ];
+  if (matches.length < 2) return "";
+  const cards = matches.slice(0, 4).map((m, i) => {
+    const start = (m.index ?? 0) + m[0].length;
+    const end = i + 1 < matches.length ? (matches[i + 1]!.index ?? md.length) : md.length;
+    const chunk = md.slice(start, end);
+    const fixM =
+      /\*\*(?:对策|Mitigation)[:：]?\*\*\s*([\s\S]+?)(?=\n{2,}\d+[.)]|\n#{1,6}\s|$)/iu.exec(
+        chunk,
+      ) ?? /(?:对策|Mitigation)[:：]\s*([\s\S]+)/iu.exec(chunk);
+    const body = clip(
+      chunk
+        .replace(/\*\*(?:对策|Mitigation)[:：]?\*\*[\s\S]*$/iu, "")
+        .replace(/(?:^|\n)\*?\*?(?:对策|Mitigation)[:：][\s\S]*$/iu, "")
+        .trim(),
+      160,
+    );
+    const fix = clip((fixM?.[1] ?? "").trim(), 140);
+    return `<article class="kn-risk"><div class="kn-risk__n">${escapeHtml(m[1] ?? "")}</div><div class="kn-risk__body"><h3>${escapeHtml(localizeKnText(m[2] ?? ""))}</h3>${body ? `<p>${escapeHtml(localizeKnText(body))}</p>` : ""}${fix ? `<p class="kn-risk__fix"><span>对策</span>${escapeHtml(localizeKnText(fix))}</p>` : ""}</div></article>`;
+  });
+  if (cards.filter((c) => c.includes("kn-risk__fix")).length < 2 && cards.length < 3) {
+    return "";
+  }
+  return `<div class="kn-risks">${cards.join("")}</div>`;
 }
 
 const FILE_LEADS: Record<string, Array<(md: string) => string>> = {
@@ -1217,8 +1336,12 @@ const FILE_LEADS: Record<string, Array<(md: string) => string>> = {
   "mvp-definition": [renderMvpSplitLead],
   "industry-trends": [renderTrendSplitLead],
   "value-proposition": [renderValuePropLead],
-  "user-journey": [renderJourneyLead],
-  "go-to-market": [renderNumberedJourneyLead],
+  "user-journey": [renderRoleStripLead, renderJourneyLead],
+  "go-to-market": [
+    renderNumberedJourneyLead,
+    renderNetworkDefLead,
+    renderNetworkScaleLead,
+  ],
   "action-plan-30-days": [],
   "feature-prioritization": [renderMoscowStatsLead],
   "cost-structure": [renderCostStatsLead],
@@ -1226,7 +1349,7 @@ const FILE_LEADS: Record<string, Array<(md: string) => string>> = {
   "revenue-model": [renderUnitEconLead],
   projections: [renderProjectionLead],
   "confidence-dashboard": [renderCoverageLead],
-  "risk-analysis": [renderRiskHeatmapLead],
+  "risk-analysis": [renderTopRisksLead, renderRiskHeatmapLead],
   "assumptions-tracker": [renderAssumptionFoldsLead],
   "kill-criteria": [renderTripwireLead],
   "validation-playbook": [renderTripwireLead, renderExperimentScoreLead],
@@ -1299,14 +1422,30 @@ export function renderSpecialLead(md: string, fileId?: string): string {
       : "",
   );
   add(
+    /五个角色|Journey Scope|旅程范围/iu.test(md) ? renderRoleStripLead(md) : "",
+  );
+  add(
     id === "user-journey" ||
-      /#{2,6}\s+(?:Journey|旅程|阶段)\s*1/iu.test(md)
+      /#{2,6}\s+(?:Journey|旅程|阶段|Step|步骤)\s*1/iu.test(md)
       ? renderJourneyLead(md)
       : "",
   );
   add(
-    id === "go-to-market" || /First 100|Launch strategy|前\s*100|启动策略/iu.test(md)
+    id === "go-to-market" ||
+      /First 100|Launch strategy|前\s*100|启动策略|Activation Motion|启动动作/iu.test(
+        md,
+      )
       ? renderNumberedJourneyLead(md)
+      : "",
+  );
+  add(
+    /纳入对象|不以以下|Initial Network/iu.test(md)
+      ? renderNetworkDefLead(md)
+      : "",
+  );
+  add(
+    /5\s*→\s*10\s*→\s*25|Network Plan|网络计划/iu.test(md)
+      ? renderNetworkScaleLead(md)
       : "",
   );
   add(
@@ -1340,6 +1479,11 @@ export function renderSpecialLead(md: string, fileId?: string): string {
     id === "confidence-dashboard" ||
       /Highest confidence|Critical unknown|最高把握|关键未知/iu.test(md)
       ? renderCoverageLead(md)
+      : "",
+  );
+  add(
+    /^\d+[.)]\s+\*\*[^*]+\*\*/mu.test(md) && /对策|Mitigation/iu.test(md)
+      ? renderTopRisksLead(md)
       : "",
   );
   add(

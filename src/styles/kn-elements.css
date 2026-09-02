@@ -179,6 +179,10 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.kn-stats--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .kn-stat {
   background: hsl(var(--paper));
   padding: 1.05rem 1.15rem 1.1rem;
@@ -683,6 +687,191 @@
   margin-top: 4px;
   font-size: 12px;
   color: hsl(var(--ink-soft));
+}
+
+.kn-journey--spine {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.kn-journey--spine .kn-journey__step {
+  display: grid;
+  grid-template-columns: 1.6rem minmax(0, 1fr);
+  column-gap: 0.85rem;
+  align-items: start;
+  padding: 0.35rem 0 1.15rem;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+.kn-journey--spine .kn-journey__n {
+  margin: 0;
+}
+
+.kn-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 1.15rem;
+}
+
+.kn-roles span {
+  padding: 0.28rem 0.7rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: hsl(var(--warm-charcoal));
+  background: hsl(var(--paper));
+}
+
+.kn-chart__cap {
+  margin: 0 0 0.55rem;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: hsl(var(--ink-soft));
+}
+
+.kn-pricelist {
+  display: grid;
+  gap: 0.55rem;
+  margin: 1.15rem 0 1.75rem;
+}
+
+.kn-pricelist__row {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.kn-pricelist__name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.kn-pricelist__bar {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: hsl(var(--linen));
+}
+
+.kn-pricelist__bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: hsl(var(--wine) / 0.45);
+}
+
+.kn-pricelist__amt {
+  font-size: 12.5px;
+  color: hsl(var(--ink-soft));
+  white-space: nowrap;
+}
+
+.kn-pricelist__row--us .kn-pricelist__name {
+  color: hsl(var(--wine));
+}
+
+.kn-pricelist__row--us .kn-pricelist__bar i {
+  background: hsl(var(--wine));
+}
+
+.kn-scale {
+  margin: 1.15rem 0 1.6rem;
+}
+
+.kn-scale ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.kn-scale__node {
+  display: grid;
+  grid-template-columns: 2.6rem minmax(0, 1fr);
+  gap: 0.85rem;
+  padding: 0 0 1.15rem;
+}
+
+.kn-scale__n {
+  width: 2.4rem;
+  height: 2.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-family: "Noto Serif SC", serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  background: hsl(var(--wine));
+}
+
+.kn-scale__src {
+  margin: 0 0 0.25rem;
+  font-weight: 650;
+}
+
+.kn-scale__body p {
+  margin: 0.15rem 0;
+  font-size: 13px;
+  line-height: 1.65;
+  color: hsl(var(--warm-charcoal));
+}
+
+.kn-risks {
+  display: grid;
+  gap: 12px;
+  margin: 0.85rem 0 1.35rem;
+}
+
+.kn-risk {
+  display: grid;
+  grid-template-columns: 1.8rem minmax(0, 1fr);
+  gap: 0.75rem;
+  padding: 0.95rem 1rem 1rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  background: hsl(var(--paper));
+}
+
+.kn-risk__n {
+  font-family: "Noto Serif SC", serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  color: hsl(var(--wine));
+}
+
+.kn-risk__body h3 {
+  margin: 0 0 0.35rem;
+  font-size: 16px;
+}
+
+.kn-risk__body p {
+  margin: 0.2rem 0;
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+
+.kn-risk__fix {
+  margin-top: 0.55rem !important;
+  padding-top: 0.55rem;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.kn-risk__fix span {
+  display: inline-block;
+  margin-right: 0.4rem;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: hsl(var(--wine));
 }
 
 /* 对战卡 */
@@ -1668,6 +1857,8 @@
   justify-items: center;
   gap: 0.55rem;
   margin: 1.1rem 0 1.75rem;
+  padding: 0.35rem 0.5rem 0.75rem;
+  isolation: isolate;
 }
 
 .kn-radar svg {
@@ -1922,9 +2113,17 @@
 }
 
 .kn-from-md > .kn-radar,
-.kn-from-md > .kn-priceband {
+.kn-from-md > .kn-priceband,
+.kn-from-md > .kn-pricelist {
   margin-top: 0.25rem;
   margin-bottom: 1.75rem;
+}
+
+.kn-from-md > .kn-roles,
+.kn-from-md > .kn-scale,
+.kn-from-md > .kn-risks,
+.kn-from-md > .kn-pricelist {
+  margin-top: 0.35rem;
 }
 
 .kn-md-sources {

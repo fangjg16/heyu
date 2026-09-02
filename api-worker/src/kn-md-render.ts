@@ -133,7 +133,10 @@ function tableHtml(rows: string[]): string {
     .join("")}</tbody>`;
   const cls = heatmap ? ' class="kn-heatmap"' : "";
   const table = `<div class="kn-table-wrap"><table${cls}>${thead}${tbody}</table></div>`;
-  if (!heatmap && head.length >= 6 && body.length >= 3) {
+  const looksJourney =
+    /旅程|Journey|阶段|角色/iu.test(head.join(" ")) ||
+    /旅程|Journey/iu.test(body.map((r) => r[0] ?? "").join(" "));
+  if (!heatmap && !looksJourney && head.length >= 6 && body.length >= 3) {
     return `<details class="kn-fold kn-wide-table"><summary><span class="kn-fold__title">对照表</span><span class="kn-fold__count">${body.length} 行</span></summary>${table}</details>`;
   }
   return table;
@@ -274,7 +277,12 @@ function coverHtml(lines: string[]): string {
   let verdict = "";
   if (rawVerdict) {
     const { word, score } = tidyVerdict(rawVerdict);
-    verdict = `<p class="kn-dochead__verdict">${score ? `<b>${escapeHtml(score)}</b>` : ""}<span>${inline(word)}</span></p>`;
+    const note = localizeKnText(word);
+    if (score) {
+      verdict = scoreHeroHtml(score, note, "inline");
+    } else {
+      verdict = `<p class="kn-dochead__verdict"><span>${inline(note)}</span></p>`;
+    }
   }
 
   const ledeBits = [

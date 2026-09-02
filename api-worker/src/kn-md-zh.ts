@@ -27,6 +27,29 @@ const TAG_SUFFIX_ZH: Record<string, string> = {
 };
 
 const PHRASES: Array<[RegExp, string]> = [
+  [/\bStartup Validation Scorecard\b/giu, "创业验证记分卡"],
+  [/\bTop three risks and mitigations\b/giu, "三大风险与对策"],
+  [/\bInitial Network Definition\b/giu, "首阶段网络界定"],
+  [/\bActivation Motion\b/giu, "启动动作"],
+  [/\bNetwork Plan\b/giu, "网络计划"],
+  [/\bUser Journey\b/giu, "用户旅程"],
+  [/\bJourney Scope\b/giu, "旅程范围"],
+  [/\bJourney\s+(\d+)\b/giu, "旅程 $1"],
+  [/\bStartup Design Phase\s+([\d.]+(?:\s*[–—\-]\s*[\d.]+)?)\s+completed\b/giu, "创业设计第 $1 阶段已完成"],
+  [/\bCustomer interviews\s+(\d+)\s+conducted(?:\s*[•·]\s*deferred)?/giu, "用户访谈 $1 场"],
+  [/\binternal problem\b/giu, "内部问题"],
+  [/\bproduct direction\b/giu, "产品方向"],
+  [/\bexternal demand\b/giu, "外部需求"],
+  [/\banalyst journey\b/giu, "分析师路径"],
+  [/\bexternal-user behavior\b/giu, "外部用户行为"],
+  [/\bBrand deferred\b/giu, "品牌暂缓"],
+  [/是否购买\s*SaaS/giu, "是否购买订阅"],
+  [/\bProblem severity\b/giu, "问题严重度"],
+  [/\bScore \(1-10\)\b/giu, "分数"],
+  [/\bearned,\s*invoiced and collected\b/giu, "已赚、已开票、已回款"],
+  [/\bactivity\/data\/fee\b/giu, "业务、数据和费用"],
+  [/\bPlugin\/Skills?\b/giu, "插件"],
+  [/\bSkill 污染\b/giu, "分析稿串味"],
   [/\bSignificant concerns\b/giu, "重大疑虑"],
   [/\bRed Flags?\b/giu, "红旗"],
   [/\bYellow Flags?\b/giu, "黄旗"],
@@ -105,6 +128,20 @@ const PHRASES: Array<[RegExp, string]> = [
   [/\bRCT\b/gu, "对照试验"],
   [/\bFlags\b/gu, "风险标记"],
   [/\bSources\b/gu, "来源"],
+  [/\bScorecard\b/giu, "记分卡"],
+  [/\bRationale\b/giu, "依据"],
+  [/\bDimension\b/giu, "维度"],
+  [/\bMarkdown\b/giu, "分析稿"],
+  [/\bledger\b/giu, "台账"],
+  [/\bintake\b/giu, "准入"],
+  [/\bCIO\b/gu, "投研负责人"],
+  [/\bMVP\b/gu, "首版"],
+  [/\bCore\b/gu, "核心成员"],
+  [/\bBasic\b/gu, "只读成员"],
+  [/\bB 定位\b/gu, "对公定位"],
+  [/\brevenue\b/giu, "收入"],
+  [/\bsynthesis\b/giu, "综合"],
+  [/\bdeferred\b/giu, "暂缓"],
 ];
 
 export function tagKindFromLabel(label: string): string {
@@ -140,6 +177,18 @@ export function localizeTagLabel(label: string): string {
 export function localizeKnText(s: string): string {
   let t = s;
   for (const [re, zh] of PHRASES) t = t.replace(re, zh);
+  t = t.replace(
+    /把握(中等|偏低|较高|中偏低|中高)\s+for\s+([^;；.。]+)/giu,
+    (_all, grade: string, topic: string) => {
+      let top = topic.trim();
+      for (const [re, zh] of PHRASES) top = top.replace(re, zh);
+      top = top.replace(/\s+and\s+/giu, "和").replace(/\s+/gu, "");
+      return `${top}把握${grade}`;
+    },
+  );
+  t = t.replace(/([\u4e00-\u9fff])\s+and\s+/giu, "$1、");
+  t = t.replace(/;\s+/gu, "；");
+  t = t.replace(/有条件继续\s*[—–-]\s*有条件继续。?/gu, "有条件继续");
   return t;
 }
 
