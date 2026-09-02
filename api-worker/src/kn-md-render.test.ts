@@ -53,7 +53,7 @@ describe("markdownToKnHtml", () => {
     expect(html).toContain("验证");
     expect(html).not.toContain("kn-score-sum");
     expect(html).toContain("判断");
-    expect(html).toContain("CONDITIONAL");
+    expect(html).toContain("有条件继续");
     expect(html).toContain("kn-flag--red");
     expect(html).toContain("kn-flag--amber");
     expect(html).toContain("商业模式清晰度");
@@ -64,7 +64,8 @@ describe("markdownToKnHtml", () => {
     expect(html).toContain("kn-md-tag");
     expect(html).toContain("kn-md-tag--data");
     expect(html).toContain("kn-tagged--data");
-    expect(html).toContain("Data");
+    expect(html).toContain("资料");
+    expect(html).not.toContain(">Data<");
   });
 
   it("turns block quotes into callouts", () => {
@@ -128,7 +129,7 @@ describe("markdownToKnHtml", () => {
     expect(html).toContain("有条件继续");
     expect(html).toContain("6.0");
     expect(html).toContain("kn-dochead__lede");
-    expect(html).toContain("Customer Discovery");
+    expect(html).toContain("用户访谈");
     expect(html).not.toContain("jfo-ai-investment-platform");
     expect(html).not.toContain("kn-masthead");
     expect(html).not.toContain('kn-dochead__byline">阶段');
@@ -151,8 +152,8 @@ describe("markdownToKnHtml", () => {
     expect(html).toContain("kn-split");
     expect(html).toContain("kn-split__col--go");
     expect(html).toContain("kn-split__col--stop");
-    expect(html).toContain("Strongest evidence");
-    expect(html).toContain("Weakest links");
+    expect(html).toContain("最强证据");
+    expect(html).toContain("最弱环节");
     expect(html).toContain("内部工作流已经存在");
     expect(html).toContain("0 次独立客户访谈");
   });
@@ -182,7 +183,7 @@ describe("markdownToKnHtml", () => {
     expect(html).toContain("kn-md-section");
     expect(html).toContain("kn-md-h");
     expect(html).toContain("kn-md-h__t");
-    expect(html).toContain("Competitive Overview");
+    expect(html).toContain("竞争全景");
     expect(html).toContain("kn-section-conf");
     expect(html).toContain("本节把握");
     expect(html).not.toContain('kn-masthead__k">本节把握');
@@ -212,12 +213,97 @@ PwC 2024。
     )?.[0];
     expect(section).toBeTruthy();
     expect(section).toContain("kn-md-h");
-    expect(section).toContain("Executive View");
+    expect(section).toContain("总览");
     expect(section).toContain("kn-md-subblock");
     expect(section).toContain('class="kn-md-sub"');
     expect(section).toContain("kn-md-sub__k");
     expect(section).toContain("家办直接投资");
     expect(html.indexOf("kn-md-h")).toBeLessThan(html.indexOf("kn-md-sub"));
+  });
+
+  it("renders #### and 3.1 headings instead of leaving hashes", () => {
+    const html = markdownToKnHtml(`# 三、业务
+
+#### 3.1 问题
+
+高压脑力上班族过载。
+
+#### 3.2 方案
+
+床头被动监测。
+`);
+    expect(html).not.toContain("####");
+    expect(html).toContain("kn-md-sub");
+    expect(html).toContain("问题");
+    expect(html).toContain("方案");
+  });
+
+  it("treats 一、 lines as headings", () => {
+    const html = markdownToKnHtml(`# 目标客户分析
+
+一、核心痛点人群
+
+高压脑力上班族。
+`);
+    expect(html).toContain("kn-md-h");
+    expect(html).toContain("核心痛点人群");
+    expect(html).toContain("高压脑力上班族");
+  });
+
+  it("treats hashed 一、 as a section, not a subblock", () => {
+    const html = markdownToKnHtml(`# 目标客户分析
+
+### 一、核心痛点人群
+
+高压脑力上班族。
+
+### 二、当前替代方案
+
+穿戴设备。
+`);
+    expect(html).toContain('section class="kn-md-section"');
+    expect(html).not.toContain("kn-md-subblock");
+    expect(html).toContain("核心痛点人群");
+  });
+
+  it("localizes [Data，访谈] and Significant concerns", () => {
+    const html = markdownToKnHtml(`# 综合总评
+
+**综合可靠度评分：4/10（Significant concerns）**
+
+痛点 [Data，访谈] 未量化。
+`);
+    expect(html).toContain("kn-md-tag--data");
+    expect(html).toContain("资料 · 访谈");
+    expect(html).toContain("重大疑虑");
+    expect(html).not.toContain("Significant concerns");
+  });
+
+  it("renders a 2x2 positioning table as a quad", () => {
+    const html = markdownToKnHtml(`# 定位
+
+| | 被动监测 | 主动干预 |
+|---|----------|----------|
+| 有感 | 穿戴设备 | 软件 App |
+| 无感 | 待补 | Somni |
+`);
+    expect(html).toContain("kn-quad");
+    expect(html).toContain("被动监测");
+    expect(html).toContain("Somni");
+    expect(html).toContain("kn-pending");
+  });
+
+  it("turns a colon lead-in before a table into a kicker", () => {
+    const html = markdownToKnHtml(`# 市场
+
+团队将市场按场景分三层递进 [Data，团队叙事]：
+
+| 层级 | 场景 |
+|------|------|
+| L2 | 卧室 |
+`);
+    expect(html).toContain("kn-md-kicker");
+    expect(html).toContain("团队将市场按场景分三层递进");
   });
 });
 
@@ -239,5 +325,15 @@ describe("renderDeliverableChapterHtml", () => {
     ]);
     expect(html).toContain("一段话");
     expect(html).not.toContain("空");
+  });
+
+  it("skips a title-only 结论可靠度 file when the sibling has the real body", () => {
+    const html = renderDeliverableChapterHtml([
+      { title: "结论可靠度", markdown: "# 结论可靠度\n" },
+      { title: "研究闸门", markdown: "# 总体判断\n\n评分：4/10\n" },
+    ]);
+    expect(html).toContain("总体判断");
+    expect(html).toContain("评分：4/10");
+    expect(html.match(/结论可靠度/g) ?? []).toHaveLength(0);
   });
 });

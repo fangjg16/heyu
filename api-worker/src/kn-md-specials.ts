@@ -3,6 +3,8 @@
  * 正文仍按 Markdown 渲；这些块叠在章节顶部当「一眼能看的版式」。
  */
 
+import { localizeKnText } from "./kn-md-zh";
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/gu, "&amp;")
@@ -42,7 +44,10 @@ export function splitMarkdownH2(
 }
 
 function normTitle(title: string): string {
-  return title.replace(/^\d+\.\s+/u, "").trim();
+  return title
+    .replace(/^\d+\.\s+/u, "")
+    .replace(/^[一二三四五六七八九十]+、/u, "")
+    .trim();
 }
 
 function sectionBy(
@@ -57,10 +62,10 @@ export function splitMarkdownHeadings(
   md: string,
 ): Array<{ title: string; body: string; level: number }> {
   const src = md.replace(/^\uFEFF/, "").trim();
-  const parts = src.split(/^(?=#{2,3} )/mu);
+  const parts = src.split(/^(?=#{2,6} )/mu);
   const out: Array<{ title: string; body: string; level: number }> = [];
   for (const part of parts) {
-    const m = /^(#{2,3}) ([^\n]+)\r?\n?([\s\S]*)$/u.exec(part.trim());
+    const m = /^(#{2,6}) ([^\n]+)\r?\n?([\s\S]*)$/u.exec(part.trim());
     if (!m) continue;
     out.push({
       level: m[1]!.length,
@@ -79,7 +84,7 @@ function headingBody(md: string, re: RegExp): string {
   const parts = [start.body];
   for (let j = i + 1; j < all.length; j += 1) {
     if (all[j]!.level <= start.level) break;
-    parts.push(`### ${all[j]!.title}\n${all[j]!.body}`);
+    parts.push(`${"#".repeat(all[j]!.level)} ${all[j]!.title}\n${all[j]!.body}`);
   }
   return parts.join("\n\n").trim();
 }
@@ -112,7 +117,7 @@ function splitHtml(
 
 function compactItems(body: string, max = 4): string[] {
   if (!body.trim()) return [];
-  const h3 = [...body.matchAll(/^###\s+(.+)$/gmu)].map((m) =>
+  const h3 = [...body.matchAll(/^#{2,6}\s+(.+)$/gmu)].map((m) =>
     clip(m[1] ?? "", 72),
   );
   if (h3.length >= 2) return h3.slice(0, max);
@@ -179,7 +184,7 @@ const CANVAS_SLOTS: Array<{
   cls: string;
 }> = [
   { label: "问题", re: /^problem$|^问题/iu, cls: "" },
-  { label: "方案", re: /^solution$|^方案/iu, cls: "" },
+  { label: "方案", re: /solution|方案/iu, cls: "" },
   {
     label: "价值主张",
     re: /unique value|价值主张|uvp/iu,
@@ -194,13 +199,10 @@ const CANVAS_SLOTS: Array<{
 ];
 
 export function renderLeanCanvasLead(md: string): string {
-  const sections = splitMarkdownH2(md);
-  const filled = CANVAS_SLOTS.filter((slot) =>
-    sections.some((s) => slot.re.test(normTitle(s.title))),
-  );
+  const filled = CANVAS_SLOTS.filter((slot) => headingBody(md, slot.re));
   if (filled.length < 6) return "";
   const cells = CANVAS_SLOTS.map((slot) => {
-    const body = sectionBy(sections, slot.re);
+    const body = headingBody(md, slot.re);
     const extra = slot.cls ? ` ${slot.cls}` : "";
     return `<div class="kn-canvas__cell${extra}"><div class="kn-canvas__label">${escapeHtml(slot.label)}</div>${itemsUl(compactItems(body, 3))}</div>`;
   }).join("");
@@ -236,28 +238,42 @@ export function renderScoreHeroLead(md: string): string {
     const score = colIndex(t.headers, /score|分数|评分|得分/iu);
     return dim >= 0 && score >= 0;
   });
-  if (!table) return "";
-  const dimI = colIndex(table.headers, /dimension|维度/iu);
-  const scoreI = colIndex(table.headers, /score|分数|评分|得分/iu);
-  const overall =
-    table.rows.find((r) => /overall|综合|总分/iu.test(r[dimI] ?? "")) ??
-    table.rows[table.rows.length - 1];
-  if (!overall) return "";
-  const score = stripInlineMd(overall[scoreI] ?? "").replace(/[^\d.]/gu, "");
+  let score = "";
+  if (table) {
+    const dimI = colIndex(table.headers, /dimension|维度/iu);
+    const scoreI = colIndex(table.headers, /score|分数|评分|得分/iu);
+    const overall =
+      table.rows.find((r) => /overall|综合|总分/iu.test(r[dimI] ?? "")) ??
+      table.rows[table.rows.length - 1];
+    score = stripInlineMd(overall?.[scoreI] ?? "").replace(/[^\d.]/gu, "");
+  }
+  if (!score) score = scoreFromProse(md);
   if (!score) return "";
   const verdict =
     /VERDICT[:：]?\s*([^\n*]+)/iu.exec(md)?.[1]?.trim() ??
-    /^\*\*总评[:：]\*\*\s*(.+)$/mu.exec(md)?.[1]?.trim();
+    /^\*\*总评[:：]\*\*\s*(.+)$/mu.exec(md)?.[1]?.trim() ??
+    /（([^）]*concerns[^）]*)）/iu.exec(md)?.[1]?.trim();
   const note = verdict
-    ? escapeHtml(clip(verdict, 80))
+    ? escapeHtml(clip(localizeKnText(verdict), 80))
     : escapeHtml("综合评分");
   return `<div class="kn-hero"><div><div class="kn-hero__label">综合</div><div class="kn-hero__value">${escapeHtml(score)}</div></div><p class="kn-hero__note">${note}</p></div>`;
 }
 
+function scoreFromProse(md: string): string {
+  const m =
+    /\*\*综合可靠度评分[:：]\s*(\d+(?:\.\d+)?)\s*\/\s*10[^*]*\*\*/u.exec(md) ??
+    /综合可靠度评分[:：]\s*(\d+(?:\.\d+)?)\s*\/\s*10/u.exec(md) ??
+    /\*\*可靠度评分[:：]\s*(\d+(?:\.\d+)?)\s*\/\s*10[^*]*\*\*/u.exec(md);
+  return m?.[1] ?? "";
+}
+
 export function renderPositionSplitLead(md: string): string {
-  const sections = splitMarkdownH2(md);
-  const alt = sectionBy(sections, /competitive alternative|替代方案|^替代/iu);
-  const uniq = sectionBy(sections, /unique attribute|独有|差异化属性|独特属性/iu);
+  const alt =
+    headingBody(md, /competitive alternative|替代方案|若不存在会用什么替代|^替代/iu);
+  const uniq = headingBody(
+    md,
+    /unique attribute|独有|差异化属性|独特属性/iu,
+  );
   if (!alt || !uniq) return "";
   const altItems = (() => {
     const tables = parseTables(alt);
@@ -273,7 +289,9 @@ export function renderPositionSplitLead(md: string): string {
 
 export function renderJourneyLead(md: string): string {
   const journeys = [
-    ...md.matchAll(/^##\s+(?:Journey|旅程)\s*(\d+)\s*[—–:-]?\s*(.*)$/gmu),
+    ...md.matchAll(
+      /^#{2,6}\s+(?:Journey|旅程|阶段)\s*(\d+)\s*(?:[—–:：-]\s*)?(.*)$/gmu,
+    ),
   ];
   if (journeys.length < 2) return "";
   const steps = journeys.slice(0, 6).map((m) => {
@@ -286,12 +304,15 @@ export function renderJourneyLead(md: string): string {
 }
 
 export function renderWeekTimelineLead(md: string): string {
-  const weeks = [...md.matchAll(/^##\s+(Week\s+\d+|第\s*[一二三四1-4]\s*周)[^\n]*$/gmu)];
+  const weeks = [
+    ...md.matchAll(/^#{2,6}\s+(Week\s+\d+|第\s*[一二三四1-4]\s*周)[^\n]*$/gmu),
+  ];
   if (weeks.length < 2) return "";
-  const sections = splitMarkdownH2(md);
+  const sections = splitMarkdownHeadings(md);
   const items = weeks.map((m) => {
     const title = (m[1] ?? "").trim();
-    const sec = sections.find((s) => s.title.startsWith(m[0]!.replace(/^##\s+/u, "")));
+    const rawTitle = (m[0] ?? "").replace(/^#{2,6}\s+/u, "");
+    const sec = sections.find((s) => s.title.startsWith(rawTitle) || s.title.startsWith(title));
     const goal =
       /^\*\*(?:Goal|目标)[:：]\*\*\s*(.+)$/mu.exec(sec?.body ?? "")?.[1];
     const note = goal
@@ -304,7 +325,7 @@ export function renderWeekTimelineLead(md: string): string {
 
 export function renderMoscowStatsLead(md: string): string {
   const countRows = (re: RegExp) => {
-    const sec = splitMarkdownH2(md).find((s) => re.test(s.title));
+    const sec = splitMarkdownHeadings(md).find((s) => re.test(normTitle(s.title)));
     if (!sec) return 0;
     const tables = parseTables(sec.body);
     if (tables[0]?.rows.length) return tables[0]!.rows.length;
@@ -348,6 +369,12 @@ function marketValue(md: string, tableRe: RegExp, headingRe: RegExp): string {
       t.headers.some((h) => tableRe.test(h)) ||
       t.rows.some((r) => tableRe.test(r[0] ?? "")),
   );
+  if (table) {
+    const scaleI = colIndex(table.headers, /规模|size|金额|数值/iu);
+    const row = table.rows.find((r) => tableRe.test(r[0] ?? "")) ?? table.rows[0];
+    const scale = stripInlineMd(row?.[scaleI >= 0 ? scaleI : 1] ?? "");
+    if (/^待补/u.test(scale)) return "待补";
+  }
   return (
     baselineArr(table) ||
     firstMoney(headingBody(md, headingRe)) ||
@@ -390,7 +417,11 @@ function gateState(md: string): "buy" | "conditional" | "pass" | null {
       ),
     ) ?? md.slice(0, 1800);
   if (/red light|红灯|\bno-?go\b|建议停止|不建议继续/iu.test(line)) return "pass";
-  if (/yellow light|黄灯|mixed signal|有条件|调整后|CONDITIONAL/iu.test(line)) {
+  if (
+    /yellow light|黄灯|mixed signal|有条件|调整后|CONDITIONAL|零验证|significant concerns/iu.test(
+      line,
+    )
+  ) {
     return "conditional";
   }
   if (/green light|绿灯|(?:^|\s)\*?GO\b|建议继续|supports proceeding/iu.test(line)) {
@@ -533,21 +564,31 @@ export function renderRiskHeatmapLead(md: string): string {
 }
 
 function firstQuote(md: string): string {
-  const q =
-    /^>\s+(.+)$/mu.exec(md)?.[1] ??
-    /[“"]([^”"]{8,160})[”"]/u.exec(md)?.[1] ??
-    /「([^」]{6,140})」/u.exec(md)?.[1];
+  const q = /^>\s+(.+)$/mu.exec(md)?.[1];
   return q ? clip(q, 140) : "";
+}
+
+function audienceAvoidFromTable(md: string): string {
+  const tables = parseTables(md);
+  const table = tables.find((t) => {
+    const who = colIndex(t.headers, /人群|客群|persona|用户/iu);
+    const pri = colIndex(t.headers, /优先级|priority|服务/iu);
+    return who >= 0 && pri >= 0;
+  });
+  if (!table) return "";
+  const who = colIndex(table.headers, /人群|客群|persona|用户/iu);
+  const pri = colIndex(table.headers, /优先级|priority|服务/iu);
+  const rows = table.rows.filter((r) => /明确不做|不服务|out of scope|won't/iu.test(r[pri] ?? ""));
+  return rows.map((r) => `- ${r[who]}`).join("\n");
 }
 
 export function renderAudienceLead(md: string): string {
   const serve =
-    headingBody(md, /primary persona|首要|主客群|目标客群|目标用户/iu) ||
+    headingBody(md, /primary persona|首要|主客群|目标客群|目标用户|核心痛点|痛点人群/iu) ||
     headingBody(md, /^persona\b|客群/iu);
-  const avoid = headingBody(
-    md,
-    /anti-?persona|反客群|不服务|who not|不要服务/iu,
-  );
+  const avoid =
+    headingBody(md, /anti-?persona|反客群|不服务|who not|不要服务|明确不做/iu) ||
+    audienceAvoidFromTable(serve || md);
   const split = splitHtml(
     "服务谁",
     bodyItems(serve, 4),
@@ -1132,7 +1173,9 @@ export function renderSpecialLead(md: string, fileId?: string): string {
     if (html) chunks.push(html);
   };
   add(
-    id === "lean-canvas" || /##\s+\d+\.\s+(Problem|问题)/iu.test(md)
+    id === "lean-canvas" ||
+      /##\s+\d+\.\s+(Problem|问题)/iu.test(md) ||
+      /#{2,6}\s+[一二三四五六七八九十]+、问题/u.test(md)
       ? renderLeanCanvasLead(md)
       : "",
   );
@@ -1182,7 +1225,8 @@ export function renderSpecialLead(md: string, fileId?: string): string {
       : "",
   );
   add(
-    id === "user-journey" || /##\s+(?:Journey|旅程)\s*1/iu.test(md)
+    id === "user-journey" ||
+      /#{2,6}\s+(?:Journey|旅程|阶段)\s*1/iu.test(md)
       ? renderJourneyLead(md)
       : "",
   );
@@ -1192,7 +1236,8 @@ export function renderSpecialLead(md: string, fileId?: string): string {
       : "",
   );
   add(
-    id === "action-plan-30-days" || /##\s+(Week\s+1|第\s*[一1]\s*周)/iu.test(md)
+    id === "action-plan-30-days" ||
+      /#{2,6}\s+(Week\s+1|第\s*[一1]\s*周)/iu.test(md)
       ? renderWeekTimelineLead(md)
       : "",
   );

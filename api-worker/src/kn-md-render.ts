@@ -4,6 +4,12 @@
  */
 
 import { renderSpecialLead } from "./kn-md-specials";
+import {
+  localizeKnText,
+  localizeOutsideTags,
+  localizeTagLabel,
+  tagKindFromLabel,
+} from "./kn-md-zh";
 
 const EMPTY_CHAPTER_HTML =
   '<div class="kn-callout"><p class="kn-callout__body">尚未开展</p></div>';
@@ -17,23 +23,17 @@ function escapeHtml(s: string): string {
 }
 
 function tagKind(label: string): string {
-  const k = (label.split(/[,\s/]/u)[0] ?? "").trim().toLowerCase();
-  if (k === "data") return "data";
-  if (k === "opinion") return "opinion";
-  if (k === "assumption") return "assumption";
-  if (k === "gap") return "gap";
-  if (k === "estimate") return "estimate";
-  return "";
+  return tagKindFromLabel(label);
 }
 
 function inline(s: string): string {
-  let t = escapeHtml(s);
+  let t = escapeHtml(localizeOutsideTags(s));
   t = t.replace(
     /\[((?:Data|Opinion|Assumption|Gap|Estimate)[^\]]*)\]/giu,
     (_m, label: string) => {
       const kind = tagKind(label);
       const extra = kind ? ` kn-md-tag--${kind}` : "";
-      return `<span class="kn-md-tag${extra}">${label}</span>`;
+      return `<span class="kn-md-tag${extra}">${escapeHtml(localizeTagLabel(label))}</span>`;
     },
   );
   t = t.replace(
@@ -85,9 +85,28 @@ function tableHtml(rows: string[]): string {
   const cellHtml = (c: string) => {
     const tone = badgeTone(c);
     const inner = inline(c);
+    if (/^待补/u.test(c.replace(/\*/gu, "").trim())) {
+      return `<span class="kn-pending">${inner}</span>`;
+    }
     if (!tone) return inner;
     return `<span class="kn-badge kn-badge--${tone}">${inner}</span>`;
   };
+  if (
+    head.length === 3 &&
+    !(head[0] ?? "").trim() &&
+    body.length === 2 &&
+    body.every((r) => r.length >= 3)
+  ) {
+    const x1 = inline(head[1] ?? "");
+    const x2 = inline(head[2] ?? "");
+    const y1 = inline(body[0]?.[0] ?? "");
+    const y2 = inline(body[1]?.[0] ?? "");
+    const c11 = cellHtml(body[0]?.[1] ?? "");
+    const c12 = cellHtml(body[0]?.[2] ?? "");
+    const c21 = cellHtml(body[1]?.[1] ?? "");
+    const c22 = cellHtml(body[1]?.[2] ?? "");
+    return `<div class="kn-quad"><div class="kn-quad__corner"></div><div class="kn-quad__x">${x1}</div><div class="kn-quad__x">${x2}</div><div class="kn-quad__y">${y1}</div><div class="kn-quad__cell">${c11}</div><div class="kn-quad__cell">${c12}</div><div class="kn-quad__y">${y2}</div><div class="kn-quad__cell">${c21}</div><div class="kn-quad__cell kn-quad__cell--us">${c22}</div></div>`;
+  }
   const thead = `<thead><tr>${head.map((c) => `<th>${inline(c)}</th>`).join("")}</tr></thead>`;
   const tbody = `<tbody>${body
     .map((r, ri) => {
@@ -229,12 +248,16 @@ function sectionConfHtml(value: string): string {
 }
 
 function isNumberedSectionTitle(title: string): boolean {
-  return /^\d+[.)、]\s+\S/u.test(title);
+  return (
+    /^\d+[.)、]\s+\S/u.test(title) || /^[一二三四五六七八九十]+、\S/u.test(title)
+  );
 }
 
 function isSubHeadingTitle(title: string): boolean {
   if (isNumberedSectionTitle(title)) return false;
   if (/^[A-Za-z]\d{1,2}\s*[:：—–-]\s+\S/u.test(title)) return true;
+  if (/^阶段\s*\d+/u.test(title)) return true;
+  if (/^第[一二三四1-4]周/u.test(title)) return true;
   return /^\d+\.\d+(?:\.\d+)?\s+\S/u.test(title);
 }
 
@@ -244,6 +267,13 @@ function headingInner(title: string): { cls: string; inner: string } {
     return {
       cls: "kn-md-h",
       inner: `<span class="kn-md-h__n">${escapeHtml(numbered[1]!.padStart(2, "0"))}</span><span class="kn-md-h__t">${inline(numbered[2]!)}</span>`,
+    };
+  }
+  const cn = /^([一二三四五六七八九十]+)、(\S.*)$/u.exec(title);
+  if (cn) {
+    return {
+      cls: "kn-md-h",
+      inner: `<span class="kn-md-h__n">${escapeHtml(cn[1]!)}</span><span class="kn-md-h__t">${inline(cn[2]!)}</span>`,
     };
   }
   const code = /^([A-Za-z]\d{1,2})\s*[:：—–-]\s+(\S.*)$/u.exec(title);
@@ -265,9 +295,28 @@ function headingInner(title: string): { cls: string; inner: string } {
 
 function headingTagName(hashes: number, title: string): "h2" | "h3" | "h4" {
   if (hashes === 1) return "h2";
-  if (isNumberedSectionTitle(title)) return "h3";
-  if (isSubHeadingTitle(title) || hashes >= 3) return "h4";
+  if (isNumberedSectionTitle(title) || hashes === 2) return "h3";
+  if (isSubHeadingTitle(title) || hashes >= 4) return "h4";
   return "h3";
+}
+
+function isChineseChapterTitle(line: string): boolean {
+  return /^[一二三四五六七八九十]+、\S.{0,48}$/u.test(line) && !/[。！？]$/u.test(line);
+}
+
+function firstHeadingTitle(md: string): string {
+  const m = /^#\s+(.+)$/mu.exec(md.replace(/^\uFEFF/, "").trim());
+  return (m?.[1] ?? "").trim();
+}
+
+function markdownHasBody(md: string): boolean {
+  return (
+    md
+      .replace(/^\uFEFF/, "")
+      .trim()
+      .replace(/^#\s+.+(?:\r?\n+|$)/u, "")
+      .trim().length > 0
+  );
 }
 
 function evidenceKind(title: string): "strong" | "weak" | null {
@@ -279,7 +328,7 @@ function evidenceKind(title: string): "strong" | "weak" | null {
 
 function evidenceCol(title: string, kind: "go" | "stop", body: string): string {
   const inner = markdownToKnHtmlInner(body).trim() || "<p>待补</p>";
-  return `<div class="kn-split__col kn-split__col--${kind}"><div class="kn-split__title">${escapeHtml(title)}</div>${inner}</div>`;
+  return `<div class="kn-split__col kn-split__col--${kind}"><div class="kn-split__title">${escapeHtml(localizeKnText(title))}</div>${inner}</div>`;
 }
 
 function taggedLine(
@@ -300,7 +349,7 @@ function taggedLine(
 function isStructuralBoundary(line: string): boolean {
   const t = line.trim();
   if (!t) return false;
-  if (/^(#{1,3})\s+/u.test(t)) return true;
+  if (/^(#{1,6})\s+/u.test(t)) return true;
   const bold = /^\*\*([^*]+)\*\*$/u.exec(t);
   return Boolean(bold && evidenceKind(bold[1]!) != null);
 }
@@ -332,7 +381,7 @@ function consumeEvidencePair(
   let weakBody = firstKind === "weak" ? first.body : [];
   if (firstKind === "strong") {
     const peek = (lines[i] ?? "").trim();
-    const nextH = /^(#{1,3})\s+(.+)$/u.exec(peek);
+    const nextH = /^(#{1,6})\s+(.+)$/u.exec(peek);
     const nextBold = /^\*\*([^*]+)\*\*$/u.exec(peek);
     const nextTitle = (nextH?.[2] ?? nextBold?.[1] ?? "").trim();
     if (nextTitle && evidenceKind(nextTitle) === "weak") {
@@ -416,7 +465,7 @@ function collectUntilNextHeading(
 ): { body: string[]; next: number } {
   let i = start;
   const body: string[] = [];
-  while (i < lines.length && !/^(#{1,3})\s+/u.test((lines[i] ?? "").trim())) {
+  while (i < lines.length && !/^(#{1,6})\s+/u.test((lines[i] ?? "").trim())) {
     body.push((lines[i] ?? "").trim());
     i += 1;
   }
@@ -514,7 +563,7 @@ function markdownToKnHtmlInner(src: string): string {
       continue;
     }
 
-    const h = /^(#{1,3})\s+(.+)$/u.exec(trimmed);
+    const h = /^(#{1,6})\s+(.+)$/u.exec(trimmed);
     if (h) {
       flushPara();
       flushList();
@@ -530,7 +579,7 @@ function markdownToKnHtmlInner(src: string): string {
         continue;
       }
       const numbered = hashes >= 2 && isNumberedSectionTitle(title);
-      const sub = hashes >= 3 || isSubHeadingTitle(title);
+      const sub = !numbered && (isSubHeadingTitle(title) || hashes >= 4);
       if (numbered) {
         closeMdSection();
         out.push('<section class="kn-md-section">');
@@ -639,7 +688,7 @@ function markdownToKnHtmlInner(src: string): string {
         }
         if (
           taggedLine(next) ||
-          /^(#{1,3})\s+/u.test(next) ||
+          /^(#{1,6})\s+/u.test(next) ||
           /^---+$/u.test(next) ||
           isDocMetaLine(next) ||
           isSectionConfLine(next) ||
@@ -653,7 +702,7 @@ function markdownToKnHtmlInner(src: string): string {
       const inner = markdownToKnHtmlInner(block.join("\n")).trim();
       const kindClass = tagged.kind ? ` kn-tagged--${tagged.kind}` : "";
       out.push(
-        `<div class="kn-tagged${kindClass}"><span class="kn-md-tag kn-md-tag--${tagged.kind}">${escapeHtml(tagged.label)}</span>${inner}</div>`,
+        `<div class="kn-tagged${kindClass}"><span class="kn-md-tag kn-md-tag--${tagged.kind}">${escapeHtml(localizeTagLabel(tagged.label))}</span>${inner}</div>`,
       );
       continue;
     }
@@ -740,6 +789,66 @@ function markdownToKnHtmlInner(src: string): string {
       continue;
     }
 
+    const boldNum = /^\*\*(\d+[.)、]\s+[^*]+)\*\*$/u.exec(trimmed);
+    if (boldNum) {
+      flushPara();
+      flushList();
+      closeMdSub();
+      out.push('<div class="kn-md-subblock">');
+      inMdSub = true;
+      const parts = headingInner(boldNum[1]!.trim());
+      out.push(`<h4 class="kn-md-sub">${parts.inner}</h4>`);
+      i += 1;
+      continue;
+    }
+
+    if (isChineseChapterTitle(trimmed)) {
+      flushPara();
+      flushList();
+      closeMdSection();
+      out.push('<section class="kn-md-section">');
+      inMdSection = true;
+      const parts = headingInner(trimmed);
+      out.push(`<h3 class="${parts.cls}">${parts.inner}</h3>`);
+      i += 1;
+      continue;
+    }
+
+    const isLabel =
+      trimmed.length >= 4 &&
+      trimmed.length <= 80 &&
+      /[：:]\s*$/u.test(trimmed) &&
+      !/^[-*|#>]/u.test(trimmed) &&
+      !/^(#{1,6})\s+/u.test(trimmed);
+    if (isLabel) {
+      let j = i + 1;
+      while (j < lines.length && !(lines[j] ?? "").trim()) j += 1;
+      const next = (lines[j] ?? "").trim();
+      if (next.startsWith("|") || /^[-*]\s+/u.test(next) || /^\d+[.)]\s+/u.test(next)) {
+        flushPara();
+        flushList();
+        out.push(
+          `<p class="kn-md-kicker">${inline(trimmed.replace(/[：:]\s*$/u, ""))}</p>`,
+        );
+        i += 1;
+        continue;
+      }
+    }
+
+    if (
+      trimmed.startsWith("|") &&
+      !isTableSep(trimmed) &&
+      !((lines[i + 1] ?? "").trim().startsWith("|"))
+    ) {
+      const cell = trimmed.replace(/^\|\s*/u, "").replace(/\s*\|$/u, "").trim();
+      if (cell) {
+        flushList();
+        para.push(cell);
+        i += 1;
+        continue;
+      }
+    }
+
     flushList();
     para.push(trimmed);
     i += 1;
@@ -755,16 +864,21 @@ function markdownToKnHtmlInner(src: string): string {
 export function renderDeliverableChapterHtml(
   files: { title: string; markdown: string; id?: string }[],
 ): string {
-  const nonempty = files.filter((f) => f.markdown.trim());
+  const withText = files.filter((f) => f.markdown.trim());
+  const withBody = withText.filter((f) => markdownHasBody(f.markdown));
+  const nonempty = withBody.length > 0 ? withBody : withText;
   if (nonempty.length === 0) return EMPTY_CHAPTER_HTML;
   if (nonempty.length === 1) {
     return markdownToKnHtml(nonempty[0]!.markdown, nonempty[0]!.id);
   }
   return nonempty
-    .map(
-      (f) =>
-        `<section class="kn-from-md-file"><h2 class="kn-file-kicker">${escapeHtml(f.title)}</h2>${markdownToKnHtml(f.markdown, f.id)}</section>`,
-    )
+    .map((f) => {
+      const same = firstHeadingTitle(f.markdown) === f.title;
+      const kicker = same
+        ? ""
+        : `<h2 class="kn-file-kicker">${escapeHtml(f.title)}</h2>`;
+      return `<section class="kn-from-md-file">${kicker}${markdownToKnHtml(f.markdown, f.id)}</section>`;
+    })
     .join("\n");
 }
 

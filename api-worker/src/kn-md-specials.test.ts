@@ -193,7 +193,7 @@ describe("special leads from heyu-like drafts", () => {
     const html = renderScoreHeroLead(SCORE);
     expect(html).toContain("kn-hero");
     expect(html).toContain("6.0");
-    expect(html).toContain("CONDITIONAL");
+    expect(html).toContain("有条件继续");
   });
 
   it("splits Competitive Alternatives vs Unique Attributes", () => {
@@ -283,7 +283,23 @@ describe("special leads from heyu-like drafts", () => {
     expect(html).toContain("服务谁");
     expect(html).toContain("不服务谁");
     expect(html).toContain("独立家族办公室 CIO");
-    expect(html).toContain("kn-quote");
+    expect(html).not.toContain("kn-quote");
+  });
+
+  it("does not hoist a 「」 term to the top of the audience chapter", () => {
+    const html = markdownToKnHtml(
+      `# 目标客户分析
+
+一、核心痛点人群
+
+团队假设「相比手表手环的准确度」是用户痛点，但没有访谈。
+`,
+      "target-audience",
+    );
+    expect(html).not.toContain("kn-quote");
+    expect(html.indexOf("目标客户分析")).toBeLessThan(
+      html.indexOf("相比手表手环的准确度"),
+    );
   });
 
   it("splits MVP must-have vs out of scope", () => {
@@ -586,5 +602,68 @@ ${rows}
     expect(html).toContain("kn-score-sum");
     expect(html).toContain("通过 <b>1</b>");
     expect(html).toContain("进行中 <b>1</b>");
+  });
+
+  it("builds a lean canvas from ### 一、问题 Chinese slots", () => {
+    const html = renderLeanCanvasLead(`# Lean Canvas
+
+### 一、问题
+入睡难。
+### 二、客户细分
+高压脑力上班族。
+### 三、独特价值主张
+无感干预。
+### 四、解决方案
+床头设备。
+### 五、渠道
+医院与家办。
+### 六、收入来源
+硬件销售。
+### 七、成本结构
+BOM 待补。
+### 八、关键指标
+留存。
+### 九、不公平优势
+复合背景。
+`);
+    expect(html).toContain("kn-canvas");
+    expect(html).toContain("问题");
+    expect(html).toContain("不公平优势");
+  });
+
+  it("reads 阶段 N journey headings", () => {
+    const html = renderJourneyLead(`# 用户旅程
+
+#### 阶段 1：发现与认知
+看到报道。
+#### 阶段 2：购买决策
+问价格。
+`);
+    expect(html).toContain("kn-journey");
+    expect(html).toContain("发现与认知");
+  });
+
+  it("reads 综合可靠度评分 when there is no dimension table", () => {
+    const html = renderScoreHeroLead(`# 综合总评
+
+**综合可靠度评分：4/10（Significant concerns）**
+
+项目处于零验证状态。
+`);
+    expect(html).toContain("kn-hero");
+    expect(html).toContain("4");
+  });
+
+  it("shows 待补 market stats instead of dropping the block", () => {
+    const html = renderMarketStatsLead(`# 市场分析
+
+| 层级 | 规模 | 来源 |
+|------|------|------|
+| 总市场 | 待补 | 无数据 |
+| 可服务市场 | 待补 | 无数据 |
+| 可获得份额 | 待补 | 无数据 |
+`);
+    expect(html).toContain("kn-stats");
+    expect(html).toContain("待补");
   });
 });

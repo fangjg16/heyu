@@ -79,7 +79,7 @@ function runningBody(opts: {
     return `正在生成「${opts.chapterName}」。可先离开，之后再点「查看进度」。完成后在审核页查看。`;
   }
   if (opts.regen === "from-files") {
-    return "正在用现有分析重新排章节，不重写内容。可先离开，之后再点「查看进度」。";
+    return "正在按现有分析重新排版。英文部分会译成中文，可能需要几分钟。可先离开，之后再点「查看进度」。";
   }
   if (opts.regen === "unpublished") {
     return "正在更新尚未发布的章节，可能需要较长时间。已发布的内容不会改。可先离开，之后再点「查看进度」。";
@@ -109,7 +109,7 @@ function finishedBody(opts: {
       : "章节生成失败。可关闭后重试。";
   }
   if (regen === "from-files") {
-    return "已按现有分析重新排版，可以去审核。内容未重写。";
+    return "已按现有分析重新排版，可以去审核。英文会译成中文显示，原文未改。";
   }
   if (reused) {
     return mode === "section"

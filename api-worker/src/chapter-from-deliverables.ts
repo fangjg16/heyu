@@ -7,9 +7,11 @@ import {
   type DeliverableFile,
 } from "./deliverable-catalog";
 import { renderDeliverableChapterHtml } from "./kn-md-render";
+import { markdownForKnDisplay } from "./kn-md-translate";
+import type { LlmClientEnv } from "./llm-client";
 import type { AnalysisKind } from "./analysis-kind";
 
-type Env = { DB: AppDatabase; FILES?: AppObjectStorage };
+type Env = { DB: AppDatabase; FILES?: AppObjectStorage } & Partial<LlmClientEnv>;
 
 export async function renderKnSectionFromDeliverables(
   env: Env,
@@ -31,7 +33,19 @@ export async function renderKnSectionFromDeliverables(
         : "";
     loaded.push({ title: file.title, markdown, id: file.id });
   }
-  return renderDeliverableChapterHtml(loaded);
+  const displayed: { title: string; markdown: string; id: string }[] = [];
+  for (const item of loaded) {
+    if (!item.markdown.trim()) {
+      displayed.push(item);
+      continue;
+    }
+    const { markdown } = await markdownForKnDisplay(
+      env as LlmClientEnv,
+      item.markdown,
+    );
+    displayed.push({ ...item, markdown });
+  }
+  return renderDeliverableChapterHtml(displayed);
 }
 
 export function knSectionRendersFromFiles(

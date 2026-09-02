@@ -612,7 +612,7 @@ export async function handleGenerateProjectKnowledgeChapter(
     (await getStoredAnalysisKind(env.DB, projectId)) ?? DEFAULT_ANALYSIS_KIND;
   if (knSectionRendersFromFiles(storedKind, sectionId)) {
     const html = await renderKnSectionFromDeliverables(
-      { DB: env.DB, FILES: env.FILES },
+      env,
       projectId,
       storedKind,
       sectionId,
