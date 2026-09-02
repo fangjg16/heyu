@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { ChapterDraftRegenMode } from "@/lib/project-api";
 
 export type DraftGeneratingProgress = {
   done: number;
@@ -20,7 +21,7 @@ type KnowledgeDraftGeneratingDialogProps = {
   /** full = 全部章节；section = 单章 */
   mode?: "full" | "section";
   /** 沿用草案后指定重跑范围 */
-  regen?: "unpublished" | "all-drafts" | null;
+  regen?: ChapterDraftRegenMode | null;
   sectionLabel?: string;
   /** 沿用了未发布草案，并未从头再生成 */
   reused?: boolean;
@@ -47,10 +48,12 @@ function finishedTitle(opts: {
   failed: number;
   done: number;
   reused: boolean;
+  regen?: ChapterDraftRegenMode | null;
 }): string {
-  const { failed, done, reused } = opts;
+  const { failed, done, reused, regen } = opts;
   if (failed > 0 && done - failed <= 0) return "草案生成失败";
   if (failed > 0) return "草案部分就绪";
+  if (regen === "from-files") return "章节已重新排版";
   if (reused) return "沿用了待审核草案";
   return "草案已准备就绪";
 }
@@ -58,9 +61,10 @@ function finishedTitle(opts: {
 function runningTitle(opts: {
   mode: "full" | "section";
   chapterName: string;
-  regen?: "unpublished" | "all-drafts" | null;
+  regen?: ChapterDraftRegenMode | null;
 }): string {
   if (opts.mode === "section") return `正在准备「${opts.chapterName}」更新`;
+  if (opts.regen === "from-files") return "正在按现有分析重新排版";
   if (opts.regen === "unpublished") return "正在更新未发布草案";
   if (opts.regen === "all-drafts") return "正在更新全部草案";
   return "正在准备全部章节更新";
@@ -69,10 +73,13 @@ function runningTitle(opts: {
 function runningBody(opts: {
   mode: "full" | "section";
   chapterName: string;
-  regen?: "unpublished" | "all-drafts" | null;
+  regen?: ChapterDraftRegenMode | null;
 }): string {
   if (opts.mode === "section") {
     return `正在生成「${opts.chapterName}」。可先离开，之后再点「查看进度」。完成后在审核页查看。`;
+  }
+  if (opts.regen === "from-files") {
+    return "正在用现有分析重新排章节，不重写内容。可先离开，之后再点「查看进度」。";
   }
   if (opts.regen === "unpublished") {
     return "正在更新尚未发布的章节，可能需要较长时间。已发布的内容不会改。可先离开，之后再点「查看进度」。";
@@ -90,7 +97,7 @@ function finishedBody(opts: {
   reused: boolean;
   mode: "full" | "section";
   chapterName: string;
-  regen?: "unpublished" | "all-drafts" | null;
+  regen?: ChapterDraftRegenMode | null;
 }): string {
   const { failed, done, total, reused, mode, chapterName, regen } = opts;
   if (failed > 0 && done - failed > 0) {
@@ -100,6 +107,9 @@ function finishedBody(opts: {
     return mode === "section"
       ? `「${chapterName}」生成失败，可关闭后重试。`
       : "章节生成失败。可关闭后重试。";
+  }
+  if (regen === "from-files") {
+    return "已按现有分析重新排版，可以去审核。内容未重写。";
   }
   if (reused) {
     return mode === "section"
@@ -175,7 +185,7 @@ export function KnowledgeDraftGeneratingDialog({
             className="mt-2 font-[family-name:var(--font-serif,serif)] text-[22px] font-semibold leading-snug text-[#1F2423]"
           >
             {finished
-              ? finishedTitle({ failed, done, reused })
+              ? finishedTitle({ failed, done, reused, regen })
               : runningTitle({ mode, chapterName, regen })}
           </h2>
           <p className="mt-2.5 text-[13px] leading-[1.7] text-[#59625F]">

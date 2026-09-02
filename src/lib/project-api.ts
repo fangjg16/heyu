@@ -1263,6 +1263,8 @@ export type ChapterDraftItem = {
   updatedAt: string;
 };
 
+export type ChapterDraftRegenMode = "unpublished" | "all-drafts" | "from-files";
+
 export type CreateChapterDraftRunResponse = {
   ok: true;
   reused: boolean;
@@ -1297,8 +1299,8 @@ export async function createChapterDraftRun(
     sectionId?: string;
     mode?: "generate" | "manual";
     html?: string;
-    /** 沿用草案时：unpublished=只重跑未上线章；all-drafts=全部草案重来（正式版不动） */
-    regen?: "unpublished" | "all-drafts";
+    /** 沿用草案时：unpublished=只重跑未上线章；all-drafts=全部草案重来；from-files=合域临时候只重排研究章 */
+    regen?: ChapterDraftRegenMode;
   },
 ): Promise<CreateChapterDraftRunResponse> {
   const q = new URLSearchParams({ userId });

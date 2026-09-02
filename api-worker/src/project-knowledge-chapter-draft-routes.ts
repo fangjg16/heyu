@@ -43,7 +43,16 @@ import {
   reviseChapterHtmlContent,
 } from "./project-knowledge-chapters-routes";
 import { repairStoredChapterHtml } from "./chapter-revise-parse";
-import { draftReuseShouldRetryFailed, unpublishedDraftSectionIds } from "./draft-reuse";
+import {
+  draftReuseShouldRetryFailed,
+  unpublishedDraftSectionIds,
+  type DraftRegenMode,
+} from "./draft-reuse";
+import {
+  isHeyuRerenderOnceProject,
+  knSectionsToRerenderFromFiles,
+  markHeyuRerenderOnceUsed,
+} from "./kn-rerender-from-files-once";
 import { listProjectKnowledgeChapterHtml } from "./project-knowledge-chapters-db";
 import {
   createDraftRun,
@@ -578,7 +587,7 @@ export async function handleCreateChapterDraftRun(
   let sectionId: string | null = null;
   let mode: "generate" | "manual" = "generate";
   let manualHtml = "";
-  let regen: "unpublished" | "all-drafts" | null = null;
+  let regen: DraftRegenMode | null = null;
   try {
     const body = (await request.json().catch(() => null)) as {
       scope?: unknown;
@@ -599,11 +608,25 @@ export async function handleCreateChapterDraftRun(
     if (typeof body?.html === "string") {
       manualHtml = body.html;
     }
-    if (body?.regen === "unpublished" || body?.regen === "all-drafts") {
+    if (
+      body?.regen === "unpublished" ||
+      body?.regen === "all-drafts" ||
+      body?.regen === "from-files"
+    ) {
       regen = body.regen;
     }
   } catch {
     /* 无 body 时默认 full */
+  }
+
+  if (
+    regen === "from-files" &&
+    !isHeyuRerenderOnceProject(projectId, project.name)
+  ) {
+    return json(
+      { error: "这次临时候只用于合域项目", code: "NOT_ALLOWED" },
+      400,
+    );
   }
 
   if (mode === "manual") {
@@ -692,6 +715,39 @@ export async function handleCreateChapterDraftRun(
           sectionIds: [sectionId!],
         });
       }
+      if (regen === "from-files") {
+        if (active.status === "generating") {
+          return json(
+            {
+              error: "当前草案还在生成，请完成后再重新排版",
+              code: "STILL_GENERATING",
+              activeRunId: active.id,
+              activeScope: active.scope,
+            },
+            409,
+          );
+        }
+        const knIds = knSectionsToRerenderFromFiles(analysisKind);
+        if (knIds.length === 0) {
+          return json(
+            { error: "没有可按现有分析排版的章节", code: "NO_RENDER_SECTIONS" },
+            400,
+          );
+        }
+        await requeueDraftSections(env, active.id, knIds, items);
+        await markHeyuRerenderOnceUsed(env.DB, projectId);
+        kickDraftRunGeneration(env, ctx, projectId, active.id, userId);
+        const latest = await listDraftItems(env.DB, active.id);
+        const latestRun = (await getDraftRun(env.DB, active.id)) ?? active;
+        return json({
+          ok: true,
+          reused: true,
+          rerenderFromFiles: true,
+          run: latestRun,
+          items: mapRunItems(latest),
+          sectionIds: knIds,
+        });
+      }
       const willGenerate =
         Boolean(regen) ||
         draftReuseShouldRetryFailed(active.status, items) ||
@@ -775,6 +831,13 @@ export async function handleCreateChapterDraftRun(
         activeScope: active.scope,
       },
       409,
+    );
+  }
+
+  if (regen === "from-files") {
+    return json(
+      { error: "没有待审核草案，无法只重新排版", code: "NO_ACTIVE_DRAFT" },
+      400,
     );
   }
 

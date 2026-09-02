@@ -8,7 +8,7 @@ export function draftReuseShouldRetryFailed(
   return items.some((i) => i.status === "failed");
 }
 
-export type DraftRegenMode = "unpublished" | "all-drafts";
+export type DraftRegenMode = "unpublished" | "all-drafts" | "from-files";
 
 function normHtml(html: string | null | undefined): string {
   return (html ?? "").replace(/\s+/gu, " ").trim();

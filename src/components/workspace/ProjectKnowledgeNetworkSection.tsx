@@ -34,6 +34,7 @@ import {
   type OverviewVersionMeta,
   type ProjectPermissionMember,
   type StartupInterviewDto,
+  type ChapterDraftRegenMode,
 } from "@/lib/project-api";
 import { stripAuthoringHintsFromHtml } from "@/lib/strip-authoring-hints";
 import { formatChapterVersionLabel, formatOverviewVersionLabel } from "@/lib/chapter-version";
@@ -58,6 +59,7 @@ import {
   markBackdropPointerDown,
 } from "@/lib/backdrop-dismiss";
 import { resolveAnalysisKind } from "@/lib/analysis-kind";
+import { isHeyuRerenderOnceProject } from "@/lib/heyu-rerender-once";
 import {
   catalogGroupsForKind,
   questionsSectionIdForKind,
@@ -74,16 +76,25 @@ function allChaptersConfirmText(input: {
   failed: number;
   total: number;
   interviewHint?: "none" | "never" | "paused";
+  heyuRerenderOnce?: boolean;
 }): string {
   if (input.loading) return "正在查看当前进度…";
   const pending = Math.max(0, input.total - input.published);
   let base = "将更新全部章节和项目概览，可能需要较长时间。";
   if (input.hasDraft && input.published > 0 && pending > 0) {
     base = `${input.published} 章已发布、${pending} 章还在草案里。已发布的内容不会改。`;
+    if (input.heyuRerenderOnce) {
+      base += "也可以用现有分析重新排版，不重写内容。";
+    }
   } else if (input.hasDraft && input.failed > 0) {
     base = `将重试失败的 ${input.failed} 章，已成功待审核的会保留。`;
+    if (input.heyuRerenderOnce) {
+      base += "也可以用现有分析重新排版，不重写内容。";
+    }
   } else if (input.hasDraft) {
-    base = `已有待审核草案，不会重新生成。${DISCARD_THEN_REGENERATE_HINT}`;
+    base = input.heyuRerenderOnce
+      ? "已有待审核草案。可以用现有分析重新排版（不重写内容，只换版式），也可以直接前往审核。"
+      : `已有待审核草案，不会重新生成。${DISCARD_THEN_REGENERATE_HINT}`;
   } else if (input.published > 0) {
     base =
       "将更新尚未发布的章节和项目概览，可能需要较长时间。已发布的内容在你确认发布前不会改。";
@@ -127,7 +138,7 @@ type ProjectKnowledgeNetworkSectionProps = {
   allChaptersBusy?: boolean;
   overviewBusy?: boolean;
   canUpdateAllChapters?: boolean;
-  onUpdateAllChapters?: (regen?: "unpublished" | "all-drafts") => void;
+  onUpdateAllChapters?: (regen?: ChapterDraftRegenMode) => void;
   onViewDraftProgress?: () => void;
 };
 
@@ -238,6 +249,9 @@ export function ProjectKnowledgeNetworkSection({
   const [interviewError, setInterviewError] = useState<string | null>(null);
   const [interviewNotice, setInterviewNotice] = useState<string | null>(null);
   useBodyScrollLock(allChaptersConfirm);
+  const canHeyuRerenderOnce =
+    isHeyuRerenderOnceProject(projectId, project?.name) &&
+    Boolean(onUpdateAllChapters);
 
   const flatSections = useMemo(
     () => chapterGroups.flatMap((g) => g.sections),
@@ -1965,6 +1979,7 @@ export function ProjectKnowledgeNetworkSection({
                       published: confirmPublished,
                       failed: confirmFailed,
                       total: researchSectionsForKind(analysisKind).length,
+                      heyuRerenderOnce: canHeyuRerenderOnce,
                       interviewHint:
                         analysisKind === "early" &&
                         interview?.status === "paused"
@@ -1998,6 +2013,18 @@ export function ProjectKnowledgeNetworkSection({
                     confirmPublished > 0 &&
                     researchSectionsForKind(analysisKind).length - confirmPublished > 0 ? (
                     <>
+                      {canHeyuRerenderOnce ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAllChaptersConfirm(false);
+                            onUpdateAllChapters?.("from-files");
+                          }}
+                          className="rounded-full border border-[rgba(78,66,57,0.14)] px-4 py-2 text-xs font-semibold text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]"
+                        >
+                          用现有分析重新排版
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => {
@@ -2020,27 +2047,68 @@ export function ProjectKnowledgeNetworkSection({
                       </button>
                     </>
                   ) : confirmHasDraft && confirmFailed > 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAllChaptersConfirm(false);
-                        onUpdateAllChapters?.();
-                      }}
-                      className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
-                    >
-                      重试失败
-                    </button>
+                    <>
+                      {canHeyuRerenderOnce ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAllChaptersConfirm(false);
+                            onUpdateAllChapters?.("from-files");
+                          }}
+                          className="rounded-full border border-[rgba(78,66,57,0.14)] px-4 py-2 text-xs font-semibold text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]"
+                        >
+                          用现有分析重新排版
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAllChaptersConfirm(false);
+                          onUpdateAllChapters?.();
+                        }}
+                        className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+                      >
+                        重试失败
+                      </button>
+                    </>
                   ) : confirmHasDraft ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAllChaptersConfirm(false);
-                        goDraftReview();
-                      }}
-                      className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
-                    >
-                      前往审核
-                    </button>
+                    <>
+                      {canHeyuRerenderOnce ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAllChaptersConfirm(false);
+                            goDraftReview();
+                          }}
+                          className="rounded-full border border-[rgba(78,66,57,0.14)] px-4 py-2 text-xs font-semibold text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]"
+                        >
+                          前往审核
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAllChaptersConfirm(false);
+                            goDraftReview();
+                          }}
+                          className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+                        >
+                          前往审核
+                        </button>
+                      )}
+                      {canHeyuRerenderOnce ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAllChaptersConfirm(false);
+                            onUpdateAllChapters?.("from-files");
+                          }}
+                          className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+                        >
+                          用现有分析重新排版
+                        </button>
+                      ) : null}
+                    </>
                   ) : (
                     <>
                       {analysisKind === "early" &&

@@ -39,6 +39,7 @@ import {
   fetchProjectsFromApi,
   summarizeDraftRunProgress,
   waitForDraftRunSettled,
+  type ChapterDraftRegenMode,
 } from "@/lib/project-api";
 import {
   getMergedProjects,
@@ -231,7 +232,7 @@ function ProjectWorkspaceLayout() {
   const [draftDialogError, setDraftDialogError] = useState<string | null>(null);
   const [draftDialogReused, setDraftDialogReused] = useState(false);
   const [draftDialogRegen, setDraftDialogRegen] = useState<
-    "unpublished" | "all-drafts" | null
+    ChapterDraftRegenMode | null
   >(null);
   const [draftStopping, setDraftStopping] = useState(false);
   const [knowledgeRefreshKey, setKnowledgeRefreshKey] = useState(0);
@@ -598,7 +599,7 @@ function ProjectWorkspaceLayout() {
     }
   };
 
-  const onUpdateAllChapters = async (regen?: "unpublished" | "all-drafts") => {
+  const onUpdateAllChapters = async (regen?: ChapterDraftRegenMode) => {
     if (!canUpdateOverview || allChaptersBusy || overviewBusy) return;
     const startedAt = Date.now();
     setAllChaptersBusy(true);
@@ -637,7 +638,11 @@ function ProjectWorkspaceLayout() {
       setDraftRunId(runId);
 
       // 已有可审核草案：成功章保留；若有失败章则用最新资料重试，不装成「又跑完一轮」
-      if (created.reused && created.run.status === "ready") {
+      if (
+        created.reused &&
+        created.run.status === "ready" &&
+        regen !== "from-files"
+      ) {
         const needsRetry = created.items.some(
           (i) => i.status === "failed" || i.status === "pending",
         );
@@ -861,7 +866,7 @@ function ProjectWorkspaceLayout() {
               allChaptersBusy,
               overviewBusy,
               canUpdateAllChapters: canUpdateOverview,
-              onUpdateAllChapters: (regen?: "unpublished" | "all-drafts") =>
+              onUpdateAllChapters: (regen?: ChapterDraftRegenMode) =>
                 void onUpdateAllChapters(regen),
               onViewDraftProgress: () => setDraftDialogOpen(true),
               updatingChapterIds,
@@ -963,7 +968,7 @@ function ProjectKnowledgeTab() {
     allChaptersBusy?: boolean;
     overviewBusy?: boolean;
     canUpdateAllChapters?: boolean;
-    onUpdateAllChapters?: (regen?: "unpublished" | "all-drafts") => void;
+    onUpdateAllChapters?: (regen?: ChapterDraftRegenMode) => void;
     onViewDraftProgress?: () => void;
   }>();
   return (
