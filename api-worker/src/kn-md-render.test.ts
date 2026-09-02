@@ -498,6 +498,25 @@ PwC 2024。
     expect((html.match(/<details class="kn-week"/g) ?? []).length).toBe(2);
   });
 
+  it("lays week goals and named tasks on separate layers", () => {
+    const html = markdownToKnHtml(`# 四周计划
+
+## 第1周 · 独立用户访谈
+
+**Goal:** 完成至少 5 次独立访谈
+
+1. **老板 + Jessica:** 从名单里选出 8 个对象
+2. **Jessica:** 完成 5–8 场访谈
+3. **Jensen:** 独立编码痛点
+
+**Don't do:** 不要展示界面。
+`);
+    expect(html).toContain("kn-plan--goal");
+    expect(html).toContain("kn-plan--stop");
+    expect(html).toContain("kn-task__who");
+    expect(html).toContain("老板 + Jessica");
+  });
+
   it("folds experiment headings onto the same vertical spine", () => {
     const html = markdownToKnHtml(`# 验证手册
 

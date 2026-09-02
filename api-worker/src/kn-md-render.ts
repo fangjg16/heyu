@@ -29,6 +29,7 @@ function tagKind(label: string): string {
 
 function inline(s: string): string {
   let t = escapeHtml(localizeOutsideTags(s));
+  t = t.replace(/`([^`]*\.md)`/giu, "");
   t = t.replace(
     evidenceTagPattern("inline"),
     (_m, label: string) => {
@@ -655,6 +656,20 @@ export function markdownToKnHtml(md: string, fileId?: string): string {
   return `<div class="kn-from-md">${body}</div>`;
 }
 
+function listItemHtml(raw: string): string {
+  const t = raw.trim();
+  const owned =
+    /^\*\*([^*]{1,40}?)[:：]\*\*\s*(.+)$/u.exec(t) ??
+    /^\*\*([^*]{1,32})\*\*[:：]\s*(.+)$/u.exec(t) ??
+    /^((?:老板|Jessica|Jensen)(?:\s*[+＋和、]\s*(?:老板|Jessica|Jensen))*)[:：]\s*(.+)$/u.exec(
+      t,
+    );
+  if (owned) {
+    return `<li class="kn-task"><span class="kn-task__who">${inline(owned[1]!.replace(/[:：]\s*$/u, ""))}</span><span class="kn-task__do">${inline(owned[2]!)}</span></li>`;
+  }
+  return `<li>${inline(t)}</li>`;
+}
+
 function markdownToKnHtmlInner(src: string): string {
   const lines = src.split(/\r?\n/u);
   const out: string[] = [];
@@ -683,8 +698,10 @@ function markdownToKnHtmlInner(src: string): string {
       return;
     }
     const tag = listKind;
+    const items = listItems.map(listItemHtml);
+    const tasky = items.some((h) => h.includes("kn-task"));
     out.push(
-      `<${tag}>${listItems.map((it) => `<li>${inline(it)}</li>`).join("")}</${tag}>`,
+      `<${tag}${tasky ? ' class="kn-tasks"' : ""}>${items.join("")}</${tag}>`,
     );
     listKind = null;
     listItems = [];
@@ -889,14 +906,27 @@ function markdownToKnHtmlInner(src: string): string {
             ? "产出"
             : /^(exit|通过门槛)$/iu.test(labeled.key)
               ? "通过门槛"
-              : /^(do not do|不要做)$/iu.test(labeled.key)
+              : /^(do not do|don't do|不要做)$/iu.test(labeled.key)
                 ? "不要做"
                 : /^(expected limitation|预期限制)$/iu.test(labeled.key)
                   ? "预期限制"
                   : localizeKnText(labeled.key);
-      out.push(
-        `<p class="kn-md-kicker">${inline(keyZh)}</p><p>${inline(labeled.value)}</p>`,
-      );
+      const planKind = /^(不要做)$/u.test(keyZh)
+        ? " kn-plan--stop"
+        : /^(产出)$/u.test(keyZh)
+          ? " kn-plan--out"
+          : /^(目标)$/u.test(keyZh)
+            ? " kn-plan--goal"
+            : "";
+      if (planKind) {
+        out.push(
+          `<div class="kn-plan${planKind}"><p class="kn-plan__label">${inline(keyZh)}</p>${labeled.value ? `<p class="kn-plan__lead">${inline(labeled.value)}</p>` : ""}</div>`,
+        );
+      } else {
+        out.push(
+          `<p class="kn-md-kicker">${inline(keyZh)}</p><p>${inline(labeled.value)}</p>`,
+        );
+      }
       i += 1;
       continue;
     }

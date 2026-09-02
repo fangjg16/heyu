@@ -115,25 +115,59 @@ function splitHtml(
   return `<div class="kn-split"><div class="kn-split__col${lcls}"><div class="kn-split__title">${escapeHtml(leftTitle)}</div>${itemsUl(left)}</div><div class="kn-split__col${rcls}"><div class="kn-split__title">${escapeHtml(rightTitle)}</div>${itemsUl(right)}</div></div>`;
 }
 
+function isPipeJunk(s: string): boolean {
+  const t = s.replace(/\s+/gu, "");
+  if (!t) return true;
+  if (/^[\|\-:]+$/u.test(t)) return true;
+  const bars = (t.match(/\|/gu) ?? []).length;
+  return bars >= 3 && /-{3,}/u.test(t);
+}
+
+function tableLeadItems(body: string, max = 4): string[] {
+  const table = parseTables(body)[0];
+  if (!table?.rows.length) return [];
+  return table.rows
+    .slice(0, max)
+    .map((row) => {
+      const cells = row
+        .map((c) => stripInlineMd(c))
+        .filter((c) => c && !/^[-:|\s]+$/u.test(c));
+      if (cells.length === 0) return "";
+      if (cells.length === 1) return clip(cells[0]!, 160);
+      return clip(`${cells[0]} · ${cells.slice(1, 3).join(" · ")}`, 180);
+    })
+    .filter((s) => s && !isPipeJunk(s));
+}
+
 function compactItems(body: string, max = 4): string[] {
   if (!body.trim()) return [];
-  const h3 = [...body.matchAll(/^#{2,6}\s+(.+)$/gmu)].map((m) =>
+  const fromTable = tableLeadItems(body, max);
+  const proseSrc = body.replace(/^\s*\|.*$/gmu, "").trim();
+  const h3 = [...proseSrc.matchAll(/^#{2,6}\s+(.+)$/gmu)].map((m) =>
     clip(m[1] ?? "", 72),
   );
-  if (h3.length >= 2) return h3.slice(0, max);
-  const bullets = [...body.matchAll(/^[-*]\s+(.+)$/gmu)].map((m) =>
-    clip(m[1] ?? ""),
-  );
-  if (bullets.length > 0) return bullets.slice(0, max);
-  const nums = [...body.matchAll(/^\d+[.)]\s+(.+)$/gmu)].map((m) =>
-    clip(m[1] ?? ""),
-  );
-  if (nums.length > 0) return nums.slice(0, max);
-  const para = body
+  const bullets = [...proseSrc.matchAll(/^[-*]\s+(.+)$/gmu)]
+    .map((m) => clip(m[1] ?? "", 160))
+    .filter((s) => !isPipeJunk(s));
+  const nums = [...proseSrc.matchAll(/^\d+[.)]\s+(.+)$/gmu)]
+    .map((m) => clip(m[1] ?? "", 160))
+    .filter((s) => !isPipeJunk(s));
+  const para = proseSrc
     .split(/\n\s*\n/u)
-    .map((p) => clip(p.replace(/^>\s?/gmu, ""), 100))
-    .filter(Boolean);
-  return para.slice(0, 2);
+    .map((p) => clip(p.replace(/^>\s?/gmu, ""), 160))
+    .filter((s) => s && !isPipeJunk(s));
+  const prose =
+    h3.length >= 2
+      ? h3
+      : bullets.length > 0
+        ? bullets
+        : nums.length > 0
+          ? nums
+          : para.slice(0, 2);
+  if (fromTable.length) {
+    return [...prose.slice(0, 1), ...fromTable].slice(0, max);
+  }
+  return prose.slice(0, max);
 }
 
 function itemsUl(items: string[]): string {
@@ -298,16 +332,12 @@ export function renderPositionSplitLead(md: string): string {
     /unique attribute|独有|差异化属性|独特属性/iu,
   );
   if (!alt || !uniq) return "";
-  const altItems = (() => {
-    const tables = parseTables(alt);
-    if (tables[0]?.rows.length) {
-      return tables[0]!.rows.slice(0, 6).map((r) => clip(r[0] ?? "", 72));
-    }
-    return compactItems(alt, 5);
-  })();
-  const uniqItems = compactItems(uniq, 5);
-  if (altItems.length === 0 || uniqItems.length === 0) return "";
-  return `<div class="kn-split"><div class="kn-split__col kn-split__col--stop"><div class="kn-split__title">替代方案</div>${itemsUl(altItems)}</div><div class="kn-split__col kn-split__col--go"><div class="kn-split__title">我们独有</div>${itemsUl(uniqItems)}</div></div>`;
+  const altItems = tableLeadItems(alt, 6);
+  const uniqItems = tableLeadItems(uniq, 6);
+  const altFinal = altItems.length ? altItems : compactItems(alt, 5);
+  const uniqFinal = uniqItems.length ? uniqItems : compactItems(uniq, 5);
+  if (altFinal.length === 0 || uniqFinal.length === 0) return "";
+  return `<div class="kn-split"><div class="kn-split__col kn-split__col--stop"><div class="kn-split__title">替代方案</div>${itemsUl(altFinal)}</div><div class="kn-split__col kn-split__col--go"><div class="kn-split__title">我们独有</div>${itemsUl(uniqFinal)}</div></div>`;
 }
 
 function collectJourneyMatches(md: string): RegExpMatchArray[] {
@@ -326,13 +356,6 @@ function collectJourneyMatches(md: string): RegExpMatchArray[] {
 }
 
 function looksLikeLoop(md: string, names: string[]): boolean {
-  if (
-    /启动动作|Activation(?:\s+Motion)?|飞轮|循环|完结与费用|回写到?知识网络/iu.test(
-      md,
-    )
-  ) {
-    return true;
-  }
   const blob = names.join(" ");
   const hits = [
     /邀请/u,
@@ -340,8 +363,22 @@ function looksLikeLoop(md: string, names: string[]): boolean {
     /知识网络/u,
     /观察/u,
     /回写|再邀请|再来/u,
+    /可分享版本|选择项目/u,
   ].filter((re) => re.test(blob)).length;
-  return hits >= 2;
+  if (hits >= 2) return true;
+  return (
+    /启动动作|Activation(?:\s+Motion)?/iu.test(md) &&
+    hits >= 1 &&
+    names.length >= 5
+  );
+}
+
+function looksLikeOpsTasks(titles: string[]): boolean {
+  return (
+    titles.filter((t) =>
+      /完成|推进|关注|要求|披露|BOM|预付|对照试验|巨头/u.test(t),
+    ).length >= 2
+  );
 }
 
 function collectLoopStations(
@@ -355,18 +392,19 @@ function collectLoopStations(
     raw = stepMatches.map((m) => {
       const title = localizeKnText((m[2] ?? "").trim());
       const [who, what] = title.split(/：|:\s*/u, 2);
-      return { name: clip(who || title, 10), note: clip(what || "", 14) };
+      return { name: clip(who || title, 16), note: clip(what || "", 22) };
     });
   } else if (!/对策|Mitigation/iu.test(md)) {
     const bold = [...md.matchAll(/^(\d+)[.)]\s+\*\*([^*]+)\*\*/gmu)];
     if (bold.length >= 5 && bold.length <= 8) {
       raw = bold.map((m) => ({
-        name: clip(localizeKnText(m[2] ?? ""), 10),
+        name: clip(localizeKnText(m[2] ?? ""), 16),
         note: "",
       }));
     }
   }
   if (raw.length < 5 || raw.length > 8) return [];
+  if (looksLikeOpsTasks(raw.map((s) => `${s.name} ${s.note}`))) return [];
   if (!looksLikeLoop(md, raw.map((s) => `${s.name} ${s.note}`))) return [];
   const focalIdx = raw.findIndex((s) =>
     /观察|真实行为|Decide|审批/u.test(s.name),
@@ -394,14 +432,32 @@ export function renderJourneyLead(md: string): string {
   if (collectLoopStations(md).length >= 5) return "";
   if (hasMultiPersonaJourney(md)) return "";
   if (renderJourneyMapLead(md)) return "";
-  const spine = journeys.length >= 4 ? " kn-journey--spine" : "";
-  const steps = journeys.slice(0, 6).map((m) => {
-    const n = escapeHtml(m[1] ?? "");
+  const sections = splitMarkdownHeadings(md);
+  const prepared = journeys.slice(0, 6).map((m) => {
+    const n = m[1] ?? "";
     const raw = localizeKnText((m[2] ?? "").trim());
     const [who, what] = raw.split(/：|:\s*/u, 2);
-    return `<div class="kn-journey__step"><div class="kn-journey__n">${n}</div><div class="kn-journey__title">${escapeHtml(clip(who || raw, 28))}</div>${what ? `<div class="kn-journey__note">${escapeHtml(clip(what, 64))}</div>` : ""}</div>`;
+    const sec = sections.find((s) =>
+      new RegExp(
+        `(?:Journey|旅程|阶段|Step|步骤)\\s*${n}\\b`,
+        "u",
+      ).test(s.title),
+    );
+    const fromBody = sec ? compactItems(sec.body, 1)[0] ?? "" : "";
+    const note = (what ?? "").trim() || fromBody;
+    return {
+      n,
+      title: clip(who || raw, 28),
+      note: note ? clip(note, 72) : "",
+    };
   });
-  return `<div class="kn-journey${spine}">${steps.join("")}</div>`;
+  if (prepared.every((s) => !s.note) && prepared.length >= 3) return "";
+  const spine = prepared.length >= 4 ? " kn-journey--spine" : "";
+  const steps = prepared.map(
+    (s) =>
+      `<div class="kn-journey__step"><div class="kn-journey__n">${escapeHtml(s.n)}</div><div class="kn-journey__title">${escapeHtml(s.title)}</div>${s.note ? `<div class="kn-journey__note">${escapeHtml(s.note)}</div>` : ""}</div>`,
+  );
+  return `<div class="kn-journey${spine}"><p class="kn-chart__cap">用户怎么用</p>${steps.join("")}</div>`;
 }
 
 export function renderWeekTimelineLead(md: string): string {
@@ -817,6 +873,7 @@ export function renderNumberedJourneyLead(md: string): string {
     clip(m[1] ?? "", 64),
   );
   if (numbered.length < 3) return "";
+  if (looksLikeOpsTasks(numbered)) return "";
   const steps = numbered.slice(0, 6).map((title, i) => {
     const n = String(i + 1);
     return `<div class="kn-journey__step"><div class="kn-journey__n">${n}</div><div class="kn-journey__title">${escapeHtml(title)}</div></div>`;

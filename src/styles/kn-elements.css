@@ -645,7 +645,19 @@
   margin: 0;
   padding-left: 1rem;
   font-size: 12.5px;
+  line-height: 1.55;
   color: hsl(var(--ink-soft));
+  overflow-wrap: anywhere;
+}
+
+.kn-canvas__cell li {
+  margin: 0.28rem 0;
+}
+
+.kn-split__col li {
+  margin: 0.28rem 0;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 
 /* 路径 */
@@ -693,6 +705,10 @@
   display: flex;
   flex-direction: column;
   gap: 0;
+}
+
+.kn-journey > .kn-chart__cap {
+  grid-column: 1 / -1;
 }
 
 .kn-journey--spine .kn-journey__step {
@@ -1955,6 +1971,86 @@
   font-weight: 650;
   letter-spacing: 0.04em;
   color: hsl(var(--warm-charcoal));
+}
+
+.kn-plan {
+  margin: 0.95rem 0 0.35rem;
+}
+
+.kn-plan__label {
+  margin: 0 0 0.2rem;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: hsl(var(--wine));
+}
+
+.kn-plan--out .kn-plan__label {
+  color: hsl(var(--warm-charcoal));
+}
+
+.kn-plan--stop .kn-plan__label {
+  color: hsl(var(--ink-soft));
+}
+
+.kn-plan__lead {
+  margin: 0 0 0.35rem;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: hsl(var(--warm-charcoal));
+}
+
+.kn-tasks {
+  margin: 0.15rem 0 0.85rem;
+  padding: 0;
+  list-style: none;
+  counter-reset: kn-task;
+}
+
+.kn-tasks > li,
+.kn-task {
+  counter-increment: kn-task;
+  display: grid;
+  grid-template-columns: 1.35rem minmax(0, 1fr);
+  column-gap: 0.55rem;
+  padding: 0.55rem 0 0.65rem;
+  border-bottom: 1px solid hsl(var(--border));
+  line-height: 1.6;
+}
+
+.kn-tasks > .kn-task {
+  grid-template-columns: 1.35rem 5.6rem minmax(0, 1fr);
+  align-items: start;
+}
+
+.kn-tasks > li::before,
+.kn-task::before {
+  content: counter(kn-task);
+  font-size: 11px;
+  font-weight: 650;
+  color: hsl(var(--ink-soft));
+  padding-top: 0.15rem;
+}
+
+.kn-task__who {
+  display: inline-block;
+  padding: 0.08rem 0.4rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 650;
+  color: hsl(var(--wine));
+  background: hsl(var(--paper));
+  white-space: nowrap;
+}
+
+.kn-task__do {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.kn-week__body .kn-plan:first-child {
+  margin-top: 0.15rem;
 }
 
 .kn-quad {

@@ -31,6 +31,7 @@ import {
   renderLoopLead,
   renderMoscowKanbanLead,
   renderJourneyMapLead,
+  renderNumberedJourneyLead,
 } from "./kn-md-specials";
 
 const LEAN = `# Lean Canvas
@@ -209,6 +210,73 @@ describe("special leads from heyu-like drafts", () => {
     expect(html).toContain("替代方案");
     expect(html).toContain("我们独有");
     expect(html).toContain("访谈会话锁定");
+  });
+
+  it("turns canvas and unique-attribute tables into readable lines, not pipe markup", () => {
+    const canvas = renderLeanCanvasLead(`# Lean Canvas
+
+## 1. Problem
+
+| 痛点 | 证据强度 | 说明 |
+| --- | --- | --- |
+| 高压脑力人群系统性过载导致睡眠问题 | 弱 | 访谈里说到加班就难睡 |
+| 市场缺口是无感感知乘主动干预 | 判断 | 竞品还在穿戴监测 |
+
+## 2. Customer Segments
+
+高压脑力上班族。
+
+## 3. Unique Value Proposition
+
+零交互闭环助眠。
+
+## 4. Solution
+
+无屏床头设备。
+
+## 5. Channels
+
+官网直销。
+
+## 6. Revenue Streams
+
+硬件销售。
+
+## 7. Cost Structure
+
+BOM 待补。
+
+## 8. Key Metrics
+
+留存。
+
+## 9. Unfair Advantage
+
+复合背景。
+`);
+    expect(canvas).toContain("高压脑力人群系统性过载导致睡眠问题");
+    expect(canvas).toContain("弱");
+    expect(canvas).not.toMatch(/\|-{3,}/u);
+    expect(canvas).not.toContain("| 痛点 |");
+
+    const split = renderPositionSplitLead(`# Positioning
+
+## Competitive Alternatives
+
+- 穿戴监测设备
+- 软件 App
+
+## Unique Attributes
+
+| 属性 | 说明 | 验证状态 |
+| --- | --- | --- |
+| 无感（零交互） | 用户无需佩戴、无需主动操作 | 待验证（无真实用户长期试用） |
+| 主动干预 | 多模态闭环 | 待验证 |
+`);
+    expect(split).toContain("无感（零交互）");
+    expect(split).toContain("用户无需佩戴、无需主动操作");
+    expect(split).not.toMatch(/\|-{3,}/u);
+    expect(split).not.toContain("| 属性 |");
   });
 
   it("maps Journey headings to kn-journey", () => {
@@ -744,6 +812,36 @@ BOM 待补。
 `);
     expect(html).toContain("kn-journey");
     expect(html).toContain("发现与认知");
+  });
+
+  it("does not float a title-only six-stage journey above the real analysis", () => {
+    const html = renderJourneyLead(`# 用户旅程
+
+#### 阶段 1：发现与认知
+#### 阶段 2：购买决策
+#### 阶段 3：首次使用与设置
+#### 阶段 4：夜间使用
+#### 阶段 5：早晨反馈
+#### 阶段 6：长期使用与留存
+
+## 一、目标用户画像
+
+高压脑力上班族。
+`);
+    expect(html).toBe("");
+  });
+
+  it("does not turn hardware next-actions into a flywheel", () => {
+    const md = `# 市场进入
+
+1. **先完成 5 人预付**
+2. **并行推进 BOM**
+3. **在对照试验数据上复盘**
+4. **密切关注巨头动态**
+5. **要求团队披露临床合作**
+`;
+    expect(renderLoopLead(md)).toBe("");
+    expect(renderNumberedJourneyLead(md)).toBe("");
   });
 
   it("reads 综合可靠度评分 when there is no dimension table", () => {
