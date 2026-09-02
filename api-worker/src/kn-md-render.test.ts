@@ -20,7 +20,7 @@ describe("markdownToKnHtml", () => {
 - 红旗：客户访谈不足
 `);
     expect(html).toContain('class="kn-from-md"');
-    expect(html).toContain("<h2>");
+    expect(html).toContain("kn-doc-title");
     expect(html).toContain('class="kn-table-wrap"');
     expect(html).toContain("<th>切法</th>");
     expect(html).toContain("国内 SaaS");
@@ -119,6 +119,8 @@ describe("markdownToKnHtml", () => {
 
 正文。
 `);
+    expect(html).toContain("kn-dochead");
+    expect(html).toContain("kn-doc-title");
     expect(html).toContain("kn-masthead");
     expect(html).toContain("kn-masthead__cell--wide");
     expect(html).toContain("阶段");
@@ -171,8 +173,12 @@ describe("markdownToKnHtml", () => {
 [Opinion]
 **总体威胁: High.** 公开产品面已挤。
 `);
+    expect(html).toContain("kn-dochead");
     expect(html).toContain("kn-masthead");
     expect(html).toContain("kn-md-section");
+    expect(html).toContain("kn-md-h");
+    expect(html).toContain("kn-md-h__t");
+    expect(html).toContain("Competitive Overview");
     expect(html).toContain("kn-section-conf");
     expect(html).toContain("本节把握");
     expect(html).not.toContain('kn-masthead__k">本节把握');
@@ -180,6 +186,34 @@ describe("markdownToKnHtml", () => {
     expect(html).toContain("kn-tagged--opinion");
     expect(html).toContain("Affinity");
     expect(html).toContain("总体威胁");
+  });
+
+  it("nests T1 under the numbered section instead of matching its heading weight", () => {
+    const html = markdownToKnHtml(`# 行业趋势与时机
+
+## 1. Executive View
+
+**Section confidence:** Medium.
+
+[Opinion]
+窗口仍在。
+
+### T1: 家办直接投资与 club deal 保持战略重要性
+
+[Data]
+PwC 2024。
+`);
+    const section = html.match(
+      /<section class="kn-md-section">[\s\S]*?<\/section>/u,
+    )?.[0];
+    expect(section).toBeTruthy();
+    expect(section).toContain("kn-md-h");
+    expect(section).toContain("Executive View");
+    expect(section).toContain("kn-md-subblock");
+    expect(section).toContain('class="kn-md-sub"');
+    expect(section).toContain("kn-md-sub__k");
+    expect(section).toContain("家办直接投资");
+    expect(html.indexOf("kn-md-h")).toBeLessThan(html.indexOf("kn-md-sub"));
   });
 });
 

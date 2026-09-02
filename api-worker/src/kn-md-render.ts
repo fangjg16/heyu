@@ -159,21 +159,89 @@ function metaLabel(key: string): string {
   return META_LABELS[key.trim().toLowerCase()] ?? key;
 }
 
+function isMetaNote(key: string, value: string): boolean {
+  if (value.length > 42) return true;
+  return (
+    /^(Status|Confidence|进度|把握)$/iu.test(key) && value.length > 24
+  );
+}
+
+function isMetaVerdict(key: string): boolean {
+  return /^(Verdict|Overall|判断|综合)$/iu.test(key);
+}
+
+function metaCellHtml(m: { key: string; value: string }): string {
+  const note = isMetaNote(m.key, m.value);
+  const verdict = isMetaVerdict(m.key);
+  const extra = [
+    note ? " kn-masthead__cell--wide kn-masthead__cell--note" : "",
+    verdict ? " kn-masthead__cell--verdict" : "",
+  ].join("");
+  return `<div class="kn-masthead__cell${extra}"><span class="kn-masthead__k">${escapeHtml(metaLabel(m.key))}</span><span class="kn-masthead__v">${inline(m.value)}</span></div>`;
+}
+
 function metaHtml(lines: string[]): string {
-  const cells = lines
-    .map((line) => {
-      const m = parseMetaLine(line);
-      if (!m || isSectionConfLine(line)) return "";
-      const wide = m.value.length > 42 ? " kn-masthead__cell--wide" : "";
-      return `<div class="kn-masthead__cell${wide}"><span class="kn-masthead__k">${escapeHtml(metaLabel(m.key))}</span><span class="kn-masthead__v">${inline(m.value)}</span></div>`;
-    })
-    .filter(Boolean);
-  if (cells.length === 0) return "";
-  return `<div class="kn-masthead">${cells.join("")}</div>`;
+  const parsed = lines
+    .map((line) => parseMetaLine(line))
+    .filter((m): m is { key: string; value: string } => Boolean(m));
+  if (parsed.length === 0) return "";
+  const facts = parsed.filter((m) => !isMetaNote(m.key, m.value));
+  const notes = parsed.filter((m) => isMetaNote(m.key, m.value));
+  const factsHtml =
+    facts.length > 0
+      ? `<div class="kn-masthead__facts">${facts.map(metaCellHtml).join("")}</div>`
+      : "";
+  const notesHtml =
+    notes.length > 0
+      ? `<div class="kn-masthead__notes">${notes.map(metaCellHtml).join("")}</div>`
+      : "";
+  return `<div class="kn-masthead">${factsHtml}${notesHtml}</div>`;
 }
 
 function sectionConfHtml(value: string): string {
-  return `<p class="kn-section-conf"><span class="kn-section-conf__k">本节把握</span>${inline(value)}</p>`;
+  return `<p class="kn-section-conf"><span class="kn-section-conf__k">本节把握</span> ${inline(value)}</p>`;
+}
+
+function isNumberedSectionTitle(title: string): boolean {
+  return /^\d+[.)、]\s+\S/u.test(title);
+}
+
+function isSubHeadingTitle(title: string): boolean {
+  if (isNumberedSectionTitle(title)) return false;
+  if (/^[A-Za-z]\d{1,2}\s*[:：—–-]\s+\S/u.test(title)) return true;
+  return /^\d+\.\d+(?:\.\d+)?\s+\S/u.test(title);
+}
+
+function headingInner(title: string): { cls: string; inner: string } {
+  const numbered = /^(\d+)[.)、]\s+(\S.*)$/u.exec(title);
+  if (numbered) {
+    return {
+      cls: "kn-md-h",
+      inner: `<span class="kn-md-h__n">${escapeHtml(numbered[1]!.padStart(2, "0"))}</span><span class="kn-md-h__t">${inline(numbered[2]!)}</span>`,
+    };
+  }
+  const code = /^([A-Za-z]\d{1,2})\s*[:：—–-]\s+(\S.*)$/u.exec(title);
+  if (code) {
+    return {
+      cls: "kn-md-sub",
+      inner: `<span class="kn-md-sub__k">${escapeHtml(code[1]!.toUpperCase())}</span><span class="kn-md-sub__t">${inline(code[2]!)}</span>`,
+    };
+  }
+  const dec = /^(\d+\.\d+(?:\.\d+)?)\s+(\S.*)$/u.exec(title);
+  if (dec) {
+    return {
+      cls: "kn-md-sub",
+      inner: `<span class="kn-md-sub__k">${escapeHtml(dec[1]!)}</span><span class="kn-md-sub__t">${inline(dec[2]!)}</span>`,
+    };
+  }
+  return { cls: "", inner: inline(title) };
+}
+
+function headingTagName(hashes: number, title: string): "h2" | "h3" | "h4" {
+  if (hashes === 1) return "h2";
+  if (isNumberedSectionTitle(title)) return "h3";
+  if (isSubHeadingTitle(title) || hashes >= 3) return "h4";
+  return "h3";
 }
 
 function evidenceKind(title: string): "strong" | "weak" | null {
@@ -350,6 +418,13 @@ function markdownToKnHtmlInner(src: string): string {
   let listKind: "ul" | "ol" | null = null;
   let listItems: string[] = [];
   let inMdSection = false;
+  let inMdSub = false;
+
+  const closeMdSub = () => {
+    if (!inMdSub) return;
+    out.push("</div>");
+    inMdSub = false;
+  };
 
   const flushPara = () => {
     if (para.length === 0) return;
@@ -370,6 +445,7 @@ function markdownToKnHtmlInner(src: string): string {
     listItems = [];
   };
   const closeMdSection = () => {
+    closeMdSub();
     if (!inMdSection) return;
     out.push("</section>");
     inMdSection = false;
@@ -406,6 +482,7 @@ function markdownToKnHtmlInner(src: string): string {
       flushPara();
       flushList();
       const title = h[2]!.trim();
+      const hashes = h[1]!.length;
       const ev = evidenceKind(title);
       if (ev) {
         closeMdSection();
@@ -415,14 +492,19 @@ function markdownToKnHtmlInner(src: string): string {
         i = pair.next;
         continue;
       }
-      closeMdSection();
-      const numbered = h[1]!.length >= 2 && /^\d+[.)]\s+\S/u.test(title);
+      const numbered = hashes >= 2 && isNumberedSectionTitle(title);
+      const sub = hashes >= 3 || isSubHeadingTitle(title);
       if (numbered) {
+        closeMdSection();
         out.push('<section class="kn-md-section">');
         inMdSection = true;
+      } else if (sub) {
+        closeMdSub();
+        out.push('<div class="kn-md-subblock">');
+        inMdSub = true;
+      } else {
+        closeMdSection();
       }
-      const level = Math.min(3, h[1]!.length) + 1;
-      const tag = `h${level}`;
       i += 1;
       if (/flag|红旗|黄旗|flags/iu.test(title)) {
         const { body, next } = collectUntilNextHeading(lines, i);
@@ -439,13 +521,12 @@ function markdownToKnHtmlInner(src: string): string {
         );
         continue;
       }
-      out.push(`<${tag}>${inline(title)}</${tag}>`);
-      while (i < lines.length && !(lines[i] ?? "").trim()) i += 1;
-      const peek = (lines[i] ?? "").trim();
-      if (isSectionConfLine(peek)) {
-        out.push(sectionConfHtml(parseMetaLine(peek)!.value));
-        i += 1;
-      } else if (h[1]!.length === 1) {
+      const tag = headingTagName(hashes, title);
+      const parts = headingInner(title);
+      const cls =
+        parts.cls || (hashes === 1 ? "kn-doc-title" : "");
+      const open = cls ? `<${tag} class="${cls}">` : `<${tag}>`;
+      if (hashes === 1) {
         const meta: string[] = [];
         while (i < lines.length) {
           const next = (lines[i] ?? "").trim();
@@ -460,10 +541,18 @@ function markdownToKnHtmlInner(src: string): string {
           }
           break;
         }
-        if (meta.length > 0) {
-          out.push(metaHtml(meta));
-          i = skipFollowingRule(lines, i);
-        }
+        out.push(
+          `<header class="kn-dochead">${open}${parts.inner}</${tag}>${metaHtml(meta)}</header>`,
+        );
+        if (meta.length > 0) i = skipFollowingRule(lines, i);
+        continue;
+      }
+      out.push(`${open}${parts.inner}</${tag}>`);
+      while (i < lines.length && !(lines[i] ?? "").trim()) i += 1;
+      const peek = (lines[i] ?? "").trim();
+      if (isSectionConfLine(peek)) {
+        out.push(sectionConfHtml(parseMetaLine(peek)!.value));
+        i += 1;
       }
       continue;
     }
@@ -632,7 +721,7 @@ export function renderDeliverableChapterHtml(
   return nonempty
     .map(
       (f) =>
-        `<section class="kn-from-md-file"><h2>${escapeHtml(f.title)}</h2>${markdownToKnHtml(f.markdown, f.id)}</section>`,
+        `<section class="kn-from-md-file"><h2 class="kn-file-kicker">${escapeHtml(f.title)}</h2>${markdownToKnHtml(f.markdown, f.id)}</section>`,
     )
     .join("\n");
 }

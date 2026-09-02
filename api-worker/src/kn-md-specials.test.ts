@@ -179,7 +179,7 @@ describe("special leads from heyu-like drafts", () => {
     expect(html).toContain("价值主张");
     expect(html).toContain("月报对不上投资决策");
     expect(markdownToKnHtml(LEAN, "lean-canvas")).toContain("kn-canvas");
-    expect(markdownToKnHtml(LEAN, "lean-canvas")).toContain("<h2>");
+    expect(markdownToKnHtml(LEAN, "lean-canvas")).toContain("kn-doc-title");
   });
 
   it("turns competitor Name/Strength/Weakness into battle cards", () => {
