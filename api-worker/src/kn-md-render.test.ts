@@ -56,6 +56,13 @@ describe("markdownToKnHtml", () => {
     expect(html).toContain("有条件继续");
     expect(html).toContain("kn-flag--red");
     expect(html).toContain("kn-flag--amber");
+    expect(html).toContain("kn-flags-fold--red");
+    expect(html).toContain("kn-flags-fold--amber");
+    expect(html).toContain("红旗");
+    expect(html).toContain("黄旗");
+    expect(html).toContain("必须先看");
+    expect(html).toContain("需要盯住");
+    expect(html).toContain("<details");
     expect(html).toContain("商业模式清晰度");
   });
 
@@ -304,6 +311,137 @@ PwC 2024。
 `);
     expect(html).toContain("kn-md-kicker");
     expect(html).toContain("团队将市场按场景分三层递进");
+  });
+
+  it("reads Section confidence when the colon is inside the bold", () => {
+    const html = markdownToKnHtml(`# 竞争格局
+
+## 1. Competitive Overview
+
+**Section confidence: Medium.**
+
+公开产品面已挤。
+`);
+    expect(html).toContain("kn-section-conf");
+    expect(html).toContain("本节把握");
+    expect(html).toContain("把握中等");
+    expect(html).not.toContain("<strong>Section confidence");
+  });
+
+  it("does not let Financial Model Stage hide the date on the cover", () => {
+    const html = markdownToKnHtml(`# 财务测算
+
+**Financial Model Stage:** A — Assumption-Based | All projections are hypothetical
+**Validation status:** Customer interviews 0 conducted
+**Phase:** 7 — Unit Economics and Projections
+**Project:** jfo-ai-investment-platform
+**Date:** 2026-09-01
+**Currency:** USD
+**Confidence:** Low
+
+正文。
+`);
+    expect(html).toContain("kn-dochead");
+    expect(html).toContain("2026-09-01");
+    expect(html).toContain("USD");
+    expect(html).toContain("把握偏低");
+    expect(html).not.toContain("jfo-ai-investment-platform");
+    expect(html).not.toContain("<strong>Financial Model Stage");
+  });
+
+  it("treats a mid-document Yellow Light heading as a gate, not a second cover", () => {
+    const html = markdownToKnHtml(`# Research Gate
+
+**Phase:** 0.5 — Research
+**Date:** 2026-09-01
+
+# 🟡 Yellow Light — Conditional Proceed
+
+先补访谈再扩范围。
+`);
+    expect(html).toContain("kn-doc-title");
+    expect((html.match(/kn-doc-title/g) ?? []).length).toBe(1);
+    expect(html).toContain("闸门");
+    expect(html).toContain("黄灯");
+    expect(html).toContain("有条件继续");
+    expect(html).not.toMatch(/<h2 class="kn-doc-title">[^<]*Yellow/u);
+  });
+
+  it("localizes GPT evidence tags with dashes and founder decisions", () => {
+    const html = markdownToKnHtml(`# 市场
+
+[Data — company-reported] 官网写着已上线。
+
+[Founder decision] 先做投研工作台。
+
+[Unknown] 愿付费人数。
+`);
+    expect(html).toContain("kn-tagged--data");
+    expect(html).toContain("资料 · 厂商自报");
+    expect(html).toContain("kn-tagged--opinion");
+    expect(html).toContain("团队决定");
+    expect(html).toContain("kn-tagged--gap");
+    expect(html).toContain("未知");
+    expect(html).not.toContain("company-reported");
+    expect(html).not.toContain("Founder decision");
+  });
+
+  it("hides the README document index instead of listing internal paths", () => {
+    const html = markdownToKnHtml(`# Startup Design README
+
+正文一段。
+
+## Document index
+
+- [\`01-discovery/market-analysis.md\`](https://example.com/market-analysis.md)
+- [\`02-strategy/lean-canvas.md\`](https://example.com/lean-canvas.md)
+`);
+    expect(html).toContain("正文一段");
+    expect(html).not.toContain("market-analysis.md");
+    expect(html).not.toContain("01-discovery");
+    expect(html).not.toContain("Document index");
+  });
+
+  it("turns Mitigation into a kicker", () => {
+    const html = markdownToKnHtml(`# 风险
+
+付费意愿不足。
+
+**Mitigation:** 先做 10 场独立访谈再扩范围。
+`);
+    expect(html).toContain("kn-md-kicker");
+    expect(html).toContain("对策");
+    expect(html).toContain("先做 10 场独立访谈");
+    expect(html).not.toContain("<strong>Mitigation");
+  });
+
+  it("keeps Qwen item lines as a list instead of gluing them into a paragraph", () => {
+    const html = markdownToKnHtml(`# 结论可靠度
+
+### 继续追踪前必须验证的四项前提
+
+干预效果是否有对照试验数据支撑——没有人体试验。 [资料]
+用户感知的无感是否被独立样本验证——未做。 [资料]
+传感器精度是否达到医疗级——厂商自报。 [资料]
+`);
+    expect(html).toContain("<ul>");
+    expect(html).toContain("<li>");
+    expect(html).toContain("对照试验");
+    expect(html).not.toContain("没有人体试验。 用户感知");
+  });
+
+  it("renders 评分：4/10（重大疑虑） as the same score block", () => {
+    const html = markdownToKnHtml(`# 结论可靠度
+
+## 总体判断
+
+评分：4/10（重大疑虑）
+`);
+    expect(html).toContain("kn-hero");
+    expect(html).toContain("kn-hero__den");
+    expect(html).toContain("/10");
+    expect(html).toContain("重大疑虑");
+    expect(html).toContain("kn-hero--concern");
   });
 });
 

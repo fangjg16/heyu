@@ -18,7 +18,7 @@ function stripInlineMd(s: string): string {
     .replace(/\*\*([^*]+)\*\*/gu, "$1")
     .replace(/`([^`]+)`/gu, "$1")
     .replace(/\[([^\]]+)\]\([^)]+\)/gu, "$1")
-    .replace(/\[(?:Data|Opinion|Assumption|Gap|Estimate)[^\]]*\]/giu, "")
+    .replace(/\[(?:Data|Opinion|Assumption|Gap|Estimate|Founder decision|Unknown|Required)[^\]]*\]/giu, "")
     .replace(/\s+/gu, " ")
     .trim();
 }
@@ -231,6 +231,29 @@ export function renderBattleCardsLead(md: string): string {
   return `<div class="kn-battles">${cards.join("")}</div>`;
 }
 
+function heroTone(note: string): "concern" | "caution" | "go" | "" {
+  if (/重大疑虑|significant concerns|不宜|停止|红灯/iu.test(note)) {
+    return "concern";
+  }
+  if (/有条件|conditional|黄灯|调整/iu.test(note)) return "caution";
+  if (/可以继续|绿灯|(?:^|\s)go\b/iu.test(note)) return "go";
+  return "";
+}
+
+export function scoreHeroHtml(
+  score: string,
+  note: string,
+  variant: "lead" | "inline" = "lead",
+): string {
+  const tone = heroTone(note);
+  const toneCls = tone ? ` kn-hero--${tone}` : "";
+  const varCls = variant === "inline" ? " kn-hero--inline" : "";
+  const verdict = note.trim()
+    ? `<p class="kn-hero__note"><span class="kn-hero__verdict">${escapeHtml(note)}</span></p>`
+    : "";
+  return `<div class="kn-hero${varCls}${toneCls}"><div class="kn-hero__score"><div class="kn-hero__label">综合</div><div class="kn-hero__value">${escapeHtml(score)}<span class="kn-hero__den">/10</span></div></div>${verdict}</div>`;
+}
+
 export function renderScoreHeroLead(md: string): string {
   const tables = parseTables(md);
   const table = tables.find((t) => {
@@ -250,13 +273,13 @@ export function renderScoreHeroLead(md: string): string {
   if (!score) score = scoreFromProse(md);
   if (!score) return "";
   const verdict =
+    /（([^）]*(?:concerns|疑虑|有条件|继续)[^）]*)）/iu.exec(md)?.[1]?.trim() ??
     /VERDICT[:：]?\s*([^\n*]+)/iu.exec(md)?.[1]?.trim() ??
-    /^\*\*总评[:：]\*\*\s*(.+)$/mu.exec(md)?.[1]?.trim() ??
-    /（([^）]*concerns[^）]*)）/iu.exec(md)?.[1]?.trim();
+    /^\*\*总评[:：]\*\*\s*(.+)$/mu.exec(md)?.[1]?.trim();
   const note = verdict
-    ? escapeHtml(clip(localizeKnText(verdict), 80))
-    : escapeHtml("综合评分");
-  return `<div class="kn-hero"><div><div class="kn-hero__label">综合</div><div class="kn-hero__value">${escapeHtml(score)}</div></div><p class="kn-hero__note">${note}</p></div>`;
+    ? clip(localizeKnText(verdict), 80)
+    : "综合评分";
+  return scoreHeroHtml(score, note);
 }
 
 function scoreFromProse(md: string): string {
@@ -802,16 +825,16 @@ export function renderProjectionLead(md: string): string {
 export function renderCoverageLead(md: string): string {
   const solid = headingBody(
     md,
-    /highest confidence|高确信|已覆盖|solid ground|最高把握|最有把握/iu,
+    /highest confidence|高确信|已覆盖|solid ground|最高把握|最有把握|已站稳/iu,
   );
   const open = headingBody(
     md,
-    /critical unknown|最低确信|待澄清|unknown|lowest confidence|关键未知|最不确定|待验证/iu,
+    /critical unknown|最低确信|待澄清|unknown|lowest confidence|关键未知|最不确定|待验证|thin ice|薄冰/iu,
   );
   const left = bodyItems(solid, 5);
   const right = bodyItems(open, 5);
   if (left.length === 0 || right.length === 0) return "";
-  return `<div class="kn-coverage"><div class="kn-coverage__col"><h3>已覆盖</h3>${itemsUl(left)}</div><div class="kn-coverage__col kn-coverage__col--open"><h3>待澄清</h3>${itemsUl(right)}</div></div>`;
+  return `<div class="kn-coverage"><div class="kn-coverage__col"><h3>已站稳</h3>${itemsUl(left)}</div><div class="kn-coverage__col kn-coverage__col--open"><h3>仍在薄冰</h3>${itemsUl(right)}</div></div>`;
 }
 
 export function renderAssumptionFoldsLead(md: string): string {
@@ -874,10 +897,18 @@ export function renderExperimentScoreLead(md: string): string {
 function featTone(
   cell: string,
 ): "strong" | "ok" | "weak" | "none" | "unk" | "" {
-  const t = stripInlineMd(cell).toLowerCase();
+  const plain = stripInlineMd(cell);
+  const t = plain.toLowerCase();
   if (!t) return "";
   if (/unknown|未知|待补|n\/a/iu.test(t)) return "unk";
-  if (/missing|none|^无$|^缺$|不做|空白/iu.test(t)) return "none";
+  if (/^✅/.test(plain) || /^(yes|y)$/iu.test(t)) return "strong";
+  if (/^△/.test(plain) || /^~/.test(plain)) return "ok";
+  if (
+    /^(—|–|-)$/u.test(plain) ||
+    /missing|^none$|^无$|^缺$|不做|空白|^no$/iu.test(t)
+  ) {
+    return "none";
+  }
   if (/^strong$|^强$|^高$|优秀|齐全/iu.test(t)) return "strong";
   if (/adequate|enough|^够$|^中$|一般|部分/iu.test(t)) return "ok";
   if (/^weak$|^弱$|^低$|不足|浅/iu.test(t)) return "weak";

@@ -3,8 +3,9 @@
  * 模板不再让模型填骨架，只做呈现：class + kn-elements.css。
  */
 
-import { renderSpecialLead } from "./kn-md-specials";
+import { renderSpecialLead, scoreHeroHtml } from "./kn-md-specials";
 import {
+  evidenceTagPattern,
   localizeKnText,
   localizeOutsideTags,
   localizeTagLabel,
@@ -29,7 +30,7 @@ function tagKind(label: string): string {
 function inline(s: string): string {
   let t = escapeHtml(localizeOutsideTags(s));
   t = t.replace(
-    /\[((?:Data|Opinion|Assumption|Gap|Estimate)[^\]]*)\]/giu,
+    evidenceTagPattern("inline"),
     (_m, label: string) => {
       const kind = tagKind(label);
       const extra = kind ? ` kn-md-tag--${kind}` : "";
@@ -135,16 +136,29 @@ function tableHtml(rows: string[]): string {
 }
 
 function parseMetaLine(line: string): { key: string; value: string } | null {
-  const m = /^\*\*([^*]+?)[:：]\s*\*\*\s*(.+)$/u.exec(line.trim());
-  if (!m) return null;
-  const key = m[1]!.trim();
-  const value = m[2]!.trim();
-  if (!key || !value) return null;
-  return { key, value };
+  const t = line.trim();
+  // **Key:** value
+  let m = /^\*\*([^*]+?)[:：]\s*\*\*\s*(.+)$/u.exec(t);
+  if (m) {
+    const key = m[1]!.trim();
+    const value = m[2]!.trim();
+    if (key && value) return { key, value };
+  }
+  // **Key: value**  冒号写在加粗里面，合域 GPT 草案常用
+  m = /^\*\*([^*]+?)[:：]\s+(.+?)\*\*\s*$/u.exec(t);
+  if (m) {
+    const key = m[1]!.trim();
+    const value = m[2]!.trim().replace(/[。.]\s*$/u, "");
+    if (key && value) return { key, value };
+  }
+  return null;
 }
 
 const DOC_META_KEY =
   /^(Phase|Project|Date|Confidence|Status|Verdict|Overall|阶段|项目|日期|把握|进度|判断|综合)$/iu;
+
+const COVER_SKIP_KEY =
+  /^(mitigation|category|overall threat|对策|应对)$/iu;
 
 function isSectionConfLine(line: string): boolean {
   const m = parseMetaLine(line);
@@ -157,6 +171,13 @@ function isDocMetaLine(line: string): boolean {
   return DOC_META_KEY.test(m.key);
 }
 
+/** 文首所有 **Key:** 都收进封面，避免 Financial Model Stage 挡住后面的日期。 */
+function isCoverMetaLine(line: string): boolean {
+  const m = parseMetaLine(line);
+  if (!m || isSectionConfLine(line)) return false;
+  return !COVER_SKIP_KEY.test(m.key);
+}
+
 function metaId(key: string): string {
   const k = key.trim().toLowerCase();
   if (/^(phase|阶段)$/u.test(k)) return "phase";
@@ -166,6 +187,10 @@ function metaId(key: string): string {
   if (/^(status|进度)$/u.test(k)) return "status";
   if (/^(verdict|判断)$/u.test(k)) return "verdict";
   if (/^(overall|综合)$/u.test(k)) return "overall";
+  if (/^(currency|币种)$/u.test(k)) return "currency";
+  if (/financial model|财务模型/u.test(k)) return "model";
+  if (/validation status|验证状态/u.test(k)) return "validation";
+  if (/^(objective|目标)$/u.test(k)) return "objective";
   return k;
 }
 
@@ -190,9 +215,15 @@ function tidyConfidence(value: string): string {
     medium: "把握中等",
     "medium-low": "把握中偏低",
     "medium-high": "把握中高",
+    "low-medium": "把握中偏低",
     high: "把握较高",
   };
-  return map[value.trim().toLowerCase()] ?? value;
+  const exact = map[value.trim().toLowerCase().replace(/[–—]/gu, "-")];
+  if (exact) return exact;
+  return value.replace(
+    /\b(medium-low|medium-high|low[–—-]medium|medium|low|high)\b/giu,
+    (m) => map[m.toLowerCase().replace(/[–—]/gu, "-")] ?? m,
+  );
 }
 
 function tidyVerdict(value: string): { word: string; score: string } {
@@ -207,6 +238,12 @@ function tidyVerdict(value: string): { word: string; score: string } {
   return { word, score };
 }
 
+function clipLede(value: string, n = 120): string {
+  const t = value.split("|")[0]!.trim();
+  if (t.length <= n) return t;
+  return `${t.slice(0, n).trim()}…`;
+}
+
 function coverHtml(lines: string[]): string {
   const parsed = lines
     .map((line) => parseMetaLine(line))
@@ -218,6 +255,10 @@ function coverHtml(lines: string[]): string {
   const chips: string[] = [];
   if (by.phase) chips.push(escapeHtml(tidyPhase(by.phase)));
   if (by.date) chips.push(escapeHtml(by.date));
+  if (by.currency) chips.push(escapeHtml(by.currency));
+  if (by.model) {
+    chips.push(escapeHtml(localizeKnText(clipLede(by.model, 40))));
+  }
   if (by.project && !isProjectSlug(by.project)) {
     chips.push(escapeHtml(by.project));
   }
@@ -235,6 +276,8 @@ function coverHtml(lines: string[]): string {
   const ledeBits = [
     by.status,
     by.confidence ? tidyConfidence(by.confidence) : "",
+    by.validation ? clipLede(by.validation) : "",
+    by.objective ? clipLede(by.objective) : "",
   ].filter(Boolean);
   const lede = ledeBits.length
     ? `<div class="kn-dochead__lede">${ledeBits.map((t) => `<p>${inline(t)}</p>`).join("")}</div>`
@@ -243,8 +286,28 @@ function coverHtml(lines: string[]): string {
   return `${byline}${verdict}${lede}`;
 }
 
+function isGateHeading(title: string): boolean {
+  return /yellow\s*light|green\s*light|red\s*light|🟡|🟢|🔴|黄灯|绿灯|红灯/iu.test(
+    title,
+  );
+}
+
+function gateBannerHtml(title: string): string {
+  return `<blockquote class="kn-callout"><p class="kn-callout__label">闸门</p><p class="kn-callout__body">${inline(title.replace(/^[🟡🟢🔴]\s*/u, ""))}</p></blockquote>`;
+}
+
+function isFoldHeading(title: string): boolean {
+  return /^(\d+\.\s+)?(sources|references|来源|参考文献|附录|document index|文件目录|文件索引)\b/iu.test(
+    title,
+  );
+}
+
+function isInternalIndexHeading(title: string): boolean {
+  return /document index|文件目录|文件索引/iu.test(title);
+}
+
 function sectionConfHtml(value: string): string {
-  return `<p class="kn-section-conf"><span class="kn-section-conf__k">本节把握</span> ${inline(value)}</p>`;
+  return `<p class="kn-section-conf"><span class="kn-section-conf__k">本节把握</span> ${inline(tidyConfidence(value))}</p>`;
 }
 
 function isNumberedSectionTitle(title: string): boolean {
@@ -334,10 +397,7 @@ function evidenceCol(title: string, kind: "go" | "stop", body: string): string {
 function taggedLine(
   line: string,
 ): { label: string; kind: string; rest: string } | null {
-  const m =
-    /^(?:\*\*)?\[((?:Data|Opinion|Assumption|Gap|Estimate)[^\]]*)\](?:\*\*)?\s*(.*)$/iu.exec(
-      line.trim(),
-    );
+  const m = evidenceTagPattern("line").exec(line.trim());
   if (!m) return null;
   return {
     label: m[1]!,
@@ -451,12 +511,39 @@ function renderFlagsBlock(title: string, bodyLines: string[]): string {
   if (items.length === 0) {
     return `<div class="kn-callout"><p class="kn-callout__label">${inline(title)}</p></div>`;
   }
-  return `<div class="kn-flags">${items
-    .map(
-      (it) =>
-        `<div class="kn-flag kn-flag--${it.tone === "red" ? "red" : "amber"}">${inline(it.text)}</div>`,
-    )
-    .join("")}</div>`;
+  const groups: Array<{
+    tone: "red" | "amber";
+    label: string;
+    hint: string;
+    items: string[];
+  }> = [
+    { tone: "red", label: "红旗", hint: "必须先看", items: [] },
+    { tone: "amber", label: "黄旗", hint: "需要盯住", items: [] },
+  ];
+  for (const it of items) {
+    const g = groups.find((x) => x.tone === it.tone);
+    if (g) g.items.push(it.text);
+  }
+  return groups
+    .filter((g) => g.items.length > 0)
+    .map((g) => {
+      const lis = g.items
+        .map(
+          (text) =>
+            `<div class="kn-flag kn-flag--${g.tone}">${inline(text)}</div>`,
+        )
+        .join("");
+      return `<details class="kn-fold kn-flags-fold kn-flags-fold--${g.tone}" open><summary><span class="kn-flags-fold__mark" aria-hidden="true"></span><span class="kn-fold__title">${g.label}</span><span class="kn-flags-fold__hint">${g.hint}</span><span class="kn-fold__count">${g.items.length} 项</span></summary><div class="kn-flags">${lis}</div></details>`;
+    })
+    .join("");
+}
+
+function looksLikeLooseItem(line: string): boolean {
+  if (/^[•·◦]\s+\S/u.test(line)) return true;
+  if (line.length > 280) return false;
+  if (/——/.test(line)) return true;
+  if (/\[[^\]]+\]\s*$/u.test(line) && line.length < 220) return true;
+  return false;
 }
 
 function collectUntilNextHeading(
@@ -543,7 +630,6 @@ function markdownToKnHtmlInner(src: string): string {
 
     if (!trimmed) {
       flushPara();
-      flushList();
       i += 1;
       continue;
     }
@@ -578,6 +664,36 @@ function markdownToKnHtmlInner(src: string): string {
         i = pair.next;
         continue;
       }
+      if (hashes === 1 && isGateHeading(title)) {
+        closeMdSection();
+        i += 1;
+        out.push(gateBannerHtml(title));
+        continue;
+      }
+      if (isFoldHeading(title)) {
+        closeMdSection();
+        i += 1;
+        const { body, next } = collectUntilNextHeading(lines, i);
+        i = next;
+        if (!isInternalIndexHeading(title)) {
+          const inner = markdownToKnHtmlInner(body.join("\n"));
+          out.push(
+            `<details class="kn-fold kn-md-sources"><summary><span class="kn-fold__title">${inline(title)}</span></summary>${inner}</details>`,
+          );
+        }
+        continue;
+      }
+      if (/founder pivot overlay|创始人调整/iu.test(title)) {
+        closeMdSection();
+        i += 1;
+        const { body, next } = collectUntilNextHeading(lines, i);
+        i = next;
+        const inner = markdownToKnHtmlInner(body.join("\n")).trim();
+        out.push(
+          `<blockquote class="kn-callout"><p class="kn-callout__label">${inline("创始人调整")}</p>${inner}</blockquote>`,
+        );
+        continue;
+      }
       const numbered = hashes >= 2 && isNumberedSectionTitle(title);
       const sub = !numbered && (isSubHeadingTitle(title) || hashes >= 4);
       if (numbered) {
@@ -598,15 +714,6 @@ function markdownToKnHtmlInner(src: string): string {
         out.push(renderFlagsBlock(title, body));
         continue;
       }
-      if (/^(\d+\.\s+)?(sources|references|来源|参考文献|附录)\b/iu.test(title)) {
-        const { body, next } = collectUntilNextHeading(lines, i);
-        i = next;
-        const inner = markdownToKnHtmlInner(body.join("\n"));
-        out.push(
-          `<details class="kn-fold kn-md-sources"><summary><span class="kn-fold__title">${inline(title)}</span></summary>${inner}</details>`,
-        );
-        continue;
-      }
       const tag = headingTagName(hashes, title);
       const parts = headingInner(title);
       const cls =
@@ -620,7 +727,7 @@ function markdownToKnHtmlInner(src: string): string {
             i += 1;
             continue;
           }
-          if (isDocMetaLine(next)) {
+          if (isCoverMetaLine(next)) {
             meta.push(next);
             i += 1;
             continue;
@@ -672,6 +779,32 @@ function markdownToKnHtmlInner(src: string): string {
       continue;
     }
 
+    if (/^\*\*(Mitigation|对策|应对)[:：]\s*\*\*\s*$/iu.test(trimmed)) {
+      flushPara();
+      flushList();
+      out.push(`<p class="kn-md-kicker">${inline("对策")}</p>`);
+      i += 1;
+      continue;
+    }
+
+    const labeled = parseMetaLine(trimmed);
+    if (
+      labeled &&
+      !isDocMetaLine(trimmed) &&
+      !isSectionConfLine(trimmed)
+    ) {
+      flushPara();
+      flushList();
+      const keyZh = /^(mitigation|对策|应对)$/iu.test(labeled.key)
+        ? "对策"
+        : localizeKnText(labeled.key);
+      out.push(
+        `<p class="kn-md-kicker">${inline(keyZh)}</p><p>${inline(labeled.value)}</p>`,
+      );
+      i += 1;
+      continue;
+    }
+
     const tagged = taggedLine(trimmed);
     if (tagged) {
       flushPara();
@@ -712,6 +845,24 @@ function markdownToKnHtmlInner(src: string): string {
       flushList();
       out.push(
         `<div class="kn-callout"><p class="kn-callout__label">判断</p><p class="kn-callout__body">${inline(trimmed.replace(/^\*\*|\*\*$/gu, ""))}</p></div>`,
+      );
+      i += 1;
+      continue;
+    }
+
+    const scoreLine =
+      /^(?:\*\*)?(?:综合)?(?:可靠度)?评分[:：]\s*(\d+(?:\.\d+)?)\s*\/\s*10\s*[（(]([^）)]+)[）)](?:\*\*)?$/u.exec(
+        trimmed,
+      );
+    if (scoreLine) {
+      flushPara();
+      flushList();
+      out.push(
+        scoreHeroHtml(
+          scoreLine[1]!,
+          localizeKnText(scoreLine[2]!.trim()),
+          "inline",
+        ),
       );
       i += 1;
       continue;
@@ -770,7 +921,7 @@ function markdownToKnHtmlInner(src: string): string {
       continue;
     }
 
-    const ul = /^[-*]\s+(.+)$/u.exec(trimmed);
+    const ul = /^[-*•·◦]\s+(.+)$/u.exec(trimmed);
     if (ul) {
       flushPara();
       if (listKind && listKind !== "ul") flushList();
@@ -785,6 +936,15 @@ function markdownToKnHtmlInner(src: string): string {
       if (listKind && listKind !== "ol") flushList();
       listKind = "ol";
       listItems.push(ol[1]!);
+      i += 1;
+      continue;
+    }
+
+    if (looksLikeLooseItem(trimmed)) {
+      flushPara();
+      if (listKind && listKind !== "ul") flushList();
+      listKind = "ul";
+      listItems.push(trimmed.replace(/^[•·◦]\s+/u, ""));
       i += 1;
       continue;
     }

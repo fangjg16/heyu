@@ -17,6 +17,33 @@ describe("kn-md-zh", () => {
     expect(localizeKnText("Significant concerns")).toBe("重大疑虑");
     expect(localizeKnText("## 七、Flags")).toBe("## 七、风险标记");
     expect(localizeKnText("Red Flags")).toBe("红旗");
+    expect(localizeKnText("Executive summary")).toBe("执行摘要");
+    expect(localizeKnText("Key findings")).toBe("要点");
+    expect(localizeKnText("Where We Can Win")).toBe("可赢之处");
+  });
+
+  it("localizes GPT dash and founder tags", () => {
+    expect(tagKindFromLabel("Data — company-reported")).toBe("data");
+    expect(localizeTagLabel("Data — company-reported")).toBe("资料 · 厂商自报");
+    expect(localizeTagLabel("Data/Opinion")).toBe("资料 · 判断");
+    expect(tagKindFromLabel("Founder decision")).toBe("opinion");
+    expect(localizeTagLabel("Founder decision")).toBe("团队决定");
+    expect(tagKindFromLabel("Unknown")).toBe("gap");
+    expect(localizeTagLabel("Estimate, Low confidence")).toBe(
+      "估算 · 把握偏低",
+    );
+  });
+
+  it("does not treat Chinese-body mixed drafts as English-heavy", () => {
+    expect(
+      isEnglishHeavyMarkdown(`# Competitor landscape
+
+## 1. Competitive Overview
+
+公开产品面已经很挤。Affinity 与 Addepar 覆盖机构报表，协作访谈仍然缺位。
+家办投研工作台需要权限、审计和来源引用。
+`),
+    ).toBe(false);
   });
 
   it("detects English-heavy GPT drafts vs Chinese Qwen drafts", () => {

@@ -333,8 +333,24 @@ describe("special leads from heyu-like drafts", () => {
 - 愿付费人数
 `);
     expect(html).toContain("kn-coverage");
-    expect(html).toContain("已覆盖");
-    expect(html).toContain("待澄清");
+    expect(html).toContain("已站稳");
+    expect(html).toContain("仍在薄冰");
+  });
+
+  it("covers solid ground vs thin ice headings", () => {
+    const html = renderCoverageLead(`# Confidence
+
+## Solid ground
+
+- 内部工作流已经存在
+
+## Thin ice
+
+- 0 次独立客户访谈
+`);
+    expect(html).toContain("已站稳");
+    expect(html).toContain("仍在薄冰");
+    expect(html).toContain("内部工作流已经存在");
   });
 
   it("cards jobs / pains / gains", () => {
@@ -548,6 +564,35 @@ ${rows}
     for (const d of dims) expect(page).toContain(d);
   });
 
+  it("reads ✅ / △ / — competitor cells as a feature heatmap", () => {
+    const dims = [
+      "硬件采集",
+      "助眠建议",
+      "家办协作",
+      "权限审计",
+      "来源引用",
+      "访谈锁定",
+      "知识网络",
+      "报告导出",
+      "多主体权限",
+      "人工批准",
+    ];
+    const rows = dims
+      .map((d, i) => `| ${d} | ✅ | ${i % 2 ? "△" : "—"} | — |`)
+      .join("\n");
+    const html = renderFeatureMatrixLead(`# 竞争格局
+
+| 能力 | 我们 | 友商甲 | 友商乙 |
+| --- | --- | --- | --- |
+${rows}
+`);
+    expect(html).toContain("kn-featmap");
+    expect(html).toContain("kn-feat--strong");
+    expect(html).toContain("kn-feat--ok");
+    expect(html).toContain("kn-feat--none");
+    expect(html).toContain("kn-radar");
+  });
+
   it("plots competitors on a two-axis map", () => {
     const html = renderPositionAxesLead(`# 竞争格局
 
@@ -652,6 +697,9 @@ BOM 待补。
 `);
     expect(html).toContain("kn-hero");
     expect(html).toContain("4");
+    expect(html).toContain("/10");
+    expect(html).toContain("kn-hero--concern");
+    expect(html).toContain("重大疑虑");
   });
 
   it("shows 待补 market stats instead of dropping the block", () => {
