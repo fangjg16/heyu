@@ -153,9 +153,9 @@ const DEFAULT_FORMAT_HINTS = {
   "target-audience":
     "===CHAPTER=== 有材料：判断条 + 客群表。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "market-analysis":
-    "===CHAPTER=== 有材料：判断条 + 总市场/可服务市场/可获得份额数字条（不要写 TAM/SAM/SOM 当主标题）+ 切法表。无材料：只留尚未开展。不要对战卡。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 有材料：判断条 + 总市场/可服务市场/可获得份额数字条（不要写 TAM/SAM/SOM 当主标题）+ 切法表。没数不要画空圈。无材料：只留尚未开展。不要对战卡。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "competitor-landscape":
-    "===CHAPTER=== 有材料：判断条 + 对战卡 + 功能对比表。无材料：只留尚未开展。不要总市场投资版数字条。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 有材料：判断条 + 对战卡 + 功能对照表。对照表看全貌；不要自己画雷达或二维点图。无材料：只留尚未开展。不要总市场投资版数字条。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "industry-trends":
     "===CHAPTER=== 有材料：判断条 + 趋势表 + 红黄旗。无材料：只留尚未开展。不要对战卡。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "lean-business-model":
@@ -165,15 +165,15 @@ const DEFAULT_FORMAT_HINTS = {
   positioning:
     "===CHAPTER=== 有材料：判断条 + 替代方案/我们独有 左右对照 + 定位表。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "go-to-market":
-    "===CHAPTER=== 有材料：判断条 + 路径 + 渠道表。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 有材料：判断条 + 启动飞轮（kn-loop，中心是项目记录/知识网络）+ 活跃机构金字塔（kn-pyramid，5 在上、25 在下）+ 渠道表。五步以上且会写回中心才用飞轮，不要再叠一条 kn-journey。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   brand:
     "===CHAPTER=== 有材料：判断条 + 调性板（语气/关键词/禁区）。无材料：只留尚未开展。禁止 Canvas。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "mvp-definition":
     "===CHAPTER=== 有材料：判断条 + 必须有/后做/不做范围表。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "user-journey":
-    "===CHAPTER=== 有材料：判断条 + 路径 + 阶段表。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 有材料：判断条 + 角色筹码（kn-roles）+ 阶段表（阶段 / 情绪 / 流失）。有真实情绪才允许 kn-jmap；说不清感受就只留表。多个角色不要画成一条 kn-journey。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "feature-prioritization":
-    "===CHAPTER=== 有材料：判断条 + 优先级表。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 有材料：判断条 + 必须/应该/可以/不做看板（kn-kanban，不要箭头）。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   projections:
     "===CHAPTER=== 有材料：判断条 + 三年收入/成本/现金流表 + 敏感假设表。禁止三情景和 IRR。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "revenue-model":
@@ -187,7 +187,7 @@ const DEFAULT_FORMAT_HINTS = {
   "validation-playbook":
     "===CHAPTER=== 有实验：判断条 + 通过/未通过/进行中计数 + 实验表 + 失效条件。禁止 IRR。无实验：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "action-plan-30d":
-    "===CHAPTER=== 有材料：判断条 + 路径 + 30 天动作表。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+    "===CHAPTER=== 有材料：判断条 + 四周竖轴（kn-week）。不要 kn-journey。无材料：只留尚未开展。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "market-discovery":
     "===CHAPTER=== 有材料：判断条 + 对战卡 + 功能对比表。无材料：只留尚未开展。不要总市场投资版数字条。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   strategy:

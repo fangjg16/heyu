@@ -310,22 +310,90 @@ export function renderPositionSplitLead(md: string): string {
   return `<div class="kn-split"><div class="kn-split__col kn-split__col--stop"><div class="kn-split__title">替代方案</div>${itemsUl(altItems)}</div><div class="kn-split__col kn-split__col--go"><div class="kn-split__title">我们独有</div>${itemsUl(uniqItems)}</div></div>`;
 }
 
-export function renderJourneyLead(md: string): string {
+function collectJourneyMatches(md: string): RegExpMatchArray[] {
   const fromHead = [
     ...md.matchAll(
       /^#{2,6}\s+(?:Journey|旅程|阶段|Step|步骤)\s*(\d+)\s*(?:[—–:：-]\s*)?(.*)$/gmu,
     ),
   ];
-  const fromBold =
-    fromHead.length >= 2
-      ? []
-      : [
-          ...md.matchAll(
-            /^\*\*(?:Step|步骤|Journey|旅程)\s*(\d+)\s*[—–:：-]\s*([^*]+)\*\*$/gmu,
-          ),
-        ];
-  const journeys = fromHead.length >= 2 ? fromHead : fromBold.length >= 2 ? fromBold : fromHead;
+  if (fromHead.length >= 2) return fromHead;
+  const fromBold = [
+    ...md.matchAll(
+      /^\*\*(?:Step|步骤|Journey|旅程)\s*(\d+)\s*[—–:：-]\s*([^*]+)\*\*$/gmu,
+    ),
+  ];
+  return fromBold.length >= 2 ? fromBold : fromHead;
+}
+
+function looksLikeLoop(md: string, names: string[]): boolean {
+  if (
+    /启动动作|Activation(?:\s+Motion)?|飞轮|循环|完结与费用|回写到?知识网络/iu.test(
+      md,
+    )
+  ) {
+    return true;
+  }
+  const blob = names.join(" ");
+  const hits = [
+    /邀请/u,
+    /完结|回收/u,
+    /知识网络/u,
+    /观察/u,
+    /回写|再邀请|再来/u,
+  ].filter((re) => re.test(blob)).length;
+  return hits >= 2;
+}
+
+function collectLoopStations(
+  md: string,
+): Array<{ name: string; note: string; focal: boolean }> {
+  const stepMatches = collectJourneyMatches(md).filter((m) =>
+    /Step|步骤/iu.test(m[0] ?? ""),
+  );
+  let raw: Array<{ name: string; note: string }> = [];
+  if (stepMatches.length >= 5 && stepMatches.length <= 8) {
+    raw = stepMatches.map((m) => {
+      const title = localizeKnText((m[2] ?? "").trim());
+      const [who, what] = title.split(/：|:\s*/u, 2);
+      return { name: clip(who || title, 10), note: clip(what || "", 14) };
+    });
+  } else if (!/对策|Mitigation/iu.test(md)) {
+    const bold = [...md.matchAll(/^(\d+)[.)]\s+\*\*([^*]+)\*\*/gmu)];
+    if (bold.length >= 5 && bold.length <= 8) {
+      raw = bold.map((m) => ({
+        name: clip(localizeKnText(m[2] ?? ""), 10),
+        note: "",
+      }));
+    }
+  }
+  if (raw.length < 5 || raw.length > 8) return [];
+  if (!looksLikeLoop(md, raw.map((s) => `${s.name} ${s.note}`))) return [];
+  const focalIdx = raw.findIndex((s) =>
+    /观察|真实行为|Decide|审批/u.test(s.name),
+  );
+  const focalAt = focalIdx >= 0 ? focalIdx : -1;
+  return raw.map((s, i) => ({ ...s, focal: i === focalAt }));
+}
+
+function hasMultiPersonaJourney(md: string): boolean {
+  if (!/五个角色|Journey Scope|旅程范围/iu.test(md)) return false;
+  return (
+    [
+      /项目管理员/u,
+      /\bCore\b|核心成员/u,
+      /\bBasic\b|只读/u,
+      /协作方/u,
+      /系统管理员/u,
+    ].filter((re) => re.test(md)).length >= 3
+  );
+}
+
+export function renderJourneyLead(md: string): string {
+  const journeys = collectJourneyMatches(md);
   if (journeys.length < 2) return "";
+  if (collectLoopStations(md).length >= 5) return "";
+  if (hasMultiPersonaJourney(md)) return "";
+  if (renderJourneyMapLead(md)) return "";
   const spine = journeys.length >= 4 ? " kn-journey--spine" : "";
   const steps = journeys.slice(0, 6).map((m) => {
     const n = escapeHtml(m[1] ?? "");
@@ -742,6 +810,7 @@ export function renderValuePropLead(md: string): string {
 }
 
 export function renderNumberedJourneyLead(md: string): string {
+  if (collectLoopStations(md).length >= 5) return "";
   const existing = renderJourneyLead(md);
   if (existing) return existing;
   const numbered = [...md.matchAll(/^\d+[.)]\s+(.+)$/gmu)].map((m) =>
@@ -753,6 +822,294 @@ export function renderNumberedJourneyLead(md: string): string {
     return `<div class="kn-journey__step"><div class="kn-journey__n">${n}</div><div class="kn-journey__title">${escapeHtml(title)}</div></div>`;
   });
   return `<div class="kn-journey">${steps.join("")}</div>`;
+}
+
+function loopCircleHits(
+  cx: number,
+  cy: number,
+  r: number,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): Array<{ x: number; y: number; ang: number }> {
+  const pts: Array<{ x: number; y: number; ang: number }> = [];
+  const add = (px: number, py: number) => {
+    if (px >= x - 0.6 && px <= x + w + 0.6 && py >= y - 0.6 && py <= y + h + 0.6) {
+      pts.push({ x: px, y: py, ang: Math.atan2(py - cy, px - cx) });
+    }
+  };
+  for (const xe of [x, x + w]) {
+    const d = r * r - (xe - cx) ** 2;
+    if (d >= 0) {
+      const s = Math.sqrt(d);
+      add(xe, cy + s);
+      add(xe, cy - s);
+    }
+  }
+  for (const ye of [y, y + h]) {
+    const d = r * r - (ye - cy) ** 2;
+    if (d >= 0) {
+      const s = Math.sqrt(d);
+      add(cx + s, ye);
+      add(cx - s, ye);
+    }
+  }
+  const uniq: typeof pts = [];
+  for (const p of pts) {
+    if (!uniq.some((q) => Math.hypot(q.x - p.x, q.y - p.y) < 0.9)) uniq.push(p);
+  }
+  return uniq;
+}
+
+function clockDelta(from: number, to: number): number {
+  let d = to - from;
+  while (d < 0) d += Math.PI * 2;
+  while (d >= Math.PI * 2) d -= Math.PI * 2;
+  return d;
+}
+
+function boxDistance(ux: number, uy: number, halfW: number, halfH: number): number {
+  const tx = Math.abs(ux) < 1e-9 ? Number.POSITIVE_INFINITY : halfW / Math.abs(ux);
+  const ty = Math.abs(uy) < 1e-9 ? Number.POSITIVE_INFINITY : halfH / Math.abs(uy);
+  return Math.min(tx, ty);
+}
+
+export function renderLoopLead(md: string): string {
+  const stations = collectLoopStations(md);
+  if (stations.length < 5) return "";
+  const n = stations.length;
+  const sizeW = 520;
+  const sizeH = 400;
+  const cx = 260;
+  const cy = 200;
+  const R = 128;
+  const sw = 108;
+  const sh = 40;
+  const hw = 92;
+  const hh = 52;
+  const hubName = /知识网络/u.test(md) ? "知识网络" : "项目记录";
+  const boxes = stations.map((s, k) => {
+    const theta = -Math.PI / 2 + (k * 2 * Math.PI) / n;
+    const ux = Math.cos(theta);
+    const uy = Math.sin(theta);
+    const px = cx + R * ux;
+    const py = cy + R * uy;
+    return {
+      ...s,
+      theta,
+      ux,
+      uy,
+      px,
+      py,
+      x: px - sw / 2,
+      y: py - sh / 2,
+    };
+  });
+  const arcs = boxes
+    .map((box, k) => {
+      const next = boxes[(k + 1) % n]!;
+      const hits = loopCircleHits(cx, cy, R, box.x, box.y, sw, sh);
+      const nextHits = loopCircleHits(cx, cy, R, next.x, next.y, sw, sh);
+      let exit = { x: box.px, y: box.py, ang: box.theta };
+      let entry = { x: next.px, y: next.py, ang: next.theta };
+      let exitD = 99;
+      let entryD = 99;
+      for (const p of hits) {
+        const d = clockDelta(box.theta, p.ang);
+        if (d > 0.04 && d < exitD) {
+          exitD = d;
+          exit = p;
+        }
+      }
+      for (const p of nextHits) {
+        const d = clockDelta(p.ang, next.theta);
+        if (d > 0.04 && d < entryD) {
+          entryD = d;
+          entry = p;
+        }
+      }
+      const overhang = 1.2 / R;
+      const phiEnd = entry.ang - overhang;
+      const endX = cx + R * Math.cos(phiEnd);
+      const endY = cy + R * Math.sin(phiEnd);
+      return `<path class="kn-loop__ring" d="M ${exit.x.toFixed(1)} ${exit.y.toFixed(1)} A ${R} ${R} 0 0 1 ${endX.toFixed(1)} ${endY.toFixed(1)}" marker-end="url(#kn-loop-mk)" />`;
+    })
+    .join("");
+  const spokes = boxes
+    .map((box) => {
+      const dStation = boxDistance(box.ux, box.uy, sw / 2, sh / 2);
+      const dHub = boxDistance(box.ux, box.uy, hw / 2, hh / 2);
+      const sx = box.px - dStation * box.ux;
+      const sy = box.py - dStation * box.uy;
+      const ex = cx + (dHub + 6) * box.ux;
+      const ey = cy + (dHub + 6) * box.uy;
+      return `<line class="kn-loop__spoke" x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}" marker-end="url(#kn-loop-spoke)" />`;
+    })
+    .join("");
+  const stationNodes = boxes
+    .map((box) => {
+      const cls = box.focal ? " kn-loop__st--focal" : "";
+      const note = box.note
+        ? `<text class="kn-loop__sub" x="${box.px.toFixed(1)}" y="${(box.py + 8).toFixed(1)}" text-anchor="middle">${escapeHtml(box.note)}</text>`
+        : "";
+      const nameY = box.note ? box.py - 6 : box.py + 1;
+      return `<rect class="kn-loop__st${cls}" x="${box.x.toFixed(1)}" y="${box.y.toFixed(1)}" width="${sw}" height="${sh}" rx="6" /><text class="kn-loop__name" x="${box.px.toFixed(1)}" y="${nameY.toFixed(1)}" text-anchor="middle">${escapeHtml(box.name)}</text>${note}`;
+    })
+    .join("");
+  return `<div class="kn-loop"><p class="kn-chart__cap">启动飞轮</p><svg viewBox="0 0 ${sizeW} ${sizeH}" role="img" aria-label="启动飞轮"><defs><marker id="kn-loop-mk" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><polygon points="0,0 8,4 0,8" fill="hsl(5 18% 62%)" /></marker><marker id="kn-loop-spoke" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><polygon points="0,0 8,4 0,8" fill="hsl(5 10% 72%)" /></marker></defs>${arcs}${spokes}${stationNodes}<rect class="kn-loop__hub" x="${cx - hw / 2}" y="${cy - hh / 2}" width="${hw}" height="${hh}" rx="8" /><text class="kn-loop__hubname" x="${cx}" y="${cy - 4}" text-anchor="middle">${escapeHtml(hubName)}</text><text class="kn-loop__hubsub" x="${cx}" y="${cy + 12}" text-anchor="middle">每圈写回</text></svg></div>`;
+}
+
+function moscowItems(md: string, re: RegExp): string[] {
+  const sec = splitMarkdownHeadings(md).find((s) => re.test(normTitle(s.title)));
+  if (!sec) return [];
+  const tables = parseTables(sec.body);
+  if (tables[0]?.rows.length) {
+    return tables[0]!.rows.map((r) => clip(r[0] ?? "", 22)).filter(Boolean);
+  }
+  return compactItems(sec.body, 12);
+}
+
+export function renderMoscowKanbanLead(md: string): string {
+  const cols = [
+    {
+      title: "必须",
+      items: moscowItems(md, /must[- ]?have|^must\b|必须有|必须具备|^必须$/iu),
+      limit: 4,
+      kind: "wip",
+    },
+    {
+      title: "应该",
+      items: moscowItems(md, /should[- ]?have|^should\b|应该有|应当|^应该$/iu),
+      limit: 4,
+      kind: "wip",
+    },
+    {
+      title: "可以",
+      items: moscowItems(md, /could[- ]?have|^could\b|可以有|可有|^可以$/iu),
+      limit: 4,
+      kind: "wip",
+    },
+    {
+      title: "不做",
+      items: moscowItems(md, /won'?t[- ]?have|^won'?t\b|本次不做|明确不做|^不做$/iu),
+      limit: 0,
+      kind: "done",
+    },
+  ];
+  if (cols.filter((c) => c.items.length > 0).length < 3) return "";
+  const board = cols
+    .map((col) => {
+      const extra = Math.max(0, col.items.length - 4);
+      const shown = extra
+        ? [...col.items.slice(0, 3), `+${col.items.length - 3} 项`]
+        : col.items.slice(0, 4);
+      const chip =
+        col.kind === "wip"
+          ? `<span class="kn-kanban__wip${col.items.length > 4 ? " kn-kanban__wip--over" : ""}">${col.items.length}/4</span>`
+          : `<span class="kn-kanban__n">${col.items.length}</span>`;
+      const cards = shown
+        .map((title) => {
+          const done = col.kind === "done" ? " kn-kanban__card--done" : "";
+          return `<article class="kn-kanban__card${done}">${escapeHtml(title)}</article>`;
+        })
+        .join("");
+      return `<section class="kn-kanban__col"><header><h3>${escapeHtml(col.title)}</h3>${chip}</header>${cards}</section>`;
+    })
+    .join("");
+  return `<div class="kn-kanban"><p class="kn-chart__cap">功能优先级</p><div class="kn-kanban__board">${board}</div></div>`;
+}
+
+function churnToSentiment(cell: string): number | null {
+  const t = stripInlineMd(cell);
+  if (!t || /^待补|^—|^-$|^n\/?a$/iu.test(t)) return null;
+  if (/中高|偏高|medium[- ]?high/iu.test(t)) return 1;
+  if (/中低|偏低|medium[- ]?low/iu.test(t)) return 3;
+  if (/流失高|严重|\bhigh\b|frustrated|angry|drop|^高$/iu.test(t) || (/高/u.test(t) && !/中/u.test(t)))
+    return 0;
+  if (/中|一般|\bmedium\b|neutral/iu.test(t)) return 2;
+  if (/流失低|\blow\b|^低$|顺|positive/iu.test(t) || (/低/u.test(t) && !/中/u.test(t)))
+    return 4;
+  return null;
+}
+
+function feelToSentiment(cell: string): number | null {
+  const t = stripInlineMd(cell);
+  if (!t || /^待补|^—|^-$|^n\/?a$/iu.test(t)) return null;
+  if (/烦|怒|痛|卡死|崩溃|low/iu.test(t)) return 0;
+  if (/卡|犹豫|担心|anxious/iu.test(t)) return 1;
+  if (/平|一般|neutral/iu.test(t)) return 2;
+  if (/顺|还行|ok/iu.test(t)) return 3;
+  if (/喜|爽|信任|delight|high/iu.test(t)) return 4;
+  return churnToSentiment(t);
+}
+
+export function renderJourneyMapLead(md: string): string {
+  if (hasMultiPersonaJourney(md)) return "";
+  const tables = parseTables(md);
+  const table = tables.find((t) => {
+    const stageI = colIndex(t.headers, /阶段|stage/iu);
+    const feelI = colIndex(t.headers, /情绪|sentiment|感受/iu);
+    const churnI = colIndex(t.headers, /流失|churn|痛/iu);
+    return stageI >= 0 && (feelI >= 0 || churnI >= 0) && t.rows.length >= 3;
+  });
+  if (!table) return "";
+  const stageI = Math.max(0, colIndex(table.headers, /阶段|stage/iu));
+  const feelI = colIndex(table.headers, /情绪|sentiment|感受/iu);
+  const churnI = colIndex(table.headers, /流失|churn|痛/iu);
+  const actI = colIndex(table.headers, /触点|动作|action|touch/iu);
+  const rows = table.rows.slice(0, 6).map((row) => {
+    const stage = clip(row[stageI] ?? "", 10);
+    const feel =
+      feelI >= 0 ? feelToSentiment(row[feelI] ?? "") : null;
+    const churn =
+      churnI >= 0 ? churnToSentiment(row[churnI] ?? "") : null;
+    const sentiment = feel ?? churn;
+    const act = actI >= 0 && actI !== feelI ? clip(row[actI] ?? "", 16) : "";
+    const pain =
+      sentiment != null && sentiment <= 1
+        ? clip(row[churnI >= 0 ? churnI : feelI] ?? "", 14)
+        : "";
+    return { stage, sentiment, act, pain };
+  });
+  if (rows.filter((r) => r.sentiment != null).length < 3) return "";
+  const n = rows.length;
+  const w = 400;
+  const pts = rows
+    .map((r, i) => {
+      const s = r.sentiment ?? 2;
+      const x = ((i + 0.5) / n) * w;
+      const y = 6 + ((4 - s) / 4) * 34;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+  let painMarks = 0;
+  const dots = rows
+    .map((r, i) => {
+      const s = r.sentiment ?? 2;
+      const x = ((i + 0.5) / n) * w;
+      const y = 6 + ((4 - s) / 4) * 34;
+      const trough = s <= 1 && painMarks < 2;
+      if (trough) painMarks += 1;
+      const cls = trough ? " kn-jmap__dot--pain" : "";
+      return `<circle class="kn-jmap__dot${cls}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${trough ? 4 : 3}" />`;
+    })
+    .join("");
+  painMarks = 0;
+  const cols = rows
+    .map((r) => {
+      const trough = r.sentiment != null && r.sentiment <= 1 && painMarks < 2;
+      if (trough) painMarks += 1;
+      const pain = trough && r.pain
+        ? `<p class="kn-jmap__pain">${escapeHtml(r.pain)}</p>`
+        : "";
+      const act = r.act && r.act !== "待补"
+        ? `<p class="kn-jmap__act">${escapeHtml(r.act)}</p>`
+        : "";
+      return `<div class="kn-jmap__col"><div class="kn-jmap__stage">${escapeHtml(r.stage)}</div>${act}${pain}</div>`;
+    })
+    .join("");
+  return `<div class="kn-jmap" style="--n:${n}"><p class="kn-chart__cap">用户感受</p><svg class="kn-jmap__curve" viewBox="0 0 ${w} 48" preserveAspectRatio="none" role="img" aria-label="用户感受">${`<polyline class="kn-jmap__line" points="${pts}" />`}${dots}</svg><div class="kn-jmap__cols">${cols}</div></div>`;
 }
 
 function metricNear(md: string, labelRe: RegExp): string {
@@ -1012,19 +1369,43 @@ function pickRadarSeries(
   return [...us, ...rest].slice(0, 3);
 }
 
+function pickRadarAxes(
+  dims: string[],
+  series: Array<{ name: string; values: number[] }>,
+): number[] {
+  if (dims.length <= 5) return dims.map((_, i) => i);
+  const scored = dims.map((_, i) => {
+    const vals = series.map((s) => s.values[i] ?? 0);
+    const mean = vals.reduce((a, b) => a + b, 0) / Math.max(vals.length, 1);
+    const v = vals.reduce((a, b) => a + (b - mean) ** 2, 0);
+    return { i, v };
+  });
+  return scored
+    .sort((a, b) => b.v - a.v || a.i - b.i)
+    .slice(0, 5)
+    .sort((a, b) => a.i - b.i)
+    .map((s) => s.i);
+}
+
 function renderFeatureRadar(table: MdTable): string {
   const oriented = radarSeriesFrom(table);
-  const dims = oriented.dims;
-  if (dims.length < 5) return "";
-  const series = pickRadarSeries(oriented.series);
-  if (series.length < 2) return "";
+  if (oriented.dims.length < 3) return "";
+  const picked = pickRadarSeries(oriented.series);
+  if (picked.length < 2) return "";
+  const axisIdx = pickRadarAxes(oriented.dims, picked);
+  const dims = axisIdx.map((i) => oriented.dims[i]!).filter(Boolean);
+  const series = picked.map((s) => ({
+    ...s,
+    values: axisIdx.map((i) => s.values[i] ?? 0),
+  }));
+  if (dims.length < 3) return "";
   const n = dims.length;
-  const size = n >= 8 ? 480 : 400;
-  const cx = size / 2;
-  const cy = size / 2;
-  const maxR = n >= 8 ? 118 : 112;
-  const labelGap = n >= 8 ? 52 : 38;
-  const dimClip = n >= 8 ? 8 : 12;
+  const size = 400;
+  const cx = 200;
+  const cy = 200;
+  const maxR = 112;
+  const labelGap = 38;
+  const dimClip = 8;
   const pt = (i: number, score: number): string => {
     const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
     const r = maxR * (Math.max(0.15, score) / 4);
@@ -1062,7 +1443,9 @@ function renderFeatureRadar(table: MdTable): string {
       return `<span class="kn-radar__leg"><i style="background:${color}"></i>${escapeHtml(s.name)}</span>`;
     })
     .join("");
-  return `<div class="kn-radar"><p class="kn-chart__cap">能力对比</p><svg viewBox="0 0 ${size} ${size}" role="img" aria-label="能力对比">${grid}${axes}${polys}</svg><div class="kn-radar__legend">${legend}</div></div>`;
+  const cap =
+    oriented.dims.length > 5 ? "能力对比 · 差异最大的五维" : "能力对比";
+  return `<div class="kn-radar"><p class="kn-chart__cap">${cap}</p><svg viewBox="0 0 ${size} ${size}" role="img" aria-label="${cap}">${grid}${axes}${polys}</svg><div class="kn-radar__legend">${legend}</div></div>`;
 }
 
 export function renderFeatureMatrixLead(md: string): string {
@@ -1281,15 +1664,18 @@ export function renderNetworkScaleLead(md: string): string {
   const nodes = table.rows
     .map((row) => {
       const n = stripInlineMd(row[0] ?? "").replace(/[^\d]/gu, "");
-      if (!n) return "";
+      if (!n) return null;
       const src = clip(row[srcI] ?? "", 36);
       const act = actI >= 0 ? clip(row[actI] ?? "", 48) : "";
       const biz = bizI >= 0 ? clip(row[bizI] ?? "", 48) : "";
-      return `<li class="kn-scale__node"><div class="kn-scale__n">${escapeHtml(n)}</div><div class="kn-scale__body"><p class="kn-scale__src">${escapeHtml(src)}</p>${act ? `<p>${escapeHtml(act)}</p>` : ""}${biz ? `<p>${escapeHtml(biz)}</p>` : ""}</div></li>`;
+      const width = n === "5" ? 46 : n === "10" ? 70 : 100;
+      return { n: Number(n) || 0, html: `<li class="kn-pyramid__tier" style="--w:${width}%"><span class="kn-pyramid__n">${escapeHtml(n)}</span><div class="kn-pyramid__body"><p class="kn-pyramid__src">${escapeHtml(src)}</p>${act ? `<p>${escapeHtml(act)}</p>` : ""}${biz ? `<p>${escapeHtml(biz)}</p>` : ""}</div></li>` };
     })
-    .filter(Boolean);
+    .filter((x): x is { n: number; html: string } => Boolean(x))
+    .sort((a, b) => a.n - b.n)
+    .map((x) => x.html);
   if (nodes.length < 2) return "";
-  return `<div class="kn-scale"><p class="kn-chart__cap">活跃机构 5 → 10 → 25</p><ol>${nodes.join("")}</ol></div>`;
+  return `<div class="kn-pyramid"><p class="kn-chart__cap">活跃机构</p><ol>${nodes.join("")}</ol></div>`;
 }
 
 export function renderTopRisksLead(md: string): string {
@@ -1336,14 +1722,17 @@ const FILE_LEADS: Record<string, Array<(md: string) => string>> = {
   "mvp-definition": [renderMvpSplitLead],
   "industry-trends": [renderTrendSplitLead],
   "value-proposition": [renderValuePropLead],
-  "user-journey": [renderRoleStripLead, renderJourneyLead],
+  "user-journey": [renderRoleStripLead, renderJourneyMapLead, renderJourneyLead],
   "go-to-market": [
+    renderLoopLead,
     renderNumberedJourneyLead,
     renderNetworkDefLead,
     renderNetworkScaleLead,
   ],
   "action-plan-30-days": [],
-  "feature-prioritization": [renderMoscowStatsLead],
+  "feature-prioritization": [
+    (md) => renderMoscowKanbanLead(md) || renderMoscowStatsLead(md),
+  ],
   "cost-structure": [renderCostStatsLead],
   "business-model": [renderUnitEconLead],
   "revenue-model": [renderUnitEconLead],
@@ -1424,19 +1813,23 @@ export function renderSpecialLead(md: string, fileId?: string): string {
   add(
     /五个角色|Journey Scope|旅程范围/iu.test(md) ? renderRoleStripLead(md) : "",
   );
+  add(renderJourneyMapLead(md));
   add(
     id === "user-journey" ||
       /#{2,6}\s+(?:Journey|旅程|阶段|Step|步骤)\s*1/iu.test(md)
       ? renderJourneyLead(md)
       : "",
   );
+  add(renderLoopLead(md));
   add(
-    id === "go-to-market" ||
-      /First 100|Launch strategy|前\s*100|启动策略|Activation Motion|启动动作/iu.test(
-        md,
-      )
-      ? renderNumberedJourneyLead(md)
-      : "",
+    collectLoopStations(md).length >= 5
+      ? ""
+      : id === "go-to-market" ||
+          /First 100|Launch strategy|前\s*100|启动策略|Activation Motion|启动动作/iu.test(
+            md,
+          )
+        ? renderNumberedJourneyLead(md)
+        : "",
   );
   add(
     /纳入对象|不以以下|Initial Network/iu.test(md)
@@ -1450,7 +1843,7 @@ export function renderSpecialLead(md: string, fileId?: string): string {
   );
   add(
     id === "feature-prioritization" || /Must Have|必须有|必须具备/iu.test(md)
-      ? renderMoscowStatsLead(md)
+      ? renderMoscowKanbanLead(md) || renderMoscowStatsLead(md)
       : "",
   );
   add(

@@ -20,15 +20,24 @@ canonicalHint: feature-prioritization
   <p class="kn-callout__body">待补</p>
 </aside>
 
-<div class="kn-table-wrap">
-<table>
-  <thead>
-    <tr><th>功能</th><th>优先级</th><th>工作量</th><th>依赖</th><th>证据/来源</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>待补</td><td>Must</td><td>S</td><td>待补</td><td>[A-1]</td></tr>
-    <tr><td>待补</td><td>Should</td><td>M</td><td>待补</td><td>[A-1]</td></tr>
-    <tr><td>待补</td><td>Could</td><td>L</td><td>待补</td><td>[A-1]</td></tr>
-  </tbody>
-</table>
+<div class="kn-kanban">
+  <p class="kn-chart__cap">功能优先级</p>
+  <div class="kn-kanban__board">
+    <section class="kn-kanban__col">
+      <header><h3>必须</h3><span class="kn-kanban__wip">0/4</span></header>
+      <article class="kn-kanban__card">待补</article>
+    </section>
+    <section class="kn-kanban__col">
+      <header><h3>应该</h3><span class="kn-kanban__wip">0/4</span></header>
+      <article class="kn-kanban__card">待补</article>
+    </section>
+    <section class="kn-kanban__col">
+      <header><h3>可以</h3><span class="kn-kanban__wip">0/4</span></header>
+      <article class="kn-kanban__card">待补</article>
+    </section>
+    <section class="kn-kanban__col">
+      <header><h3>不做</h3><span class="kn-kanban__n">0</span></header>
+      <article class="kn-kanban__card kn-kanban__card--done">待补</article>
+    </section>
+  </div>
 </div>

@@ -20,20 +20,19 @@ canonicalHint: action-plan-30d
   <p class="kn-callout__body">待补</p>
 </aside>
 
-<div class="kn-journey">
-  <div class="kn-journey__step"><span class="kn-journey__n">1</span><div class="kn-journey__title">待补</div><div class="kn-journey__note">待补</div></div>
-  <div class="kn-journey__step"><span class="kn-journey__n">2</span><div class="kn-journey__title">待补</div><div class="kn-journey__note">待补</div></div>
-  <div class="kn-journey__step"><span class="kn-journey__n">3</span><div class="kn-journey__title">待补</div><div class="kn-journey__note">待补</div></div>
-</div>
-
-<div class="kn-table-wrap">
-<table>
-  <thead>
-    <tr><th>动作</th><th>负责人</th><th>截止</th><th>完成标准</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>待补</td><td>待补</td><td>待补</td><td>待补</td></tr>
-    <tr><td>待补</td><td>待补</td><td>待补</td><td>待补</td></tr>
-  </tbody>
-</table>
-</div>
+<details class="kn-week" open>
+  <summary><span class="kn-week__n">1</span><span class="kn-week__t">第 1 周</span></summary>
+  <div class="kn-week__body"><p>待补</p></div>
+</details>
+<details class="kn-week">
+  <summary><span class="kn-week__n">2</span><span class="kn-week__t">第 2 周</span></summary>
+  <div class="kn-week__body"><p>待补</p></div>
+</details>
+<details class="kn-week">
+  <summary><span class="kn-week__n">3</span><span class="kn-week__t">第 3 周</span></summary>
+  <div class="kn-week__body"><p>待补</p></div>
+</details>
+<details class="kn-week">
+  <summary><span class="kn-week__n">4</span><span class="kn-week__t">第 4 周</span></summary>
+  <div class="kn-week__body"><p>待补</p></div>
+</details>

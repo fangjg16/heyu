@@ -28,6 +28,9 @@ import {
   renderNetworkDefLead,
   renderNetworkScaleLead,
   renderRoleStripLead,
+  renderLoopLead,
+  renderMoscowKanbanLead,
+  renderJourneyMapLead,
 } from "./kn-md-specials";
 
 const LEAN = `# Lean Canvas
@@ -567,7 +570,8 @@ ${rows}
     expect(html).toContain("kn-featmap");
     expect(html).toContain("人工批准");
     expect(html).toContain("kn-radar");
-    expect(html).toContain("viewBox=\"0 0 480 480\"");
+    expect(html).toContain("viewBox=\"0 0 400 400\"");
+    expect(html).toContain("差异最大的五维");
     expect(html).not.toContain("kn-axes");
     const page = markdownToKnHtml(md, "competitor-landscape");
     expect(page).toContain("kn-featmap");
@@ -820,9 +824,10 @@ BOM 待补。
 | 10 家 | 转介 | 有人自己回来 | 至少一单回款 |
 | 25 家 | 第二圈 | 反复协作 | 可比较成交率 |
 `);
-    expect(html).toContain("kn-scale");
+    expect(html).toContain("kn-pyramid");
     expect(html).toContain("活跃机构");
     expect(html).toContain("老板熟人");
+    expect(html).not.toContain("kn-scale");
   });
 
   it("shows five roles as chips", () => {
@@ -859,5 +864,116 @@ MVP 不是单一用户漏斗，而是五个角色围绕同一项目的协作循�
 `);
     expect(html).toContain("kn-journey--spine");
     expect(html).toContain("老板选择项目");
+  });
+
+  it("turns a five-step activation motion into a loop, not a second journey", () => {
+    const md = `# 启动动作
+
+## Step 1 — 老板选择项目
+
+真实材料。
+
+## Step 2 — 内部完成可分享版本
+
+事实和来源。
+
+## Step 3 — 老板一对一邀请
+
+口头邀请。
+
+## Step 4 — 观察真实行为
+
+有效行为。
+
+## Step 5 — 完结与费用回收
+
+写回知识网络。
+`;
+    const html = renderLoopLead(md);
+    expect(html).toContain("kn-loop");
+    expect(html).toContain("知识网络");
+    expect(html).toContain("观察真实行为");
+    expect(html).toContain("kn-loop__st--focal");
+    expect(renderJourneyLead(md)).toBe("");
+    const page = markdownToKnHtml(md, "go-to-market");
+    expect(page).toContain("kn-loop");
+    expect(page).not.toContain("kn-journey");
+  });
+
+  it("lays MoSCoW into a kanban without arrows", () => {
+    const html = renderMoscowKanbanLead(MOSCOW);
+    expect(html).toContain("kn-kanban");
+    expect(html).toContain("访谈锁会话");
+    expect(html).toContain("投资人工作台");
+    expect(html).toContain("2/4");
+    expect(html).not.toContain("marker-end");
+    expect(markdownToKnHtml(MOSCOW, "feature-prioritization")).toContain("kn-kanban");
+    expect(markdownToKnHtml(MOSCOW, "feature-prioritization")).not.toContain("kn-stats--4");
+  });
+
+  it("draws a journey map only when stages have emotion", () => {
+    const withFeel = `# 用户旅程
+
+| 阶段 | 触点 / 情绪 | 流失风险 |
+| --- | --- | --- |
+| 发现 | 好奇 | 中 |
+| 试用 | 卡 | 高 |
+| 第一次有用 | 顺 | 低 |
+| 续费 | 信任 | 低 |
+`;
+    const html = renderJourneyMapLead(withFeel);
+    expect(html).toContain("kn-jmap");
+    expect(html).toContain("用户感受");
+    expect(html).toContain("kn-jmap__dot--pain");
+    expect(
+      markdownToKnHtml(
+        `${withFeel}
+
+#### 阶段 1：发现
+#### 阶段 2：试用
+#### 阶段 3：第一次有用
+#### 阶段 4：续费
+`,
+        "user-journey",
+      ),
+    ).toContain("kn-jmap");
+    expect(
+      markdownToKnHtml(
+        `${withFeel}
+
+#### 阶段 1：发现
+#### 阶段 2：试用
+#### 阶段 3：第一次有用
+#### 阶段 4：续费
+`,
+        "user-journey",
+      ),
+    ).not.toContain("kn-journey");
+    expect(renderJourneyMapLead(`# 用户旅程
+
+| 阶段 | 触点 / 情绪 | 流失风险 |
+| --- | --- | --- |
+| 发现 | 待补 | 待补 |
+| 第一次有用 | 待补 | 待补 |
+| 持续使用 | 待补 | 待补 |
+`)).toBe("");
+  });
+
+  it("does not stack five roles onto one journey map", () => {
+    const md = `# 用户旅程
+
+## 旅程范围
+
+MVP 不是单一用户漏斗，而是五个角色围绕同一项目的协作循环。项目管理员负责正式状态；Core 贡献研究；Basic 消费报告；协作方补件；系统管理员改进分析。
+
+| 阶段 | 情绪 | 流失风险 |
+| --- | --- | --- |
+| 发现 | 烦 | 高 |
+| 协作 | 卡 | 高 |
+| 发布 | 顺 | 低 |
+`;
+    expect(renderJourneyMapLead(md)).toBe("");
+    expect(renderJourneyLead(md)).toBe("");
+    expect(renderRoleStripLead(md)).toContain("kn-roles");
   });
 });

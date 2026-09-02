@@ -39,6 +39,7 @@ canonicalHint: competitor-landscape
 </div>
 
 <h3>功能对比</h3>
+<p class="kn-chart__cap">对照表看全貌；雷达只留差异最大的五维</p>
 <div class="kn-table-wrap">
 <table>
   <thead>

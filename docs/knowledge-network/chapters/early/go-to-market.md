@@ -20,10 +20,25 @@ canonicalHint: go-to-market
   <p class="kn-callout__body">待补</p>
 </aside>
 
-<div class="kn-journey">
-  <div class="kn-journey__step"><span class="kn-journey__n">1</span><div class="kn-journey__title">待补</div><div class="kn-journey__note">待补</div></div>
-  <div class="kn-journey__step"><span class="kn-journey__n">2</span><div class="kn-journey__title">待补</div><div class="kn-journey__note">待补</div></div>
-  <div class="kn-journey__step"><span class="kn-journey__n">3</span><div class="kn-journey__title">待补</div><div class="kn-journey__note">待补</div></div>
+<div class="kn-loop kn-loop--ph">
+  <p class="kn-chart__cap">启动飞轮</p>
+  <div class="kn-loop__ph">
+    <b>知识网络</b>
+    <span style="--i:0">待补</span>
+    <span style="--i:1">待补</span>
+    <span style="--i:2">待补</span>
+    <span style="--i:3">待补</span>
+    <span style="--i:4">待补</span>
+  </div>
+</div>
+
+<div class="kn-pyramid">
+  <p class="kn-chart__cap">活跃机构</p>
+  <ol>
+    <li class="kn-pyramid__tier" style="--w:46%"><span class="kn-pyramid__n">5</span><div class="kn-pyramid__body"><p class="kn-pyramid__src">待补</p></div></li>
+    <li class="kn-pyramid__tier" style="--w:70%"><span class="kn-pyramid__n">10</span><div class="kn-pyramid__body"><p class="kn-pyramid__src">待补</p></div></li>
+    <li class="kn-pyramid__tier" style="--w:100%"><span class="kn-pyramid__n">25</span><div class="kn-pyramid__body"><p class="kn-pyramid__src">待补</p></div></li>
+  </ol>
 </div>
 
 <div class="kn-table-wrap">

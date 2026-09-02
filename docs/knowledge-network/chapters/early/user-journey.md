@@ -20,11 +20,10 @@ canonicalHint: user-journey
   <p class="kn-callout__body">待补</p>
 </aside>
 
-<div class="kn-journey">
-  <div class="kn-journey__step"><span class="kn-journey__n">1</span><div class="kn-journey__title">待补</div><div class="kn-journey__note">待补</div></div>
-  <div class="kn-journey__step"><span class="kn-journey__n">2</span><div class="kn-journey__title">待补</div><div class="kn-journey__note">待补</div></div>
-  <div class="kn-journey__step"><span class="kn-journey__n">3</span><div class="kn-journey__title">待补</div><div class="kn-journey__note">待补</div></div>
-  <div class="kn-journey__step"><span class="kn-journey__n">4</span><div class="kn-journey__title">待补</div><div class="kn-journey__note">待补</div></div>
+<div class="kn-roles">
+  <span>待补</span>
+  <span>待补</span>
+  <span>待补</span>
 </div>
 
 <div class="kn-table-wrap">
