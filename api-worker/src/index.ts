@@ -291,15 +291,41 @@ type ChatBody = {
 };
 
 const GITHUB_PAGES_ORIGIN = "https://fangjg16.github.io";
+const HEYU_FRONT_ORIGINS = [
+  GITHUB_PAGES_ORIGIN,
+  "https://heyu.hk",
+  "https://www.heyu.hk",
+];
+
+function parseOriginList(raw: string): string[] {
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function corsAllowedOrigins(env: Env): string[] {
+  return [
+    ...new Set([
+      ...HEYU_FRONT_ORIGINS,
+      ...parseOriginList(env.ALLOWED_ORIGIN || ""),
+    ]),
+  ];
+}
 
 function corsHeaders(origin: string | null, env: Env): HeadersInit {
-  const allowed = (env.ALLOWED_ORIGIN || GITHUB_PAGES_ORIGIN).trim();
-  const ok =
-    origin === allowed ||
-    origin === `${allowed}/` ||
-    origin?.startsWith(`${allowed}/`);
+  const allowed = corsAllowedOrigins(env);
+  const ok = Boolean(
+    origin &&
+      allowed.some(
+        (item) =>
+          origin === item ||
+          origin === `${item}/` ||
+          origin.startsWith(`${item}/`),
+      ),
+  );
   return {
-    "Access-Control-Allow-Origin": ok && origin ? origin : allowed,
+    "Access-Control-Allow-Origin": ok && origin ? origin : allowed[0],
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, Range",
     "Access-Control-Expose-Headers":
