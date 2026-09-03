@@ -44,12 +44,12 @@
 .kn-chapter-html h3.kn-md-sec,
 .kn-project-overview-html h2.kn-md-sec,
 .kn-project-overview-html h3.kn-md-sec {
-  margin: 2.6rem 0 1.05rem;
-  font-family: inherit;
-  font-size: 13px;
+  margin: 2.4rem 0 0.85rem;
+  font-family: "Noto Serif SC", serif;
+  font-size: 20px;
   font-weight: 650;
-  letter-spacing: 0.2em;
-  line-height: 1.45;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
   text-align: center;
   color: hsl(var(--wine));
 }
@@ -58,13 +58,13 @@
 .kn-chapter-html h4.kn-md-topic,
 .kn-project-overview-html h3.kn-md-topic,
 .kn-project-overview-html h4.kn-md-topic {
-  margin: 1.55rem 0 0.45rem;
-  font-family: inherit;
-  font-size: 12.5px;
+  margin: 1.55rem 0 0.5rem;
+  font-family: "Noto Serif SC", serif;
+  font-size: 16.5px;
   font-weight: 650;
-  letter-spacing: 0.14em;
-  line-height: 1.45;
-  color: hsl(var(--ink-soft));
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  color: hsl(var(--warm-charcoal));
 }
 
 .kn-chapter-html p {
