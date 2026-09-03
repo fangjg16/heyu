@@ -261,9 +261,6 @@ function PasswordAuthForm() {
     <>
       <MobileBrand />
       <h1 className="font-display text-[28px] font-semibold">登录工作台</h1>
-      <p className="mt-2 text-[13.5px] text-[hsl(var(--warm-charcoal-muted))]">
-        请输入账号与密码登录。
-      </p>
       {fromSwitch ? <SwitchNotice /> : null}
       <form onSubmit={onSubmitForm} className="mt-[30px] flex flex-col gap-3.5">
         <LabeledInput
@@ -675,11 +672,9 @@ function ClerkAuthForm() {
       ? "验证通过，请设置新密码。"
       : pending
         ? "验证码已发送到你的邮箱，请填写后继续。"
-        : mode === "signup"
-          ? ""
-          : mode === "forgot"
-            ? "验证码将发到该账号绑定的邮箱。如收不到邮件，请联系管理员。"
-            : "请输入账号或邮箱与密码登录。";
+        : mode === "forgot"
+          ? "验证码将发到该账号绑定的邮箱。如收不到邮件，请联系管理员。"
+          : "";
 
   return (
     <>
