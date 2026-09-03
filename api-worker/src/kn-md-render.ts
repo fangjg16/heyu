@@ -300,6 +300,15 @@ function tidyVerdict(value: string): { word: string; score: string } {
   return { word, score };
 }
 
+function coverConfidenceLede(value: string): string {
+  const t = tidyConfidence(value).trim();
+  if (!t) return "";
+  if (/^(把握[^\s.。；]+|[中高低](?:等|偏[高低])?|中等（风险存在）)$/u.test(t)) {
+    return "";
+  }
+  return t;
+}
+
 function clipLede(value: string, n = 120): string {
   const t = value.split("|")[0]!.trim();
   if (t.length <= n) return t;
@@ -340,7 +349,7 @@ function coverHtml(lines: string[]): string {
 
   const ledeBits = [
     by.status,
-    by.confidence ? tidyConfidence(by.confidence) : "",
+    coverConfidenceLede(by.confidence ?? ""),
     by.validation ? clipLede(by.validation) : "",
     by.objective ? clipLede(by.objective) : "",
   ].filter(Boolean);
@@ -378,28 +387,19 @@ function confBadgeTone(value: string): "high" | "mid" | "low" {
   return "mid";
 }
 
-function confBarHtml(lead: {
+function confLeadHtml(lead: {
   kind: "section" | "overall";
   value: string;
   note?: string;
 }): string {
-  const label = lead.kind === "overall" ? "总体把握" : "本节把握";
-  const tone = confBadgeTone(lead.value);
   const localized = localizeKnText(tidyConfidence(lead.value)).replace(
     /[。.]\s*$/u,
     "",
   );
   const m = /^(把握[^\s.。；]+)[.。；]?\s*(.*)$/u.exec(localized.trim());
-  const badge = (m?.[1] ?? localized).trim();
   const note = [m?.[2]?.trim() ?? "", lead.note ?? ""].filter(Boolean).join(" ");
-  const noteHtml = note
-    ? `<span class="kn-section-conf__note">${inline(note)}</span>`
-    : "";
-  return `<p class="kn-section-conf kn-section-conf--${lead.kind}"><span class="kn-section-conf__k">${label}</span><span class="kn-badge kn-badge--${tone}">${inline(badge)}</span>${noteHtml}</p>`;
-}
-
-function sectionConfHtml(value: string): string {
-  return confBarHtml({ kind: "section", value, note: "" });
+  if (!note) return "";
+  return `<p class="kn-md-lede">${inline(note)}</p>`;
 }
 
 function splitLeadingTags(c: string): { tags: string[]; rest: string } {
@@ -928,14 +928,8 @@ function firstCoverHeadingTitle(md: string): string {
 
 function fileKickerHtml(title: string, markdown: string): string {
   const h1 = firstCoverHeadingTitle(markdown);
-  if (!h1) return `<h2 class="kn-file-kicker">${escapeHtml(title)}</h2>`;
-  if (h1 === title) return "";
-  const head = h1.replace(/[:：].*$/u, "").trim();
-  const localized = localizeKnText(head).replace(/[:：].*$/u, "").trim();
-  if (localized === title || head === title) return "";
-  if (/研究闸门/u.test(title) && /research\s*gate|研究闸门/iu.test(h1)) {
-    return "";
-  }
+  if (h1) return "";
+  if (!title.trim()) return "";
   return `<h2 class="kn-file-kicker">${escapeHtml(title)}</h2>`;
 }
 
@@ -1194,10 +1188,23 @@ function markdownToKnHtmlInner(src: string): string {
         i += 1;
         const { body, next } = collectUntilNextHeading(lines, i);
         i = next;
-        const inner = markdownToKnHtmlInner(body.join("\n")).trim();
-        out.push(
-          `<blockquote class="kn-callout"><p class="kn-callout__label">${inline("创始人调整")}</p>${inner}</blockquote>`,
-        );
+        const rest: string[] = [];
+        const confs: NonNullable<ReturnType<typeof parseConfLead>>[] = [];
+        for (const line of body) {
+          const c = parseConfLead(line.trim());
+          if (c) confs.push(c);
+          else rest.push(line);
+        }
+        const inner = markdownToKnHtmlInner(rest.join("\n")).trim();
+        if (inner) {
+          out.push(
+            `<aside class="kn-pivot"><p class="kn-pivot__label">创始人调整</p>${inner}</aside>`,
+          );
+        }
+        for (const c of confs) {
+          const lead = confLeadHtml(c);
+          if (lead) out.push(lead);
+        }
         continue;
       }
       if (isSpineHeading(title)) {
@@ -1290,11 +1297,10 @@ function markdownToKnHtmlInner(src: string): string {
       const heading = `${open}${parts.inner}</${tag}>`;
       const conf = parseConfLead(peek);
       if (conf) {
-        out.push(
-          `<div class="kn-md-headrow">${heading}${confBarHtml({ kind: conf.kind, value: conf.value })}</div>`,
-        );
+        out.push(heading);
+        const lead = confLeadHtml(conf);
+        if (lead) out.push(lead);
         i += 1;
-        if (conf.note) out.push(`<p>${inline(conf.note)}</p>`);
       } else {
         out.push(heading);
       }
@@ -1322,9 +1328,9 @@ function markdownToKnHtmlInner(src: string): string {
     if (confLine) {
       flushPara();
       flushList();
-      out.push(confBarHtml({ kind: confLine.kind, value: confLine.value }));
+      const lead = confLeadHtml(confLine);
+      if (lead) out.push(lead);
       i += 1;
-      if (confLine.note) out.push(`<p>${inline(confLine.note)}</p>`);
       continue;
     }
 
@@ -1493,12 +1499,12 @@ function markdownToKnHtmlInner(src: string): string {
       const conf = parseConfLead(q[0] ?? "");
       if (conf) {
         const note = [conf.note, ...q.slice(1)].filter(Boolean).join(" ");
-        out.push(confBarHtml({ kind: conf.kind, value: conf.value }));
-        if (note) out.push(`<p>${inline(note)}</p>`);
+        const lead = confLeadHtml({ ...conf, note });
+        if (lead) out.push(lead);
         continue;
       }
       out.push(
-        `<blockquote class="kn-callout"><p class="kn-callout__body">${inline(q.join(" "))}</p></blockquote>`,
+        `<figure class="kn-quote"><blockquote>${inline(q.join(" "))}</blockquote></figure>`,
       );
       continue;
     }

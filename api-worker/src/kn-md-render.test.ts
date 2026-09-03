@@ -50,7 +50,7 @@ describe("markdownToKnHtml", () => {
 `);
     expect(html).toContain("kn-dochead");
     expect(html).not.toContain("kn-dochead__byline");
-    expect(html).toContain("把握中等");
+    expect(html).not.toContain("把握中等");
     expect(html).not.toContain("kn-score-sum");
     expect(html).toContain("有条件继续");
     expect(html).toContain("kn-callout--verdict");
@@ -77,10 +77,11 @@ describe("markdownToKnHtml", () => {
     expect(html).not.toContain(">Data<");
   });
 
-  it("turns block quotes into callouts", () => {
+  it("turns block quotes into quiet quotes, not nested callout cards", () => {
     const html = markdownToKnHtml("> 判断：先验证付费意愿。");
     expect(html).toContain("blockquote");
-    expect(html).toContain("kn-callout");
+    expect(html).toContain("kn-quote");
+    expect(html).not.toContain("kn-callout");
     expect(html).toContain("先验证付费意愿");
   });
 
@@ -227,10 +228,11 @@ describe("markdownToKnHtml", () => {
     expect(html).toContain("kn-md-h");
     expect(html).toContain("kn-md-h__t");
     expect(html).toContain("竞争全景");
-    expect(html).toContain("kn-section-conf");
-    expect(html).toContain("本节把握");
-    expect(html).toContain("kn-badge");
-    expect(html).toContain("kn-md-headrow");
+    expect(html).toContain("kn-md-lede");
+    expect(html).toMatch(/公开产品|public product/u);
+    expect(html).not.toContain("本节把握");
+    expect(html).not.toContain("kn-md-headrow");
+    expect(html).not.toContain("kn-section-conf");
     expect(html).not.toContain('kn-masthead__k">本节把握');
     expect(html).toContain("kn-tagged--data");
     expect(html).toContain("kn-tagged--opinion");
@@ -360,14 +362,13 @@ PwC 2024。
 
 公开产品面已挤。
 `);
-    expect(html).toContain("kn-section-conf");
-    expect(html).toContain("本节把握");
-    expect(html).toContain("把握中等");
-    expect(html).toContain("kn-badge");
+    expect(html).not.toContain("本节把握");
+    expect(html).not.toContain("kn-section-conf");
     expect(html).not.toContain("<strong>Section confidence");
+    expect(html).toContain("公开产品面已挤");
   });
 
-  it("turns 本节把握 / 总体把握 prefixes into badges even when a sentence follows", () => {
+  it("keeps 本节把握 / 总体把握 notes as quiet leads, without heading badges", () => {
     const html = markdownToKnHtml(`# 研究结论
 
 **总体把握: Medium** 综合把握中等；外部需求和收入把握偏低。
@@ -376,15 +377,15 @@ PwC 2024。
 
 **本节把握: Medium.** “问题存在”的证据强于“本产品可商业化”的证据。
 `);
-    expect(html).toContain("kn-section-conf--overall");
-    expect(html).toContain("总体把握");
-    expect(html).toContain("kn-md-headrow");
-    expect(html).toContain("本节把握");
-    expect(html).toContain("kn-badge");
-    expect(html).toContain("把握中等");
+    expect(html).toContain("kn-md-lede");
+    expect(html).toContain("综合把握中等");
+    expect(html).toContain("问题存在");
+    expect(html).not.toContain("kn-section-conf");
+    expect(html).not.toContain("kn-md-headrow");
+    expect(html).not.toContain("本节把握");
+    expect(html).not.toContain("总体把握");
     expect(html).not.toContain("<strong>本节把握");
     expect(html).not.toContain("<strong>总体把握");
-    expect(html).toContain("问题存在");
   });
 
   it("does not wrap a long 依据 cell in a badge just because it mentions 把握偏低", () => {
@@ -419,7 +420,7 @@ PwC 2024。
     expect(html).toContain("kn-dochead");
     expect(html).not.toContain("2026-09-01");
     expect(html).toContain("USD");
-    expect(html).toContain("把握偏低");
+    expect(html).not.toContain("把握偏低");
     expect(html).not.toContain("jfo-ai-investment-platform");
     expect(html).not.toContain("<strong>Financial Model Stage");
   });
@@ -815,17 +816,39 @@ PwC 2024。
     expect(html).not.toContain("Yellow Light");
     expect(html).toContain("建议继续封闭网络内验证");
   });
+
+  it("renders 创始人调整 as a labeled aside, not a nested callout, and lifts overall confidence out", () => {
+    const html = markdownToKnHtml(`# 研究结论
+
+## Founder Pivot Overlay
+
+[Decision]
+当前滩头不是地理市场。
+
+**总体把握: Medium** 综合把握中等；收入把握偏低。
+`);
+    expect(html).toContain("kn-pivot");
+    expect(html).toContain("kn-pivot__label");
+    expect(html).toContain("创始人调整");
+    expect(html).not.toContain("kn-callout__label");
+    expect(html).toContain("kn-md-lede");
+    expect(html).toContain("综合把握中等");
+    expect(html).not.toContain("总体把握");
+    expect(html.indexOf("kn-pivot")).toBeLessThan(html.indexOf("kn-md-lede"));
+  });
 });
 
 describe("renderDeliverableChapterHtml", () => {
-  it("joins multiple files with section titles", () => {
+  it("joins multiple files without repeating catalog titles when each file has an h1", () => {
     const html = renderDeliverableChapterHtml([
       { title: "研究闸门", markdown: "# 继续" },
       { title: "结论可靠度", markdown: "# 假设仍多" },
     ]);
-    expect(html).toContain("研究闸门");
-    expect(html).toContain("结论可靠度");
+    expect(html).toContain("继续");
+    expect(html).toContain("假设仍多");
     expect(html).toContain("kn-from-md-file");
+    expect(html).not.toContain("kn-file-kicker");
+    expect(html).not.toContain("结论可靠度");
   });
 
   it("does not repeat 研究闸门 when the file already has a Research Gate title", () => {
@@ -841,7 +864,8 @@ describe("renderDeliverableChapterHtml", () => {
       },
     ]);
     expect(html).toContain("家办非标项目");
-    expect(html).toContain("结论可靠度");
+    expect(html).toContain("假设仍多");
+    expect(html).not.toContain("结论可靠度");
     expect((html.match(/研究闸门/g) ?? []).length).toBe(0);
   });
 

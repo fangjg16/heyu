@@ -6,7 +6,7 @@
 .kn-project-overview-html {
   color: hsl(var(--warm-charcoal));
   font-size: 14.5px;
-  line-height: 1.8;
+  line-height: 1.85;
 }
 
 .kn-chapter-html > *:first-child,
@@ -42,14 +42,18 @@
 
 .kn-chapter-html h2.kn-md-sec,
 .kn-chapter-html h3.kn-md-sec,
+.kn-chapter-html h3.kn-md-h,
 .kn-project-overview-html h2.kn-md-sec,
-.kn-project-overview-html h3.kn-md-sec {
-  margin: 2.4rem 0 0.85rem;
+.kn-project-overview-html h3.kn-md-sec,
+.kn-project-overview-html h3.kn-md-h {
+  display: block;
+  margin: 3.15rem 0 1.45rem;
+  padding: 0;
   font-family: "Noto Serif SC", serif;
   font-size: 20px;
   font-weight: 650;
   letter-spacing: -0.015em;
-  line-height: 1.3;
+  line-height: 1.35;
   text-align: center;
   color: hsl(var(--wine));
 }
@@ -58,25 +62,30 @@
 .kn-chapter-html h4.kn-md-topic,
 .kn-project-overview-html h3.kn-md-topic,
 .kn-project-overview-html h4.kn-md-topic {
-  margin: 1.55rem 0 0.5rem;
+  margin: 2.1rem 0 0.7rem;
   font-family: "Noto Serif SC", serif;
-  font-size: 16.5px;
+  font-size: 16px;
   font-weight: 650;
   letter-spacing: -0.01em;
-  line-height: 1.35;
+  line-height: 1.4;
   color: hsl(var(--warm-charcoal));
 }
 
 .kn-chapter-html p {
-  margin: 0.55rem 0 0.85rem;
+  margin: 0.85rem 0 1.15rem;
   color: hsl(24 10% 28%);
 }
 
 .kn-chapter-html ul,
 .kn-chapter-html ol {
-  margin: 0.35rem 0 0.95rem;
+  margin: 0.7rem 0 1.55rem;
   padding-left: 1.2rem;
   color: hsl(24 10% 28%);
+}
+
+.kn-chapter-html li + li,
+.kn-project-overview-html li + li {
+  margin-top: 0.75rem;
 }
 
 .kn-chapter-html ul,
@@ -91,7 +100,7 @@
 
 .kn-table-wrap {
   overflow-x: auto;
-  margin: 0.85rem 0 1.25rem;
+  margin: 1.15rem 0 1.65rem;
 }
 
 .kn-chapter-html table,
@@ -202,7 +211,7 @@
 }
 
 .kn-callout {
-  margin: 0 0 1.15rem;
+  margin: 1.15rem 0 1.55rem;
   padding: 0.95rem 1.15rem 0.95rem 1.05rem;
   border-left: 3px solid hsl(var(--wine));
   background: hsl(var(--wine-muted) / 0.55);
@@ -318,10 +327,7 @@
 }
 
 .kn-hero__label {
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0.08em;
-  color: hsl(var(--ink-soft));
+  display: none;
 }
 
 .kn-hero__value {
@@ -438,8 +444,8 @@
 .kn-split {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin: 0.75rem 0 1.25rem;
+  gap: 1.35rem;
+  margin: 1.45rem 0 2.1rem;
 }
 
 .kn-split__col {
@@ -1411,14 +1417,46 @@
   color: hsl(var(--ink-soft));
 }
 
-.kn-wide-table .kn-table-wrap {
-  margin: 0;
+.kn-wide-table.kn-fold {
+  margin: 1.55rem 0 2rem;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  border-top: 1px solid hsl(var(--border));
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.kn-wide-table.kn-fold > summary {
+  padding: 0.65rem 0;
+}
+
+.kn-pivot {
+  margin: 2rem 0 2.15rem;
+  padding: 0.35rem 0 0.2rem;
+  background: none;
+  border: 0;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.kn-pivot__label {
+  margin: 0.85rem 0 0.7rem;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  color: hsl(var(--wine));
+}
+
+.kn-pivot .kn-tagged {
+  margin: 0.85rem 0;
 }
 
 /* 引用条 */
 .kn-quote {
-  margin: 0 0 1rem;
+  margin: 1.25rem 0 1.55rem;
   padding: 0.15rem 0 0.15rem 1rem;
+  background: none;
+  border: 0;
   border-left: 3px solid hsl(var(--wine));
 }
 
@@ -1531,8 +1569,8 @@
   column-gap: 1.35rem;
   row-gap: 0.45rem;
   align-items: center;
-  margin: 0 0 1.65rem;
-  padding: 0 0 1.15rem;
+  margin: 0 0 2rem;
+  padding: 0 0 1.35rem;
   background: none;
   border: 0;
   border-radius: 0;
@@ -1567,7 +1605,15 @@
 .kn-doc-title {
   min-width: 0;
   margin: 0;
+  text-align: center;
+}
+
+.kn-dochead:has(.kn-hero) .kn-doc-title {
   text-align: left;
+}
+
+.kn-dochead:not(:has(.kn-hero)) {
+  display: block;
 }
 
 .kn-dochead .kn-doc-title::after {
@@ -1628,7 +1674,7 @@
 }
 
 .kn-dochead .kn-hero__label {
-  display: block;
+  display: none;
 }
 
 .kn-dochead:has(.kn-hero) .kn-dochead__verdict {
@@ -1641,71 +1687,34 @@
 }
 
 .kn-md-headrow {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.55rem 1.15rem;
-  flex-wrap: wrap;
-  margin: 0 0 0.85rem;
+  display: block;
+  margin: 0 0 1.1rem;
 }
 
 .kn-md-headrow .kn-md-h,
 .kn-md-headrow .kn-md-sec,
 .kn-md-headrow .kn-md-topic {
   margin: 0;
-  flex: 1 1 12rem;
-  text-align: left;
+  text-align: center;
 }
 
 .kn-md-headrow .kn-section-conf {
-  margin: 0;
-  flex: 0 1 auto;
+  display: none;
+}
+
+.kn-md-lede {
+  margin: 0.25rem 0 1.55rem;
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: hsl(var(--ink-soft));
 }
 
 .kn-section-conf {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.4rem 0.55rem;
-  margin: 0.15rem 0 1.05rem;
-  font-size: 12.5px;
-  line-height: 1.55;
-  color: hsl(var(--ink-soft));
-}
-
-.kn-section-conf__k {
-  display: inline;
-  margin: 0;
-  padding: 0;
-  border-radius: 0;
-  font-size: 10.5px;
-  font-weight: 650;
-  letter-spacing: 0.12em;
-  color: hsl(var(--wine));
-  background: none;
-}
-
-.kn-section-conf__note {
-  flex: 1 1 12rem;
-  min-width: 0;
-  font-size: 12.5px;
-  line-height: 1.55;
-  color: hsl(var(--ink-soft));
-}
-
-.kn-section-conf--overall {
-  margin: 0 0 1.05rem;
-  padding: 0.55rem 0.8rem;
-  background: hsl(var(--wine-muted) / 0.45);
-  border-left: 3px solid hsl(var(--wine));
-}
-
-.kn-section-conf--overall .kn-section-conf__note {
-  flex-basis: 100%;
+  display: none;
 }
 
 .kn-md-section {
-  margin: 1.65rem 0 0.4rem;
+  margin: 3.15rem 0 0.8rem;
   padding: 0;
   border: 0;
 }
@@ -1722,41 +1731,29 @@
 }
 
 .kn-md-h {
-  display: flex;
-  flex-direction: row;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0;
   margin: 0 0 0.7rem;
 }
 
-.kn-md-h__n {
-  font-family: "Noto Serif SC", serif;
-  font-size: 20px;
-  font-weight: 650;
-  letter-spacing: -0.015em;
-  color: hsl(var(--warm-charcoal));
-}
-
+.kn-md-h__n,
 .kn-md-h__t {
-  font-family: "Noto Serif SC", serif;
-  font-size: 20px;
-  font-weight: 650;
-  line-height: 1.3;
-  letter-spacing: -0.015em;
-  color: hsl(var(--warm-charcoal));
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  color: inherit;
 }
 
 .kn-md-subblock {
-  margin: 1.05rem 0 0.45rem;
-  padding-left: 0.15rem;
+  margin: 1.85rem 0 0.85rem;
+  padding-left: 0;
 }
 
 .kn-md-sub {
   display: flex;
   align-items: baseline;
   gap: 0.55rem;
-  margin: 0 0 0.45rem;
+  margin: 0 0 0.7rem;
 }
 
 .kn-md-sub__k {
@@ -1775,12 +1772,16 @@
 }
 
 .kn-tagged {
-  margin: 0.7rem 0 0.95rem;
+  margin: 1.15rem 0 1.45rem;
   padding: 0.15rem 0 0.2rem 0.95rem;
   border-radius: 0;
   border: 0;
   border-left: 2px solid hsl(var(--border));
   background: none;
+}
+
+.kn-tagged + .kn-tagged {
+  margin-top: 0.85rem;
 }
 
 .kn-tagged .kn-md-tag {
@@ -1826,9 +1827,9 @@
 }
 
 .kn-tagged--opinion p {
-  font-family: "Noto Serif SC", serif;
-  font-size: 16px;
-  line-height: 1.7;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
   color: hsl(var(--warm-charcoal));
 }
 
@@ -1853,7 +1854,11 @@
 .kn-split__col p,
 .kn-split__col ul,
 .kn-split__col ol {
-  margin: 0.2rem 0;
+  margin: 0.35rem 0;
+}
+
+.kn-split__col li + li {
+  margin-top: 0.45rem;
 }
 
 .kn-split__col p:last-child,
@@ -2178,8 +2183,8 @@
 
 /* Markdown 总文件渲成章节：模板 = 这些 class，不是管理台 HTML 骨架 */
 .kn-from-md-file + .kn-from-md-file {
-  margin-top: 2.4rem;
-  padding-top: 1.6rem;
+  margin-top: 3rem;
+  padding-top: 2.1rem;
   border-top: 1px solid hsl(var(--border));
 }
 
@@ -2209,7 +2214,7 @@
 .kn-chapter-html .kn-from-md hr {
   border: 0;
   border-top: 1px solid hsl(var(--border));
-  margin: 1.6rem 0;
+  margin: 2.6rem 0;
 }
 
 .kn-pending {
@@ -2219,7 +2224,7 @@
 }
 
 .kn-md-kicker {
-  margin: 0.35rem 0 0.45rem;
+  margin: 1.15rem 0 0.55rem;
   font-size: 12.5px;
   font-weight: 650;
   letter-spacing: 0.04em;
@@ -2673,7 +2678,6 @@
 .kn-from-md > .kn-canvas,
 .kn-from-md > .kn-battles,
 .kn-from-md > .kn-hero,
-.kn-from-md > .kn-split,
 .kn-from-md > .kn-journey,
 .kn-from-md > .kn-timeline,
 .kn-from-md > .kn-stats,
@@ -2683,8 +2687,6 @@
 .kn-from-md > .kn-scenarios,
 .kn-from-md > .kn-score-sum,
 .kn-from-md > .kn-dochead,
-.kn-from-md > .kn-quote,
-.kn-from-md > .kn-table-wrap,
 .kn-from-md > .kn-axes,
 .kn-from-md > .kn-rings,
 .kn-from-md > .kn-loop,

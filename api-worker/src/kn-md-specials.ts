@@ -285,7 +285,7 @@ export function scoreHeroHtml(
   const verdict = note.trim()
     ? `<span class="kn-hero__verdict">${escapeHtml(note)}</span>`
     : "";
-  return `<div class="kn-hero${varCls}${toneCls}"><div class="kn-hero__value">${escapeHtml(score)}<span class="kn-hero__den">/10</span></div><div class="kn-hero__meta"><div class="kn-hero__label">可靠度</div>${verdict}</div></div>`;
+  return `<div class="kn-hero${varCls}${toneCls}"><div class="kn-hero__value">${escapeHtml(score)}<span class="kn-hero__den">/10</span></div><div class="kn-hero__meta">${verdict}</div></div>`;
 }
 
 export function renderScoreHeroLead(md: string): string {

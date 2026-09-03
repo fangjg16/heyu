@@ -871,7 +871,7 @@ BOM 待补。
     expect(html).toContain("/10");
     expect(html).toContain("kn-hero--concern");
     expect(html).toContain("重大疑虑");
-    expect(html).toContain("可靠度");
+    expect(html).not.toContain("kn-hero__label");
   });
 
   it("shows 待补 market stats instead of dropping the block", () => {
