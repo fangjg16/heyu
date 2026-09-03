@@ -407,7 +407,7 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
         </button>
       </div>
       <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-        登录请用每行下面的登录名。展示名只用于显示，改成 Maxeast 不会改变登录账号。
+        登录请用每行下面的登录名。展示名只用于显示，改展示名不会改变登录账号。
       </p>
 
       {loading ? (
@@ -584,7 +584,7 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
                       }
                     />
                     <span className="mt-1 block text-[10px] font-normal leading-relaxed text-muted-foreground">
-                      仅用于界面显示，不能用来登录。把 JaniceHi 改成 Maxeast 时请同时改登录名。
+                      仅用于界面显示，不能用来登录。若要改对方用来登录的账号，请同时改登录名。
                     </span>
                   </label>
                   <label className="block text-[11px] font-medium text-muted-foreground">
