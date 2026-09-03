@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
+import { GlobalDraftProgressDock } from "@/components/workspace/GlobalDraftProgressDock";
 import { fetchAuthMe, fetchWorkspaceUsersDirectory } from "@/lib/api-auth";
 import { loadSessionToken, loadSessionUserId } from "@/workspace/session";
 
@@ -47,5 +48,10 @@ export default function RequireAuth() {
     );
   }
 
-  return <Outlet />;
+  return (
+    <>
+      <Outlet />
+      <GlobalDraftProgressDock />
+    </>
+  );
 }

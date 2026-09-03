@@ -1324,7 +1324,11 @@ export async function createChapterDraftRun(
     activeScope?: string;
     code?: string;
   };
-  if (res.status === 409 && data.code === "ACTIVE_DRAFT_EXISTS" && data.activeRunId) {
+  if (
+    res.status === 409 &&
+    data.activeRunId &&
+    (data.code === "ACTIVE_DRAFT_EXISTS" || data.code === "STILL_GENERATING")
+  ) {
     throw new ActiveDraftExistsError(
       data.error || "已有进行中的更新草案",
       data.activeRunId,
@@ -1789,6 +1793,25 @@ export async function discardChapterDraftRun(
   );
   const data = (await res.json().catch(() => ({}))) as { error?: string };
   if (!res.ok) throw new Error(data.error || `放弃草案失败（${res.status}）`);
+}
+
+/** 停止生成：未完成的章停下，已完成的仍留在待审核草案里（不会整份放弃） */
+export async function stopChapterDraftRun(
+  projectId: string,
+  runId: string,
+  userId: string,
+): Promise<{ status: string }> {
+  const q = new URLSearchParams({ userId });
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/chapter-draft-runs/${encodeURIComponent(runId)}/stop?${q}`,
+    { method: "POST" },
+  );
+  const data = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    status?: string;
+  };
+  if (!res.ok) throw new Error(data.error || `停止生成失败（${res.status}）`);
+  return { status: data.status ?? "ready" };
 }
 
 export type KnowledgeChapterVersionMeta = {

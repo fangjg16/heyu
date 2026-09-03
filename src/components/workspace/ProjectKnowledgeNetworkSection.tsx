@@ -13,7 +13,6 @@ import {
   DraftRunDiscardedError,
   ENABLE_LIVE_CHAT,
   createChapterDraftRun,
-  discardChapterDraftRun,
   endStartupInterview,
   fetchActiveChapterDraftRun,
   fetchKnowledgeChapterVersion,
@@ -27,6 +26,7 @@ import {
   reviseProjectKnowledgeChapter,
   rollbackKnowledgeChapterVersion,
   startStartupInterview,
+  stopChapterDraftRun,
   summarizeDraftRunProgress,
   waitForDraftRunSettled,
   type KnowledgeChapterVersionMeta,
@@ -81,10 +81,11 @@ function allChaptersConfirmText(input: {
 }): string {
   if (input.loading) return "正在查看当前进度…";
   if (input.hasDraft) return "";
-  let base = "将更新全部章节和项目概览，可能需要较长时间。";
+  let base =
+    "若分析已经有了，点「重新排版」即可再出一份待审核草案，不重做分析。点「开始更新」会连分析一起重跑，可能需要较长时间。";
   if (input.published > 0) {
     base =
-      "将更新尚未发布的章节和项目概览，可能需要较长时间。已发布的内容在你确认发布前不会改。";
+      "若分析已经有了，点「重新排版」即可再出一份待审核草案，不重做分析。点「开始更新」只会重跑尚未发布的章节；已发布的内容在你确认发布前不会改。";
   }
   if (input.interviewHint === "paused") {
     return `${base}访谈还没问完，先问完再更新效果更好。`;
@@ -919,10 +920,9 @@ export function ProjectKnowledgeNetworkSection({
     setDraftStopping(true);
     setDraftDialogError(null);
     try {
-      await discardChapterDraftRun(projectId, draftRunId, userId);
+      await stopChapterDraftRun(projectId, draftRunId, userId);
       setDraftDialogOpen(false);
-      setDraftProgress(null);
-      setDraftRunId(null);
+      setError("已停止生成。已经完成的章节仍在待审核草案里。");
     } catch (e) {
       setDraftDialogError(e instanceof Error ? e.message : "停止生成失败");
     } finally {
@@ -2152,7 +2152,7 @@ export function ProjectKnowledgeNetworkSection({
                             setAllChaptersConfirm(false);
                             void onStartInterview();
                           }}
-                          className={CONFIRM_BTN_PRIMARY}
+                          className={CONFIRM_BTN_SECONDARY}
                         >
                           {interview?.status === "paused"
                             ? "继续访谈"
@@ -2163,15 +2163,19 @@ export function ProjectKnowledgeNetworkSection({
                         type="button"
                         onClick={() => {
                           setAllChaptersConfirm(false);
+                          onUpdateAllChapters?.("from-files");
+                        }}
+                        className={CONFIRM_BTN_PRIMARY}
+                      >
+                        重新排版
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAllChaptersConfirm(false);
                           onUpdateAllChapters?.();
                         }}
-                        className={
-                          analysisKind === "early" &&
-                          (interview?.status === "paused" ||
-                            (!interview && confirmPublished === 0))
-                            ? CONFIRM_BTN_SECONDARY
-                            : CONFIRM_BTN_PRIMARY
-                        }
+                        className={CONFIRM_BTN_SECONDARY}
                       >
                         {analysisKind === "early" &&
                         (interview?.status === "paused" ||

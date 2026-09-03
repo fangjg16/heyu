@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Link,
   Navigate,
@@ -15,10 +15,10 @@ import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import { cn } from "@/lib/utils";
 import {
   DISCARD_THEN_REGENERATE_HINT,
-  DraftProgressDock,
   KnowledgeDraftGeneratingDialog,
   type DraftGeneratingProgress,
 } from "@/components/workspace/KnowledgeDraftGeneratingDialog";
+import { DraftProgressUiProvider, useDraftProgressUi } from "@/components/workspace/draft-progress-ui";
 import { ProjectKnowledgeNetworkSection } from "@/components/workspace/ProjectKnowledgeNetworkSection";
 import { ProjectMaterialsSection } from "@/components/workspace/ProjectMaterialsSection";
 import { ProjectOverviewPanel } from "@/components/workspace/ProjectOverviewPanel";
@@ -33,14 +33,15 @@ import {
   ActiveDraftExistsError,
   DraftRunDiscardedError,
   createChapterDraftRun,
-  discardChapterDraftRun,
   ENABLE_LIVE_CHAT,
   fetchActiveChapterDraftRun,
   fetchProjectsFromApi,
+  stopChapterDraftRun,
   summarizeDraftRunProgress,
   waitForDraftRunSettled,
   type ChapterDraftRegenMode,
 } from "@/lib/project-api";
+import { unwatchDraftRun, watchDraftRun } from "@/lib/draft-progress-watch";
 import {
   getMergedProjects,
   setApiProjects,
@@ -209,6 +210,12 @@ function fullDraftIdsForProject(project: WorkspaceProject | null) {
   return fullDraftSectionIds(resolveAnalysisKind(project?.analysisKind));
 }
 
+function researchDraftSectionIds(sectionIds: string[]): string[] {
+  return sectionIds.filter(
+    (id) => id !== "sources" && id !== "glossary" && id !== "project-graph",
+  );
+}
+
 function ProjectWorkspaceLayout() {
   const { projectId = "" } = useParams();
   const { pathname, state: locationState } = useLocation();
@@ -244,6 +251,8 @@ function ProjectWorkspaceLayout() {
   const [persistedActiveRunId, setPersistedActiveRunId] = useState<
     string | null
   >(null);
+  const watchingRunIdRef = useRef<string | null>(null);
+  const { setOpenDialogRunId } = useDraftProgressUi();
 
   useEffect(() => {
     if (!projectId) return;
@@ -296,6 +305,7 @@ function ProjectWorkspaceLayout() {
         if (active?.runId) {
           setPersistedActiveRunId(active.runId);
           setDraftRunId((cur) => cur ?? active.runId);
+          if (active.status === "generating") watchDraftRun(active.runId);
         } else {
           setPersistedActiveRunId(null);
         }
@@ -348,6 +358,92 @@ function ProjectWorkspaceLayout() {
     },
     [projectId],
   );
+
+  const attachToExistingRun = useCallback(
+    async (runId: string) => {
+      if (!projectId || !userId || !runId) return;
+      setDraftRunId(runId);
+      setPersistedActiveRunId(runId);
+      setDraftDialogMode("full");
+      setDraftDialogOpen(true);
+      setDraftDialogError(null);
+      watchDraftRun(runId);
+      if (watchingRunIdRef.current === runId) return;
+      watchingRunIdRef.current = runId;
+      setAllChaptersBusy(true);
+      const startedAt = Date.now();
+      try {
+        const snap = await waitForDraftRunSettled(projectId, runId, userId, {
+          onProgress: (summary) => {
+            setAllChaptersProgress({
+              done: summary.done,
+              total: summary.total,
+              failed: summary.failed,
+              lastLabel: summary.lastLabel,
+              elapsedMs: Date.now() - startedAt,
+              phase: summary.settled ? "done" : "generating",
+              failedDetails: summary.failedDetails,
+            });
+          },
+        });
+        const ids = researchDraftSectionIds(
+          snap.items.map((i) => i.sectionId),
+        );
+        const summary = summarizeDraftRunProgress(
+          snap.items,
+          ids.length > 0 ? ids : snap.items.map((i) => i.sectionId),
+        );
+        setAllChaptersProgress({
+          done: summary.done,
+          total: summary.total || 1,
+          failed: summary.failed,
+          lastLabel: summary.lastLabel,
+          elapsedMs: Date.now() - startedAt,
+          phase: "done",
+          failedDetails: summary.failedDetails,
+        });
+        if (summary.failed === 0) {
+          setAllChaptersNotice("更新草案已就绪，可进入审核。");
+        }
+      } catch (e) {
+        if (e instanceof DraftRunDiscardedError) {
+          setDraftDialogOpen(false);
+          setAllChaptersProgress(null);
+          setDraftRunId(null);
+          setPersistedActiveRunId(null);
+          unwatchDraftRun(runId);
+        } else {
+          setDraftDialogError(
+            e instanceof Error ? e.message : "查看进度失败",
+          );
+        }
+      } finally {
+        if (watchingRunIdRef.current === runId) watchingRunIdRef.current = null;
+        setAllChaptersBusy(false);
+      }
+    },
+    [projectId, userId],
+  );
+
+  useEffect(() => {
+    setOpenDialogRunId(draftDialogOpen ? draftRunId : null);
+    return () => setOpenDialogRunId(null);
+  }, [draftDialogOpen, draftRunId, setOpenDialogRunId]);
+
+  useEffect(() => {
+    const st = locationState as {
+      openDraftProgress?: boolean;
+      draftRunId?: string;
+    } | null;
+    if (!st?.openDraftProgress) return;
+    const runId = st.draftRunId;
+    const fromConversation = fromConversationInState(locationState);
+    navigate(pathname, {
+      replace: true,
+      state: fromConversation ? { fromConversation } : {},
+    });
+    if (runId) void attachToExistingRun(runId);
+  }, [attachToExistingRun, locationState, navigate, pathname]);
 
   useEffect(() => {
     let cancelled = false;
@@ -629,6 +725,7 @@ function ProjectWorkspaceLayout() {
     }, 1000);
 
     let runId: string | null = null;
+    let resumeExisting: string | null = null;
     try {
       const created = await createChapterDraftRun(project.id, userId, {
         scope: "full",
@@ -636,6 +733,8 @@ function ProjectWorkspaceLayout() {
       });
       runId = created.run.id;
       setDraftRunId(runId);
+      watchDraftRun(runId);
+      watchingRunIdRef.current = runId;
 
       // 已有可审核草案：成功章保留；若有失败章则用最新资料重试，不装成「又跑完一轮」
       if (
@@ -741,13 +840,10 @@ function ProjectWorkspaceLayout() {
         setAllChaptersNotice(null);
         setDraftRunId(null);
         setPersistedActiveRunId(null);
+        if (runId) unwatchDraftRun(runId);
       } else if (e instanceof ActiveDraftExistsError) {
-        setDraftRunId(e.activeRunId);
-        setPersistedActiveRunId(e.activeRunId);
-        setDraftDialogOpen(false);
+        resumeExisting = e.activeRunId;
         setOverviewError(null);
-        setAllChaptersNotice(`${e.message} 可直接继续审核未完成的草案。`);
-        setAllChaptersProgress(null);
       } else {
         const message = normalizeGenerateError(e);
         setDraftDialogError(message);
@@ -760,8 +856,13 @@ function ProjectWorkspaceLayout() {
       }
     } finally {
       window.clearInterval(tick);
-      setAllChaptersBusy(false);
       setUpdatingChapterIds([]);
+      if (resumeExisting) {
+        void attachToExistingRun(resumeExisting);
+      } else {
+        if (watchingRunIdRef.current === runId) watchingRunIdRef.current = null;
+        setAllChaptersBusy(false);
+      }
     }
   };
 
@@ -771,6 +872,7 @@ function ProjectWorkspaceLayout() {
     const id = resumeRunId;
     if (!id || !project) return;
     setDraftDialogOpen(false);
+    unwatchDraftRun(id);
     navigate(`/app/projects/${project.id}/knowledge/review/${id}`);
   };
 
@@ -779,12 +881,11 @@ function ProjectWorkspaceLayout() {
     setDraftStopping(true);
     setDraftDialogError(null);
     try {
-      await discardChapterDraftRun(project.id, draftRunId, userId);
+      await stopChapterDraftRun(project.id, draftRunId, userId);
       setDraftDialogOpen(false);
-      setAllChaptersProgress(null);
-      setDraftRunId(null);
-      setPersistedActiveRunId(null);
-      setAllChaptersNotice(null);
+      setAllChaptersNotice(
+        "已停止生成。已经完成的章节仍在待审核草案里，可继续审核。",
+      );
     } catch (e) {
       setDraftDialogError(e instanceof Error ? e.message : "停止生成失败");
     } finally {
@@ -914,12 +1015,6 @@ function ProjectWorkspaceLayout() {
         stopping={draftStopping}
         onStop={() => void onStopDraft()}
       />
-      {allChaptersBusy && allChaptersProgress && !draftDialogOpen ? (
-        <DraftProgressDock
-          progress={allChaptersProgress}
-          onOpen={() => setDraftDialogOpen(true)}
-        />
-      ) : null}
     </WorkspaceShell>
   );
 }
@@ -1022,7 +1117,8 @@ function ProjectCollabTab() {
 export default function WorkspaceRoutes() {
   return (
     <div className="workspace-app min-h-screen bg-[hsl(var(--linen))] text-foreground antialiased">
-      <Routes>
+      <DraftProgressUiProvider>
+        <Routes>
         <Route path="login" element={<Login />} />
         <Route element={<RequireAuth />}>
           <Route index element={<Navigate to="/app/home" replace />} />
@@ -1124,6 +1220,7 @@ export default function WorkspaceRoutes() {
           />
         </Route>
       </Routes>
+      </DraftProgressUiProvider>
     </div>
   );
 }

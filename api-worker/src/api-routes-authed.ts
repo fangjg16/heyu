@@ -55,6 +55,7 @@ import {
   handlePublishChapterDraftRun,
   handlePutChapterDraftSection,
   handleReviseChapterDraftSection,
+  handleStopChapterDraftRun,
   handleRollbackKnowledgeChapterVersion,
   handleSubmitChapterDraftRun,
 } from "./project-knowledge-chapter-draft-routes";
@@ -398,6 +399,18 @@ export async function routeAuthedApi(
     const projectId = decodePathProjectId(parts[3] ?? "");
     const runId = parts[5] ?? "";
     return handleDiscardChapterDraftRun(env, projectId, runId, authUserId);
+  }
+
+  if (
+    /^\/api\/projects\/[^/]+\/chapter-draft-runs\/[^/]+\/stop$/u.test(
+      path,
+    ) &&
+    request.method === "POST"
+  ) {
+    const parts = path.split("/");
+    const projectId = decodePathProjectId(parts[3] ?? "");
+    const runId = parts[5] ?? "";
+    return handleStopChapterDraftRun(env, projectId, runId, authUserId);
   }
 
   if (/^\/api\/projects\/[^/]+\/chapter-draft-runs\/active$/u.test(path)) {

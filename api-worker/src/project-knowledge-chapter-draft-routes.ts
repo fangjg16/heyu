@@ -50,6 +50,7 @@ import {
   type DraftRegenMode,
 } from "./draft-reuse";
 import { knSectionsToRerenderFromFiles } from "./kn-rerender-from-files";
+import { stoppedDraftItemStatus } from "./draft-stop";
 import { listProjectKnowledgeChapterHtml } from "./project-knowledge-chapters-db";
 import {
   createDraftRun,
@@ -762,15 +763,16 @@ export async function handleCreateChapterDraftRun(
       }
       if (regen === "from-files") {
         if (active.status === "generating") {
-          return json(
-            {
-              error: "当前草案还在生成，请完成后再重新排版",
-              code: "STILL_GENERATING",
-              activeRunId: active.id,
-              activeScope: active.scope,
-            },
-            409,
-          );
+          const knIds = knSectionsToRerenderFromFiles(analysisKind);
+          return json({
+            ok: true,
+            reused: true,
+            rerenderFromFiles: true,
+            alreadyGenerating: true,
+            run: active,
+            items: mapRunItems(items),
+            sectionIds: knIds.length > 0 ? knIds : knPrimaryIds(primaryIds),
+          });
         }
         return startRerenderFromFiles(env, ctx, {
           projectId,
@@ -867,10 +869,13 @@ export async function handleCreateChapterDraftRun(
   }
 
   if (regen === "from-files") {
-    return json(
-      { error: "没有待审核草案，无法只重新排版", code: "NO_ACTIVE_DRAFT" },
-      400,
-    );
+    return startRerenderFromFiles(env, ctx, {
+      projectId,
+      userId,
+      analysisKind,
+      active: null,
+      items: [],
+    });
   }
 
   const run = await createDraftRun(env.DB, {
@@ -1587,6 +1592,52 @@ export async function handleDiscardChapterDraftRun(
 
   await setDraftRunStatus(env.DB, runId, "discarded");
   return json({ ok: true, runId, status: "discarded" });
+}
+
+/** POST .../chapter-draft-runs/:runId/stop — 停掉未完成的章，保留已有草案 */
+export async function handleStopChapterDraftRun(
+  env: Env,
+  projectId: string,
+  runId: string,
+  userIdRaw: string | null,
+): Promise<Response> {
+  const userId = normalizeUserId(userIdRaw);
+  if (!userId) return json({ error: "缺少 userId" }, 400);
+
+  const project = await getProjectById(env, projectId);
+  if (!project) return json({ error: "项目不存在" }, 404);
+
+  const denied = await assertCanWrite(
+    env,
+    userId,
+    projectId,
+    project.createdBy,
+  );
+  if (denied) return denied;
+
+  const run = await getDraftRun(env.DB, runId);
+  if (!run || run.projectId !== projectId) {
+    return json({ error: "草案 run 不存在" }, 404);
+  }
+  if (run.status === "published" || run.status === "discarded") {
+    return json({ error: "该草案已结束，无法停止", code: "RUN_CLOSED" }, 409);
+  }
+
+  const items = await listDraftItems(env.DB, runId);
+  for (const item of items) {
+    const next = stoppedDraftItemStatus(item);
+    if (!next) continue;
+    await upsertDraftItem(env.DB, {
+      runId,
+      sectionId: item.sectionId,
+      status: next.status,
+      html: item.html ?? null,
+      error: next.error,
+      llmBackend: item.llmBackend ?? null,
+    });
+  }
+  const latest = await refreshDraftRunProgress(env.DB, runId);
+  return json({ ok: true, runId, status: latest.status, run: latest });
 }
 
 /** POST .../chapter-draft-runs/:runId/submit — Core 提交给项目管理员审批 */

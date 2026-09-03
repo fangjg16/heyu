@@ -20,4 +20,8 @@ describe("rerender knowledge chapters from files", () => {
     expect(ids).toContain("industry-competition");
     expect(ids).toContain("investment-conclusion");
   });
+
+  it("returns enough research chapters to rebuild a draft from files", () => {
+    expect(knSectionsToRerenderFromFiles("early").length).toBeGreaterThan(8);
+  });
 });

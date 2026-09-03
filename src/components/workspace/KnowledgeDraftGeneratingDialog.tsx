@@ -79,7 +79,7 @@ function runningBody(opts: {
     return `正在生成「${opts.chapterName}」。可先离开，之后再点「查看进度」。完成后在审核页查看。`;
   }
   if (opts.regen === "from-files") {
-    return "正在按现有分析重新排版。英文部分会译成中文，可能需要几分钟。可先离开，之后再点「查看进度」。";
+    return "正在按现有分析重新排版，不改资料包原文。可先离开，之后再点「查看进度」。";
   }
   if (opts.regen === "unpublished") {
     return "正在更新尚未发布的章节，可能需要较长时间。已发布的内容不会改。可先离开，之后再点「查看进度」。";
@@ -109,7 +109,7 @@ function finishedBody(opts: {
       : "章节生成失败。可关闭后重试。";
   }
   if (regen === "from-files") {
-    return "已按现有分析重新排版，可以去审核。英文会译成中文显示，原文未改。";
+    return "已按现有分析重新排版，可以去审核。原文未改。";
   }
   if (reused) {
     return mode === "section"
@@ -251,6 +251,7 @@ export function KnowledgeDraftGeneratingDialog({
                 type="button"
                 onClick={onStop}
                 disabled={stopping || !runId}
+                title="停止后会保留已经完成的章节，不会丢掉整份草案"
                 className="inline-flex h-10 items-center rounded-[11px] border border-[rgba(160,99,88,0.28)] bg-transparent px-4 text-[13.5px] font-medium text-[#A06358] hover:bg-[rgba(160,99,88,0.06)] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 {stopping ? "正在停止…" : "停止生成"}
@@ -278,17 +279,20 @@ export function KnowledgeDraftGeneratingDialog({
   );
 }
 
-/** 关掉进度窗后停在页面右下角，点开可继续看同一条进度 */
+/** 关掉进度窗后停在页面右下角，点开可继续看同一条进度；离开项目后由全局小窗接手 */
 export function DraftProgressDock({
   progress,
   onOpen,
+  projectName,
 }: {
   progress: DraftGeneratingProgress;
   onOpen: () => void;
+  projectName?: string;
 }) {
   const done = progress.done ?? 0;
   const total = progress.total || 1;
   const pct = Math.min(100, Math.round((done / total) * 100));
+  const finished = progress.phase === "done";
   return (
     <button
       type="button"
@@ -296,17 +300,23 @@ export function DraftProgressDock({
       className="fixed bottom-5 right-5 z-[90] w-[min(calc(100%-2rem),280px)] rounded-[14px] border border-[rgba(78,66,57,0.14)] bg-[hsl(var(--paper))] px-4 py-3 text-left shadow-xl hover:border-[rgba(160,99,88,0.35)]"
     >
       <div className="flex items-center justify-between gap-2 text-[12.5px]">
-        <span className="font-semibold text-[#A06358]">查看进度</span>
+        <span className="font-semibold text-[#A06358]">
+          {finished ? "草案已就绪" : "查看进度"}
+        </span>
         <span className="text-[#59625F]">
           {done}/{total}
         </span>
       </div>
-      {progress.lastLabel ? (
+      {projectName ? (
+        <p className="mt-1 truncate text-[12px] text-[#1F2423]">{projectName}</p>
+      ) : progress.lastLabel ? (
         <p className="mt-1 truncate text-[12px] text-[#1F2423]">
           {progress.lastLabel}
         </p>
       ) : (
-        <p className="mt-1 text-[12px] text-[#59625F]">生成中</p>
+        <p className="mt-1 text-[12px] text-[#59625F]">
+          {finished ? "可去审核" : "生成中"}
+        </p>
       )}
       <div className="mt-2 h-1 overflow-hidden rounded-full bg-[rgba(78,66,57,0.1)]">
         <div

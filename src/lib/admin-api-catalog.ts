@@ -291,6 +291,14 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     risk: "destructive",
   },
   {
+    id: "draft-stop",
+    group: "章节草案",
+    method: "POST",
+    pathTemplate: "/api/projects/:projectId/chapter-draft-runs/:runId/stop",
+    summary: "停止生成（保留已完成章节）",
+    risk: "write",
+  },
+  {
     id: "chat",
     group: "对话",
     method: "POST",
