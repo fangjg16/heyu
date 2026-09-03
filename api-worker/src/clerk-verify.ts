@@ -32,9 +32,21 @@ function authorizedParties(env: ClerkEnv): string[] {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  const origin = (env.ALLOWED_ORIGIN ?? "").trim();
-  const extra = origin ? [origin] : [];
-  return [...new Set([...fromEnv, ...extra, "http://localhost:5173", "http://127.0.0.1:5173"])];
+  const fromOrigin = (env.ALLOWED_ORIGIN ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return [
+    ...new Set([
+      ...fromEnv,
+      ...fromOrigin,
+      "https://heyu.hk",
+      "https://www.heyu.hk",
+      "https://fangjg16.github.io",
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+    ]),
+  ];
 }
 
 function issuerFromEnv(env: ClerkEnv): string | null {
