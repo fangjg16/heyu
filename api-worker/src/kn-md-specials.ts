@@ -2004,9 +2004,7 @@ export function renderSpecialLead(md: string, fileId?: string): string {
       : "",
   );
   add(
-    id === "market-analysis" || /Planning TAM|总市场|可服务市场/iu.test(md)
-      ? renderMarketStatsLead(md)
-      : "",
+    id === "market-analysis" ? renderMarketStatsLead(md) : "",
   );
   add(
     id === "cost-structure" || /Runway|月消耗|跑道/iu.test(md)

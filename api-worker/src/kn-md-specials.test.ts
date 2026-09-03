@@ -502,6 +502,21 @@ BOM 待补。
         "market-analysis",
       ),
     ).toContain("kn-stats");
+    const page = markdownToKnHtml(
+      `# 市场分析
+
+## 总市场
+
+约 80 亿元。
+
+## 可服务市场
+
+约 12 亿元。
+`,
+      "market-analysis",
+    );
+    expect(page.indexOf("kn-doc-title")).toBeGreaterThan(-1);
+    expect(page.indexOf("kn-doc-title")).toBeLessThan(page.indexOf("kn-stats"));
   });
 
   it("counts Chinese MoSCoW headings", () => {

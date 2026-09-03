@@ -734,17 +734,8 @@ export function markdownToKnHtml(md: string, fileId?: string): string {
   if (!lead && !inner) return EMPTY_CHAPTER_HTML;
   let body = inner;
   if (lead) {
-    if (/class="kn-dochead"/u.test(inner) && /kn-doc-title/u.test(inner)) {
-      const placed = inner.replace(
-        /(<header class="kn-dochead">)([\s\S]*?)(<h2 class="kn-doc-title">)/u,
-        `$1$2${lead}$3`,
-      );
-      body = placed === inner
-        ? inner.replace(
-            /(<h2 class="kn-doc-title">[\s\S]*?<\/h2>)/u,
-            `$1${lead}`,
-          )
-        : placed;
+    if (/<header class="kn-dochead">/u.test(inner)) {
+      body = inner.replace(/<\/header>/u, `</header>\n${lead}`);
     } else {
       body = `${lead}${inner}`;
     }

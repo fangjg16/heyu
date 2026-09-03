@@ -150,6 +150,29 @@ describe("markdownToKnHtml", () => {
     expect(html).not.toContain("<hr");
   });
 
+  it("does not hoist market sizing above the exec-summary title", () => {
+    const html = markdownToKnHtml(
+      `# 合域家族办公室 AI 项目投研与协作平台
+
+**Verdict:** CONDITIONAL — 6.0/10
+
+## 执行摘要
+
+正文一段。
+
+| 层级 | 规模 | 来源 |
+| --- | --- | --- |
+| 总市场 | 待补 | 无数据 |
+| 可服务市场 | 待补 | 无数据 |
+| 可获得份额 | 待补 | 无数据 |
+`,
+      "readme",
+    );
+    expect(html).toContain("kn-doc-title");
+    expect(html).not.toContain("kn-stats");
+    expect(html.indexOf("kn-doc-title")).toBeLessThan(html.indexOf("执行摘要"));
+  });
+
   it("pairs strongest evidence with weakest links as a split", () => {
     const html = markdownToKnHtml(`# 记分卡
 
