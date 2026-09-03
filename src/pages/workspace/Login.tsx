@@ -4,6 +4,7 @@ import { getToken, useAuth, useSignIn, useSignUp } from "@clerk/react";
 import { LoginParticleCanvas } from "@/components/login/LoginParticleCanvas";
 import {
   fetchWorkspaceUsersDirectory,
+  isAuthApiError,
   loginWithClerkToken,
   loginWithPassword,
 } from "@/lib/api-auth";
@@ -154,6 +155,10 @@ async function clerkStartReset(
 }
 
 function isLocalLoginHardStop(err: unknown): boolean {
+  if (isAuthApiError(err)) {
+    if (err.code === "USER_DISABLED") return true;
+    if (err.code === "INVALID_PASSWORD" && !err.canFallbackToClerk) return true;
+  }
   const msg = err instanceof Error ? err.message : "";
   return (
     msg.includes("未配置") ||
@@ -166,6 +171,22 @@ function localLoginErrorMessage(err: unknown): string {
   const msg = err instanceof Error ? err.message.trim() : "";
   if (msg) return clerkErrorToZh({ message: msg }, msg);
   return "账号或密码不正确，请核对后重试。";
+}
+
+function clerkFollowupLoginError(
+  localErr: unknown,
+  clerkErr: { code?: string; message?: string; longMessage?: string } | null,
+): string {
+  if (isAuthApiError(localErr) && localErr.code === "USER_NOT_FOUND") {
+    return "找不到该账号。后台新建的用户请用「登录名」登录（点编辑可看到），不是列表上的展示名。忘记密码请让管理员重置。";
+  }
+  if (isAuthApiError(localErr) && localErr.code === "INVALID_PASSWORD") {
+    return "账号或密码不正确。若这是后台新建的账号，请用登录名登录，或请管理员重置密码。";
+  }
+  return (
+    clerkErrorToZh(clerkErr, "账号或密码不正确，请核对后重试。") ||
+    "账号或密码不正确，请核对后重试。"
+  );
 }
 
 function clerkUsernameNotMatchingPassword(
@@ -241,18 +262,18 @@ function PasswordAuthForm() {
       <MobileBrand />
       <h1 className="font-display text-[28px] font-semibold">登录工作台</h1>
       <p className="mt-2 text-[13.5px] text-[hsl(var(--warm-charcoal-muted))]">
-        请输入账号与密码登录。
+        请输入登录名与密码。后台列表上的展示名不能用来登录。
       </p>
       {fromSwitch ? <SwitchNotice /> : null}
       <form onSubmit={onSubmitForm} className="mt-[30px] flex flex-col gap-3.5">
         <LabeledInput
-          label="用户名"
+          label="登录名"
           type="text"
           autoComplete="username"
           value={username}
           onChange={setUsername}
           disabled={submitting}
-          placeholder="账号或邮箱"
+          placeholder="登录名，如 maxeast"
         />
         <LabeledInput
           label="密码"
@@ -345,39 +366,35 @@ function ClerkAuthForm() {
       setError("请填写账号和密码");
       return;
     }
+    let localErr: unknown = null;
     try {
       await loginWithPassword(identifier, password);
       localStorage.setItem(REMEMBER_USER_KEY, identifier);
       await enterWorkspace();
       navigate("/app/home", { replace: true });
       return;
-    } catch (localErr) {
-      if (isLocalLoginHardStop(localErr)) {
-        setError(localLoginErrorMessage(localErr));
+    } catch (caught) {
+      localErr = caught;
+      if (isLocalLoginHardStop(caught)) {
+        setError(localLoginErrorMessage(caught));
         return;
       }
     }
-    let err: { code?: string; message?: string; longMessage?: string } | null =
+    let clerkFieldErr: { code?: string; message?: string; longMessage?: string } | null =
       null;
     try {
       const result = await signIn.password({ identifier, password });
-      err = result.error ?? null;
+      clerkFieldErr = result.error ?? null;
     } catch (clerkErr) {
       setError(
-        clerkErrorToZh(
-          {
-            message: clerkErr instanceof Error ? clerkErr.message : "",
-          },
-          "账号或密码不正确，请核对后重试。",
-        ),
+        clerkFollowupLoginError(localErr, {
+          message: clerkErr instanceof Error ? clerkErr.message : "",
+        }),
       );
       return;
     }
-    if (err) {
-      setError(
-        clerkErrorToZh(err, "账号或密码不正确，请核对后重试。") ||
-          clerkErrorToZh(signInErrors.fields.password, "账号或密码不正确，请核对后重试。"),
-      );
+    if (clerkFieldErr) {
+      setError(clerkFollowupLoginError(localErr, clerkFieldErr));
       return;
     }
     if (signIn.status === "complete") {
@@ -662,7 +679,7 @@ function ClerkAuthForm() {
           ? ""
           : mode === "forgot"
             ? "验证码将发到该账号绑定的邮箱。如收不到邮件，请联系管理员。"
-            : "请输入账号或邮箱与密码登录。";
+            : "请输入登录名或邮箱与密码。后台新建的账号请用登录名，不是列表上的展示名。";
 
   return (
     <>
@@ -721,7 +738,7 @@ function ClerkAuthForm() {
               />
             ) : null}
             <LabeledInput
-              label={mode === "signup" ? "邮箱" : "账号或邮箱"}
+              label={mode === "signup" ? "邮箱" : "登录名或邮箱"}
               type={mode === "signup" ? "email" : "text"}
               autoComplete={mode === "signup" ? "email" : "username"}
               value={mode === "signup" ? email : username || email}
@@ -730,7 +747,9 @@ function ClerkAuthForm() {
                 if (v.includes("@")) setEmail(v);
               }}
               disabled={fetching}
-              placeholder={mode === "signup" ? "name@example.com" : "账号或邮箱"}
+              placeholder={
+                mode === "signup" ? "name@example.com" : "登录名或邮箱"
+              }
             />
             {mode !== "forgot" ? (
               <LabeledInput

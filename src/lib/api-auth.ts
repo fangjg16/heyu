@@ -32,6 +32,27 @@ export type AuthUserProfile = WorkspaceUser & {
   username?: string;
 };
 
+export class AuthApiError extends Error {
+  readonly code: string;
+  readonly status: number;
+  readonly canFallbackToClerk: boolean;
+
+  constructor(
+    message: string,
+    opts: { code?: string; status: number; canFallbackToClerk?: boolean },
+  ) {
+    super(message);
+    this.name = "AuthApiError";
+    this.code = (opts.code ?? "").trim();
+    this.status = opts.status;
+    this.canFallbackToClerk = Boolean(opts.canFallbackToClerk);
+  }
+}
+
+export function isAuthApiError(err: unknown): err is AuthApiError {
+  return err instanceof AuthApiError;
+}
+
 function apiBase(): string {
   return apiBaseFromChatEndpoint(AI_CHAT_ENDPOINT);
 }
@@ -88,6 +109,8 @@ export async function loginWithPassword(
   }
   const data = (await res.json().catch(() => ({}))) as {
     error?: string;
+    code?: string;
+    canFallbackToClerk?: boolean;
     token?: string;
     user?: AuthUserProfile;
   };
@@ -97,7 +120,11 @@ export async function loginWithPassword(
         "登录服务暂不可用，请稍后重试。",
       );
     }
-    throw new Error(data.error || `登录失败（${res.status}）`);
+    throw new AuthApiError(data.error || `登录失败（${res.status}）`, {
+      code: data.code,
+      status: res.status,
+      canFallbackToClerk: data.canFallbackToClerk === true,
+    });
   }
   const user = normalizeAuthUser(data.user);
   saveSessionAuth(data.token, user.id, user);
