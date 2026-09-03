@@ -15,6 +15,12 @@ import { researchSectionIdsForKind } from "@/lib/kn-catalog";
 
 export const RESEARCH_CHAPTER_IDS = researchSectionIdsForKind("mature");
 
+const ALL_RESEARCH_CHAPTER_IDS = new Set([
+  ...researchSectionIdsForKind("mature"),
+  ...researchSectionIdsForKind("acquire"),
+  ...researchSectionIdsForKind("early"),
+]);
+
 export type ChapterVersionBump = "major" | "minor" | "patch";
 
 export type ParsedChapterVersion = {
@@ -176,7 +182,7 @@ export function formatOverviewVersionLabel(
 }
 
 export function isResearchChapterId(id: string): boolean {
-  return (RESEARCH_CHAPTER_IDS as readonly string[]).includes(id);
+  return ALL_RESEARCH_CHAPTER_IDS.has(id);
 }
 
 /** 去掉来源/名词/关系图后的主发布章节 */

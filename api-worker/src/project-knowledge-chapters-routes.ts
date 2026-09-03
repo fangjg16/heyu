@@ -78,6 +78,10 @@ import {
   canUpdateProjectKnowledgeNetwork,
 } from "./workspace-roles";
 import { syncProjectSourcesFromPublishedChapters } from "./project-knowledge-sources-sync";
+import {
+  appendDraftGlossaryFromChapter,
+  syncProjectGlossaryFromPublishedChapters,
+} from "./project-knowledge-glossary-sync";
 
 type Env = { DB: AppDatabase; FILES?: AppObjectStorage } & LlmClientEnv;
 
@@ -526,6 +530,17 @@ export async function handleGetProjectKnowledgeChapter(
           /* 回填失败仍返回已存表 */
         }
         html = linkifyCitationMarkers(ensureSourceRowAnchors(html));
+      } else if (sectionId === "glossary") {
+        try {
+          html = await syncProjectGlossaryFromPublishedChapters(
+            env.DB,
+            projectId,
+            userId,
+            html,
+          );
+        } catch {
+          /* 回填失败仍返回已存表 */
+        }
       }
     } else {
       html = polishChapterTableHtml(
@@ -543,6 +558,17 @@ export async function handleGetProjectKnowledgeChapter(
       if (html?.trim()) {
         html = linkifyCitationMarkers(ensureSourceRowAnchors(html));
       }
+    } catch {
+      /* 无表且回填失败则保持空 */
+    }
+  } else if (sectionId === "glossary") {
+    try {
+      html = await syncProjectGlossaryFromPublishedChapters(
+        env.DB,
+        projectId,
+        userId,
+        html,
+      );
     } catch {
       /* 无表且回填失败则保持空 */
     }
@@ -626,6 +652,18 @@ export async function handleGenerateProjectKnowledgeChapter(
         error: null,
         llmBackend: "render",
       });
+      try {
+        await withKnDraftMetaLock(env.DB, draftRunId, async () => {
+          await appendDraftGlossaryFromChapter(
+            env.DB,
+            draftRunId!,
+            sectionId,
+            html,
+          );
+        });
+      } catch {
+        /* 研究章已写入；名词解释抽取失败不阻断 */
+      }
       const run = await refreshDraftRunProgress(env.DB, draftRunId);
       return json({
         ok: true,
@@ -646,6 +684,11 @@ export async function handleGenerateProjectKnowledgeChapter(
       llmBackend: "render",
       updatedBy: userId,
     });
+    try {
+      await syncProjectGlossaryFromPublishedChapters(env.DB, projectId, userId);
+    } catch {
+      /* 研究章已写入；名词解释抽取失败不阻断 */
+    }
     return json({
       ok: true,
       target: "live",

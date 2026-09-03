@@ -5,6 +5,7 @@ import {
   formatChapterVersionLabel,
   formatOverviewVersionLabel,
   isOverviewOnlyPublish,
+  isResearchChapterId,
   nextChapterVersion,
   parseChapterVersion,
   researchChaptersComplete,
@@ -91,5 +92,14 @@ describe("chapter-version", () => {
       true,
     );
     expect(isOverviewOnlyPublish(["snapshot", "project-overview"])).toBe(false);
+  });
+
+  it("counts early and acquire chapters as research, not only mature ids", () => {
+    expect(isResearchChapterId("market-analysis")).toBe(true);
+    expect(isResearchChapterId("exec-summary")).toBe(true);
+    expect(isResearchChapterId("exec-verdict")).toBe(true);
+    expect(isResearchChapterId("investment-conclusion")).toBe(true);
+    expect(isResearchChapterId("glossary")).toBe(false);
+    expect(isResearchChapterId("project-overview")).toBe(false);
   });
 });

@@ -82,10 +82,10 @@ function allChaptersConfirmText(input: {
   if (input.loading) return "正在查看当前进度…";
   if (input.hasDraft) return "";
   let base =
-    "若分析已经有了，点「重新排版」即可再出一份待审核草案，不重做分析。点「开始更新」会连分析一起重跑，可能需要较长时间。";
+    "若分析已经有了，点「仅重新排版」即可再出一份待审核草案，不重做分析。点「开始更新」会连分析一起重跑，可能需要较长时间。";
   if (input.published > 0) {
     base =
-      "若分析已经有了，点「重新排版」即可再出一份待审核草案，不重做分析。点「开始更新」只会重跑尚未发布的章节；已发布的内容在你确认发布前不会改。";
+      "若分析已经有了，点「仅重新排版」即可再出一份待审核草案，不重做分析。点「开始更新」只会重跑尚未发布的章节；已发布的内容在你确认发布前不会改。";
   }
   if (input.interviewHint === "paused") {
     return `${base}访谈还没问完，先问完再更新效果更好。`;
@@ -132,7 +132,7 @@ function HasDraftConfirmCopy({
         <li>
           如果想连分析一起重做：去审核页放弃当前草案，再重新生成。
         </li>
-        <li>如果只想换版式、不改内容：点「重新排版」。</li>
+        <li>如果只想换版式、不改内容：点「仅重新排版」。</li>
       </ul>
       <p className="mt-2">
         现有分析可在
@@ -1092,7 +1092,7 @@ export function ProjectKnowledgeNetworkSection({
       </h3>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3.5">
-        <div className="inline-flex items-center gap-0.5 rounded-[10px] bg-[rgba(78,66,57,0.07)] p-0.5">
+        <div className="inline-flex max-w-full flex-wrap items-center gap-0.5 rounded-[10px] bg-[rgba(78,66,57,0.07)] p-0.5">
           {VIEW_TABS.map((t) => {
             const active = view === t.id;
             return (
@@ -1661,7 +1661,7 @@ export function ProjectKnowledgeNetworkSection({
             ) : (
               <div className="flex min-h-[200px] items-center justify-center px-8 py-12">
                 <p className="text-center text-[13px] text-[#969E9A]">
-                  尚无名词解释。更新任意研究章节时，会把本章出现的非常用术语增量写入。
+                  尚无名词解释。发布或更新研究章节后，会把正文里出现的非常用术语写入这里。
                 </p>
               </div>
             )}
@@ -2071,7 +2071,7 @@ export function ProjectKnowledgeNetworkSection({
                         }}
                         className={CONFIRM_BTN_SECONDARY}
                       >
-                        重新排版
+                        仅重新排版
                       </button>
                       <button
                         type="button"
@@ -2104,7 +2104,7 @@ export function ProjectKnowledgeNetworkSection({
                         }}
                         className={CONFIRM_BTN_SECONDARY}
                       >
-                        重新排版
+                        仅重新排版
                       </button>
                       <button
                         type="button"
@@ -2137,7 +2137,7 @@ export function ProjectKnowledgeNetworkSection({
                         }}
                         className={CONFIRM_BTN_PRIMARY}
                       >
-                        重新排版
+                        仅重新排版
                       </button>
                     </>
                   ) : (
@@ -2167,7 +2167,7 @@ export function ProjectKnowledgeNetworkSection({
                         }}
                         className={CONFIRM_BTN_PRIMARY}
                       >
-                        重新排版
+                        仅重新排版
                       </button>
                       <button
                         type="button"

@@ -10,7 +10,9 @@ import {
   shouldKeepGlossaryTerm,
   stripEvidenceSourceCellsToLinksOnly,
   extractCiteIdsFromHtml,
+  extractGlossaryEntriesFromHtml,
   mergeCitedSourcesIntoTable,
+  mergeGlossaryFromChapterHtml,
 } from "./project-knowledge-citations";
 
 describe("project-knowledge-citations", () => {
@@ -137,5 +139,26 @@ NONE
     expect(merged.html).toContain("deck.pdf");
     expect(merged.html).toContain("剧本引擎 BP");
     expect(merged.html).toContain("资料包");
+  });
+
+  it("extractGlossaryEntriesFromHtml picks defined acronyms and TAM/SAM", () => {
+    const html = `<p>市场规模用 TAM（Total Addressable Market）衡量，可服务市场对应 SAM。</p><p>总市场约 30 亿。</p>`;
+    const terms = extractGlossaryEntriesFromHtml(html).map((e) => e.term);
+    expect(terms).toContain("TAM");
+    expect(terms).toContain("SAM");
+  });
+
+  it("mergeGlossaryFromChapterHtml appends new terms without dropping existing", () => {
+    const existing = `<table><tbody>
+<tr><td>GRS</td><td>旧释义</td><td>已有</td></tr>
+</tbody></table>`;
+    const merged = mergeGlossaryFromChapterHtml({
+      existingHtml: existing,
+      chapterHtml: `<p>下一步做 MVP（Minimum Viable Product）。</p>`,
+      sectionLabel: "功能规划",
+    });
+    expect(merged).toContain("GRS");
+    expect(merged).toContain("MVP");
+    expect(merged).toContain("功能规划");
   });
 });

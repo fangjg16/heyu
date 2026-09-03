@@ -50,6 +50,7 @@ import {
   type DraftRegenMode,
 } from "./draft-reuse";
 import { knSectionsToRerenderFromFiles } from "./kn-rerender-from-files";
+import { syncProjectGlossaryFromPublishedChapters } from "./project-knowledge-glossary-sync";
 import { stoppedDraftItemStatus } from "./draft-stop";
 import { listProjectKnowledgeChapterHtml } from "./project-knowledge-chapters-db";
 import {
@@ -61,6 +62,7 @@ import {
   listActiveDraftRunsForProjects,
   listChapterVersionHtml,
   listChapterVersionMetas,
+  ensurePublishedKnowledgeHasVersionArchive,
   listDraftItems,
   listOverviewVersionMetas,
   listResearchSectionIdsForRun,
@@ -955,6 +957,7 @@ export async function handleGetActiveChapterDraftRun(
       progressTotal: active.progressTotal,
       failedCount: active.failedCount,
       createdAt: active.createdAt,
+      createdBy: active.createdBy,
       updatedAt: active.updatedAt,
       sectionIds: primaryIds,
     },
@@ -1537,6 +1540,17 @@ export async function handlePublishChapterDraftRun(
       sectionIds,
       bump,
     });
+    if (result.publishedKnowledge) {
+      try {
+        await syncProjectGlossaryFromPublishedChapters(
+          env.DB,
+          projectId,
+          userId,
+        );
+      } catch {
+        /* 正式章已发布；名词解释回填失败不阻断 */
+      }
+    }
     const bundle = await ensureChapterBundle(env.DB, projectId, userId);
     return json({
       ok: true,
@@ -1735,6 +1749,15 @@ export async function handleListKnowledgeChapterVersions(
   );
   if (denied) return denied;
 
+  try {
+    await ensurePublishedKnowledgeHasVersionArchive(
+      env.DB,
+      projectId,
+      userId,
+    );
+  } catch {
+    /* 列表仍返回现有归档 */
+  }
   const bundle = await ensureChapterBundle(env.DB, projectId, userId);
   const versions = await listChapterVersionMetas(env.DB, projectId);
   const overviewVersions = await listOverviewVersionMetas(env.DB, projectId);

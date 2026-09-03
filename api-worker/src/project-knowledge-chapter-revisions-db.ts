@@ -1063,6 +1063,47 @@ export async function listChapterVersionMetas(
   }));
 }
 
+/** 已有正式研究章但版本表是空的（历史发布漏归档）时补一版，版本记录页才看得见 */
+export async function ensurePublishedKnowledgeHasVersionArchive(
+  db: AppDatabase,
+  projectId: string,
+  userId: string,
+): Promise<void> {
+  const metas = await listChapterVersionMetas(db, projectId);
+  if (metas.length > 0) return;
+  const live = await listProjectKnowledgeChapterHtml(db, projectId);
+  const research = live.filter(
+    (ch) => isResearchChapterId(ch.sectionId) && Boolean(ch.html?.trim()),
+  );
+  if (research.length === 0) return;
+  const bundle = await ensureChapterBundle(db, projectId, userId);
+  const analysisKind =
+    (await getStoredAnalysisKind(db, projectId)) ?? DEFAULT_ANALYSIS_KIND;
+  let version = normalizeStoredChapterVersion(bundle.version);
+  const now = nowIso();
+  if (version <= 0) {
+    version = nextChapterVersion(0, {
+      allResearchComplete: researchChaptersComplete(
+        new Map(live.map((c) => [c.sectionId, c.html])),
+        analysisKind,
+      ),
+    });
+    await db
+      .prepare(
+        `UPDATE project_knowledge_chapter_bundle
+         SET version = ?, updated_at = ?, updated_by = ?
+         WHERE project_id = ?`,
+      )
+      .bind(version, now, userId, projectId)
+      .run();
+  }
+  await archiveLiveChaptersAsVersion(db, {
+    projectId,
+    version,
+    archivedBy: userId,
+  });
+}
+
 export async function listOverviewVersionMetas(
   db: AppDatabase,
   projectId: string,

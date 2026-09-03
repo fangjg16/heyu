@@ -1348,6 +1348,7 @@ export type ActiveChapterDraftInfo = {
   progressTotal: number;
   failedCount: number;
   createdAt: string;
+  createdBy?: string | null;
   updatedAt: string;
   sectionIds: string[];
 };

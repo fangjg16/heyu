@@ -348,6 +348,119 @@ export function shouldKeepGlossaryTerm(term: string): boolean {
   return false;
 }
 
+const KNOWN_GLOSSARY_DEFS: Record<string, string> = {
+  TAM: "Total Addressable Market，总潜在市场",
+  SAM: "Serviceable Addressable Market，可服务市场",
+  SOM: "Serviceable Obtainable Market，短期内可获得的市场份额",
+  MVP: "Minimum Viable Product，最小可行产品",
+  GTM: "Go-to-Market，市场进入策略",
+  ICP: "Ideal Customer Profile，理想客户画像",
+  PMF: "Product-Market Fit，产品与市场契合",
+  CAC: "Customer Acquisition Cost，获客成本",
+  LTV: "Lifetime Value，客户终身价值",
+  ARR: "Annual Recurring Revenue，年经常性收入",
+  MRR: "Monthly Recurring Revenue，月经常性收入",
+};
+
+function escapeGlossaryCell(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function rememberGlossaryEntry(
+  byKey: Map<string, { term: string; definition: string }>,
+  term: string,
+  definition: string,
+): void {
+  const t = term.trim();
+  if (!shouldKeepGlossaryTerm(t)) return;
+  const key = normalizeTermKey(t);
+  const def = definition.replace(/\s+/gu, " ").trim();
+  const prev = byKey.get(key);
+  if (!prev) {
+    byKey.set(key, { term: t, definition: def });
+    return;
+  }
+  if (def && def.length > prev.definition.length) {
+    byKey.set(key, { term: prev.term, definition: def });
+  }
+}
+
+/** 从已渲章节 HTML 抽出非常用术语（括号/冒号释义，以及 TAM/SAM 等常见研究缩写） */
+export function extractGlossaryEntriesFromHtml(
+  html: string,
+): { term: string; definition: string }[] {
+  if (!html?.trim()) return [];
+  const text = stripTags(html);
+  const byKey = new Map<string, { term: string; definition: string }>();
+
+  for (const m of html.matchAll(
+    /\b([A-Za-z][A-Za-z0-9]{1,14}(?:[-/][A-Za-z0-9]+)*)\s*[（(]([^）)]{2,120})[）)]/gu,
+  )) {
+    rememberGlossaryEntry(byKey, m[1] ?? "", m[2] ?? "");
+  }
+  for (const m of text.matchAll(
+    /\b([A-Za-z][A-Za-z0-9]{1,14}(?:[-/][A-Za-z0-9]+)*)\s*[：:]\s*([^\n。；;]{2,80})/gu,
+  )) {
+    rememberGlossaryEntry(byKey, m[1] ?? "", m[2] ?? "");
+  }
+  for (const m of html.matchAll(
+    /<(?:strong|b)[^>]*>\s*([A-Za-z][A-Za-z0-9]{1,14}(?:[-/][A-Za-z0-9]+)*)\s*<\/(?:strong|b)>\s*[：:（(]?\s*([^<]{2,80})/giu,
+  )) {
+    rememberGlossaryEntry(
+      byKey,
+      m[1] ?? "",
+      (m[2] ?? "").replace(/[）)]$/u, ""),
+    );
+  }
+
+  for (const [term, def] of Object.entries(KNOWN_GLOSSARY_DEFS)) {
+    const hit =
+      new RegExp(`\\b${term}\\b`, "iu").test(text) ||
+      (term === "TAM" && /总潜在市场|总市场/.test(text)) ||
+      (term === "SAM" && /可服务市场/.test(text)) ||
+      (term === "SOM" && /可获得份额|可获得市场/.test(text)) ||
+      (term === "MVP" && /最小可行产品/.test(text));
+    if (hit) rememberGlossaryEntry(byKey, term, def);
+  }
+
+  return [...byKey.values()].filter((e) => e.definition);
+}
+
+export function glossaryAddHtmlFromEntries(
+  entries: { term: string; definition: string; relevance?: string }[],
+): string {
+  if (entries.length === 0) return "";
+  const rows = entries.map(
+    (e) =>
+      `<tr><td>${escapeGlossaryCell(e.term)}</td><td>${escapeGlossaryCell(e.definition)}</td><td>${escapeGlossaryCell(e.relevance ?? "")}</td></tr>`,
+  );
+  return `<table><tbody>\n${rows.join("\n")}\n</tbody></table>`;
+}
+
+export function mergeGlossaryFromChapterHtml(params: {
+  existingHtml: string | null | undefined;
+  chapterHtml: string;
+  sectionLabel: string;
+}): string {
+  const entries = extractGlossaryEntriesFromHtml(params.chapterHtml).map(
+    (e) => ({
+      ...e,
+      relevance: params.sectionLabel,
+    }),
+  );
+  if (entries.length === 0) {
+    return (params.existingHtml ?? "").trim();
+  }
+  return mergeGlossaryAppend({
+    existingHtml: params.existingHtml,
+    addHtml: glossaryAddHtmlFromEntries(entries),
+  });
+}
+
 function ensureSourcesTableShell(html: string | null | undefined): string {
   const table = html?.trim() ? extractFirstTable(html) : null;
   if (table && /<tbody\b/iu.test(table)) {

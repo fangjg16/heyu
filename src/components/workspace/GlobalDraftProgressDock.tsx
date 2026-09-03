@@ -27,10 +27,14 @@ function toProgress(item: MyChapterDraftRunItem) {
   };
 }
 
-function pickDockItem(items: MyChapterDraftRunItem[]): MyChapterDraftRunItem | null {
-  const generating = items.filter((i) => i.status === "generating");
+function pickDockItem(
+  items: MyChapterDraftRunItem[],
+  userId: string,
+): MyChapterDraftRunItem | null {
+  const mine = items.filter((i) => i.createdBy === userId);
+  const generating = mine.filter((i) => i.status === "generating");
   for (const row of generating) watchDraftRun(row.runId);
-  const readyWatched = items.filter(
+  const readyWatched = mine.filter(
     (i) => i.status === "ready" && isWatchedDraftRun(i.runId),
   );
   const pool = [...generating, ...readyWatched];
@@ -54,7 +58,7 @@ export function GlobalDraftProgressDock() {
       try {
         const rows = await listMyChapterDraftRuns(userId);
         if (cancelled) return;
-        setItem(pickDockItem(rows));
+        setItem(pickDockItem(rows, userId));
       } catch {
         if (!cancelled) setItem(null);
       }

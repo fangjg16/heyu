@@ -35,6 +35,7 @@ import {
   createChapterDraftRun,
   ENABLE_LIVE_CHAT,
   fetchActiveChapterDraftRun,
+  fetchChapterDraftRun,
   fetchProjectsFromApi,
   stopChapterDraftRun,
   summarizeDraftRunProgress,
@@ -56,7 +57,7 @@ import {
 import type { WorkspaceProject } from "@/workspace/projects";
 import { formatChapterVersionLabel, formatOverviewVersionLabel } from "@/lib/chapter-version";
 import { resolveAnalysisKind } from "@/lib/analysis-kind";
-import { fullDraftSectionIds, isDeliverableDraftId } from "@/lib/kn-catalog";
+import { fullDraftSectionIds, isDeliverableDraftId, sectionLabel } from "@/lib/kn-catalog";
 import {
   canEnterChat,
   getProjectRole,
@@ -305,7 +306,12 @@ function ProjectWorkspaceLayout() {
         if (active?.runId) {
           setPersistedActiveRunId(active.runId);
           setDraftRunId((cur) => cur ?? active.runId);
-          if (active.status === "generating") watchDraftRun(active.runId);
+          if (
+            active.status === "generating" &&
+            (!active.createdBy || active.createdBy === userId)
+          ) {
+            watchDraftRun(active.runId);
+          }
         } else {
           setPersistedActiveRunId(null);
         }
@@ -364,41 +370,85 @@ function ProjectWorkspaceLayout() {
       if (!projectId || !userId || !runId) return;
       setDraftRunId(runId);
       setPersistedActiveRunId(runId);
-      setDraftDialogMode("full");
       setDraftDialogOpen(true);
       setDraftDialogError(null);
       watchDraftRun(runId);
       if (watchingRunIdRef.current === runId) return;
       watchingRunIdRef.current = runId;
       setAllChaptersBusy(true);
-      const startedAt = Date.now();
+      const openedAt = Date.now();
+      let origin = openedAt;
+      const tick = window.setInterval(() => {
+        setAllChaptersProgress((prev) =>
+          prev && prev.phase !== "done"
+            ? { ...prev, elapsedMs: Date.now() - origin }
+            : prev,
+        );
+      }, 1000);
       try {
+        const first = await fetchChapterDraftRun(projectId, runId, userId);
+        origin = Date.parse(first.run.createdAt);
+        if (!Number.isFinite(origin)) origin = openedAt;
+        const ids = researchDraftSectionIds(
+          first.items.map((i) => i.sectionId),
+        );
+        const trackIds =
+          ids.length > 0 ? ids : first.items.map((i) => i.sectionId);
+        const overviewOnly =
+          trackIds.length === 1 && trackIds[0] === "project-overview";
+        setDraftDialogMode(
+          first.run.scope === "section" || overviewOnly ? "section" : "full",
+        );
+        setDraftSectionLabel(
+          overviewOnly
+            ? "项目概览"
+            : trackIds.length === 1
+              ? sectionLabel(trackIds[0]!)
+              : "",
+        );
+        const firstSummary = summarizeDraftRunProgress(first.items, trackIds);
+        setAllChaptersProgress({
+          done: firstSummary.done,
+          total: firstSummary.total || 1,
+          failed: firstSummary.failed,
+          lastLabel: firstSummary.lastLabel,
+          elapsedMs: Date.now() - origin,
+          phase: firstSummary.settled ? "done" : "generating",
+          failedDetails: firstSummary.failedDetails,
+        });
+        if (firstSummary.settled) {
+          if (firstSummary.failed === 0) {
+            setAllChaptersNotice("更新草案已就绪，可进入审核。");
+          }
+          return;
+        }
         const snap = await waitForDraftRunSettled(projectId, runId, userId, {
+          sectionIds: trackIds,
           onProgress: (summary) => {
             setAllChaptersProgress({
               done: summary.done,
               total: summary.total,
               failed: summary.failed,
               lastLabel: summary.lastLabel,
-              elapsedMs: Date.now() - startedAt,
+              elapsedMs: Date.now() - origin,
               phase: summary.settled ? "done" : "generating",
               failedDetails: summary.failedDetails,
             });
           },
         });
-        const ids = researchDraftSectionIds(
-          snap.items.map((i) => i.sectionId),
-        );
         const summary = summarizeDraftRunProgress(
           snap.items,
-          ids.length > 0 ? ids : snap.items.map((i) => i.sectionId),
+          researchDraftSectionIds(snap.items.map((i) => i.sectionId)).length >
+            0
+            ? researchDraftSectionIds(snap.items.map((i) => i.sectionId))
+            : snap.items.map((i) => i.sectionId),
         );
         setAllChaptersProgress({
           done: summary.done,
           total: summary.total || 1,
           failed: summary.failed,
           lastLabel: summary.lastLabel,
-          elapsedMs: Date.now() - startedAt,
+          elapsedMs: Date.now() - origin,
           phase: "done",
           failedDetails: summary.failedDetails,
         });
@@ -418,6 +468,7 @@ function ProjectWorkspaceLayout() {
           );
         }
       } finally {
+        window.clearInterval(tick);
         if (watchingRunIdRef.current === runId) watchingRunIdRef.current = null;
         setAllChaptersBusy(false);
       }
@@ -532,7 +583,7 @@ function ProjectWorkspaceLayout() {
 
   const onUpdateOverview = async () => {
     if (!canUpdateOverview || overviewBusy || allChaptersBusy) return;
-    const startedAt = Date.now();
+    let startedAt = Date.now();
     const label = "项目概览";
     setOverviewBusy(true);
     setOverviewError(null);
@@ -564,6 +615,8 @@ function ProjectWorkspaceLayout() {
         scope: "section",
         sectionId: "project-overview",
       });
+      const createdMs = Date.parse(created.run.createdAt);
+      if (Number.isFinite(createdMs)) startedAt = createdMs;
       const runId = created.run.id;
       setDraftRunId(runId);
 
@@ -697,7 +750,7 @@ function ProjectWorkspaceLayout() {
 
   const onUpdateAllChapters = async (regen?: ChapterDraftRegenMode) => {
     if (!canUpdateOverview || allChaptersBusy || overviewBusy) return;
-    const startedAt = Date.now();
+    let startedAt = Date.now();
     setAllChaptersBusy(true);
     setUpdatingChapterIds([]);
     setOverviewError(null);
@@ -732,6 +785,8 @@ function ProjectWorkspaceLayout() {
         regen,
       });
       runId = created.run.id;
+      const createdMs = Date.parse(created.run.createdAt);
+      if (Number.isFinite(createdMs)) startedAt = createdMs;
       setDraftRunId(runId);
       watchDraftRun(runId);
       watchingRunIdRef.current = runId;
