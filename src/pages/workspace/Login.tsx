@@ -178,10 +178,10 @@ function clerkFollowupLoginError(
   clerkErr: { code?: string; message?: string; longMessage?: string } | null,
 ): string {
   if (isAuthApiError(localErr) && localErr.code === "USER_NOT_FOUND") {
-    return "找不到该账号。后台新建的用户请用「登录名」登录（点编辑可看到），不是列表上的展示名。忘记密码请让管理员重置。";
+    return clerkErrorToZh(clerkErr, "账号或密码不正确，请核对后重试。");
   }
   if (isAuthApiError(localErr) && localErr.code === "INVALID_PASSWORD") {
-    return "账号或密码不正确。若这是后台新建的账号，请用登录名登录，或请管理员重置密码。";
+    return localLoginErrorMessage(localErr);
   }
   return (
     clerkErrorToZh(clerkErr, "账号或密码不正确，请核对后重试。") ||
@@ -262,18 +262,18 @@ function PasswordAuthForm() {
       <MobileBrand />
       <h1 className="font-display text-[28px] font-semibold">登录工作台</h1>
       <p className="mt-2 text-[13.5px] text-[hsl(var(--warm-charcoal-muted))]">
-        请输入登录名与密码。后台列表上的展示名不能用来登录。
+        请输入账号与密码登录。
       </p>
       {fromSwitch ? <SwitchNotice /> : null}
       <form onSubmit={onSubmitForm} className="mt-[30px] flex flex-col gap-3.5">
         <LabeledInput
-          label="登录名"
+          label="用户名"
           type="text"
           autoComplete="username"
           value={username}
           onChange={setUsername}
           disabled={submitting}
-          placeholder="登录名，如 maxeast"
+          placeholder="账号或邮箱"
         />
         <LabeledInput
           label="密码"
@@ -679,7 +679,7 @@ function ClerkAuthForm() {
           ? ""
           : mode === "forgot"
             ? "验证码将发到该账号绑定的邮箱。如收不到邮件，请联系管理员。"
-            : "请输入登录名或邮箱与密码。后台新建的账号请用登录名，不是列表上的展示名。";
+            : "请输入账号或邮箱与密码登录。";
 
   return (
     <>
@@ -738,7 +738,7 @@ function ClerkAuthForm() {
               />
             ) : null}
             <LabeledInput
-              label={mode === "signup" ? "邮箱" : "登录名或邮箱"}
+              label={mode === "signup" ? "邮箱" : "账号或邮箱"}
               type={mode === "signup" ? "email" : "text"}
               autoComplete={mode === "signup" ? "email" : "username"}
               value={mode === "signup" ? email : username || email}
@@ -747,9 +747,7 @@ function ClerkAuthForm() {
                 if (v.includes("@")) setEmail(v);
               }}
               disabled={fetching}
-              placeholder={
-                mode === "signup" ? "name@example.com" : "登录名或邮箱"
-              }
+              placeholder={mode === "signup" ? "name@example.com" : "账号或邮箱"}
             />
             {mode !== "forgot" ? (
               <LabeledInput

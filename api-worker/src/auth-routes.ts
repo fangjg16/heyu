@@ -63,8 +63,7 @@ export async function handleAuthLogin(
   if (!userId) {
     return json(
       {
-        error:
-          "账号不存在。请使用管理员后台里的「登录名」登录，不是列表上的展示名。",
+        error: "账号或密码不正确",
         code: "USER_NOT_FOUND",
         canFallbackToClerk: true,
       },
@@ -76,8 +75,7 @@ export async function handleAuthLogin(
   if (!user) {
     return json(
       {
-        error:
-          "账号不存在。请使用管理员后台里的「登录名」登录，不是列表上的展示名。",
+        error: "账号或密码不正确",
         code: "USER_NOT_FOUND",
         canFallbackToClerk: true,
       },
@@ -105,9 +103,7 @@ export async function handleAuthLogin(
     const clerkLinked = Boolean((user.clerk_user_id ?? "").trim());
     return json(
       {
-        error: clerkLinked
-          ? "账号或密码不正确，请核对后重试。"
-          : "密码不正确。可请平台管理员在用户管理中重置密码。",
+        error: "账号或密码不正确，请核对后重试。",
         code: "INVALID_PASSWORD",
         canFallbackToClerk: clerkLinked,
       },
