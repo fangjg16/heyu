@@ -18,7 +18,7 @@ import {
 import {
   getWorkspaceUserById,
   listActiveWorkspaceUsers,
-  resolveUserIdByUsername,
+  resolveUserIdForLogin,
   rowToPublic,
   updateWorkspaceUser,
   upsertWorkspaceUserFromClerk,
@@ -59,14 +59,40 @@ export async function handleAuthLogin(
     return json({ error: "请填写账号和密码" }, 400);
   }
 
-  const userId = await resolveUserIdByUsername(env, username);
+  const userId = await resolveUserIdForLogin(env, username);
   if (!userId) {
-    return json({ error: "账号或密码不正确" }, 401);
+    return json(
+      {
+        error:
+          "账号不存在。请使用管理员后台里的「登录名」登录，不是列表上的展示名。",
+        code: "USER_NOT_FOUND",
+        canFallbackToClerk: true,
+      },
+      401,
+    );
   }
 
   const user = await getWorkspaceUserById(env, userId);
-  if (!user || coerceAccountStatus(user.status) !== "active") {
-    return json({ error: "账号或密码不正确" }, 401);
+  if (!user) {
+    return json(
+      {
+        error:
+          "账号不存在。请使用管理员后台里的「登录名」登录，不是列表上的展示名。",
+        code: "USER_NOT_FOUND",
+        canFallbackToClerk: true,
+      },
+      401,
+    );
+  }
+  if (coerceAccountStatus(user.status) !== "active") {
+    return json(
+      {
+        error: "账号已停用，请联系平台管理员。",
+        code: "USER_DISABLED",
+        canFallbackToClerk: false,
+      },
+      403,
+    );
   }
 
   const ok = await verifyPassword(
@@ -76,7 +102,17 @@ export async function handleAuthLogin(
     user.password_iters || 120_000,
   );
   if (!ok) {
-    return json({ error: "账号或密码不正确" }, 401);
+    const clerkLinked = Boolean((user.clerk_user_id ?? "").trim());
+    return json(
+      {
+        error: clerkLinked
+          ? "账号或密码不正确，请核对后重试。"
+          : "密码不正确。可请平台管理员在用户管理中重置密码。",
+        code: "INVALID_PASSWORD",
+        canFallbackToClerk: clerkLinked,
+      },
+      401,
+    );
   }
 
   const token = await createAuthSession(env, user.id);

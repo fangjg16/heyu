@@ -124,6 +124,41 @@ export async function resolveUserIdByUsername(
   return row?.id ?? null;
 }
 
+/** 展示名登录比对：trim + 小写（保留空格，与登录名归一化不同） */
+export function normalizeDisplayNameKey(raw: string): string {
+  return raw.trim().toLowerCase();
+}
+
+export function uniqueRowId(
+  rows: Array<{ id?: string | null } | null | undefined>,
+): string | null {
+  const ids = rows
+    .map((row) => (row?.id ?? "").trim())
+    .filter(Boolean);
+  return ids.length === 1 ? ids[0]! : null;
+}
+
+/**
+ * 登录解析：先匹配登录名，再在展示名唯一时回退。
+ * 列表上的 JaniceHi / Narrative Forge 是展示名，对方常会拿它当账号。
+ */
+export async function resolveUserIdForLogin(
+  env: Env,
+  identifier: string,
+): Promise<string | null> {
+  const byUsername = await resolveUserIdByUsername(env, identifier);
+  if (byUsername) return byUsername;
+
+  const displayKey = normalizeDisplayNameKey(identifier);
+  if (!displayKey) return null;
+  const { results } = await env.DB.prepare(
+    `SELECT id FROM workspace_users WHERE LOWER(TRIM(display_name)) = ? LIMIT 2`,
+  )
+    .bind(displayKey)
+    .all<{ id: string }>();
+  return uniqueRowId(results ?? []);
+}
+
 /** @deprecated 使用 resolveUserIdByUsername */
 export async function resolveUserIdByLoginAlias(
   env: Env,

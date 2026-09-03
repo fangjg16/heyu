@@ -70,6 +70,11 @@ const emptyForm = (): FormState => ({
   password: "",
 });
 
+/** 与 api-worker `normalizeUsername` 一致：trim + 小写 + 去空白 */
+function normalizeLoginName(raw: string): string {
+  return raw.trim().toLowerCase().replace(/\s+/gu, "");
+}
+
 type AdminUsersSectionProps = {
   selfUserId: string;
 };
@@ -104,6 +109,8 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
       a.localeCompare(b, "zh"),
     );
   }, [users]);
+
+  const loginNamePreview = normalizeLoginName(form.username);
 
   useBodyScrollLock(editorOpen || Boolean(pwdUser));
 
@@ -249,7 +256,7 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
     setHint(null);
     try {
       if (editing) {
-        await patchAdminWorkspaceUser(editing.id, {
+        const saved = await patchAdminWorkspaceUser(editing.id, {
           username: form.username,
           displayName: form.displayName,
           orgTitle: stripOrgRoleLabel(form.orgTitle),
@@ -260,17 +267,19 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
           await syncProjectMemberships(editing.id);
         }
         setHint(
-          "用户已更新。对方需刷新或重新打开项目总览后，角色才会更新。",
+          `用户已更新。对方请用登录名「${saved.username}」登录（不是展示名）。角色变更需刷新或重新打开项目总览后生效。`,
         );
       } else {
-        await createAdminWorkspaceUser({
+        const created = await createAdminWorkspaceUser({
           username: form.username,
           password: form.password,
           displayName: form.displayName,
           orgTitle: stripOrgRoleLabel(form.orgTitle),
           isPlatformAdmin: form.isPlatformAdmin,
         });
-        setHint("用户已创建");
+        setHint(
+          `用户已创建。请把登录名「${created.username}」和初始密码发给对方；列表上的展示名不能用来登录。`,
+        );
       }
       setEditorOpen(false);
       await load();
@@ -344,7 +353,9 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
       await setAdminWorkspaceUserPassword(pwdUser.id, pwdValue);
       setPwdUser(null);
       setPwdValue("");
-      setHint(`已重置 ${pwdUser.displayName} 的密码`);
+      setHint(
+        `已重置 ${pwdUser.displayName} 的密码。对方请用登录名「${pwdUser.username}」和新密码登录。`,
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -395,6 +406,9 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
           新建用户
         </button>
       </div>
+      <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+        登录请用每行下面的登录名。展示名只用于显示，改展示名不会改变登录账号。
+      </p>
 
       {loading ? (
         <p className="mt-4 flex items-center gap-2 text-[11px] text-muted-foreground">
@@ -438,6 +452,9 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
                           当前
                         </span>
                       ) : null}
+                    </p>
+                    <p className="truncate text-[11px] text-muted-foreground">
+                      登录名 {u.username || "—"}
                     </p>
                   </div>
                 </div>
@@ -546,6 +563,16 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
                       }
                       autoComplete="off"
                     />
+                    {loginNamePreview ? (
+                      <span className="mt-1 block text-[10px] font-normal leading-relaxed text-muted-foreground">
+                        对方用这个登录，与展示名可以不同。空格会去掉并转为小写，保存为「
+                        {loginNamePreview}」。
+                      </span>
+                    ) : (
+                      <span className="mt-1 block text-[10px] font-normal leading-relaxed text-muted-foreground">
+                        对方用这个登录，与展示名可以不同。空格会去掉并转为小写。
+                      </span>
+                    )}
                   </label>
                   <label className="block text-[11px] font-medium text-muted-foreground">
                     展示名
@@ -556,6 +583,9 @@ export function AdminUsersSection({ selfUserId }: AdminUsersSectionProps) {
                         setForm((f) => ({ ...f, displayName: e.target.value }))
                       }
                     />
+                    <span className="mt-1 block text-[10px] font-normal leading-relaxed text-muted-foreground">
+                      仅用于界面显示，不能用来登录。若要改对方用来登录的账号，请同时改登录名。
+                    </span>
                   </label>
                   <label className="block text-[11px] font-medium text-muted-foreground">
                     隶属组织
