@@ -35,7 +35,7 @@ canonicalHint: exec-summary
 </table>
 </div>
 
-<h3>红黄旗</h3>
+<h3 class="kn-md-sec">红黄旗</h3>
 <div class="kn-flags">
   <div class="kn-flag kn-flag--red">待补</div>
   <div class="kn-flag kn-flag--amber">待补</div>

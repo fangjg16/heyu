@@ -40,14 +40,30 @@
   color: hsl(var(--warm-charcoal));
 }
 
-.kn-chapter-html h4,
-.kn-project-overview-html h4 {
-  margin: 1.35rem 0 0.4rem;
+.kn-chapter-html h2.kn-md-sec,
+.kn-chapter-html h3.kn-md-sec,
+.kn-project-overview-html h2.kn-md-sec,
+.kn-project-overview-html h3.kn-md-sec {
+  margin: 2.6rem 0 1.05rem;
   font-family: inherit;
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.2em;
   line-height: 1.45;
-  letter-spacing: 0.01em;
+  text-align: center;
+  color: hsl(var(--wine));
+}
+
+.kn-chapter-html h3.kn-md-topic,
+.kn-chapter-html h4.kn-md-topic,
+.kn-project-overview-html h3.kn-md-topic,
+.kn-project-overview-html h4.kn-md-topic {
+  margin: 1.55rem 0 0.45rem;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  line-height: 1.45;
   color: hsl(var(--ink-soft));
 }
 
@@ -1067,12 +1083,126 @@
   .kn-kanban__board {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .kn-risk-pair {
+    grid-template-columns: 1.4rem minmax(0, 1fr);
+  }
+  .kn-risk-card--fix {
+    grid-column: 2;
+  }
 }
 
 .kn-risks {
   display: grid;
-  gap: 12px;
-  margin: 0.85rem 0 1.35rem;
+  gap: 14px;
+  margin: 0.85rem 0 1.55rem;
+}
+
+.kn-risk-pair {
+  display: grid;
+  grid-template-columns: 1.6rem minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: stretch;
+}
+
+.kn-risk-pair__n {
+  font-family: "Noto Serif SC", serif;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: hsl(var(--wine));
+  padding-top: 0.65rem;
+}
+
+.kn-risk-card {
+  min-width: 0;
+  padding: 0.9rem 1rem 1rem;
+  border-radius: 14px;
+}
+
+.kn-risk-card__k {
+  margin: 0 0 0.4rem;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.kn-risk-card h3 {
+  margin: 0 0 0.4rem;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.kn-chapter-html .kn-risk-card h3,
+.kn-project-overview-html .kn-risk-card h3 {
+  margin: 0 0 0.4rem;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-align: left;
+  color: inherit;
+}
+
+.kn-risk-card p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+
+.kn-risk-card--risk {
+  background: hsl(var(--wine-muted) / 0.72);
+  color: hsl(var(--warm-charcoal));
+}
+
+.kn-risk-card--risk .kn-risk-card__k,
+.kn-risk-card--risk h3 {
+  color: hsl(var(--wine));
+}
+
+.kn-risk-card--fix {
+  background: hsl(var(--sage) / 0.14);
+  color: hsl(var(--warm-charcoal));
+}
+
+.kn-risk-card--fix .kn-risk-card__k {
+  color: hsl(var(--sage));
+}
+
+.kn-pitfalls {
+  margin: 0.35rem 0 1.35rem;
+  padding: 0;
+  list-style: none;
+  counter-reset: kn-pitfall;
+}
+
+.kn-pitfalls > li {
+  counter-increment: kn-pitfall;
+  position: relative;
+  margin: 0 0 0.65rem;
+  padding: 0.85rem 1rem 0.9rem 2.6rem;
+  border-radius: 12px;
+  background: hsl(var(--linen) / 0.65);
+  font-size: 14px;
+  line-height: 1.7;
+  color: hsl(var(--warm-charcoal));
+}
+
+.kn-pitfalls > li::before {
+  content: counter(kn-pitfall);
+  position: absolute;
+  left: 0.9rem;
+  top: 0.95rem;
+  font-size: 12px;
+  font-weight: 700;
+  color: hsl(var(--wine));
+}
+
+.kn-table-wrap .kn-badge {
+  white-space: normal;
+  max-width: 12rem;
+  line-height: 1.4;
 }
 
 .kn-risk {
@@ -1416,8 +1546,9 @@
 }
 
 .kn-dochead .kn-hero {
-  margin: 0.15rem 0 1.15rem;
-  padding: 0.35rem 0 1.05rem;
+  margin: 0.15rem 0 0.15rem;
+  padding: 0.35rem 0 0.2rem;
+  border-bottom: 0;
 }
 
 .kn-dochead .kn-hero__label {
@@ -2454,6 +2585,7 @@
 .kn-from-md > .kn-kanban,
 .kn-from-md > .kn-jmap,
 .kn-from-md > .kn-risks,
+.kn-from-md > .kn-pitfalls,
 .kn-from-md > .kn-pricelist {
   margin-top: 0.35rem;
 }

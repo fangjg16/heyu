@@ -49,8 +49,8 @@ describe("markdownToKnHtml", () => {
 - 6/10 不是基本验证通过
 `);
     expect(html).toContain("kn-dochead");
-    expect(html).toContain("kn-dochead__byline");
-    expect(html).toContain("验证");
+    expect(html).not.toContain("kn-dochead__byline");
+    expect(html).toContain("把握中等");
     expect(html).not.toContain("kn-score-sum");
     expect(html).toContain("判断");
     expect(html).toContain("有条件继续");
@@ -129,9 +129,9 @@ describe("markdownToKnHtml", () => {
 `);
     expect(html).toContain("kn-dochead");
     expect(html).toContain("kn-doc-title");
-    expect(html).toContain("kn-dochead__byline");
-    expect(html).toContain("终稿");
-    expect(html).toContain("2026-09-01");
+    expect(html).not.toContain("kn-dochead__byline");
+    expect(html).not.toContain("终稿");
+    expect(html).not.toContain("2026-09-01");
     expect(html).toContain("kn-hero");
     expect(html).toContain("kn-hero__den");
     expect(html).toContain("有条件继续");
@@ -191,8 +191,7 @@ describe("markdownToKnHtml", () => {
 **总体威胁: High.** 公开产品面已挤。
 `);
     expect(html).toContain("kn-dochead");
-    expect(html).toContain("kn-dochead__byline");
-    expect(html).toContain("市场研究综合");
+    expect(html).not.toContain("kn-dochead__byline");
     expect(html).not.toContain("jfo-ai-investment-platform");
     expect(html).toContain("kn-md-section");
     expect(html).toContain("kn-md-h");
@@ -349,7 +348,7 @@ PwC 2024。
 正文。
 `);
     expect(html).toContain("kn-dochead");
-    expect(html).toContain("2026-09-01");
+    expect(html).not.toContain("2026-09-01");
     expect(html).toContain("USD");
     expect(html).toContain("把握偏低");
     expect(html).not.toContain("jfo-ai-investment-platform");
@@ -568,6 +567,118 @@ PwC 2024。
     expect(html).toContain("kn-md-sources");
     expect(html).toContain("Methodology");
     expect(html).toContain("口径怎么算");
+  });
+
+  it("centers section titles and keeps Research as a quieter topic", () => {
+    const html = markdownToKnHtml(`# 合域
+
+## 执行摘要
+
+一段话。
+
+## 要点
+
+### Research
+
+- 市场还空着
+`);
+    expect(html).toContain("kn-md-sec");
+    expect(html).toContain("执行摘要");
+    expect(html).toContain("kn-md-topic");
+    expect(html).toContain("研究");
+    expect(html).not.toContain(">Research<");
+  });
+
+  it("renders risks as side-by-side cards and drops the raw numbered list", () => {
+    const html = markdownToKnHtml(`# 合域
+
+## 三大风险与对策
+
+### 1. 外部行为不发生
+
+家办只收 PDF，对公定位就不成立。
+
+**对策:** 先做 5 场独立访谈。
+
+### 2. 成功费不成立
+
+三单不够覆盖人工。
+
+**对策:** 连续三单先写进合同。
+`);
+    expect(html).toContain("kn-risk-pair");
+    expect(html).toContain("kn-risk-card--risk");
+    expect(html).toContain("kn-risk-card--fix");
+    expect(html).toContain("外部行为不发生");
+    expect(html).toContain("5 场独立访谈");
+    expect(html).not.toContain("kn-md-h__t");
+  });
+
+  it("badges Medium-High and long confidence phrases", () => {
+    const html = markdownToKnHtml(`# 可靠度摘要
+
+| Area | Confidence | What is known |
+| --- | --- | --- |
+| 内部问题 | Medium-High | 痛点真实 |
+| Legal/compliance | Medium that risk exists | 还没做尽调 |
+| Market context | Low | 外部未访 |
+`);
+    expect(html).toContain("kn-badge--mid");
+    expect(html).toContain("kn-badge--low");
+    expect(html).toContain("把握中高");
+    expect(html).toContain("中等（风险存在）");
+    expect(html).toContain("法律合规");
+    expect(html).toContain("市场环境");
+  });
+
+  it("drops English anti-pattern names instead of turning them into task chips", () => {
+    const html = markdownToKnHtml(`# 合域
+
+## Anti-patterns detected
+
+1. **Boiling the ocean.** 先锁一个真实项目，不要一次铺完全部架构。
+2. **Building in stealth.** 需要独立客户访谈。
+`);
+    expect(html).toContain("kn-pitfalls");
+    expect(html).toContain("先锁一个真实项目");
+    expect(html).not.toContain("Boiling the ocean");
+    expect(html).not.toContain("kn-task__who");
+  });
+
+  it("hides nested document-index file paths", () => {
+    const html = markdownToKnHtml(`# Startup Design README
+
+正文一段。
+
+## Document index
+
+### Control
+
+- [\`00-control/PROGRESS.md\`](https://example.com/PROGRESS.md)
+
+### Strategy
+
+- [\`02-strategy/lean-canvas.md\`](https://example.com/lean-canvas.md)
+`);
+    expect(html).toContain("正文一段");
+    expect(html).not.toContain("PROGRESS.md");
+    expect(html).not.toContain("lean-canvas.md");
+    expect(html).not.toContain("00-control");
+    expect(html).not.toContain("Document index");
+    expect(html).not.toContain("[](");
+  });
+
+  it("drops leftover markdown file links even without a Document index heading", () => {
+    const html = markdownToKnHtml(`# 合域
+
+## Strategy
+
+- [\`02-strategy/lean-canvas.md\`](https://example.com/lean-canvas.md)
+- 修改前版本归档
+`);
+    expect(html).toContain("修改前版本归档");
+    expect(html).not.toContain("lean-canvas.md");
+    expect(html).not.toContain("02-strategy");
   });
 });
 

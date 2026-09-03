@@ -888,7 +888,9 @@ BOM 待补。
 
 **对策:** 连续三单先写进合同。
 `);
-    expect(html).toContain("kn-risks");
+    expect(html).toContain("kn-risk-pair");
+    expect(html).toContain("kn-risk-card--risk");
+    expect(html).toContain("kn-risk-card--fix");
     expect(html).toContain("外部行为不发生");
     expect(html).toContain("对策");
     expect(html).toContain("5 场独立访谈");

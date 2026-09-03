@@ -1735,33 +1735,133 @@ export function renderNetworkScaleLead(md: string): string {
   return `<div class="kn-pyramid"><p class="kn-chart__cap">活跃机构</p><ol>${nodes.join("")}</ol></div>`;
 }
 
-export function renderTopRisksLead(md: string): string {
-  const matches = [
-    ...md.matchAll(/^(\d+)[.)]\s+\*\*([^*]+)\*\*\s*$/gmu),
-  ];
-  if (matches.length < 2) return "";
-  const cards = matches.slice(0, 4).map((m, i) => {
-    const start = (m.index ?? 0) + m[0].length;
-    const end = i + 1 < matches.length ? (matches[i + 1]!.index ?? md.length) : md.length;
-    const chunk = md.slice(start, end);
-    const fixM =
-      /\*\*(?:对策|Mitigation)[:：]?\*\*\s*([\s\S]+?)(?=\n{2,}\d+[.)]|\n#{1,6}\s|$)/iu.exec(
-        chunk,
-      ) ?? /(?:对策|Mitigation)[:：]\s*([\s\S]+)/iu.exec(chunk);
-    const body = clip(
-      chunk
-        .replace(/\*\*(?:对策|Mitigation)[:：]?\*\*[\s\S]*$/iu, "")
-        .replace(/(?:^|\n)\*?\*?(?:对策|Mitigation)[:：][\s\S]*$/iu, "")
-        .trim(),
-      160,
-    );
-    const fix = clip((fixM?.[1] ?? "").trim(), 140);
-    return `<article class="kn-risk"><div class="kn-risk__n">${escapeHtml(m[1] ?? "")}</div><div class="kn-risk__body"><h3>${escapeHtml(localizeKnText(m[2] ?? ""))}</h3>${body ? `<p>${escapeHtml(localizeKnText(body))}</p>` : ""}${fix ? `<p class="kn-risk__fix"><span>对策</span>${escapeHtml(localizeKnText(fix))}</p>` : ""}</div></article>`;
-  });
-  if (cards.filter((c) => c.includes("kn-risk__fix")).length < 2 && cards.length < 3) {
-    return "";
+const ANTI_PATTERN_LEAD =
+  /^(?:Boiling the ocean|Building in stealth|Premature scaling|Solution looking(?: for a problem)?|Ignoring unit economics)\s*[.。:：—–-]?\s*/iu;
+
+function extractMdSection(md: string, titleRe: RegExp): string {
+  const lines = md.replace(/^\uFEFF/, "").split(/\r?\n/u);
+  for (let i = 0; i < lines.length; i += 1) {
+    const h = /^(#{1,6})\s+(.+)$/u.exec((lines[i] ?? "").trim());
+    if (!h || !titleRe.test(h[2]!.trim())) continue;
+    const rank = h[1]!.length;
+    const body: string[] = [];
+    for (let j = i + 1; j < lines.length; j += 1) {
+      const n = /^(#{1,6})\s+(.+)$/u.exec((lines[j] ?? "").trim());
+      if (n && n[1]!.length <= rank && !/^\d+[.)]/.test(n[2]!.trim())) break;
+      body.push(lines[j] ?? "");
+    }
+    return body.join("\n");
   }
+  return md;
+}
+
+function splitFixChunk(chunk: string): { body: string; fix: string } {
+  const fixM =
+    /\*\*(?:对策|Mitigation)[:：]?\*\*\s*([\s\S]+?)(?=\n{2,}\d+[.)]|\n#{1,6}\s|$)/iu.exec(
+      chunk,
+    ) ?? /(?:对策|Mitigation)[:：]\s*([\s\S]+)/iu.exec(chunk);
+  const body = chunk
+    .replace(/\*\*(?:对策|Mitigation)[:：]?\*\*[\s\S]*$/iu, "")
+    .replace(/(?:^|\n)\*?\*?(?:对策|Mitigation)[:：][\s\S]*$/iu, "")
+    .trim();
+  return {
+    body: clip(body, 220),
+    fix: clip((fixM?.[1] ?? "").trim(), 200),
+  };
+}
+
+type RiskItem = { n: string; title: string; body: string; fix: string };
+
+function parseRiskItems(block: string): RiskItem[] {
+  const headingHits = [...block.matchAll(/^#{2,4}\s+(\d+)[.)]\s+(.+)$/gmu)];
+  const listHits = [
+    ...block.matchAll(/^(\d+)[.)]\s+(?:\*\*([^*]+)\*\*|([^\n*].*?))\s*$/gmu),
+  ];
+  const hits =
+    headingHits.length >= 2
+      ? headingHits
+      : listHits.filter((m) => {
+          const title = (m[2] ?? m[3] ?? "").trim();
+          return title.length > 0 && title.length < 80;
+        });
+  if (hits.length < 2) return [];
+  return hits.slice(0, 4).map((m, i) => {
+    const start = (m.index ?? 0) + m[0].length;
+    const end =
+      i + 1 < hits.length ? (hits[i + 1]!.index ?? block.length) : block.length;
+    const { body, fix } = splitFixChunk(block.slice(start, end));
+    const title = stripInlineMd((m[2] ?? m[3] ?? "").trim());
+    return { n: m[1] ?? String(i + 1), title, body, fix };
+  });
+}
+
+export function riskCardsHtml(block: string): string {
+  const items = parseRiskItems(block).filter((it) => it.title);
+  if (items.length < 2) return "";
+  if (items.filter((it) => it.fix).length < 2 && items.length < 3) return "";
+  const cards = items.map((it) => {
+    const title = escapeHtml(localizeKnText(it.title));
+    const body = it.body
+      ? `<p>${escapeHtml(localizeKnText(it.body))}</p>`
+      : "";
+    const fix = it.fix
+      ? `<p>${escapeHtml(localizeKnText(it.fix))}</p>`
+      : "<p>待补</p>";
+    return `<article class="kn-risk-pair"><div class="kn-risk-pair__n">${escapeHtml(it.n)}</div><div class="kn-risk-card kn-risk-card--risk"><p class="kn-risk-card__k">风险</p><h3>${title}</h3>${body}</div><div class="kn-risk-card kn-risk-card--fix"><p class="kn-risk-card__k">对策</p>${fix}</div></article>`;
+  });
   return `<div class="kn-risks">${cards.join("")}</div>`;
+}
+
+export function renderTopRisksLead(md: string): string {
+  const scoped = extractMdSection(
+    md,
+    /三大风险|Top three risks|风险与对策/iu,
+  );
+  return riskCardsHtml(scoped) || riskCardsHtml(md);
+}
+
+const ANTI_NAMES =
+  /Boiling the ocean|Building in stealth|Premature scaling|Solution looking(?: for a problem)?|Ignoring unit economics/iu;
+
+export function stripAntiPatternName(s: string): string {
+  return s
+    .replace(/^\*\*([^*]+)\*\*[.。:：—–-]*\s*/u, (_all, name: string) =>
+      ANTI_NAMES.test(name) ? "" : _all,
+    )
+    .replace(ANTI_PATTERN_LEAD, "")
+    .trim();
+}
+
+export function antiPatternListHtml(block: string): string {
+  const items: string[] = [];
+  const hits = [...block.matchAll(/^(\d+)[.)]\s+(.+)$/gmu)];
+  if (hits.length >= 2) {
+    for (let i = 0; i < hits.length; i += 1) {
+      const start = (hits[i]!.index ?? 0) + hits[i]![0].length;
+      const end =
+        i + 1 < hits.length
+          ? (hits[i + 1]!.index ?? block.length)
+          : block.length;
+      const head = stripAntiPatternName(stripInlineMd(hits[i]![2] ?? ""));
+      const rest = stripAntiPatternName(
+        stripInlineMd(block.slice(start, end)),
+      );
+      const text = [head, rest].filter(Boolean).join(" ").trim();
+      if (text && /[\u4e00-\u9fff]/.test(text)) items.push(text);
+    }
+  }
+  if (items.length < 2) return "";
+  return `<ol class="kn-pitfalls">${items
+    .slice(0, 8)
+    .map((t) => `<li>${escapeHtml(localizeKnText(t))}</li>`)
+    .join("")}</ol>`;
+}
+
+export function renderAntiPatternsLead(md: string): string {
+  if (!/常见误区|Anti-patterns?/iu.test(md)) return "";
+  return antiPatternListHtml(
+    extractMdSection(md, /常见误区|Anti-patterns?/iu),
+  );
 }
 
 const FILE_LEADS: Record<string, Array<(md: string) => string>> = {
@@ -1929,11 +2029,6 @@ export function renderSpecialLead(md: string, fileId?: string): string {
     id === "confidence-dashboard" ||
       /Highest confidence|Critical unknown|最高把握|关键未知/iu.test(md)
       ? renderCoverageLead(md)
-      : "",
-  );
-  add(
-    /^\d+[.)]\s+\*\*[^*]+\*\*/mu.test(md) && /对策|Mitigation/iu.test(md)
-      ? renderTopRisksLead(md)
       : "",
   );
   add(
