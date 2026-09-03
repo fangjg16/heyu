@@ -96,13 +96,22 @@ function tableHtml(rows: string[]): string {
     return null;
   };
   const confI = head.findIndex((h) => /把握|confidence/iu.test(h));
+  const basisI = head.findIndex((h) =>
+    /依据|rationale|basis|evidence|说明/iu.test(h),
+  );
   const cellHtml = (c: string, ci: number) => {
-    const tone = badgeTone(c) ?? (ci === confI && c.trim() ? "mid" : null);
-    const shown =
-      ci === confI ? inline(tidyConfidence(c.replace(/\*/gu, "").trim())) : inline(c);
-    if (/^待补/u.test(c.replace(/\*/gu, "").trim())) {
-      return `<span class="kn-pending">${shown}</span>`;
+    const plain = c.replace(/\*/gu, "").trim();
+    if (/^待补/u.test(plain)) {
+      return `<span class="kn-pending">${inline(c)}</span>`;
     }
+    if (ci === basisI) return basisCellHtml(c);
+    const isShort =
+      plain.length <= 32 && !/[。]/.test(plain) && !/\.\s/u.test(plain);
+    if (ci === confI && plain) {
+      return `<span class="kn-badge kn-badge--${badgeTone(c) ?? "mid"}">${inline(tidyConfidence(plain))}</span>`;
+    }
+    const tone = isShort ? badgeTone(c) : null;
+    const shown = inline(c);
     if (!tone) return shown;
     return `<span class="kn-badge kn-badge--${tone}">${shown}</span>`;
   };
@@ -181,9 +190,35 @@ const DOC_META_KEY =
 const COVER_SKIP_KEY =
   /^(mitigation|category|overall threat|对策|应对)$/iu;
 
+function parseConfLead(line: string): {
+  kind: "section" | "overall";
+  value: string;
+  note: string;
+} | null {
+  const t = line.trim();
+  const m =
+    /^(?:\*\*)?(Section\s+confidence|Overall\s+confidence|本节把握|总体把握|综合把握)[:：]\s*(?:\*\*\s*)?(.+)$/iu.exec(
+      t,
+    );
+  if (!m) return null;
+  const kind = /overall|总体|综合把握/iu.test(m[1]!) ? "overall" : "section";
+  const rest = m[2]!.replace(/\*\*/gu, "").trim();
+  const grade =
+    /^(medium(?:[- –—]?(?:low|high))?|low(?:[- –—]?medium)?|high)[.。]?\s*(.*)$/iu.exec(
+      rest,
+    ) ?? /^(把握[^\s.。；]+|[中高低](?:等|偏[高低])?)[.。]?\s*(.*)$/u.exec(rest);
+  if (grade) {
+    return {
+      kind,
+      value: grade[1]!.replace(/[.。]$/u, ""),
+      note: (grade[2] ?? "").trim(),
+    };
+  }
+  return { kind, value: rest, note: "" };
+}
+
 function isSectionConfLine(line: string): boolean {
-  const m = parseMetaLine(line);
-  return Boolean(m && /^section\s+confidence$|^本节把握$/iu.test(m.key));
+  return parseConfLead(line) != null;
 }
 
 function isDocMetaLine(line: string): boolean {
@@ -343,16 +378,67 @@ function confBadgeTone(value: string): "high" | "mid" | "low" {
   return "mid";
 }
 
-function sectionConfHtml(value: string): string {
-  const localized = localizeKnText(tidyConfidence(value)).replace(/[。.]\s*$/u, "");
-  const tone = confBadgeTone(value);
+function confBarHtml(lead: {
+  kind: "section" | "overall";
+  value: string;
+  note?: string;
+}): string {
+  const label = lead.kind === "overall" ? "总体把握" : "本节把握";
+  const tone = confBadgeTone(lead.value);
+  const localized = localizeKnText(tidyConfidence(lead.value)).replace(
+    /[。.]\s*$/u,
+    "",
+  );
   const m = /^(把握[^\s.。；]+)[.。；]?\s*(.*)$/u.exec(localized.trim());
   const badge = (m?.[1] ?? localized).trim();
-  const note = (m?.[2] ?? "").trim();
+  const note = [m?.[2]?.trim() ?? "", lead.note ?? ""].filter(Boolean).join(" ");
   const noteHtml = note
     ? `<span class="kn-section-conf__note">${inline(note)}</span>`
     : "";
-  return `<p class="kn-section-conf"><span class="kn-section-conf__k">本节把握</span><span class="kn-badge kn-badge--${tone}">${inline(badge)}</span>${noteHtml}</p>`;
+  return `<p class="kn-section-conf kn-section-conf--${lead.kind}"><span class="kn-section-conf__k">${label}</span><span class="kn-badge kn-badge--${tone}">${inline(badge)}</span>${noteHtml}</p>`;
+}
+
+function sectionConfHtml(value: string): string {
+  return confBarHtml({ kind: "section", value, note: "" });
+}
+
+function splitLeadingTags(c: string): { tags: string[]; rest: string } {
+  const tags: string[] = [];
+  let rest = c.trim();
+  while (true) {
+    const m = /^(?:\*\*)?\[([^\]]+)\](?:\*\*)?\s*/u.exec(rest);
+    if (!m) break;
+    tags.push(m[1]!);
+    rest = rest.slice(m[0].length);
+  }
+  return { tags, rest };
+}
+
+function basisCellHtml(c: string): string {
+  const { tags, rest } = splitLeadingTags(c);
+  const tagHtml = tags
+    .map((label) => {
+      const kind = tagKind(label);
+      if (!kind && /confidence|把握偏低|把握中等|把握较高/iu.test(label)) {
+        const tone = confBadgeTone(label);
+        const text = /low/iu.test(label)
+          ? "把握偏低"
+          : tidyConfidence(localizeKnText(label));
+        return `<span class="kn-badge kn-badge--${tone}">${escapeHtml(text)}</span>`;
+      }
+      const extra = kind ? ` kn-md-tag--${kind}` : "";
+      return `<span class="kn-md-tag${extra}">${escapeHtml(localizeTagLabel(label))}</span>`;
+    })
+    .join("");
+  const bits = rest.split(/[；;]\s*(?=\S)/u).filter(Boolean);
+  const text =
+    bits.length > 1
+      ? bits.map((p) => `<p>${inline(p)}</p>`).join("")
+      : rest
+        ? `<p>${inline(rest)}</p>`
+        : "";
+  if (!tagHtml && bits.length <= 1) return inline(c);
+  return `<div class="kn-basis">${tagHtml ? `<div class="kn-basis__tags">${tagHtml}</div>` : ""}${text}</div>`;
 }
 
 function isNumberedSectionTitle(title: string): boolean {
@@ -1202,11 +1288,13 @@ function markdownToKnHtmlInner(src: string): string {
       while (i < lines.length && !(lines[i] ?? "").trim()) i += 1;
       const peek = (lines[i] ?? "").trim();
       const heading = `${open}${parts.inner}</${tag}>`;
-      if (isSectionConfLine(peek)) {
+      const conf = parseConfLead(peek);
+      if (conf) {
         out.push(
-          `<div class="kn-md-headrow">${heading}${sectionConfHtml(parseMetaLine(peek)!.value)}</div>`,
+          `<div class="kn-md-headrow">${heading}${confBarHtml({ kind: conf.kind, value: conf.value })}</div>`,
         );
         i += 1;
+        if (conf.note) out.push(`<p>${inline(conf.note)}</p>`);
       } else {
         out.push(heading);
       }
@@ -1230,11 +1318,13 @@ function markdownToKnHtmlInner(src: string): string {
       continue;
     }
 
-    if (isSectionConfLine(trimmed)) {
+    const confLine = parseConfLead(trimmed);
+    if (confLine) {
       flushPara();
       flushList();
-      out.push(sectionConfHtml(parseMetaLine(trimmed)!.value));
+      out.push(confBarHtml({ kind: confLine.kind, value: confLine.value }));
       i += 1;
+      if (confLine.note) out.push(`<p>${inline(confLine.note)}</p>`);
       continue;
     }
 
@@ -1399,8 +1489,16 @@ function markdownToKnHtmlInner(src: string): string {
         quote.push((lines[i] ?? "").trim().replace(/^>\s?/u, ""));
         i += 1;
       }
+      const q = quote.map((s) => s.trim()).filter(Boolean);
+      const conf = parseConfLead(q[0] ?? "");
+      if (conf) {
+        const note = [conf.note, ...q.slice(1)].filter(Boolean).join(" ");
+        out.push(confBarHtml({ kind: conf.kind, value: conf.value }));
+        if (note) out.push(`<p>${inline(note)}</p>`);
+        continue;
+      }
       out.push(
-        `<blockquote class="kn-callout"><p class="kn-callout__body">${inline(quote.join(" "))}</p></blockquote>`,
+        `<blockquote class="kn-callout"><p class="kn-callout__body">${inline(q.join(" "))}</p></blockquote>`,
       );
       continue;
     }

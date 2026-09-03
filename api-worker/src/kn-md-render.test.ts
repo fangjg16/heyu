@@ -367,6 +367,42 @@ PwC 2024。
     expect(html).not.toContain("<strong>Section confidence");
   });
 
+  it("turns 本节把握 / 总体把握 prefixes into badges even when a sentence follows", () => {
+    const html = markdownToKnHtml(`# 研究结论
+
+**总体把握: Medium** 综合把握中等；外部需求和收入把握偏低。
+
+## 1.总览
+
+**本节把握: Medium.** “问题存在”的证据强于“本产品可商业化”的证据。
+`);
+    expect(html).toContain("kn-section-conf--overall");
+    expect(html).toContain("总体把握");
+    expect(html).toContain("kn-md-headrow");
+    expect(html).toContain("本节把握");
+    expect(html).toContain("kn-badge");
+    expect(html).toContain("把握中等");
+    expect(html).not.toContain("<strong>本节把握");
+    expect(html).not.toContain("<strong>总体把握");
+    expect(html).toContain("问题存在");
+  });
+
+  it("does not wrap a long 依据 cell in a badge just because it mentions 把握偏低", () => {
+    const html = markdownToKnHtml(`# 记分卡
+
+| 维度 | 分数 | 依据 |
+| --- | --- | --- |
+| 市场规模 | 5 | [Estimate] [low confidence] 远期总市场约 US$2.4m，尚不足以支持大平台叙事。 |
+| 创始人与市场匹配 | 7 | 团队有真实项目入口；能邀请至少 5 位参与验证。 |
+`);
+    expect(html).toContain("kn-basis");
+    expect(html).toContain("kn-basis__tags");
+    expect(html).toContain("<p>远期总市场");
+    expect(html).toContain("kn-badge--low");
+    expect(html).not.toMatch(/kn-badge--low">[^<]*远期总市场/u);
+    expect(html).toContain("能邀请至少 5 位");
+  });
+
   it("does not let Financial Model Stage hide the date on the cover", () => {
     const html = markdownToKnHtml(`# 财务测算
 
