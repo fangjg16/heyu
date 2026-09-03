@@ -324,8 +324,8 @@ function ClerkAuthForm() {
     }
     const remembered = localStorage.getItem(REMEMBER_USER_KEY);
     if (remembered) {
+      setUsername(remembered);
       if (remembered.includes("@")) setEmail(remembered);
-      else setUsername(remembered);
     }
   }, [navigate]);
 
@@ -736,11 +736,15 @@ function ClerkAuthForm() {
               label={mode === "signup" ? "邮箱" : "账号或邮箱"}
               type={mode === "signup" ? "email" : "text"}
               autoComplete={mode === "signup" ? "email" : "username"}
-              value={mode === "signup" ? email : username || email}
-              onChange={mode === "signup" ? setEmail : (v) => {
-                setUsername(v);
-                if (v.includes("@")) setEmail(v);
-              }}
+              value={mode === "signup" ? email : username}
+              onChange={
+                mode === "signup"
+                  ? setEmail
+                  : (v) => {
+                      setUsername(v);
+                      setEmail(v.includes("@") ? v : "");
+                    }
+              }
               disabled={fetching}
               placeholder={mode === "signup" ? "name@example.com" : "账号或邮箱"}
             />
@@ -969,6 +973,7 @@ function LabeledInput({
         autoComplete={autoComplete}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onInput={(e) => onChange(e.currentTarget.value)}
         disabled={disabled}
         className={fieldClass}
         placeholder={placeholder}
