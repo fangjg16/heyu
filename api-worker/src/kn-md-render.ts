@@ -984,41 +984,36 @@ function hoistNonGateCover(md: string): string {
 
 function mergeLeadIntoInner(inner: string, lead: string): string {
   if (!lead) return inner;
-  const headerRe = /(<header class="kn-dochead">)([\s\S]*?)(<\/header>)/u;
-  const header = headerRe.exec(inner);
+  const headerRe = /<header class="kn-dochead">[\s\S]*?<\/header>/u;
+  const found = headerRe.exec(inner);
   const hero = takeDivByClass(lead, "kn-hero");
-  if (header) {
-    let headInner = header[2] ?? "";
-    let leadRest = lead;
-    if (hero) {
-      leadRest = hero.rest;
-      if (!/kn-hero/u.test(headInner)) {
-        const titleEnd = /<\/h2>/u.exec(headInner);
-        if (titleEnd) {
-          const at = titleEnd.index + titleEnd[0].length;
-          headInner = `${headInner.slice(0, at)}${hero.block}${headInner.slice(at)}`;
-        } else {
-          headInner += hero.block;
-        }
-      }
-    }
-    const merged = inner.replace(headerRe, `${header[1]}${headInner}${header[3]}`);
-    const restLead = leadRest.trim();
-    return restLead
-      ? merged.replace(/<\/header>/u, `</header>\n${restLead}`)
-      : merged;
+  let leadRest = lead;
+  let head = found?.[0] ?? "";
+  if (found) {
+    inner =
+      `${inner.slice(0, found.index)}${inner.slice(found.index + found[0].length)}`.trim();
   }
   if (hero) {
-    const heading = /^(<(?:h[1-6])\b[^>]*>[\s\S]*?<\/h[1-6]>)/u.exec(
-      inner.trim(),
-    );
-    if (heading) {
-      const restInner = inner.trim().slice(heading[0].length);
-      const restLead = hero.rest.trim();
-      return `<header class="kn-dochead">${heading[0]}${hero.block}</header>\n${restLead}${restInner}`;
+    leadRest = hero.rest;
+    if (head && !/kn-hero/u.test(head)) {
+      const titleEnd = /<\/h2>/u.exec(head);
+      if (titleEnd) {
+        const at = titleEnd.index + titleEnd[0].length;
+        head = `${head.slice(0, at)}${hero.block}${head.slice(at)}`;
+      } else {
+        head = head.replace(/<\/header>/u, `${hero.block}</header>`);
+      }
+    } else if (!head) {
+      const heading = /^(<(?:h[1-6])\b[^>]*>[\s\S]*?<\/h[1-6]>)/u.exec(
+        inner.trim(),
+      );
+      if (heading) {
+        head = `<header class="kn-dochead">${heading[0]}${hero.block}</header>`;
+        inner = inner.trim().slice(heading[0].length).trim();
+      }
     }
   }
-  return `${lead}${inner}`;
+  return [head, leadRest.trim(), inner].filter(Boolean).join("\n");
 }
 
 function firstCoverHeadingTitle(md: string): string {
@@ -1035,7 +1030,7 @@ function fileKickerHtml(title: string, markdown: string): string {
   const h1 = firstCoverHeadingTitle(markdown);
   if (h1) return "";
   if (!title.trim()) return "";
-  return `<h2 class="kn-file-kicker">${escapeHtml(title)}</h2>`;
+  return `<header class="kn-dochead"><h2 class="kn-doc-title">${escapeHtml(title)}</h2></header>`;
 }
 
 function localizeHeadingTitle(title: string): string {
@@ -1166,6 +1161,7 @@ function markdownToKnHtmlInner(src: string): string {
   let listItems: string[] = [];
   let inMdSection = false;
   let inMdSub = false;
+  let seenCover = false;
 
   const closeMdSub = () => {
     if (!inMdSub) return;
@@ -1382,15 +1378,24 @@ function markdownToKnHtmlInner(src: string): string {
         continue;
       }
       const tag = headingTagName(hashes, title);
+      const asCover =
+        hashes === 1 ||
+        (!seenCover &&
+          hashes === 2 &&
+          !numbered &&
+          !isFlagsHeading(title) &&
+          !isVerdictHeading(title));
       const parts = headingInner(
-        hashes === 1 ? coverDisplayTitle(title) : title,
+        hashes === 1 || asCover ? coverDisplayTitle(title) : title,
       );
       let cls = parts.cls;
-      if (!cls && hashes === 1) cls = "kn-doc-title";
+      if (!cls && asCover) cls = "kn-doc-title";
+      else if (!cls && hashes === 1) cls = "kn-doc-title";
       else if (!cls && hashes === 2 && !numbered) cls = "kn-md-sec";
       else if (!cls && hashes === 3 && !numbered && !sub) cls = "kn-md-topic";
-      const open = cls ? `<${tag} class="${cls}">` : `<${tag}>`;
-      if (hashes === 1) {
+      const coverTag = asCover ? "h2" : tag;
+      const open = cls ? `<${coverTag} class="${cls}">` : `<${coverTag}>`;
+      if (asCover) {
         const meta: string[] = [];
         while (i < lines.length) {
           const next = (lines[i] ?? "").trim();
@@ -1410,8 +1415,9 @@ function markdownToKnHtmlInner(src: string): string {
           /<p class="kn-dochead__byline">[\s\S]*?<\/p>/u.exec(cover)?.[0] ?? "";
         const rest = cover.replace(byline, "");
         out.push(
-          `<header class="kn-dochead">${byline}${open}${parts.inner}</${tag}>${rest}</header>`,
+          `<header class="kn-dochead">${byline}${open}${parts.inner}</${coverTag}>${rest}</header>`,
         );
+        seenCover = true;
         if (meta.length > 0) i = skipFollowingRule(lines, i);
         continue;
       }

@@ -452,12 +452,11 @@ export function renderJourneyLead(md: string): string {
     };
   });
   if (prepared.every((s) => !s.note) && prepared.length >= 3) return "";
-  const spine = prepared.length >= 4 ? " kn-journey--spine" : "";
   const steps = prepared.map(
     (s) =>
       `<div class="kn-journey__step"><div class="kn-journey__n">${escapeHtml(s.n)}</div><div class="kn-journey__title">${escapeHtml(s.title)}</div>${s.note ? `<div class="kn-journey__note">${escapeHtml(s.note)}</div>` : ""}</div>`,
   );
-  return `<div class="kn-journey${spine}"><p class="kn-chart__cap">用户怎么用</p>${steps.join("")}</div>`;
+  return `<div class="kn-journey kn-journey--spine"><p class="kn-chart__cap">用户怎么用</p>${steps.join("")}</div>`;
 }
 
 export function renderWeekTimelineLead(md: string): string {
@@ -535,21 +534,24 @@ function baselineArr(table: MdTable | undefined): string {
 
 function marketValue(md: string, tableRe: RegExp, headingRe: RegExp): string {
   const tables = parseTables(md);
-  const table = tables.find(
-    (t) =>
-      t.headers.some((h) => tableRe.test(h)) ||
-      t.rows.some((r) => tableRe.test(r[0] ?? "")),
-  );
-  if (table) {
-    const scaleI = colIndex(table.headers, /规模|size|金额|数值/iu);
-    const row = table.rows.find((r) => tableRe.test(r[0] ?? "")) ?? table.rows[0];
-    const scale = stripInlineMd(row?.[scaleI >= 0 ? scaleI : 1] ?? "");
-    if (isHollowMetric(scale) || /^待补/u.test(scale)) return "待补";
+  for (const t of tables) {
+    const row = t.rows.find((r) => tableRe.test(stripInlineMd(r[0] ?? "")));
+    if (!row) continue;
+    const scaleI = colIndex(t.headers, /规模|size|金额|数值|规划|arr/iu);
+    const money =
+      (scaleI >= 0 ? firstMoney(row[scaleI] ?? "") : "") ||
+      firstMoney(row.slice(1).join(" ")) ||
+      stripInlineMd(row[scaleI >= 0 ? scaleI : 1] ?? "");
+    if (isHollowMetric(money) || /^待补/u.test(money.trim())) return "待补";
+    if (money.trim()) return clip(money, 18);
+  }
+  const named = tables.find((t) => t.headers.some((h) => tableRe.test(h)));
+  if (named) {
+    const fromBase = baselineArr(named);
+    if (fromBase && !isHollowMetric(fromBase)) return fromBase;
   }
   const found =
-    baselineArr(table) ||
-    firstMoney(headingBody(md, headingRe)) ||
-    metricNear(md, headingRe);
+    firstMoney(headingBody(md, headingRe)) || metricNear(md, headingRe);
   if (!found || isHollowMetric(found)) return "待补";
   return found;
 }
@@ -780,22 +782,46 @@ function audienceAvoidFromTable(md: string): string {
   return rows.map((r) => `- ${r[who]}`).join("\n");
 }
 
+function audienceFromPriorityTable(md: string): { serve: string[]; avoid: string[] } {
+  const tables = parseTables(md);
+  const table = tables.find((t) => {
+    const who = colIndex(t.headers, /人群|客群|persona|用户/iu);
+    const pri = colIndex(t.headers, /优先级|priority/iu);
+    return who >= 0 && pri >= 0 && t.rows.length >= 2;
+  });
+  if (!table) return { serve: [], avoid: [] };
+  const who = colIndex(table.headers, /人群|客群|persona|用户/iu);
+  const pri = colIndex(table.headers, /优先级|priority/iu);
+  const serve: string[] = [];
+  const avoid: string[] = [];
+  for (const row of table.rows) {
+    const name = clip(stripInlineMd(row[who] ?? ""), 72);
+    if (!name) continue;
+    const p = stripInlineMd(row[pri] ?? "");
+    if (/明确不做|不服务|out of scope|won't|anti/iu.test(p)) avoid.push(name);
+    else if (/高|首要|主|high|primary|core/iu.test(p) && !/次/u.test(p)) {
+      serve.push(name);
+    }
+  }
+  return { serve, avoid };
+}
+
 export function renderAudienceLead(md: string): string {
-  const serve =
-    headingBody(md, /primary persona|首要|主客群|目标客群|目标用户|核心痛点|痛点人群/iu) ||
-    headingBody(md, /^persona\b|客群/iu);
-  const avoid =
-    headingBody(md, /anti-?persona|反客群|不服务|who not|不要服务|明确不做/iu) ||
-    audienceAvoidFromTable(serve || md);
-  const split = splitHtml(
-    "服务谁",
-    bodyItems(serve, 4),
-    "不服务谁",
-    bodyItems(avoid, 4),
-    "go",
-    "stop",
-  );
-  const quote = firstQuote(serve || md);
+  const serveBody =
+    headingBody(md, /primary persona|首要客群|主客群|目标客群|目标用户|^persona\b/iu) ||
+    headingBody(md, /服务谁|who to serve/iu);
+  const avoidBody =
+    headingBody(md, /anti-?persona|反客群|不服务谁|who not|不要服务/iu) ||
+    audienceAvoidFromTable(md);
+  let serve = bodyItems(serveBody, 4);
+  let avoid = bodyItems(avoidBody, 4);
+  const fromPri = audienceFromPriorityTable(md);
+  if (serve.length === 0) serve = fromPri.serve;
+  if (avoid.length === 0) avoid = fromPri.avoid;
+  const avoidKey = new Set(avoid.map((s) => s.replace(/\s+/gu, "").slice(0, 16)));
+  serve = serve.filter((s) => !avoidKey.has(s.replace(/\s+/gu, "").slice(0, 16)));
+  const split = splitHtml("服务谁", serve, "不服务谁", avoid, "go", "stop");
+  const quote = firstQuote(serveBody || md);
   const qHtml = quote
     ? `<figure class="kn-quote"><blockquote>${escapeHtml(quote)}</blockquote></figure>`
     : "";
@@ -899,7 +925,7 @@ export function renderNumberedJourneyLead(md: string): string {
     const n = String(i + 1);
     return `<div class="kn-journey__step"><div class="kn-journey__n">${n}</div><div class="kn-journey__title">${escapeHtml(title)}</div></div>`;
   });
-  return `<div class="kn-journey">${steps.join("")}</div>`;
+  return `<div class="kn-journey kn-journey--spine">${steps.join("")}</div>`;
 }
 
 function loopCircleHits(
@@ -1688,7 +1714,8 @@ export function renderMarketRingsLead(md: string): string {
   );
   if (!tamV || !samV) return "";
   if (isHollowMetric(tamV) || isHollowMetric(samV)) return "";
-  const som = somV
+  if (tamV === samV) return "";
+  const som = somV && !isHollowMetric(somV) && somV !== samV
     ? `<div class="kn-ring kn-ring--som"><span>可获得 <b>${escapeHtml(somV)}</b></span></div>`
     : "";
   return `<div class="kn-rings"><div class="kn-ring kn-ring--tam"><span>总市场 <b>${escapeHtml(tamV)}</b></span><div class="kn-ring kn-ring--sam"><span>可服务 <b>${escapeHtml(samV)}</b></span>${som}</div></div></div>`;

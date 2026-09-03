@@ -937,6 +937,19 @@ describe("renderDeliverableChapterHtml", () => {
     expect(html).not.toContain("空");
   });
 
+  it("turns the first unnumbered h2 into the cover title", () => {
+    const html = markdownToKnHtml(`## 功能规划
+
+### 产品形态与核心交付
+
+床头无屏。
+`);
+    expect(html).toContain("kn-doc-title");
+    expect(html).toContain("功能规划");
+    expect(html.indexOf("功能规划")).toBeLessThan(html.indexOf("产品形态"));
+    expect(html).not.toContain("kn-file-kicker");
+  });
+
   it("skips a title-only 结论可靠度 file when the sibling has the real body", () => {
     const html = renderDeliverableChapterHtml([
       { title: "结论可靠度", markdown: "# 结论可靠度\n" },

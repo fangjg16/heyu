@@ -384,6 +384,24 @@ BOM 待补。
     );
   });
 
+  it("does not list the same persona in 服务谁 and 不服务谁", () => {
+    const html = renderAudienceLead(`# 目标客户
+
+## 服务谁
+
+- 高压脑力上班族
+- 严重失眠人群
+
+## 不服务谁
+
+- 严重失眠人群
+`);
+    expect(html).toContain("高压脑力上班族");
+    expect(html).toContain("不服务谁");
+    const serve = html.split("不服务谁")[0] ?? "";
+    expect(serve).not.toContain("严重失眠人群");
+  });
+
   it("splits MVP must-have vs out of scope", () => {
     const html = renderMvpSplitLead(`# MVP
 
@@ -517,6 +535,45 @@ BOM 待补。
     );
     expect(page.indexOf("kn-doc-title")).toBeGreaterThan(-1);
     expect(page.indexOf("kn-doc-title")).toBeLessThan(page.indexOf("kn-stats"));
+  });
+
+  it("does not copy a beachhead dollar into both TAM and SAM", () => {
+    const md = `# 市场分析
+
+滩头客单价约 US$30k。
+
+## 总市场
+
+规划口径 US$8.67m ARR。
+
+## 可服务市场
+
+规划口径待补。
+`;
+    const html = renderMarketStatsLead(md);
+    expect(html).toContain("US$8.67m");
+    expect(html).not.toContain("US$30k");
+    expect(renderMarketRingsLead(md)).toBe("");
+  });
+
+  it("keeps the cover title above specials even when 依据 comes first", () => {
+    const html = markdownToKnHtml(
+      `依据：项目资料。
+
+# 市场分析：Fullive.ai
+
+## 总市场
+
+约 80 亿元。
+
+## 可服务市场
+
+约 12 亿元。
+`,
+      "market-analysis",
+    );
+    expect(html.indexOf("kn-doc-title")).toBeLessThan(html.indexOf("kn-stats"));
+    expect(html.indexOf("Fullive")).toBeLessThan(html.indexOf("kn-stats"));
   });
 
   it("counts Chinese MoSCoW headings", () => {

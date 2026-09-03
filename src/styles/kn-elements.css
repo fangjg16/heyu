@@ -738,13 +738,14 @@
 /* 路径 */
 .kn-journey {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
   gap: 10px;
   margin: 0.75rem 0 1.25rem;
 }
 
 .kn-journey__step {
   position: relative;
+  min-width: 0;
   padding: 0.85rem 0.9rem 0.95rem;
   border-radius: 12px;
   background: hsl(var(--paper));
@@ -768,12 +769,14 @@
 .kn-journey__title {
   font-size: 13px;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .kn-journey__note {
   margin-top: 4px;
   font-size: 12px;
   color: hsl(var(--ink-soft));
+  overflow-wrap: anywhere;
 }
 
 .kn-journey--spine {
@@ -1116,9 +1119,13 @@
 
 .kn-jmap__cols {
   display: grid;
-  grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
   gap: 8px;
   margin-top: 0.35rem;
+}
+
+.kn-jmap__col {
+  min-width: 0;
 }
 
 .kn-jmap__stage {
