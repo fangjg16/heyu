@@ -336,13 +336,29 @@ function isInternalIndexHeading(title: string): boolean {
   return /document index|文件目录|文件索引/iu.test(title);
 }
 
+function confBadgeTone(value: string): "high" | "mid" | "low" {
+  const t = tidyConfidence(value);
+  if (/偏低|低/u.test(t) && !/中高/u.test(t)) return "low";
+  if (/(?:较高|^高$|把握较高)/u.test(t) && !/中/u.test(t)) return "high";
+  return "mid";
+}
+
 function sectionConfHtml(value: string): string {
-  return `<p class="kn-section-conf"><span class="kn-section-conf__k">本节把握</span> ${inline(tidyConfidence(value))}</p>`;
+  const localized = localizeKnText(tidyConfidence(value)).replace(/[。.]\s*$/u, "");
+  const tone = confBadgeTone(value);
+  const m = /^(把握[^\s.。；]+)[.。；]?\s*(.*)$/u.exec(localized.trim());
+  const badge = (m?.[1] ?? localized).trim();
+  const note = (m?.[2] ?? "").trim();
+  const noteHtml = note
+    ? `<span class="kn-section-conf__note">${inline(note)}</span>`
+    : "";
+  return `<p class="kn-section-conf"><span class="kn-section-conf__k">本节把握</span><span class="kn-badge kn-badge--${tone}">${inline(badge)}</span>${noteHtml}</p>`;
 }
 
 function isNumberedSectionTitle(title: string): boolean {
+  if (/^\d+\.\d+/u.test(title)) return false;
   return (
-    /^\d+[.)、]\s+\S/u.test(title) || /^[一二三四五六七八九十]+、\S/u.test(title)
+    /^\d+[.)、]\s*\S/u.test(title) || /^[一二三四五六七八九十]+、\S/u.test(title)
   );
 }
 
@@ -354,8 +370,17 @@ function isSubHeadingTitle(title: string): boolean {
   return /^\d+\.\d+(?:\.\d+)?\s+\S/u.test(title);
 }
 
+function coverDisplayTitle(title: string): string {
+  const stripped = title
+    .replace(/^(?:Research Gate|研究闸门)\s*[:：]\s*/iu, "")
+    .trim();
+  return stripped || title;
+}
+
 function headingInner(title: string): { cls: string; inner: string } {
-  const numbered = /^(\d+)[.)、]\s+(\S.*)$/u.exec(title);
+  const numbered = /^\d+\.\d+/u.test(title)
+    ? null
+    : /^(\d+)[.)、]\s*(\S.*)$/u.exec(title);
   if (numbered) {
     return {
       cls: "kn-md-h",
@@ -532,7 +557,7 @@ function renderFlagsBlock(title: string, bodyLines: string[]): string {
   const tableHtmls = tables.map((rows) => tableHtml(rows)).join("");
   const tableRows = tables.reduce((n, t) => n + Math.max(0, t.length - 2), 0);
   if (items.length === 0 && !tableHtmls) {
-    return `<div class="kn-callout"><p class="kn-callout__label">${inline(title)}</p></div>`;
+    return "";
   }
   const groups: Array<{
     tone: "red" | "amber";
@@ -675,6 +700,159 @@ function isTaskOwner(who: string): boolean {
   );
 }
 
+function isFlagsHeading(title: string): boolean {
+  const t = title
+    .replace(/^\d+[.)、]\s*/u, "")
+    .replace(/^[一二三四五六七八九十]+、/u, "")
+    .trim();
+  return /^(?:flags|风险标记|red flags?|yellow flags?|amber flags?|红旗|黄旗)$/iu.test(
+    t,
+  );
+}
+
+function isVerdictHeading(title: string): boolean {
+  const t = title.replace(/^\d+[.)、]\s*/u, "").trim();
+  return /^(?:verdict|判断|总评)$/iu.test(t);
+}
+
+function verdictCalloutHtml(raw: string): string {
+  const stripped = raw.replace(/^\*\*|\*\*$/gu, "").trim();
+  const localized = localizeKnText(stripped).replace(
+    /^(?:判断|总评)\s*[:：]\s*/u,
+    "",
+  );
+  if (!localized) return "";
+  return `<div class="kn-callout kn-callout--verdict"><p class="kn-callout__body">${inline(localized)}</p></div>`;
+}
+
+function takeDivByClass(
+  html: string,
+  cls: string,
+): { block: string; rest: string } | null {
+  const start = html.indexOf(`<div class="${cls}`);
+  if (start < 0) return null;
+  let i = start;
+  let depth = 0;
+  while (i < html.length) {
+    const nextOpen = html.indexOf("<div", i);
+    const nextClose = html.indexOf("</div>", i);
+    if (nextClose < 0) return null;
+    if (nextOpen >= 0 && nextOpen < nextClose) {
+      depth += 1;
+      i = nextOpen + 4;
+      continue;
+    }
+    depth -= 1;
+    i = nextClose + 6;
+    if (depth === 0) {
+      return {
+        block: html.slice(start, i),
+        rest: `${html.slice(0, start)}${html.slice(i)}`.trim(),
+      };
+    }
+  }
+  return null;
+}
+
+function hoistNonGateCover(md: string): string {
+  const lines = md.split(/\r?\n/u);
+  let cover = -1;
+  let firstH1 = -1;
+  for (let i = 0; i < lines.length; i += 1) {
+    const h = /^(#{1,6})\s+(.+)$/u.exec((lines[i] ?? "").trim());
+    if (!h || h[1]!.length !== 1) continue;
+    if (firstH1 < 0) firstH1 = i;
+    if (!isGateHeading(h[2]!)) {
+      cover = i;
+      break;
+    }
+  }
+  if (cover < 0 || cover === firstH1) return md;
+  let end = cover + 1;
+  while (end < lines.length) {
+    const t = (lines[end] ?? "").trim();
+    if (!t) {
+      end += 1;
+      continue;
+    }
+    if (isCoverMetaLine(t)) {
+      end += 1;
+      continue;
+    }
+    if (/^---+$/u.test(t)) {
+      end += 1;
+      break;
+    }
+    break;
+  }
+  const block = lines.slice(cover, end);
+  const before = lines.slice(0, cover);
+  const after = lines.slice(end);
+  return [...block, "", ...before, ...after].join("\n");
+}
+
+function mergeLeadIntoInner(inner: string, lead: string): string {
+  if (!lead) return inner;
+  const headerRe = /(<header class="kn-dochead">)([\s\S]*?)(<\/header>)/u;
+  const header = headerRe.exec(inner);
+  const hero = takeDivByClass(lead, "kn-hero");
+  if (header) {
+    let headInner = header[2] ?? "";
+    let leadRest = lead;
+    if (hero) {
+      leadRest = hero.rest;
+      if (!/kn-hero/u.test(headInner)) {
+        const titleEnd = /<\/h2>/u.exec(headInner);
+        if (titleEnd) {
+          const at = titleEnd.index + titleEnd[0].length;
+          headInner = `${headInner.slice(0, at)}${hero.block}${headInner.slice(at)}`;
+        } else {
+          headInner += hero.block;
+        }
+      }
+    }
+    const merged = inner.replace(headerRe, `${header[1]}${headInner}${header[3]}`);
+    const restLead = leadRest.trim();
+    return restLead
+      ? merged.replace(/<\/header>/u, `</header>\n${restLead}`)
+      : merged;
+  }
+  if (hero) {
+    const heading = /^(<(?:h[1-6])\b[^>]*>[\s\S]*?<\/h[1-6]>)/u.exec(
+      inner.trim(),
+    );
+    if (heading) {
+      const restInner = inner.trim().slice(heading[0].length);
+      const restLead = hero.rest.trim();
+      return `<header class="kn-dochead">${heading[0]}${hero.block}</header>\n${restLead}${restInner}`;
+    }
+  }
+  return `${lead}${inner}`;
+}
+
+function firstCoverHeadingTitle(md: string): string {
+  for (const line of md.replace(/^\uFEFF/, "").trim().split(/\r?\n/u)) {
+    const h = /^#\s+(.+)$/u.exec(line.trim());
+    if (!h) continue;
+    if (isGateHeading(h[1]!)) continue;
+    return h[1]!.trim();
+  }
+  return firstHeadingTitle(md);
+}
+
+function fileKickerHtml(title: string, markdown: string): string {
+  const h1 = firstCoverHeadingTitle(markdown);
+  if (!h1) return `<h2 class="kn-file-kicker">${escapeHtml(title)}</h2>`;
+  if (h1 === title) return "";
+  const head = h1.replace(/[:：].*$/u, "").trim();
+  const localized = localizeKnText(head).replace(/[:：].*$/u, "").trim();
+  if (localized === title || head === title) return "";
+  if (/研究闸门/u.test(title) && /research\s*gate|研究闸门/iu.test(h1)) {
+    return "";
+  }
+  return `<h2 class="kn-file-kicker">${escapeHtml(title)}</h2>`;
+}
+
 function localizeHeadingTitle(title: string): string {
   const exact: Record<string, string> = {
     research: "研究",
@@ -686,6 +864,31 @@ function localizeHeadingTitle(title: string): string {
   };
   const key = title.trim().toLowerCase();
   return exact[key] ?? title;
+}
+
+function coverHasScoreMeta(md: string): boolean {
+  const lines = md.split(/\r?\n/u);
+  let i = 0;
+  while (i < lines.length && !/^#\s+/u.test((lines[i] ?? "").trim())) i += 1;
+  if (i >= lines.length) return false;
+  i += 1;
+  while (i < lines.length) {
+    const next = (lines[i] ?? "").trim();
+    if (!next) {
+      i += 1;
+      continue;
+    }
+    if (isCoverMetaLine(next)) {
+      const m = parseMetaLine(next);
+      if (m && (metaId(m.key) === "verdict" || metaId(m.key) === "overall")) {
+        return /\/\s*10|\d+(?:\.\d+)?/u.test(m.value);
+      }
+      i += 1;
+      continue;
+    }
+    break;
+  }
+  return false;
 }
 
 function omitMatchingSections(md: string, titleRe: RegExp): string {
@@ -730,16 +933,27 @@ export function markdownToKnHtml(md: string, fileId?: string): string {
   if (/kn-risks|kn-risk-pair/u.test(lead)) {
     rest = omitMatchingSections(rest, /三大风险|Top three risks|风险与对策/iu);
   }
+  if (/kn-gate/u.test(lead)) {
+    rest = omitMatchingSections(
+      rest,
+      /yellow\s*light|green\s*light|red\s*light|🟡|🟢|🔴|黄灯|绿灯|红灯/iu,
+    );
+  }
+  if (/kn-hero/u.test(lead) || coverHasScoreMeta(src)) {
+    rest = omitMatchingSections(rest, /^(?:Verdict|判断|总评)$/iu);
+    rest = rest
+      .split(/\r?\n/u)
+      .filter(
+        (l) =>
+          !/^\*\*VERDICT[:：]/u.test(l.trim()) &&
+          !/^\*\*总评[:：]/u.test(l.trim()),
+      )
+      .join("\n");
+  }
+  rest = hoistNonGateCover(rest);
   const inner = markdownToKnHtmlInner(rest);
   if (!lead && !inner) return EMPTY_CHAPTER_HTML;
-  let body = inner;
-  if (lead) {
-    if (/<header class="kn-dochead">/u.test(inner)) {
-      body = inner.replace(/<\/header>/u, `</header>\n${lead}`);
-    } else {
-      body = `${lead}${inner}`;
-    }
-  }
+  const body = lead ? mergeLeadIntoInner(inner, lead) : inner;
   return `<div class="kn-from-md">${body}</div>`;
 }
 
@@ -841,7 +1055,7 @@ function markdownToKnHtmlInner(src: string): string {
         i = pair.next;
         continue;
       }
-      if (hashes === 1 && isGateHeading(title)) {
+      if (isGateHeading(title)) {
         closeMdSection();
         i += 1;
         out.push(gateBannerHtml(title));
@@ -928,14 +1142,33 @@ function markdownToKnHtmlInner(src: string): string {
         closeMdSection();
       }
       i += 1;
-      if (/flag|红旗|黄旗|flags/iu.test(title)) {
+      if (isFlagsHeading(title)) {
         const { body, next } = collectUntilNextHeading(lines, i);
         i = next;
-        out.push(renderFlagsBlock(title, body));
+        const html = renderFlagsBlock(title, body);
+        if (html) out.push(html);
+        else if (numbered) closeMdSection();
+        continue;
+      }
+      if (isVerdictHeading(title)) {
+        const { body, next } = collectUntilNextHeading(lines, i);
+        i = next;
+        const text = body
+          .map((l) => l.trim())
+          .filter((t) => {
+            if (!t) return false;
+            const tag = taggedLine(t);
+            return !(tag && !tag.rest);
+          })
+          .join("\n");
+        const html = verdictCalloutHtml(text);
+        if (html) out.push(html);
         continue;
       }
       const tag = headingTagName(hashes, title);
-      const parts = headingInner(title);
+      const parts = headingInner(
+        hashes === 1 ? coverDisplayTitle(title) : title,
+      );
       let cls = parts.cls;
       if (!cls && hashes === 1) cls = "kn-doc-title";
       else if (!cls && hashes === 2 && !numbered) cls = "kn-md-sec";
@@ -966,12 +1199,16 @@ function markdownToKnHtmlInner(src: string): string {
         if (meta.length > 0) i = skipFollowingRule(lines, i);
         continue;
       }
-      out.push(`${open}${parts.inner}</${tag}>`);
       while (i < lines.length && !(lines[i] ?? "").trim()) i += 1;
       const peek = (lines[i] ?? "").trim();
+      const heading = `${open}${parts.inner}</${tag}>`;
       if (isSectionConfLine(peek)) {
-        out.push(sectionConfHtml(parseMetaLine(peek)!.value));
+        out.push(
+          `<div class="kn-md-headrow">${heading}${sectionConfHtml(parseMetaLine(peek)!.value)}</div>`,
+        );
         i += 1;
+      } else {
+        out.push(heading);
       }
       continue;
     }
@@ -1078,6 +1315,9 @@ function markdownToKnHtmlInner(src: string): string {
         i += 1;
       }
       const inner = markdownToKnHtmlInner(block.join("\n")).trim();
+      if (!tagged.rest && !inner) {
+        continue;
+      }
       const kindClass = tagged.kind ? ` kn-tagged--${tagged.kind}` : "";
       out.push(
         `<div class="kn-tagged${kindClass}"><span class="kn-md-tag kn-md-tag--${tagged.kind}">${escapeHtml(localizeTagLabel(tagged.label))}</span>${inner}</div>`,
@@ -1088,9 +1328,8 @@ function markdownToKnHtmlInner(src: string): string {
     if (/^\*\*VERDICT\b/iu.test(trimmed) || /^\*\*总评[:：]/u.test(trimmed)) {
       flushPara();
       flushList();
-      out.push(
-        `<div class="kn-callout"><p class="kn-callout__label">判断</p><p class="kn-callout__body">${inline(trimmed.replace(/^\*\*|\*\*$/gu, ""))}</p></div>`,
-      );
+      const html = verdictCalloutHtml(trimmed);
+      if (html) out.push(html);
       i += 1;
       continue;
     }
@@ -1286,10 +1525,7 @@ export function renderDeliverableChapterHtml(
   }
   return nonempty
     .map((f) => {
-      const same = firstHeadingTitle(f.markdown) === f.title;
-      const kicker = same
-        ? ""
-        : `<h2 class="kn-file-kicker">${escapeHtml(f.title)}</h2>`;
+      const kicker = fileKickerHtml(f.title, f.markdown);
       return `<section class="kn-from-md-file">${kicker}${markdownToKnHtml(f.markdown, f.id)}</section>`;
     })
     .join("\n");

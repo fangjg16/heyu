@@ -52,8 +52,10 @@ describe("markdownToKnHtml", () => {
     expect(html).not.toContain("kn-dochead__byline");
     expect(html).toContain("把握中等");
     expect(html).not.toContain("kn-score-sum");
-    expect(html).toContain("判断");
     expect(html).toContain("有条件继续");
+    expect(html).toContain("kn-callout--verdict");
+    expect(html).not.toContain("kn-callout__label");
+    expect(html).not.toContain('class="kn-md-sec">判断');
     expect(html).toContain("kn-flag--red");
     expect(html).toContain("kn-flag--amber");
     expect(html).toContain("kn-flags-fold--red");
@@ -148,6 +150,11 @@ describe("markdownToKnHtml", () => {
     expect(html).not.toContain("kn-masthead");
     expect(html).not.toContain('kn-dochead__byline">阶段');
     expect(html).not.toContain("<hr");
+    const head = html.match(/<header class="kn-dochead">[\s\S]*?<\/header>/u)?.[0];
+    expect(head).toBeTruthy();
+    expect(head).toContain("kn-doc-title");
+    expect(head).toContain("kn-hero");
+    expect(head!.indexOf("kn-doc-title")).toBeLessThan(head!.indexOf("kn-hero"));
   });
 
   it("does not hoist market sizing above the exec-summary title", () => {
@@ -222,6 +229,8 @@ describe("markdownToKnHtml", () => {
     expect(html).toContain("竞争全景");
     expect(html).toContain("kn-section-conf");
     expect(html).toContain("本节把握");
+    expect(html).toContain("kn-badge");
+    expect(html).toContain("kn-md-headrow");
     expect(html).not.toContain('kn-masthead__k">本节把握');
     expect(html).toContain("kn-tagged--data");
     expect(html).toContain("kn-tagged--opinion");
@@ -354,6 +363,7 @@ PwC 2024。
     expect(html).toContain("kn-section-conf");
     expect(html).toContain("本节把握");
     expect(html).toContain("把握中等");
+    expect(html).toContain("kn-badge");
     expect(html).not.toContain("<strong>Section confidence");
   });
 
@@ -390,9 +400,10 @@ PwC 2024。
 `);
     expect(html).toContain("kn-doc-title");
     expect((html.match(/kn-doc-title/g) ?? []).length).toBe(1);
-    expect(html).toContain("闸门");
-    expect(html).toContain("黄灯");
-    expect(html).toContain("有条件继续");
+    expect(html).toContain("kn-gate");
+    expect(html).toContain("先补访谈再扩范围");
+    expect(html).not.toContain("# 🟡");
+    expect(html).not.toContain("Yellow Light");
     expect(html).not.toMatch(/<h2 class="kn-doc-title">[^<]*Yellow/u);
   });
 
@@ -703,6 +714,71 @@ PwC 2024。
     expect(html).not.toContain("lean-canvas.md");
     expect(html).not.toContain("02-strategy");
   });
+
+  it("puts the scorecard title left of the reliability score and skips a duplicate Verdict heading", () => {
+    const html = markdownToKnHtml(
+      `# 创业验证记分卡
+
+| 维度 | Score (1-10) | 依据 |
+| --- | --- | --- |
+| Market size | 6 | [Estimate] 待补 |
+| Overall | 6.0 | 平均 |
+
+## Verdict
+
+**VERDICT: CONDITIONAL — 有条件继续。**
+
+[Opinion]
+`,
+      "scorecard",
+    );
+    const head = html.match(/<header class="kn-dochead">[\s\S]*?<\/header>/u)?.[0];
+    expect(head).toBeTruthy();
+    expect(head).toContain("创业验证记分卡");
+    expect(head).toContain("kn-hero");
+    expect(head!.indexOf("kn-doc-title")).toBeLessThan(head!.indexOf("kn-hero"));
+    expect(html).not.toContain('class="kn-md-sec">判断');
+    expect(html).not.toContain("kn-callout--verdict");
+    expect(html).not.toContain("kn-tagged--opinion");
+    expect(html).toContain("市场规模");
+    expect(html).toContain("综合");
+    expect(html).toContain(">分数<");
+  });
+
+  it("does not render an empty Flags heading as a 风险标记 callout", () => {
+    const html = markdownToKnHtml(`# 研究结论
+
+## Flags
+
+### 红旗
+
+- 商业验证样本只有一个发起人
+`);
+    expect(html).toContain("kn-flag--red");
+    expect(html).toContain("商业验证样本");
+    expect(html).not.toContain("kn-callout__label");
+    expect(html).not.toMatch(/kn-md-sec">风险标记/);
+  });
+
+  it("hoists the research-gate title above the traffic-light and drops the raw heading", () => {
+    const html = markdownToKnHtml(
+      `# 🟡 Yellow Light — Conditional Proceed
+
+建议继续封闭网络内验证。
+
+# Research Gate: 家办非标项目 AI 投研与协作平台
+
+**Confidence:** Medium
+`,
+      "research-gate",
+    );
+    expect(html).toContain("家办非标项目");
+    expect(html).not.toContain("Research Gate");
+    expect(html.indexOf("kn-doc-title")).toBeLessThan(html.indexOf("kn-gate"));
+    expect(html).not.toContain("# 🟡");
+    expect(html).not.toContain("Yellow Light");
+    expect(html).toContain("建议继续封闭网络内验证");
+  });
 });
 
 describe("renderDeliverableChapterHtml", () => {
@@ -714,6 +790,23 @@ describe("renderDeliverableChapterHtml", () => {
     expect(html).toContain("研究闸门");
     expect(html).toContain("结论可靠度");
     expect(html).toContain("kn-from-md-file");
+  });
+
+  it("does not repeat 研究闸门 when the file already has a Research Gate title", () => {
+    const html = renderDeliverableChapterHtml([
+      {
+        title: "研究闸门",
+        markdown: "# Research Gate: 家办非标项目\n\n正文。\n",
+        id: "research-gate",
+      },
+      {
+        title: "结论可靠度",
+        markdown: "# 假设仍多\n\n一段说明。\n",
+      },
+    ]);
+    expect(html).toContain("家办非标项目");
+    expect(html).toContain("结论可靠度");
+    expect((html.match(/研究闸门/g) ?? []).length).toBe(0);
   });
 
   it("skips empty files and still renders the rest", () => {

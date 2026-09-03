@@ -607,17 +607,38 @@ function gateState(md: string): "buy" | "conditional" | "pass" | null {
   return null;
 }
 
+function firstProseWhy(md: string): string {
+  const rec = headingBody(md, /recommendation|rationale|建议/iu);
+  const pools = rec ? [rec, md] : [md];
+  for (const src of pools) {
+    for (const line of src.split(/\r?\n/u)) {
+      const t = line.trim().replace(/^>\s*/u, "");
+      if (!t) continue;
+      if (/^(#{1,6})\s+/u.test(t)) continue;
+      if (/^\*\*[^*]+[:：]/u.test(t)) continue;
+      if (/^---+$/u.test(t)) continue;
+      if (/^[-*|]/u.test(t)) continue;
+      if (
+        /yellow\s*light|green\s*light|red\s*light|🟡|🟢|🔴|黄灯|绿灯|红灯/iu.test(
+          t,
+        )
+      ) {
+        continue;
+      }
+      return t;
+    }
+  }
+  return "";
+}
+
 export function renderResearchGateLead(md: string): string {
   const state = gateState(md);
   if (!state) return "";
-  const whySrc =
-    headingBody(md, /recommendation|verdict|判断|结论|rationale/iu) ||
-    compactItems(md.replace(/^# .+$/mu, ""), 1)[0] ||
-    "";
+  const whySrc = firstProseWhy(md);
   const on = (s: "buy" | "conditional" | "pass") =>
     s === state ? " is-on" : "";
   const why = whySrc
-    ? `<p class="kn-gate__why">${escapeHtml(clip(whySrc, 140))}</p>`
+    ? `<p class="kn-gate__why">${escapeHtml(clip(localizeKnText(whySrc), 140))}</p>`
     : "";
   return `<div class="kn-gate"><div class="kn-gate__opt${on("buy")}" data-state="buy">继续</div><div class="kn-gate__opt${on("conditional")}" data-state="conditional">调整</div><div class="kn-gate__opt${on("pass")}" data-state="pass">停止</div></div>${why}`;
 }
