@@ -61,7 +61,7 @@ export default function Index() {
                 合域
               </p>
               <p className="mt-4 max-w-[22rem] text-[0.85rem] leading-[1.75] text-[hsl(var(--hero-muted))]">
-                为家族办公室建立一个 AI 辅助、权限隔离、可持续更新的项目投资决策工作台
+                为家族办公室建立一个 AI 辅助、权限隔离、可持续更新的项目投研工作平台
               </p>
             </div>
 

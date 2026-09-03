@@ -106,7 +106,7 @@ function ChapterBody({ c, centered }: { c: ScrollChapter; centered: boolean }) {
             <span className="mt-3 block text-[clamp(1.05rem,2.4vw,1.55rem)] font-normal leading-[1.45] tracking-[0.04em] text-[hsl(var(--hero-foreground))]">
               为家族办公室建立一个 AI 辅助、权限隔离、
               <br />
-              可持续更新的项目投资决策工作台
+              可持续更新的项目投研工作平台
             </span>
           )}
         </h1>

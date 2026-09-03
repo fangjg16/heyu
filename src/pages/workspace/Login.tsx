@@ -53,7 +53,7 @@ function LoginShell({ children }: { children: ReactNode }) {
               <br />
               权限隔离、可持续更新的
               <br />
-              项目投资决策工作台
+              项目投研工作平台
             </div>
             <div className="mt-5 max-w-[520px] text-[15px] leading-[1.9] text-[hsl(var(--warm-charcoal-muted))]">
               项目资料整理、调研补充、证据核验、动态重评估、
