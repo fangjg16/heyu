@@ -2231,6 +2231,60 @@
   color: hsl(var(--warm-charcoal));
 }
 
+.kn-meaning {
+  margin: 1.85rem 0 2.25rem;
+  padding: 0 0 1.55rem;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.kn-meaning:last-child,
+.kn-md-section .kn-meaning:last-of-type {
+  margin-bottom: 0.4rem;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.kn-chapter-html .kn-meaning__title,
+.kn-project-overview-html .kn-meaning__title {
+  margin: 0 0 0.7rem;
+  font-family: "Noto Serif SC", serif;
+  font-size: 16.5px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+  text-align: left;
+  color: hsl(var(--warm-charcoal));
+}
+
+.kn-meaning__obs > *:first-child {
+  margin-top: 0;
+}
+
+.kn-meaning__so,
+.kn-so {
+  margin: 1rem 0 0;
+  padding: 0.15rem 0 0.1rem 1rem;
+  background: none;
+  border: 0;
+  border-left: 2px solid hsl(var(--wine) / 0.5);
+}
+
+.kn-meaning__k,
+.kn-so__k {
+  margin: 0 0 0.4rem;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  color: hsl(var(--wine));
+}
+
+.kn-meaning__so > p:last-child,
+.kn-so > p:last-child {
+  margin-bottom: 0;
+}
+
 .kn-plan {
   margin: 0.95rem 0 0.35rem;
 }

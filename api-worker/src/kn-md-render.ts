@@ -174,6 +174,13 @@ function parseMetaLine(line: string): { key: string; value: string } | null {
     const value = m[2]!.trim();
     if (key && value) return { key, value };
   }
+  // **Key：** value  冒号写在加粗里，后面直接接正文
+  m = /^\*\*([^*]+?)[:：]\*\*\s*(.+)$/u.exec(t);
+  if (m) {
+    const key = m[1]!.trim();
+    const value = m[2]!.trim();
+    if (key && value) return { key, value };
+  }
   // **Key: value**  冒号写在加粗里面，合域 GPT 草案常用
   m = /^\*\*([^*]+?)[:：]\s+(.+?)\*\*\s*$/u.exec(t);
   if (m) {
@@ -741,6 +748,104 @@ function looksLikeLooseItem(line: string): boolean {
   return false;
 }
 
+const IMPLICATION_KEY =
+  /^(implication|so what|含义|投资含义|对本项目)$/iu;
+
+function isImplicationTitle(title: string): boolean {
+  return IMPLICATION_KEY.test(title.trim());
+}
+
+function isImplicationLead(line: string): boolean {
+  const t = line.trim();
+  if (!t) return false;
+  const labeled = parseMetaLine(t);
+  if (labeled && IMPLICATION_KEY.test(labeled.key)) return true;
+  return /^(?:\*\*)?(implication|so what|含义|投资含义|对本项目)(?:\*\*)?\s*[:：]/iu.test(
+    t,
+  );
+}
+
+function bodyHasImplication(body: string[]): boolean {
+  return body.some((l) => isImplicationLead(l));
+}
+
+function looksLikeItemTitle(raw: string): boolean {
+  const t = raw.replace(/\*+/gu, "").trim();
+  if (t.length < 6 || t.length > 88) return false;
+  if (/[。！？]$/u.test(t)) return false;
+  if (isImplicationTitle(t)) return false;
+  if (isDocMetaLine(`**${t}:** x`) || isSectionConfLine(`**${t}:** x`)) {
+    return false;
+  }
+  return true;
+}
+
+function collectUntilHeadingAtMost(
+  lines: string[],
+  start: number,
+  rank: number,
+): { body: string[]; next: number } {
+  let i = start;
+  const body: string[] = [];
+  while (i < lines.length) {
+    const t = (lines[i] ?? "").trim();
+    const n = /^(#{1,6})\s+/u.exec(t);
+    if (n && n[1]!.length <= rank) break;
+    if (/^---+$/u.test(t)) break;
+    body.push(lines[i] ?? "");
+    i += 1;
+  }
+  return { body, next: i };
+}
+
+function collectUntilItemBoundary(
+  lines: string[],
+  start: number,
+): { body: string[]; next: number } {
+  let i = start;
+  const body: string[] = [];
+  while (i < lines.length) {
+    const t = (lines[i] ?? "").trim();
+    if (/^(#{1,6})\s+/u.test(t) || /^---+$/u.test(t)) break;
+    const bold = /^\*\*([^*]+)\*\*$/u.exec(t);
+    if (
+      bold &&
+      looksLikeItemTitle(bold[1]!) &&
+      !isImplicationLead(t) &&
+      body.some((l) => l.trim())
+    ) {
+      break;
+    }
+    body.push(lines[i] ?? "");
+    i += 1;
+  }
+  return { body, next: i };
+}
+
+function meaningCardHtml(title: string, bodyLines: string[]): string {
+  const split = bodyLines.findIndex((l) => isImplicationLead(l));
+  if (split < 0) return "";
+  const obs = bodyLines.slice(0, split);
+  const leadLine = (bodyLines[split] ?? "").trim();
+  const labeled = parseMetaLine(leadLine);
+  let impl = bodyLines.slice(split + 1);
+  if (labeled?.value) {
+    impl = [labeled.value, ...impl];
+  } else {
+    const rest = leadLine
+      .replace(
+        /^(?:\*\*)?(implication|so what|含义|投资含义|对本项目)(?:\*\*)?\s*[:：]?\s*/iu,
+        "",
+      )
+      .replace(/\*{2}$/u, "")
+      .trim();
+    if (rest) impl = [rest, ...impl];
+  }
+  const obsHtml = markdownToKnHtmlInner(obs.join("\n")).trim();
+  const implHtml = markdownToKnHtmlInner(impl.join("\n")).trim();
+  return `<article class="kn-meaning"><h4 class="kn-meaning__title">${inline(title)}</h4>${obsHtml ? `<div class="kn-meaning__obs">${obsHtml}</div>` : ""}<div class="kn-meaning__so"><p class="kn-meaning__k">含义</p>${implHtml}</div></article>`;
+}
+
 function collectUntilHeadingRank(
   lines: string[],
   start: number,
@@ -1223,11 +1328,29 @@ function markdownToKnHtmlInner(src: string): string {
       }
       const numbered = hashes >= 2 && isNumberedSectionTitle(title);
       const sub = !numbered && (isSubHeadingTitle(title) || hashes >= 4);
+      const topicItem = !numbered && hashes >= 3;
+      if (
+        (topicItem || sub) &&
+        !isFlagsHeading(title) &&
+        !isVerdictHeading(title) &&
+        !isImplicationTitle(title)
+      ) {
+        const peeked = collectUntilHeadingAtMost(lines, i + 1, hashes);
+        if (bodyHasImplication(peeked.body)) {
+          closeMdSub();
+          const card = meaningCardHtml(title, peeked.body);
+          if (card) {
+            out.push(card);
+            i = peeked.next;
+            continue;
+          }
+        }
+      }
       if (numbered) {
         closeMdSection();
         out.push('<section class="kn-md-section">');
         inMdSection = true;
-      } else if (sub) {
+      } else if (sub || topicItem) {
         closeMdSub();
         out.push('<div class="kn-md-subblock">');
         inMdSub = true;
@@ -1323,6 +1446,20 @@ function markdownToKnHtmlInner(src: string): string {
       i = pair.next;
       continue;
     }
+    if (boldOnly && looksLikeItemTitle(boldOnly[1]!)) {
+      const peeked = collectUntilItemBoundary(lines, i + 1);
+      if (bodyHasImplication(peeked.body)) {
+        flushPara();
+        flushList();
+        closeMdSub();
+        const card = meaningCardHtml(boldOnly[1]!.trim(), peeked.body);
+        if (card) {
+          out.push(card);
+          i = peeked.next;
+          continue;
+        }
+      }
+    }
 
     const confLine = parseConfLead(trimmed);
     if (confLine) {
@@ -1362,7 +1499,9 @@ function markdownToKnHtmlInner(src: string): string {
                 ? "不要做"
                 : /^(expected limitation|预期限制)$/iu.test(labeled.key)
                   ? "预期限制"
-                  : localizeKnText(labeled.key);
+                  : IMPLICATION_KEY.test(labeled.key)
+                    ? "含义"
+                    : localizeKnText(labeled.key);
       const planKind = /^(不要做)$/u.test(keyZh)
         ? " kn-plan--stop"
         : /^(产出)$/u.test(keyZh)
@@ -1370,7 +1509,11 @@ function markdownToKnHtmlInner(src: string): string {
           : /^(目标)$/u.test(keyZh)
             ? " kn-plan--goal"
             : "";
-      if (planKind) {
+      if (keyZh === "含义") {
+        out.push(
+          `<div class="kn-so"><p class="kn-so__k">含义</p>${labeled.value ? `<p>${inline(labeled.value)}</p>` : ""}</div>`,
+        );
+      } else if (planKind) {
         out.push(
           `<div class="kn-plan${planKind}"><p class="kn-plan__label">${inline(keyZh)}</p>${labeled.value ? `<p class="kn-plan__lead">${inline(labeled.value)}</p>` : ""}</div>`,
         );
@@ -1580,6 +1723,40 @@ function markdownToKnHtmlInner(src: string): string {
       let j = i + 1;
       while (j < lines.length && !(lines[j] ?? "").trim()) j += 1;
       const next = (lines[j] ?? "").trim();
+      const labelKey = trimmed.replace(/[：:]\s*$/u, "");
+      if (IMPLICATION_KEY.test(labelKey)) {
+        flushPara();
+        flushList();
+        const extra: string[] = [];
+        i += 1;
+        while (i < lines.length) {
+          const follow = (lines[i] ?? "").trim();
+          if (!follow) {
+            extra.push("");
+            i += 1;
+            continue;
+          }
+          const followBold = /^\*\*([^*]+)\*\*$/u.exec(follow)?.[1];
+          if (
+            /^(#{1,6})\s+/u.test(follow) ||
+            isImplicationLead(follow) ||
+            taggedLine(follow) ||
+            parseMetaLine(follow) ||
+            /^---+$/u.test(follow) ||
+            (Boolean(followBold) &&
+              looksLikeItemTitle(followBold ?? "") &&
+              !isImplicationLead(follow))
+          ) {
+            break;
+          }
+          extra.push(lines[i] ?? "");
+          i += 1;
+        }
+        out.push(
+          `<div class="kn-so"><p class="kn-so__k">含义</p>${markdownToKnHtmlInner(extra.join("\n")).trim()}</div>`,
+        );
+        continue;
+      }
       if (next.startsWith("|") || /^[-*]\s+/u.test(next) || /^\d+[.)]\s+/u.test(next)) {
         flushPara();
         flushList();

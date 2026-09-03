@@ -836,6 +836,65 @@ PwC 2024。
     expect(html).not.toContain("总体把握");
     expect(html.indexOf("kn-pivot")).toBeLessThan(html.indexOf("kn-md-lede"));
   });
+
+  it("turns shift + 含义 pairs into meaning cards inside the numbered section", () => {
+    const html = markdownToKnHtml(`# 行业趋势
+
+## 5. Behavioral Shifts
+
+行为方向来自调查。
+
+### 分析师/年轻一代自下而上采用
+
+初级人员先试用，再说服投研负责人。
+
+**含义：** 产品要同时给初级分析师效率，也给控制人治理与安全。
+
+### 从“更多项目”转向“更快建立确信”
+
+小规模私募担心的是材料质量，不是没有项目。
+
+**含义：** 产品不应做成公开市场。
+`);
+    expect(html).toContain("行为变化");
+    expect(html).toContain("kn-meaning");
+    expect((html.match(/kn-meaning/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    expect(html).toContain("kn-meaning__k");
+    expect(html).toContain("分析师/年轻一代");
+    expect(html).toContain("产品要同时给初级分析师效率");
+    expect(html).not.toContain("kn-md-kicker");
+    const section = html.match(
+      /<section class="kn-md-section">[\s\S]*?<\/section>/u,
+    )?.[0];
+    expect(section).toBeTruthy();
+    expect(section).toContain("kn-meaning");
+    expect(section).toContain("更快建立确信");
+  });
+
+  it("turns sleep-style bold titles with 含义 into the same meaning cards", () => {
+    const html = markdownToKnHtml(`# 行业趋势
+
+一、行为变化
+
+**年轻人先试无感监测**
+
+高压脑力人群先从床头设备试起，而不是再买一块手表。
+
+含义：
+首版应做成卧室场景，而不是手环功能叠加。
+
+**从监测转向主动干预**
+
+现有产品停在记录，用户要的是第二天能睡。
+
+**含义：** 差异化在干预闭环，不在多一个传感器。
+`);
+    expect(html).toContain("kn-meaning");
+    expect(html).toContain("年轻人先试无感监测");
+    expect(html).toContain("首版应做成卧室场景");
+    expect(html).toContain("干预闭环");
+    expect((html.match(/class="kn-meaning"/g) ?? []).length).toBe(2);
+  });
 });
 
 describe("renderDeliverableChapterHtml", () => {
