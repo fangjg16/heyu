@@ -17,6 +17,7 @@ import {
   fetchActiveChapterDraftRun,
   fetchKnowledgeChapterVersion,
   fetchOverviewVersion,
+  fetchProjectFiles,
   fetchProjectKnowledgeChapter,
   fetchProjectPermissions,
   fetchStartupInterview,
@@ -61,6 +62,8 @@ import { resolveAnalysisKind } from "@/lib/analysis-kind";
 import {
   analysisAiFolderHref,
   analysisAiFolderLabel,
+  hasAnalysisDeliverableFiles,
+  showAllChaptersRerenderAction,
 } from "@/lib/analysis-ai-folder";
 import {
   catalogGroupsForKind,
@@ -72,28 +75,19 @@ import {
 type KnowledgeView = "chapters" | "sources" | "glossary" | "versions";
 
 function allChaptersConfirmText(input: {
-  loading: boolean;
-  hasDraft: boolean;
+  hasAnalysis: boolean;
   published: number;
-  failed: number;
-  total: number;
-  interviewHint?: "none" | "never" | "paused";
 }): string {
-  if (input.loading) return "正在查看当前进度…";
-  if (input.hasDraft) return "";
-  let base =
-    "若分析已经有了，点「仅重新排版」即可再出一份待审核草案，不重做分析。点「开始更新」会连分析一起重跑，可能需要较长时间。";
-  if (input.published > 0) {
-    base =
-      "若分析已经有了，点「仅重新排版」即可再出一份待审核草案，不重做分析。点「开始更新」只会重跑尚未发布的章节；已发布的内容在你确认发布前不会改。";
+  if (input.published === 0) {
+    if (input.hasAnalysis) {
+      return "知识网络还没有章节。开始更新会按资料重新分析并生成各章。只出页面用「仅重新排版」。";
+    }
+    return "知识网络还没有章节。开始更新会按当前资料分析并生成各章。";
   }
-  if (input.interviewHint === "paused") {
-    return `${base}访谈还没问完，先问完再更新效果更好。`;
+  if (input.hasAnalysis) {
+    return "开始更新会按最新资料重跑尚未发布的章节；已发布内容在你确认发布前不会改。只刷新页面用「仅重新排版」。";
   }
-  if (input.interviewHint === "never") {
-    return `${base}还没做用户访谈，先访谈再更新效果更好。`;
-  }
-  return base;
+  return "开始更新会按最新资料重跑尚未发布的章节；已发布内容在你确认发布前不会改。";
 }
 
 const CONFIRM_BTN_GHOST =
@@ -119,21 +113,15 @@ function HasDraftConfirmCopy({
   onLeave: () => void;
 }) {
   const pending = Math.max(0, total - published);
-  let lead = "已有待审核草案。";
+  let lead = "已有待审核草案。审核通过后会写入知识网络。也可先「仅重新排版」。";
   if (published > 0 && pending > 0) {
-    lead = `${published} 章已发布、${pending} 章还在草案里。已发布的内容不会改。`;
+    lead = `${published} 章已发布、${pending} 章还在草案里。已发布的内容不会改。也可先「仅重新排版」。`;
   } else if (failed > 0) {
-    lead = `有 ${failed} 章生成失败，已成功待审核的会保留。`;
+    lead = `有 ${failed} 章生成失败。可重试，或先「仅重新排版」。`;
   }
   return (
     <div className="mt-2 text-[12.5px] leading-relaxed text-[#59625F]">
       <p>{lead}</p>
-      <ul className="mt-2 list-disc space-y-1.5 pl-[1.15em]">
-        <li>
-          如果想连分析一起重做：去审核页放弃当前草案，再重新生成。
-        </li>
-        <li>如果只想换版式、不改内容：点「仅重新排版」。</li>
-      </ul>
       <p className="mt-2">
         现有分析可在
         <Link
@@ -278,6 +266,7 @@ export function ProjectKnowledgeNetworkSection({
   const [chatDeniedOpen, setChatDeniedOpen] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [confirmHasDraft, setConfirmHasDraft] = useState(false);
+  const [confirmHasAnalysis, setConfirmHasAnalysis] = useState(false);
   const [confirmPublished, setConfirmPublished] = useState(0);
   const [confirmFailed, setConfirmFailed] = useState(0);
   const [interview, setInterview] = useState<StartupInterviewDto | null>(null);
@@ -1062,12 +1051,14 @@ export function ProjectKnowledgeNetworkSection({
     setAllChaptersConfirm(true);
     setConfirmLoading(true);
     setConfirmHasDraft(false);
+    setConfirmHasAnalysis(false);
     setConfirmPublished(0);
     setConfirmFailed(0);
     try {
-      const [active, live] = await Promise.all([
+      const [active, live, files] = await Promise.all([
         fetchActiveChapterDraftRun(projectId, userId).catch(() => null),
         listProjectKnowledgeChapters(projectId, userId).catch(() => null),
+        fetchProjectFiles(projectId, userId).catch(() => []),
       ]);
       const researchIds = new Set(
         researchSectionsForKind(analysisKind).map((s) => s.id),
@@ -1077,6 +1068,9 @@ export function ProjectKnowledgeNetworkSection({
             .length
         : 0;
       setConfirmHasDraft(Boolean(active?.runId));
+      setConfirmHasAnalysis(
+        hasAnalysisDeliverableFiles(files, analysisKind),
+      );
       setConfirmPublished(published);
       setConfirmFailed(Number(active?.failedCount ?? 0));
       if (active?.runId) setDraftRunId(active.runId);
@@ -2024,21 +2018,8 @@ export function ProjectKnowledgeNetworkSection({
                   ) : (
                     <p className="mt-2 text-[12.5px] leading-relaxed text-[#59625F]">
                       {allChaptersConfirmText({
-                        loading: false,
-                        hasDraft: false,
+                        hasAnalysis: confirmHasAnalysis,
                         published: confirmPublished,
-                        failed: confirmFailed,
-                        total: researchSectionsForKind(analysisKind).length,
-                        interviewHint:
-                          analysisKind === "early" &&
-                          interview?.status === "paused"
-                            ? "paused"
-                            : analysisKind === "early" &&
-                                !interview &&
-                                !confirmHasDraft &&
-                                confirmPublished === 0
-                              ? "never"
-                              : "none",
                       })}
                     </p>
                   )}
@@ -2123,65 +2104,49 @@ export function ProjectKnowledgeNetworkSection({
                         type="button"
                         onClick={() => {
                           setAllChaptersConfirm(false);
-                          goDraftReview();
+                          onUpdateAllChapters?.("from-files");
                         }}
                         className={CONFIRM_BTN_SECONDARY}
                       >
-                        去审核
+                        仅重新排版
                       </button>
                       <button
                         type="button"
                         onClick={() => {
                           setAllChaptersConfirm(false);
-                          onUpdateAllChapters?.("from-files");
+                          goDraftReview();
                         }}
                         className={CONFIRM_BTN_PRIMARY}
                       >
-                        仅重新排版
+                        去审核
                       </button>
                     </>
                   ) : (
                     <>
-                      {analysisKind === "early" &&
-                      canPublish &&
-                      (interview?.status === "paused" ||
-                        (!interview && confirmPublished === 0)) ? (
+                      {showAllChaptersRerenderAction({
+                        hasDraft: false,
+                        hasAnalysis: confirmHasAnalysis,
+                      }) ? (
                         <button
                           type="button"
                           onClick={() => {
                             setAllChaptersConfirm(false);
-                            void onStartInterview();
+                            onUpdateAllChapters?.("from-files");
                           }}
                           className={CONFIRM_BTN_SECONDARY}
                         >
-                          {interview?.status === "paused"
-                            ? "继续访谈"
-                            : "先去访谈"}
+                          仅重新排版
                         </button>
                       ) : null}
                       <button
                         type="button"
                         onClick={() => {
                           setAllChaptersConfirm(false);
-                          onUpdateAllChapters?.("from-files");
+                          onUpdateAllChapters?.();
                         }}
                         className={CONFIRM_BTN_PRIMARY}
                       >
-                        仅重新排版
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAllChaptersConfirm(false);
-                          onUpdateAllChapters?.();
-                        }}
-                        className={CONFIRM_BTN_SECONDARY}
-                      >
-                        {analysisKind === "early" &&
-                        (interview?.status === "paused" ||
-                          (!interview && confirmPublished === 0))
-                          ? "仍要更新"
-                          : "开始更新"}
+                        开始更新
                       </button>
                     </>
                   )}
