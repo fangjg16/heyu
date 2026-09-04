@@ -48,7 +48,8 @@ const FILE_SYSTEM = `你是投研资料撰写助手。根据项目资料包事�
 3. 事实必须来自【资料目录】【本章深读】【相关段落补充】和【已生成总文件】。目录里有、深读未覆盖的细节写「待补」。
 4. 创业财务不要 IRR、MOIC、投资人 Down/Base/Up 三情景。市场规模写「总市场 / 可服务市场 / 可获得份额」，不要把 TAM/SAM/SOM 当主标题。
 5. 不要输出 kn-* class 或 HTML 表格骨架。
-6. 你没有写文件工具。禁止输出「已写入」「文件已保存到」「写到 AI生成/…」「14.2KB」「下一层知识网络可填模板」这类回执。你的回复本身就是文件内容。`;
+6. 你没有写文件工具。禁止输出「已写入」「文件已保存到」「写到 AI生成/…」「14.2KB」「下一层知识网络可填模板」这类回执。你的回复本身就是文件内容。
+7. 写「本章依据」时只写「项目资料」或「用户访谈」加文件名，例如「本章依据项目资料 AI版权经纪公司.pdf」。禁止自造 [Research]、[Folder] 方括号。证据标签只用 [Data]/[Estimate]/[Assumption]/[Opinion]。表格单元格写完整，不要用省略号截断。`;
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -71,6 +72,7 @@ export async function handleGenerateDeliverableDraft(
   draftItemId: string,
   userId: string,
   runId: string,
+  force = false,
 ): Promise<Response> {
   if (!isDeliverableDraftId(draftItemId)) {
     return json({ error: "不是资料文件条目", code: "INVALID_SECTION" }, 400);
@@ -116,30 +118,32 @@ export async function handleGenerateDeliverableDraft(
   };
 
   const relativePath = deliverableRelativePath(file);
-  const reused = await tryReuseSeedFirstVersionDeliverable(
-    env,
-    projectId,
-    relativePath,
-    file.filename,
-  );
-  if (reused) {
-    const marker = deliverableDraftHtmlMarker(file);
-    await upsertDraftItem(env.DB, {
-      runId,
-      sectionId: draftItemId,
-      status: "ok",
-      html: marker,
-      error: null,
-      llmBackend: "reuse",
-    });
-    await refreshDraftRunProgress(env.DB, runId);
-    return json({
-      ok: true,
-      reused: true,
-      sectionId: draftItemId,
-      path: `${relativePath}/${file.filename}`,
-      documentId: reused.documentId,
-    });
+  if (!force) {
+    const reused = await tryReuseSeedFirstVersionDeliverable(
+      env,
+      projectId,
+      relativePath,
+      file.filename,
+    );
+    if (reused) {
+      const marker = deliverableDraftHtmlMarker(file);
+      await upsertDraftItem(env.DB, {
+        runId,
+        sectionId: draftItemId,
+        status: "ok",
+        html: marker,
+        error: null,
+        llmBackend: "reuse",
+      });
+      await refreshDraftRunProgress(env.DB, runId);
+      return json({
+        ok: true,
+        reused: true,
+        sectionId: draftItemId,
+        path: `${relativePath}/${file.filename}`,
+        documentId: reused.documentId,
+      });
+    }
   }
 
   const currentMd = await readCurrentMarkdownAtPath(
@@ -148,7 +152,7 @@ export async function handleGenerateDeliverableDraft(
     relativePath,
     file.filename,
   );
-  if (shouldReuseExistingDeliverable(currentMd)) {
+  if (!force && shouldReuseExistingDeliverable(currentMd)) {
     const marker = deliverableDraftHtmlMarker(file);
     await upsertDraftItem(env.DB, {
       runId,

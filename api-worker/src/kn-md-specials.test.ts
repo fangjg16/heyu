@@ -537,6 +537,21 @@ BOM 待补。
     expect(page.indexOf("kn-doc-title")).toBeLessThan(page.indexOf("kn-stats"));
   });
 
+  it("keeps long TAM definitions instead of clipping to 18 characters", () => {
+    const html = renderMarketStatsLead(`# 市场分析
+
+| 口径 | 规模 |
+| --- | --- |
+| 总市场 | 数字人/虚拟人内容服务市场（含纯数字人制作与授权） |
+| 可服务市场 | 真人 IP 的 AI 分身授权市场 |
+| 可获得份额 | 四至五线明星及网红的 AI 版权经纪 |
+
+`);
+    expect(html).toContain("数字人/虚拟人内容服务市场");
+    expect(html).toContain("真人 IP 的 AI 分身授权市场");
+    expect(html).not.toMatch(/数字人\/虚拟人内容服务市场（含纯数…/u);
+  });
+
   it("does not copy a beachhead dollar into both TAM and SAM", () => {
     const md = `# 市场分析
 
@@ -710,7 +725,7 @@ ${rows}
     expect(html).toContain("kn-featmap");
     expect(html).toContain("人工批准");
     expect(html).toContain("kn-radar");
-    expect(html).toContain("viewBox=\"0 0 400 400\"");
+    expect(html).toContain("viewBox=\"0 0 440 440\"");
     expect(html).toContain("差异最大的五维");
     expect(html).not.toContain("kn-axes");
     const page = markdownToKnHtml(md, "competitor-landscape");

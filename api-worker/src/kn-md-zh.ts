@@ -168,6 +168,29 @@ const PHRASES: Array<[RegExp, string]> = [
   [/\bdeferred\b/giu, "暂缓"],
 ];
 
+const CITE_ID = /^[A-Za-z]{1,3}-?\d+[a-z]?$/u;
+const FOLDER_TAG =
+  /^(Research|Sources?|Files?|Docs?|Materials?|Appendix|附件|研究|资料|项目资料)$/iu;
+
+/**
+ * 模型常把目录名抄成 `[Research]`。那不是证据标签，也不是 [A-1]。
+ * 呈现时去掉，避免正文里冒出假引用。
+ */
+export function stripInventedFolderTags(s: string): string {
+  return s
+    .replace(/\[([^\]]+)\]/gu, (all, inner: string) => {
+      const label = String(inner).trim();
+      if (!label) return all;
+      if (tagKindFromLabel(label)) return all;
+      if (CITE_ID.test(label)) return all;
+      if (FOLDER_TAG.test(label)) return "";
+      return all;
+    })
+    .replace(/[ \t]{2,}/gu, " ")
+    .replace(/^ /u, "")
+    .replace(/ $/u, "");
+}
+
 export function tagKindFromLabel(label: string): string {
   const first = (label.split(/[,，、/\s]|—|–/u)[0] ?? "").trim().toLowerCase();
   const whole = label.trim().toLowerCase();

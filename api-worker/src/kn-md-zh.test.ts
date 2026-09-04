@@ -3,10 +3,21 @@ import {
   isEnglishHeavyMarkdown,
   localizeKnText,
   localizeTagLabel,
+  stripInventedFolderTags,
   tagKindFromLabel,
 } from "./kn-md-zh";
 
 describe("kn-md-zh", () => {
+  it("strips invented [Research] folder tags but keeps [Data] and [A-1]", () => {
+    expect(
+      stripInventedFolderTags(
+        "本章依据项目资料 [Research] AI版权经纪公司.pdf、老板指示 20260615.pdf",
+      ),
+    ).toBe("本章依据项目资料 AI版权经纪公司.pdf、老板指示 20260615.pdf");
+    expect(stripInventedFolderTags("[Data] 官网可核验")).toBe("[Data] 官网可核验");
+    expect(stripInventedFolderTags("见 [A-1] 和 [S-2]")).toBe("见 [A-1] 和 [S-2]");
+  });
+
   it("splits Chinese-comma evidence tags", () => {
     expect(tagKindFromLabel("Data，访谈")).toBe("data");
     expect(localizeTagLabel("Data，团队叙事")).toBe("资料 · 团队叙事");

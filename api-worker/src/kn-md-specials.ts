@@ -543,7 +543,10 @@ function marketValue(md: string, tableRe: RegExp, headingRe: RegExp): string {
       firstMoney(row.slice(1).join(" ")) ||
       stripInlineMd(row[scaleI >= 0 ? scaleI : 1] ?? "");
     if (isHollowMetric(money) || /^待补/u.test(money.trim())) return "待补";
-    if (money.trim()) return clip(money, 18);
+    if (money.trim()) {
+      const fromMoney = firstMoney(money);
+      return fromMoney || stripInlineMd(money);
+    }
   }
   const named = tables.find((t) => t.headers.some((h) => tableRe.test(h)));
   if (named) {
@@ -576,8 +579,8 @@ export function renderMarketStatsLead(md: string): string {
   const cell = (label: string, value: string) => {
     const pending = isHollowMetric(value) || /^待补/u.test(value.trim());
     const cls = pending ? "kn-stat kn-stat--pending" : "kn-stat";
-    const shown = pending ? "待补" : clip(value, 18);
-    return `<div class="${cls}"><div class="kn-stat__label">${escapeHtml(label)}</div><div class="kn-stat__value">${escapeHtml(shown)}</div><div class="kn-stat__note">规划口径</div></div>`;
+    const shown = pending ? "待补" : clip(value, 56);
+    return `<div class="${cls}"><div class="kn-stat__label">${escapeHtml(label)}</div><div class="kn-stat__value" title="${escapeHtml(stripInlineMd(value))}">${escapeHtml(shown)}</div><div class="kn-stat__note">规划口径</div></div>`;
   };
   const parts = [
     tamV ? cell("总市场", tamV) : "",
@@ -1436,13 +1439,37 @@ function shouldTransposeFeat(table: MdTable): boolean {
   return col0Rated === 0 && table.headers.length >= 5;
 }
 
+function radarLabelTspans(text: string, x: string): string {
+  const t = stripInlineMd(text);
+  if (!t) return "";
+  const perLine = 8;
+  const maxLines = 2;
+  const lines: string[] = [];
+  let rest = t;
+  for (let i = 0; i < maxLines && rest.length > 0; i += 1) {
+    if (i === maxLines - 1 && rest.length > perLine) {
+      lines.push(`${rest.slice(0, perLine - 1).trim()}…`);
+      break;
+    }
+    lines.push(rest.slice(0, perLine));
+    rest = rest.slice(perLine);
+  }
+  const startDy = lines.length > 1 ? "-0.55em" : "0";
+  return lines
+    .map((line, i) => {
+      const dy = i === 0 ? startDy : "1.15em";
+      return `<tspan x="${x}" dy="${dy}">${escapeHtml(line)}</tspan>`;
+    })
+    .join("");
+}
+
 function radarSeriesFrom(table: MdTable): {
   dims: string[];
   series: Array<{ name: string; values: number[] }>;
 } {
   if (shouldTransposeFeat(table)) {
     return {
-      dims: table.headers.slice(1).map((h) => clip(h, 18)).filter(Boolean),
+      dims: table.headers.slice(1).map((h) => stripInlineMd(h)).filter(Boolean),
       series: table.rows
         .map((r) => ({
           name: clip(r[0] ?? "", 16),
@@ -1452,7 +1479,7 @@ function radarSeriesFrom(table: MdTable): {
     };
   }
   return {
-    dims: table.rows.map((r) => clip(r[0] ?? "", 18)).filter(Boolean),
+    dims: table.rows.map((r) => stripInlineMd(r[0] ?? "")).filter(Boolean),
     series: table.headers
       .slice(1)
       .map((h, j) => ({
@@ -1504,12 +1531,11 @@ function renderFeatureRadar(table: MdTable): string {
   }));
   if (dims.length < 3) return "";
   const n = dims.length;
-  const size = 400;
-  const cx = 200;
-  const cy = 200;
-  const maxR = 112;
-  const labelGap = 38;
-  const dimClip = 8;
+  const size = 440;
+  const cx = 220;
+  const cy = 220;
+  const maxR = 118;
+  const labelGap = 52;
   const pt = (i: number, score: number): string => {
     const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
     const r = maxR * (Math.max(0.15, score) / 4);
@@ -1528,7 +1554,7 @@ function renderFeatureRadar(table: MdTable): string {
       const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
       const lx = (cx + (maxR + labelGap) * Math.cos(a)).toFixed(1);
       const ly = (cy + (maxR + labelGap) * Math.sin(a)).toFixed(1);
-      return `<line class="kn-radar__axis" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" /><text class="kn-radar__label" x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle">${escapeHtml(clip(d, dimClip))}</text>`;
+      return `<line class="kn-radar__axis" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" /><text class="kn-radar__label" x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle"><title>${escapeHtml(stripInlineMd(d))}</title>${radarLabelTspans(d, lx)}</text>`;
     })
     .join("");
   const palette = ["#C43C2C", "#1F6B8A", "#D4A017", "#2E7D4F", "#6B3FA0"];
@@ -1556,7 +1582,7 @@ export function renderFeatureMatrixLead(md: string): string {
   const table = findFeatureMatrix(md);
   if (!table) return "";
   const head = `<tr>${table.headers
-    .map((h) => `<th>${escapeHtml(clip(h, 18))}</th>`)
+    .map((h) => `<th>${escapeHtml(clip(h, 28))}</th>`)
     .join("")}</tr>`;
   const body = table.rows
     .slice(0, 16)
@@ -1577,7 +1603,7 @@ export function renderFeatureMatrixLead(md: string): string {
                     ? "无"
                     : tone === "unk"
                       ? "待补"
-                      : clip(c, 10);
+                      : clip(c, 42);
           return `<td${cls}>${escapeHtml(label)}</td>`;
         })
         .join("");
@@ -1716,9 +1742,9 @@ export function renderMarketRingsLead(md: string): string {
   if (isHollowMetric(tamV) || isHollowMetric(samV)) return "";
   if (tamV === samV) return "";
   const som = somV && !isHollowMetric(somV) && somV !== samV
-    ? `<div class="kn-ring kn-ring--som"><span>可获得 <b>${escapeHtml(somV)}</b></span></div>`
+    ? `<div class="kn-ring kn-ring--som"><span>可获得 <b title="${escapeHtml(stripInlineMd(somV))}">${escapeHtml(clip(somV, 36))}</b></span></div>`
     : "";
-  return `<div class="kn-rings"><div class="kn-ring kn-ring--tam"><span>总市场 <b>${escapeHtml(tamV)}</b></span><div class="kn-ring kn-ring--sam"><span>可服务 <b>${escapeHtml(samV)}</b></span>${som}</div></div></div>`;
+  return `<div class="kn-rings"><div class="kn-ring kn-ring--tam"><span>总市场 <b title="${escapeHtml(stripInlineMd(tamV))}">${escapeHtml(clip(tamV, 40))}</b></span><div class="kn-ring kn-ring--sam"><span>可服务 <b title="${escapeHtml(stripInlineMd(samV))}">${escapeHtml(clip(samV, 36))}</b></span>${som}</div></div></div>`;
 }
 
 export function renderRoleStripLead(md: string): string {
