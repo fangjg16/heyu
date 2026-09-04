@@ -61,3 +61,20 @@ export function showAllChaptersRerenderAction(input: {
 }): boolean {
   return input.hasDraft || input.hasAnalysis;
 }
+
+/** 无草案、无分析稿、尚未访谈时，创业项目确认框提供「开始访谈」 */
+export function showAllChaptersInterviewAction(input: {
+  analysisKind: AnalysisKind;
+  hasDraft: boolean;
+  hasAnalysis: boolean;
+  hasInterview: boolean;
+  canStart: boolean;
+}): boolean {
+  return (
+    input.analysisKind === "early" &&
+    input.canStart &&
+    !input.hasDraft &&
+    !input.hasAnalysis &&
+    !input.hasInterview
+  );
+}

@@ -4,6 +4,7 @@ import { DIRECTORY_MIME } from "./project-api";
 import {
   analysisAiFolderPhysical,
   hasAnalysisDeliverableFiles,
+  showAllChaptersInterviewAction,
   showAllChaptersRerenderAction,
 } from "./analysis-ai-folder";
 
@@ -86,6 +87,44 @@ describe("showAllChaptersRerenderAction", () => {
   it("hides 仅重新排版 when there is neither draft nor analysis", () => {
     expect(
       showAllChaptersRerenderAction({ hasDraft: false, hasAnalysis: false }),
+    ).toBe(false);
+  });
+});
+
+describe("showAllChaptersInterviewAction", () => {
+  const emptyEarly = {
+    analysisKind: "early" as const,
+    hasDraft: false,
+    hasAnalysis: false,
+    hasInterview: false,
+    canStart: true,
+  };
+
+  it("shows 开始访谈 for an early project with no draft, analysis, or interview", () => {
+    expect(showAllChaptersInterviewAction(emptyEarly)).toBe(true);
+  });
+
+  it("hides 开始访谈 when analysis files or a draft already exist", () => {
+    expect(
+      showAllChaptersInterviewAction({ ...emptyEarly, hasAnalysis: true }),
+    ).toBe(false);
+    expect(
+      showAllChaptersInterviewAction({ ...emptyEarly, hasDraft: true }),
+    ).toBe(false);
+  });
+
+  it("hides 开始访谈 when an interview already exists or the kind is not early", () => {
+    expect(
+      showAllChaptersInterviewAction({ ...emptyEarly, hasInterview: true }),
+    ).toBe(false);
+    expect(
+      showAllChaptersInterviewAction({
+        ...emptyEarly,
+        analysisKind: "mature",
+      }),
+    ).toBe(false);
+    expect(
+      showAllChaptersInterviewAction({ ...emptyEarly, canStart: false }),
     ).toBe(false);
   });
 });
