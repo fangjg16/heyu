@@ -94,6 +94,16 @@ const USERS = [
     isPlatformAdmin: 0,
     password: "aidj2026",
   },
+  {
+    id: "maxeast",
+    username: "maxeast",
+    displayName: "Maxeast",
+    orgTitle: "访客",
+    avatarChar: "M",
+    avatarClass: "bg-slate-300 text-slate-800 shadow-sm",
+    isPlatformAdmin: 0,
+    password: "maxeast2026",
+  },
 ];
 
 function loadDevVars() {
