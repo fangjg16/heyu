@@ -146,9 +146,6 @@ function CollabHeader({
           <h1 className="mt-1 font-[family-name:var(--font-serif,serif)] text-[22px] font-semibold text-[#1F2423]">
             {project.name}
           </h1>
-          <p className="mt-1 text-[12.5px] text-[#59625F]">
-            补充资料、回复已发给你的待确认事项。
-          </p>
         </div>
         <nav className="flex gap-1 rounded-xl bg-[rgba(78,66,57,0.06)] p-1">
           {tabs.map((t) => (
@@ -262,12 +259,10 @@ export function CollabOverviewPage() {
           </div>
         ) : (
           <>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid max-w-[580px] gap-3 sm:grid-cols-2">
               {[
                 ["待回复事项", data.counts.pendingReply],
-                ["待补充文件", data.counts.pendingFiles],
                 ["已提交待审核", data.counts.submitted],
-                ["需要重新补充", data.counts.needsMore],
               ].map(([label, n]) => (
                 <div
                   key={String(label)}
