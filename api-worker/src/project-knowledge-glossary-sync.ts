@@ -2,6 +2,7 @@ import type { AppDatabase } from "./app-database";
 import { normalizeStoredChapterVersion } from "./chapter-version";
 import { sectionLabel } from "./kn-catalog";
 import {
+  mergeGlossaryAppend,
   mergeGlossaryFromChapterHtml,
 } from "./project-knowledge-citations";
 import {
@@ -70,7 +71,10 @@ export async function syncProjectGlossaryFromPublishedChapters(
       : ((await getProjectKnowledgeChapterHtml(db, projectId, "glossary"))
           ?.html ?? "");
   const chapters = await listProjectKnowledgeChapterHtml(db, projectId);
-  let merged = current ?? "";
+  let merged = mergeGlossaryAppend({
+    existingHtml: current,
+    addHtml: "",
+  });
   for (const ch of chapters) {
     if (META_SECTIONS.has(ch.sectionId) || !ch.html?.trim()) continue;
     if (ch.sectionId === "project-overview") continue;
@@ -80,8 +84,8 @@ export async function syncProjectGlossaryFromPublishedChapters(
       sectionLabel: sectionLabel(ch.sectionId),
     });
   }
-  if (!hasGlossaryRows(merged)) return merged;
   if (merged.trim() === (current ?? "").trim()) return merged;
+  if (!hasGlossaryRows(merged) && !hasGlossaryRows(current)) return merged;
   await upsertProjectKnowledgeChapterHtml(db, {
     projectId,
     sectionId: "glossary",
@@ -111,8 +115,10 @@ export async function appendDraftGlossaryFromChapter(
     chapterHtml,
     sectionLabel: sectionLabel(sectionId),
   });
-  if (!hasGlossaryRows(merged)) return draft?.html ?? null;
   if (merged.trim() === (draft?.html ?? "").trim()) return merged;
+  if (!hasGlossaryRows(merged) && !hasGlossaryRows(draft?.html)) {
+    return draft?.html ?? null;
+  }
   await upsertDraftItem(db, {
     runId,
     sectionId: "glossary",

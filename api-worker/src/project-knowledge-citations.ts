@@ -77,7 +77,7 @@ export const GLOSSARY_TABLE_SKELETON = `<table style="width:100%;border-collapse
   </tbody>
 </table>`;
 
-/** 常识/常用词，禁止进入名词解释 */
+/** 常识词与合域分析流用语，禁止进入名词解释 */
 const COMMON_GLOSSARY_BLOCKLIST = new Set(
   [
     "公司",
@@ -121,6 +121,52 @@ const COMMON_GLOSSARY_BLOCKLIST = new Set(
     "美国",
     "天津",
     "待补",
+    "primary",
+    "secondary",
+    "plan",
+    "gate",
+    "baseline",
+    "tracker",
+    "untested",
+    "testing",
+    "validated",
+    "invalidated",
+    "skill",
+    "skills",
+    "hermes",
+    "jessica",
+    "jensen",
+    "readme",
+    "scorecard",
+    "canvas",
+    "moscow",
+    "callout",
+    "heatmap",
+    "week",
+    "phase",
+    "round",
+    "go",
+    "nogo",
+    "mvp",
+    "gtm",
+    "icp",
+    "pmf",
+    "tam",
+    "sam",
+    "som",
+    "lean",
+    "bmc",
+    "action",
+    "闸门",
+    "闸门灯",
+    "基线",
+    "关键假设",
+    "竞争格局",
+    "分析流",
+    "未验证",
+    "已验证",
+    "已证伪",
+    "实验中",
   ].map((s) => s.toLowerCase()),
 );
 
@@ -326,12 +372,22 @@ function normalizeTermKey(term: string): string {
   return term.replace(/\s+/gu, "").toLowerCase();
 }
 
-/** 是否值得收入名词解释：非常用；优先多字母缩写/专业术语 */
+function glossaryTermParts(term: string): string[] {
+  return normalizeTermKey(term)
+    .split(/[\/／|,，;；]+/u)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+/** 是否值得收入名词解释：本项目业务术语；排除常识词与分析流用语 */
 export function shouldKeepGlossaryTerm(term: string): boolean {
   const t = term.trim();
   if (!t || t === "待补" || t.length <= 1) return false;
   const key = normalizeTermKey(t);
   if (COMMON_GLOSSARY_BLOCKLIST.has(key)) return false;
+  if (glossaryTermParts(t).some((p) => COMMON_GLOSSARY_BLOCKLIST.has(p))) {
+    return false;
+  }
 
   // 多字母拉丁缩写 / 带数字的缩写（如 BPC-157、rPTA、GMP、AHPRA）
   if (/^[A-Za-z]{2,}(?:[-/][A-Za-z0-9]+)*$/u.test(t)) return true;
@@ -348,19 +404,20 @@ export function shouldKeepGlossaryTerm(term: string): boolean {
   return false;
 }
 
-const KNOWN_GLOSSARY_DEFS: Record<string, string> = {
-  TAM: "Total Addressable Market，总潜在市场",
-  SAM: "Serviceable Addressable Market，可服务市场",
-  SOM: "Serviceable Obtainable Market，短期内可获得的市场份额",
-  MVP: "Minimum Viable Product，最小可行产品",
-  GTM: "Go-to-Market，市场进入策略",
-  ICP: "Ideal Customer Profile，理想客户画像",
-  PMF: "Product-Market Fit，产品与市场契合",
-  CAC: "Customer Acquisition Cost，获客成本",
-  LTV: "Lifetime Value，客户终身价值",
-  ARR: "Annual Recurring Revenue，年经常性收入",
-  MRR: "Monthly Recurring Revenue，月经常性收入",
-};
+/** 释义若在讲合域分析模板/Skill/闸门，则不是项目业务术语 */
+const ANALYSIS_FLOW_GLOSSARY_HINT =
+  /(?:\bSkill\b|\bHermes\b|\bJessica\b|\bJensen\b|闸门灯|闸门三态|分析流|分析模板|知识网络模板|实验状态|合域内部|跑一次\s*Skill|对比文档|假设跟踪)/iu;
+
+export function shouldKeepGlossaryEntry(
+  term: string,
+  definition = "",
+  relevance = "",
+): boolean {
+  if (!shouldKeepGlossaryTerm(term)) return false;
+  if (ANALYSIS_FLOW_GLOSSARY_HINT.test(definition)) return false;
+  if (ANALYSIS_FLOW_GLOSSARY_HINT.test(relevance)) return false;
+  return true;
+}
 
 function escapeGlossaryCell(s: string): string {
   return s
@@ -376,9 +433,9 @@ function rememberGlossaryEntry(
   definition: string,
 ): void {
   const t = term.trim();
-  if (!shouldKeepGlossaryTerm(t)) return;
-  const key = normalizeTermKey(t);
   const def = definition.replace(/\s+/gu, " ").trim();
+  if (!shouldKeepGlossaryEntry(t, def)) return;
+  const key = normalizeTermKey(t);
   const prev = byKey.get(key);
   if (!prev) {
     byKey.set(key, { term: t, definition: def });
@@ -389,7 +446,7 @@ function rememberGlossaryEntry(
   }
 }
 
-/** 从已渲章节 HTML 抽出非常用术语（括号/冒号释义，以及 TAM/SAM 等常见研究缩写） */
+/** 从已渲章节 HTML 抽出本项目业务术语（括号/冒号释义；不灌分析框架缩写） */
 export function extractGlossaryEntriesFromHtml(
   html: string,
 ): { term: string; definition: string }[] {
@@ -417,16 +474,6 @@ export function extractGlossaryEntriesFromHtml(
     );
   }
 
-  for (const [term, def] of Object.entries(KNOWN_GLOSSARY_DEFS)) {
-    const hit =
-      new RegExp(`\\b${term}\\b`, "iu").test(text) ||
-      (term === "TAM" && /总潜在市场|总市场/.test(text)) ||
-      (term === "SAM" && /可服务市场/.test(text)) ||
-      (term === "SOM" && /可获得份额|可获得市场/.test(text)) ||
-      (term === "MVP" && /最小可行产品/.test(text));
-    if (hit) rememberGlossaryEntry(byKey, term, def);
-  }
-
   return [...byKey.values()].filter((e) => e.definition);
 }
 
@@ -452,13 +499,21 @@ export function mergeGlossaryFromChapterHtml(params: {
       relevance: params.sectionLabel,
     }),
   );
-  if (entries.length === 0) {
-    return (params.existingHtml ?? "").trim();
-  }
   return mergeGlossaryAppend({
     existingHtml: params.existingHtml,
     addHtml: glossaryAddHtmlFromEntries(entries),
   });
+}
+
+function replaceTbodyRows(tableHtml: string, rows: string[]): string {
+  const body = rows.length > 0 ? `\n${rows.join("\n")}\n` : "\n";
+  if (/<tbody\b[^>]*>[\s\S]*?<\/tbody>/iu.test(tableHtml)) {
+    return tableHtml.replace(
+      /<tbody\b[^>]*>[\s\S]*?<\/tbody>/iu,
+      `<tbody>${body}</tbody>`,
+    );
+  }
+  return appendRowsToTbody(tableHtml, rows);
 }
 
 function ensureSourcesTableShell(html: string | null | undefined): string {
@@ -584,26 +639,54 @@ export function mergeSourcesAppend(params: {
   return ensureSourceRowAnchors(base);
 }
 
-/** 增量合并名词解释：已有名词跳过；常识词过滤掉。 */
+/** 增量合并名词解释：已有名词跳过；分析流/常识词从已有表里剔除。 */
 export function mergeGlossaryAppend(params: {
   existingHtml: string | null | undefined;
   addHtml: string | null | undefined;
 }): string {
   let base = ensureGlossaryTableShell(params.existingHtml);
+  const existingRows = extractTbodyRows(base);
+  const dropExisting = existingRows.some((row) => {
+    const cells = rowCellTexts(row);
+    const term = (cells[0] ?? "").trim();
+    if (!term) return true;
+    return !shouldKeepGlossaryEntry(term, cells[1] ?? "", cells[2] ?? "");
+  });
+
+  const existing = new Set<string>();
+  if (dropExisting) {
+    const kept: string[] = [];
+    for (const row of existingRows) {
+      const cells = rowCellTexts(row);
+      const term = (cells[0] ?? "").trim();
+      if (!shouldKeepGlossaryEntry(term, cells[1] ?? "", cells[2] ?? "")) {
+        continue;
+      }
+      const key = normalizeTermKey(term);
+      if (existing.has(key)) continue;
+      existing.add(key);
+      kept.push(formatGlossaryRow(term, cells[1] ?? "", cells[2] ?? ""));
+    }
+    base = replaceTbodyRows(GLOSSARY_TABLE_SKELETON, kept);
+  } else {
+    for (const term of extractGlossaryTerms(base)) {
+      existing.add(normalizeTermKey(term));
+    }
+  }
+
   const addTable = params.addHtml?.trim()
     ? extractFirstTable(params.addHtml)
     : null;
   if (!addTable) return base;
 
-  const existing = new Set(
-    extractGlossaryTerms(base).map((t) => normalizeTermKey(t)),
-  );
   const toAppend: string[] = [];
 
   for (const row of extractTbodyRows(addTable)) {
     const cells = rowCellTexts(row);
     const term = (cells[0] ?? "").trim();
-    if (!term || !shouldKeepGlossaryTerm(term)) continue;
+    if (!shouldKeepGlossaryEntry(term, cells[1] ?? "", cells[2] ?? "")) {
+      continue;
+    }
     const key = normalizeTermKey(term);
     if (existing.has(key)) continue;
     existing.add(key);
@@ -690,7 +773,9 @@ export function listExistingMetaDigest(params: {
   glossaryHtml: string | null | undefined;
 }): string {
   const ids = extractSourceIds(params.sourcesHtml ?? "");
-  const terms = extractGlossaryTerms(params.glossaryHtml ?? "");
+  const terms = extractGlossaryTerms(params.glossaryHtml ?? "").filter((t) =>
+    shouldKeepGlossaryTerm(t),
+  );
   return [
     "【知识网络已有引用来源 ID】",
     ids.length ? ids.join("、") : "（尚无）",
@@ -698,7 +783,7 @@ export function listExistingMetaDigest(params: {
     "【知识网络已有名词】",
     terms.length ? terms.join("、") : "（尚无）",
     "",
-    "增量规则：===SOURCES_ADD=== / ===GLOSSARY_ADD=== 只输出本章新出现且上方清单中没有的条目；已有 ID/名词不要重复整行重写。若无新增，该段写 NONE。",
+    "增量规则：===SOURCES_ADD=== / ===GLOSSARY_ADD=== 只输出本章新出现且上方清单中没有的条目；已有 ID/名词不要重复整行重写。若无新增，该段写 NONE。名词解释只收本项目/被投业务资料里的术语，禁止收录分析模板、Skill、闸门或实验状态用语。",
   ].join("\n");
 }
 

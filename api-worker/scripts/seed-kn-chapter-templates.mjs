@@ -96,7 +96,7 @@ const DEFAULT_GENERATE_SYSTEM = `你是投研知识网络章节撰写助手。�
 ===GLOSSARY_ADD===
 （本章新出现的非常用名词；无新增写 NONE）
 3. 引用来源与名词解释均为**增量**：禁止重写整张已有表；已有 ID / 已有名词不得再输出；只补新行。
-4. 名词解释只收非常用术语（如多字母缩写 GRS、rPTA、AHPRA、BPC-157、FTO、Schedule 4）；常识词（公司、投资、市场、股权、利润等）禁止加入。
+4. 名词解释只收**本项目/被投业务资料里出现的术语**（产品名、行业黑话、法规缩写、主体简称、项目特有口径，如 GRS、rPTA、AHPRA、BPC-157、FTO、Addepar）。禁止收录合域分析流/模板用语（Plan、Gate、baseline、Tracker、Untested、Testing、Validated、Invalidated、Skill、Jessica/Jensen、Hermes、TAM/SAM/SOM、GTM、MVP、闸门灯、章节栏目名等）。常识词（公司、投资、市场、股权、利润等）禁止加入。第三列写该术语在本项目业务中的含义，不要写分析章节名。
 5. 凡表格「证据/来源」列：单元格内**只输出**引用标记如 [A-1]，禁止「项目协作方整理」「项目方整理」「BP称」等说明文字；多个引用用空格分隔。
 6. 表格表头须可单行完整显示（勿把长表头拆成多行文字）。
 7. 若模板已含 class 或内联 style：必须保留，只替换「待补」内容。禁止拆掉 kn-callout、kn-gate、kn-stats 等 class。

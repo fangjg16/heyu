@@ -225,7 +225,7 @@ const GENERATE_SYSTEM = `你是投研知识网络章节撰写助手。根据「�
 ===GLOSSARY_ADD===
 （本章新出现的非常用名词；无新增写 NONE）
 3. 引用来源与名词解释均为**增量**：禁止重写整张已有表；已有 ID / 已有名词不得再输出；只补新行。
-4. 名词解释只收非常用术语（如多字母缩写 GRS、rPTA、AHPRA、BPC-157、FTO、Schedule 4）；常识词（公司、投资、市场、股权、利润等）禁止加入。
+4. 名词解释只收**本项目/被投业务资料里出现的术语**（产品名、行业黑话、法规缩写、主体简称、项目特有口径，如 GRS、rPTA、AHPRA、BPC-157、FTO、Addepar）。禁止收录合域分析流/模板用语（Plan、Gate、baseline、Tracker、Untested、Testing、Validated、Invalidated、Skill、Jessica/Jensen、Hermes、TAM/SAM/SOM、GTM、MVP、闸门灯、章节栏目名等）。常识词（公司、投资、市场、股权、利润等）禁止加入。第三列写该术语在本项目业务中的含义，不要写分析章节名。
 5. 凡表格「证据/来源」列：单元格内**只输出**引用标记如 [A-1]，禁止「项目协作方整理」「项目方整理」「BP称」等说明文字；多个引用用空格分隔。
 6. 表格表头须可单行完整显示（勿把长表头拆成多行文字）。
 7. 若模板已含 class 或内联 style：必须保留这些 class 与 style，只替换「待补」内容。禁止拆掉 kn-callout、kn-gate、kn-stats 等 class。
@@ -234,6 +234,9 @@ const GENERATE_SYSTEM = `你是投研知识网络章节撰写助手。根据「�
 10. 附件文件名或摘录里反复出现的对标主体、产品名、公司名必须写入对应章节（尤其对标分析），禁止只列通用海外模型而漏国内点名对象。
 12. 若资料中有「AI生成」目录下与本章对应的 Markdown 总文件，以该文件为正文来源填模板；附件仅作核对。禁止把 Markdown 原文当 HTML 贴出。
 ${GENERATE_SYSTEM_SKILL_LOCK}`;
+
+const GLOSSARY_ADD_LOCK =
+  "名词解释硬性约束：===GLOSSARY_ADD=== 只收本项目/被投业务资料中的术语（产品、法规、主体、行业口径）；禁止收录合域分析流用语（Plan、Gate、baseline、Tracker、Untested、Testing、Validated、Invalidated、Skill、Jessica/Jensen、Hermes、TAM/SAM/SOM、GTM、MVP、闸门灯、章节栏目名）。第三列写该术语在本项目业务中的含义。";
 
 const SECTION_FORMAT_HINT: Record<string, string> = {
   "project-summary":
@@ -858,6 +861,9 @@ export async function handleGenerateProjectKnowledgeChapter(
   ) {
     generateSystem = `${generateSystem.trim()}\n${GENERATE_SYSTEM_SKILL_LOCK}`;
   }
+  if (!generateSystem.includes("名词解释硬性约束")) {
+    generateSystem = `${generateSystem.trim()}\n${GLOSSARY_ADD_LOCK}`;
+  }
   const skeleton = filterTemplateByKind(template!.markdown, analysisKind);
   const userPrompt = [
     `章节：${template!.title}`,
@@ -889,7 +895,7 @@ export async function handleGenerateProjectKnowledgeChapter(
     "【引用来源新增行骨架（仅新 ID，放在 ===SOURCES_ADD===）】",
     SOURCES_TABLE_SKELETON,
     "",
-    "【名词解释新增行骨架（仅非常用词，放在 ===GLOSSARY_ADD===）】",
+    "【名词解释新增行骨架（仅本项目业务术语，禁止分析流用语，放在 ===GLOSSARY_ADD===）】",
     GLOSSARY_TABLE_SKELETON,
     "",
     overviewKnBlock,
@@ -1024,8 +1030,7 @@ export async function handleGenerateProjectKnowledgeChapter(
           mergedSources.trim() !== baseSourcesHtml.trim() &&
           /<td\b/iu.test(mergedSources);
         const glossaryChanged =
-          mergedGlossary.trim() !== baseGlossaryHtml.trim() &&
-          /<td\b/iu.test(mergedGlossary);
+          mergedGlossary.trim() !== baseGlossaryHtml.trim();
 
         if (sourcesChanged || extractSourceIds(mergedSources).length > 0) {
           sourcesHtml = linkifyCitationMarkers(
@@ -1162,8 +1167,7 @@ export async function handleGenerateProjectKnowledgeChapter(
         mergedSources.trim() !== (latestSources?.html ?? "").trim() &&
         /<td\b/iu.test(mergedSources);
       const glossaryChanged =
-        mergedGlossary.trim() !== (latestGlossary?.html ?? "").trim() &&
-        /<td\b/iu.test(mergedGlossary);
+        mergedGlossary.trim() !== (latestGlossary?.html ?? "").trim();
 
       if (sourcesChanged || extractSourceIds(mergedSources).length > 0) {
         savedSources = await upsertProjectKnowledgeChapterHtml(env.DB, {
@@ -1219,6 +1223,31 @@ export async function handleGenerateProjectKnowledgeChapter(
     }
   } catch {
     /* 章节已保存；引用来源回填失败不阻断 */
+  }
+
+  try {
+    const syncedGlossary = await syncProjectGlossaryFromPublishedChapters(
+      env.DB,
+      projectId,
+      userId,
+      savedGlossary?.html,
+    );
+    if (syncedGlossary?.trim()) {
+      savedGlossary = {
+        ...(savedGlossary ?? {
+          projectId,
+          sectionId: "glossary",
+          html: syncedGlossary,
+          source: "generate",
+          llmBackend: null,
+          updatedAt: new Date().toISOString(),
+          updatedBy: userId,
+        }),
+        html: syncedGlossary,
+      };
+    }
+  } catch {
+    /* 章节已保存；名词解释回填失败不阻断 */
   }
 
   return json({

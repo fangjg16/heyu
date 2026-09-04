@@ -8,9 +8,9 @@ import {
   parseChapterGenerateAnswer,
   parseSnapshotAndSourcesAnswer,
   shouldKeepGlossaryTerm,
+  extractGlossaryEntriesFromHtml,
   stripEvidenceSourceCellsToLinksOnly,
   extractCiteIdsFromHtml,
-  extractGlossaryEntriesFromHtml,
   mergeCitedSourcesIntoTable,
   mergeGlossaryFromChapterHtml,
 } from "./project-knowledge-citations";
@@ -82,12 +82,25 @@ NONE
     expect(merged.match(/A-1/g)?.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("shouldKeepGlossaryTerm filters common words", () => {
+  it("shouldKeepGlossaryTerm filters common words and analysis-flow jargon", () => {
     expect(shouldKeepGlossaryTerm("投资")).toBe(false);
     expect(shouldKeepGlossaryTerm("市场")).toBe(false);
+    expect(shouldKeepGlossaryTerm("Plan")).toBe(false);
+    expect(shouldKeepGlossaryTerm("Gate")).toBe(false);
+    expect(shouldKeepGlossaryTerm("baseline")).toBe(false);
+    expect(shouldKeepGlossaryTerm("Tracker")).toBe(false);
+    expect(shouldKeepGlossaryTerm("Untested")).toBe(false);
+    expect(shouldKeepGlossaryTerm("Validated")).toBe(false);
+    expect(shouldKeepGlossaryTerm("Jessica/Jensen")).toBe(false);
+    expect(shouldKeepGlossaryTerm("TAM")).toBe(false);
+    expect(shouldKeepGlossaryTerm("GTM")).toBe(false);
+    expect(shouldKeepGlossaryTerm("MVP")).toBe(false);
     expect(shouldKeepGlossaryTerm("rPTA")).toBe(true);
     expect(shouldKeepGlossaryTerm("BPC-157")).toBe(true);
     expect(shouldKeepGlossaryTerm("GRS")).toBe(true);
+    expect(shouldKeepGlossaryTerm("Addepar")).toBe(true);
+    expect(shouldKeepGlossaryTerm("OS")).toBe(true);
+    expect(shouldKeepGlossaryTerm("CRM")).toBe(true);
   });
 
   it("ensureTableHeaderNoWrap adds nowrap", () => {
@@ -141,24 +154,49 @@ NONE
     expect(merged.html).toContain("资料包");
   });
 
-  it("extractGlossaryEntriesFromHtml picks defined acronyms and TAM/SAM", () => {
-    const html = `<p>市场规模用 TAM（Total Addressable Market）衡量，可服务市场对应 SAM。</p><p>总市场约 30 亿。</p>`;
+  it("extractGlossaryEntriesFromHtml picks project terms, not analysis-framework acronyms", () => {
+    const html = `<p>托管用 Addepar（家族办公室投资组合与报告系统）。市场规模用 TAM（Total Addressable Market）衡量，可服务市场对应 SAM。</p><p>总市场约 30 亿。下一步做 MVP（Minimum Viable Product）。</p>`;
     const terms = extractGlossaryEntriesFromHtml(html).map((e) => e.term);
-    expect(terms).toContain("TAM");
-    expect(terms).toContain("SAM");
+    expect(terms).toContain("Addepar");
+    expect(terms).not.toContain("TAM");
+    expect(terms).not.toContain("SAM");
+    expect(terms).not.toContain("MVP");
   });
 
-  it("mergeGlossaryFromChapterHtml appends new terms without dropping existing", () => {
+  it("mergeGlossaryFromChapterHtml appends project terms without dropping existing", () => {
     const existing = `<table><tbody>
 <tr><td>GRS</td><td>旧释义</td><td>已有</td></tr>
 </tbody></table>`;
     const merged = mergeGlossaryFromChapterHtml({
       existingHtml: existing,
-      chapterHtml: `<p>下一步做 MVP（Minimum Viable Product）。</p>`,
+      chapterHtml: `<p>账本对接 Addepar（家族办公室投资组合系统）。</p>`,
       sectionLabel: "功能规划",
     });
     expect(merged).toContain("GRS");
-    expect(merged).toContain("MVP");
+    expect(merged).toContain("Addepar");
     expect(merged).toContain("功能规划");
+    expect(merged).not.toContain("MVP");
+  });
+
+  it("mergeGlossaryAppend drops analysis-flow rows already in the table", () => {
+    const existing = `<table><tbody>
+<tr><td>Plan</td><td>内部研究计划</td><td>行动</td></tr>
+<tr><td>Gate</td><td>投资闸门</td><td>行动</td></tr>
+<tr><td>Jessica/Jensen</td><td>跑一次 Skill 对比文档</td><td>行动</td></tr>
+<tr><td>Addepar</td><td>家族办公室投资组合系统</td><td>竞争格局</td></tr>
+</tbody></table>`;
+    const merged = mergeGlossaryAppend({
+      existingHtml: existing,
+      addHtml: `<table><tbody>
+<tr><td>Untested</td><td>尚未验证的假设</td><td>关键假设</td></tr>
+<tr><td>DealCloud</td><td>交易与关系 CRM</td><td>竞争格局</td></tr>
+</tbody></table>`,
+    });
+    expect(merged).not.toContain("Plan");
+    expect(merged).not.toContain("Gate");
+    expect(merged).not.toContain("Jessica");
+    expect(merged).not.toContain("Untested");
+    expect(merged).toContain("Addepar");
+    expect(merged).toContain("DealCloud");
   });
 });

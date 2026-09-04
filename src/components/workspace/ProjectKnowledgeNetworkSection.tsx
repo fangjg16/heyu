@@ -1657,7 +1657,7 @@ export function ProjectKnowledgeNetworkSection({
               <div className="flex min-h-[200px] items-center justify-center">
                 <p className="text-[13px] text-[#969E9A]">加载中…</p>
               </div>
-            ) : glossaryHtml?.trim() ? (
+            ) : /<td\b/iu.test(glossaryHtml ?? "") ? (
               <div
                 className="kn-glossary-html text-[13px] leading-[1.65] text-[#1F2423] [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[rgba(78,66,57,0.12)] [&_td]:px-3.5 [&_td]:py-3.5 [&_th]:whitespace-nowrap [&_th]:border [&_th]:border-[rgba(78,66,57,0.12)] [&_th]:bg-[rgba(78,66,57,0.05)] [&_th]:px-3.5 [&_th]:py-3 [&_th]:text-left [&_th]:text-[12px] [&_th]:font-semibold [&_th]:text-[#59625F]"
                 dangerouslySetInnerHTML={{ __html: glossaryHtml }}
