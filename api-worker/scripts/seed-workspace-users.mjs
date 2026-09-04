@@ -66,13 +66,13 @@ const USERS = [
   },
   {
     id: "janice-hi",
-    username: "janicehi",
-    displayName: "JaniceHi",
+    username: "maxeast",
+    displayName: "Maxeast",
     orgTitle: "访客",
-    avatarChar: "J",
+    avatarChar: "M",
     avatarClass: "bg-slate-300 text-slate-800 shadow-sm",
     isPlatformAdmin: 0,
-    password: "jfo2026",
+    password: "maxeast2026",
   },
   {
     id: "peptide",
@@ -93,16 +93,6 @@ const USERS = [
     avatarClass: "bg-slate-300 text-slate-800 shadow-sm",
     isPlatformAdmin: 0,
     password: "aidj2026",
-  },
-  {
-    id: "maxeast",
-    username: "maxeast",
-    displayName: "Maxeast",
-    orgTitle: "访客",
-    avatarChar: "M",
-    avatarClass: "bg-slate-300 text-slate-800 shadow-sm",
-    isPlatformAdmin: 0,
-    password: "maxeast2026",
   },
 ];
 
