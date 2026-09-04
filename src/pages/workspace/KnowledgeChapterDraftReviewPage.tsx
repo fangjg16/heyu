@@ -783,6 +783,31 @@ export default function KnowledgeChapterDraftReviewPage() {
     }
   };
 
+  const onRegenChapter = async () => {
+    if (!canUpdate || actionLocked || !selected) return;
+    if (
+      selected.kind === "pending" ||
+      selected.kind === "revising"
+    ) {
+      return;
+    }
+    const label = selected.label;
+    setChapterBusy(selected.id);
+    setError(null);
+    setNotice(null);
+    try {
+      await generateChapterDraftSection(projectId, runId, selected.id, userId, {
+        force: true,
+      });
+      setNotice(`已重新生成「${label}」`);
+      await loadReview({ keepSelection: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "重新生成本章失败");
+    } finally {
+      setChapterBusy(null);
+    }
+  };
+
   return (
     <WorkspaceShell contentClassName="!overflow-y-auto">
       <div className="mx-auto w-full max-w-[1920px] px-3 py-5 md:px-5 lg:px-6">
@@ -841,7 +866,7 @@ export default function KnowledgeChapterDraftReviewPage() {
             className="grid gap-2 lg:grid-cols-[var(--review-nav)_minmax(0,1fr)_var(--review-aside)]"
             style={
               {
-                ["--review-nav"]: showNavPanel ? "168px" : "44px",
+                ["--review-nav"]: showNavPanel ? "208px" : "44px",
                 ["--review-aside"]: showAsidePanel ? "220px" : "44px",
               } as Record<string, string>
             }
@@ -905,7 +930,9 @@ export default function KnowledgeChapterDraftReviewPage() {
                               : "text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]",
                           )}
                         >
-                          <span className="truncate">{r.label}</span>
+                          <span className="line-clamp-2 leading-tight" title={r.label}>
+                            {r.label}
+                          </span>
                           <span
                             className={cn(
                               "shrink-0 rounded px-1.5 py-0.5 text-[10.5px] font-medium",
@@ -1060,6 +1087,23 @@ export default function KnowledgeChapterDraftReviewPage() {
                         ? "改写中…"
                         : "改写草案"}
                     </button>
+                    {canUpdate && runOpen ? (
+                      <button
+                        type="button"
+                        onClick={() => void onRegenChapter()}
+                        disabled={
+                          Boolean(chapterBusy) ||
+                          actionLocked ||
+                          editing ||
+                          selected?.kind === "revising"
+                        }
+                        className="h-10 shrink-0 rounded-[9px] border border-[rgba(78,66,57,0.18)] px-3.5 text-[13px] font-medium text-[#1F2423] hover:bg-[rgba(78,66,57,0.04)] disabled:opacity-45"
+                      >
+                        {chapterBusy === selected?.id
+                          ? "正在重新生成…"
+                          : "重新生成本章"}
+                      </button>
+                    ) : null}
                   </div>
                   {selected?.kind === "revising" ? (
                     <div className="rounded-xl border border-[rgba(176,125,31,0.22)] bg-[rgba(176,125,31,0.06)] px-3.5 py-2.5">
@@ -1099,6 +1143,18 @@ export default function KnowledgeChapterDraftReviewPage() {
                     <p className="mt-2 whitespace-pre-wrap text-[12.5px] text-[#59625F]">
                       {selected.error || "未知错误"}
                     </p>
+                    {canUpdate && runOpen ? (
+                      <button
+                        type="button"
+                        onClick={() => void onRegenChapter()}
+                        disabled={Boolean(chapterBusy) || actionLocked}
+                        className="mt-3 h-9 rounded-[9px] border border-[rgba(160,99,88,0.3)] bg-white px-3.5 text-[12.5px] font-medium text-[#A06358] hover:bg-[#EFE7E6] disabled:opacity-45"
+                      >
+                        {chapterBusy === selected.id
+                          ? "正在重新生成…"
+                          : "重新生成本章"}
+                      </button>
+                    ) : null}
                   </div>
                 ) : selected.kind === "pending" ? (
                   <p className="text-[13px] text-[#969E9A]">本章仍在生成中…</p>
@@ -1188,39 +1244,38 @@ export default function KnowledgeChapterDraftReviewPage() {
                             </span>
                           ) : null}
                         </div>
-                        {draftEditableSection ? (
-                          <div className="flex flex-wrap gap-1.5">
-                            {!editing ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {draftEditableSection && !editing ? (
+                            <button
+                              type="button"
+                              onClick={startEdit}
+                              disabled={!canEditDraft}
+                              className="h-7 rounded-md border border-[rgba(160,99,88,0.3)] px-2.5 text-[11.5px] font-medium text-[#A06358] hover:bg-[#EFE7E6] disabled:opacity-45"
+                            >
+                              编辑
+                            </button>
+                          ) : null}
+                          {draftEditableSection && editing ? (
+                            <>
                               <button
                                 type="button"
-                                onClick={startEdit}
-                                disabled={!canEditDraft}
-                                className="h-7 rounded-md border border-[rgba(160,99,88,0.3)] px-2.5 text-[11.5px] font-medium text-[#A06358] hover:bg-[#EFE7E6] disabled:opacity-45"
+                                onClick={cancelEdit}
+                                disabled={editBusy}
+                                className="h-7 rounded-md border border-[rgba(78,66,57,0.18)] px-2.5 text-[11.5px] font-medium text-[#1F2423] disabled:opacity-45"
                               >
-                                编辑
+                                取消
                               </button>
-                            ) : (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={cancelEdit}
-                                  disabled={editBusy}
-                                  className="h-7 rounded-md border border-[rgba(78,66,57,0.18)] px-2.5 text-[11.5px] font-medium text-[#1F2423] disabled:opacity-45"
-                                >
-                                  取消
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => void saveEdit()}
-                                  disabled={editBusy}
-                                  className="h-7 rounded-md bg-[#A06358] px-2.5 text-[11.5px] font-medium text-white hover:bg-[#8F564C] disabled:opacity-45"
-                                >
-                                  {editBusy ? "保存中…" : "保存草案"}
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        ) : null}
+                              <button
+                                type="button"
+                                onClick={() => void saveEdit()}
+                                disabled={editBusy}
+                                className="h-7 rounded-md bg-[#A06358] px-2.5 text-[11.5px] font-medium text-white hover:bg-[#8F564C] disabled:opacity-45"
+                              >
+                                {editBusy ? "保存中…" : "保存草案"}
+                              </button>
+                            </>
+                          ) : null}
+                        </div>
                       </div>
                       <div className="p-3">
                         {selected.draftHtml?.trim() || editing ? (

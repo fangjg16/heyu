@@ -296,6 +296,7 @@ export async function routeAuthedApi(
       runId,
       sectionId,
       authUserId,
+      url.searchParams.get("force") === "1",
     );
   }
 

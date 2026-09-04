@@ -15,6 +15,7 @@ import {
   localizeKnText,
   localizeOutsideTags,
   localizeTagLabel,
+  stripInventedFolderTags,
   tagKindFromLabel,
 } from "./kn-md-zh";
 
@@ -34,7 +35,7 @@ function tagKind(label: string): string {
 }
 
 function inline(s: string): string {
-  let t = escapeHtml(localizeOutsideTags(s));
+  let t = escapeHtml(localizeOutsideTags(stripInventedFolderTags(s)));
   t = t.replace(/`([^`]*\.md)`/giu, "");
   t = t.replace(/\[\]\([^)]*\)/gu, "");
   t = t.replace(/\[[^\]]*\]\((?:https?:)?[^)]+\.md\)/giu, "");

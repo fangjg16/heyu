@@ -22,11 +22,12 @@ import {
   getStoredAnalysisKind,
   type AnalysisKind,
 } from "./analysis-kind";
-import { fullDraftSectionIds, deliverableFileIdFromDraft, isDeliverableDraftId, isGeneratableSectionId } from "./kn-catalog";
+import { fullDraftSectionIds, deliverableDraftId, deliverableFileIdFromDraft, isDeliverableDraftId, isGeneratableSectionId } from "./kn-catalog";
 import {
   draftGenerateItemIds,
   deliverableById,
   deliverableRelativePath,
+  deliverablesForKnSection,
   orderDeliverableDraftIds,
   unpublishedGenerateItemIds,
 } from "./deliverable-catalog";
@@ -449,6 +450,7 @@ async function runOneDraftSectionGenerate(
   runId: string,
   sectionId: string,
   userId: string,
+  force = false,
 ): Promise<void> {
   const key = draftGenerateJobKey(runId, sectionId);
   if (!tryClaimDraftGenerateJob(key)) return;
@@ -472,6 +474,7 @@ async function runOneDraftSectionGenerate(
             sectionId,
             userId,
             runId,
+            force,
           )
         : handleGenerateProjectKnowledgeChapter(
             env,
@@ -491,6 +494,7 @@ async function runOneDraftSectionGenerate(
         deliverableFileIdFromDraft(sectionId),
       );
       if (
+        !force &&
         file &&
         (await hasUnconsumedSeedFirstVersionDeliverable(
           env,
@@ -500,7 +504,7 @@ async function runOneDraftSectionGenerate(
         ))
       ) {
         needsLlm = false;
-      } else if (file && env.FILES) {
+      } else if (!force && file && env.FILES) {
         const currentMd = await readCurrentMarkdownAtPath(
           { DB: env.DB, FILES: env.FILES },
           projectId,
@@ -1067,6 +1071,7 @@ export async function handleGenerateChapterDraftSection(
   runId: string,
   sectionIdRaw: string,
   userIdRaw: string | null,
+  force = false,
 ): Promise<Response> {
   const userId = normalizeUserId(userIdRaw);
   if (!userId) return json({ error: "缺少 userId" }, 400);
@@ -1089,14 +1094,37 @@ export async function handleGenerateChapterDraftSection(
   await refreshDraftRunProgress(env.DB, runId);
 
   ctx.waitUntil(
-    runOneDraftSectionGenerate(env, projectId, runId, sectionId, userId).catch(
-      (e) => {
-        console.error(
-          `[draft-generate] ${runId} ${sectionId}`,
-          e instanceof Error ? e.message : e,
-        );
-      },
-    ),
+    (async () => {
+      const kind =
+        (await getStoredAnalysisKind(env.DB, projectId)) ??
+        DEFAULT_ANALYSIS_KIND;
+      if (!isDeliverableDraftId(sectionId) && sectionId !== "project-overview") {
+        const files = deliverablesForKnSection(kind, sectionId);
+        for (const file of files) {
+          await runOneDraftSectionGenerate(
+            env,
+            projectId,
+            runId,
+            deliverableDraftId(file.id),
+            userId,
+            force,
+          );
+        }
+      }
+      await runOneDraftSectionGenerate(
+        env,
+        projectId,
+        runId,
+        sectionId,
+        userId,
+        force,
+      );
+    })().catch((e) => {
+      console.error(
+        `[draft-generate] ${runId} ${sectionId}`,
+        e instanceof Error ? e.message : e,
+      );
+    }),
   );
 
   return json(

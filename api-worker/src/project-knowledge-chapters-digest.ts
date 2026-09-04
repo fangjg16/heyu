@@ -322,8 +322,7 @@ function docSearchBlob(doc: PackageDocMeta): string {
 }
 
 function docLabel(doc: PackageDocMeta): string {
-  const path = (doc.relative_path ?? "").trim();
-  return path ? `${path}/${doc.filename}` : doc.filename;
+  return (doc.filename ?? "").trim() || "未命名文件";
 }
 
 function docMetaBlob(doc: PackageDocMeta, parsed: ParseLite | undefined): string {
@@ -475,6 +474,8 @@ function formatCatalogEntry(
     hasChunks ? "有正文" : "无正文",
   ].join("·");
   const lines = [`- ${docLabel(doc)}（${flags}）`];
+  const path = (doc.relative_path ?? "").trim();
+  if (path) lines.push(`  位置：${path}`);
   if (parsed?.document_type?.trim()) {
     lines.push(`  类型：${parsed.document_type.trim()}`);
   }
@@ -524,8 +525,8 @@ export function assembleChapterMaterialsDigest(
   }
   const hasInterview = (byGroup.get("interview") ?? []).length > 0;
   const basis = hasInterview
-    ? "本章依据：项目资料与用户访谈。AI生成稿写明根据项目资料与访谈。"
-    : "本章依据：项目资料。AI生成稿写明根据项目资料。";
+    ? "本章依据：项目资料与用户访谈。AI生成稿写明根据项目资料与访谈。依据行只写文件名，禁止自造 [Research]、[资料] 这类方括号。"
+    : "本章依据：项目资料。AI生成稿写明根据项目资料。依据行只写文件名，禁止自造 [Research]、[资料] 这类方括号。";
 
   const catalogLines: string[] = [];
   for (const g of groups) {

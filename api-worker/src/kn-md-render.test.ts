@@ -77,6 +77,14 @@ describe("markdownToKnHtml", () => {
     expect(html).not.toContain(">Data<");
   });
 
+  it("does not keep invented [Research] folder tags in body copy", () => {
+    const html = markdownToKnHtml(
+      "本章依据项目资料 [Research] AI版权经纪公司.pdf、老板指示 20260615.pdf。",
+    );
+    expect(html).not.toContain("[Research]");
+    expect(html).toContain("AI版权经纪公司.pdf");
+  });
+
   it("turns block quotes into quiet quotes, not nested callout cards", () => {
     const html = markdownToKnHtml("> 判断：先验证付费意愿。");
     expect(html).toContain("blockquote");

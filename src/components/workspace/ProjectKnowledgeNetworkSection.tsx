@@ -463,7 +463,7 @@ export function ProjectKnowledgeNetworkSection({
 
   const hasHtml = Boolean(html?.trim());
   const canRetryFailed = failedChapterIds.includes(sectionId);
-  const canUpdateChapter = hasHtml || canRetryFailed;
+  const canUpdateChapter = true;
   const sectionBusy =
     busyBySection[sectionId] ??
     (updatingChapterIds.includes(sectionId) ? "generate" : null);
@@ -1391,8 +1391,8 @@ export function ProjectKnowledgeNetworkSection({
                   <div className="flex min-h-[280px] items-center justify-center px-8 py-16">
                     <p className="text-center text-[13px] text-[#969E9A]">
                       {canRetryFailed
-                        ? "本章上次生成失败，可点击右侧「更新本章」重试"
-                        : "本章尚无内容，请先「更新全部章节」生成"}
+                        ? "本章上次生成失败，可点击右侧「重新生成本章」重试"
+                        : "本章尚无内容，可点右侧「重新生成本章」"}
                     </p>
                   </div>
                 )}
@@ -1413,16 +1413,16 @@ export function ProjectKnowledgeNetworkSection({
                       title={
                         sectionBusy
                           ? "本章正在生成草案"
-                          : !canUpdateChapter
-                            ? "本章尚无内容，请先「更新全部章节」生成"
+                          : !hasHtml
+                            ? "重新生成本章"
                             : "更新本章"
                       }
                       className="h-9 w-full whitespace-nowrap rounded-[9px] border border-[rgba(160,99,88,0.3)] bg-transparent px-2.5 text-[12px] font-medium text-[#A06358] transition-colors hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {sectionBusy
                         ? "生成草案中…"
-                        : canRetryFailed && !hasHtml
-                          ? "重试本章"
+                        : !hasHtml
+                          ? "重新生成本章"
                           : "更新本章"}
                     </button>
                     {canUpdate && hasHtml ? (

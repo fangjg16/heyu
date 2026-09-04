@@ -116,6 +116,8 @@ describe("three-layer chapter materials", () => {
     expect(digest).toContain("商业计划书.pdf");
     expect(digest).toContain("剧云 jucloud 对标对比.xlsx");
     expect(digest).toContain("财务模型.xlsx");
+    expect(digest).toContain("位置：对标");
+    expect(digest).toContain("禁止自造 [Research]");
     expect(digest).toContain("【本章深读 · must-read 全文】");
     expect(digest).toContain("剧云 Jucloud 是国内 AI 剧本工具");
     expect(digest).not.toContain("IRR 25%");

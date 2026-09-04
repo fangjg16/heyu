@@ -1537,8 +1537,10 @@ export async function generateChapterDraftSection(
   runId: string,
   sectionId: string,
   userId: string,
+  opts?: { force?: boolean },
 ): Promise<{ ok: true; sectionId: string; html?: string; run?: ChapterDraftRun }> {
   const q = new URLSearchParams({ userId });
+  if (opts?.force) q.set("force", "1");
   const res = await jfoFetch(
     `/api/projects/${encodeURIComponent(projectId)}/chapter-draft-runs/${encodeURIComponent(runId)}/sections/${encodeURIComponent(sectionId)}/generate?${q}`,
     { method: "POST" },
