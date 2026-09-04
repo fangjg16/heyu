@@ -1644,7 +1644,7 @@ export function ProjectKnowledgeNetworkSection({
               名词解释
             </div>
             <p className="mt-2.5 max-w-[820px] text-[13px] leading-[1.75] text-[#59625F]">
-              解释知识网络正文中实际出现、可能影响研究判断的非常用术语（如多字母缩写）；常识词不会收录。随章节更新增量补充。
+              解释本项目资料与知识网络正文里实际出现、可能影响研究判断的业务术语（产品名、行业缩写、法规口径、主体简称等）；不收录合域分析模板或内部流程用语。常识词不会收录。随章节更新增量补充。
             </p>
           </div>
           <div className="px-8 py-[30px]">
@@ -1657,7 +1657,7 @@ export function ProjectKnowledgeNetworkSection({
               <div className="flex min-h-[200px] items-center justify-center">
                 <p className="text-[13px] text-[#969E9A]">加载中…</p>
               </div>
-            ) : glossaryHtml?.trim() ? (
+            ) : /<td\b/iu.test(glossaryHtml ?? "") ? (
               <div
                 className="kn-glossary-html text-[13px] leading-[1.65] text-[#1F2423] [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[rgba(78,66,57,0.12)] [&_td]:px-3.5 [&_td]:py-3.5 [&_th]:whitespace-nowrap [&_th]:border [&_th]:border-[rgba(78,66,57,0.12)] [&_th]:bg-[rgba(78,66,57,0.05)] [&_th]:px-3.5 [&_th]:py-3 [&_th]:text-left [&_th]:text-[12px] [&_th]:font-semibold [&_th]:text-[#59625F]"
                 dangerouslySetInnerHTML={{ __html: glossaryHtml }}
@@ -1665,7 +1665,7 @@ export function ProjectKnowledgeNetworkSection({
             ) : (
               <div className="flex min-h-[200px] items-center justify-center px-8 py-12">
                 <p className="text-center text-[13px] text-[#969E9A]">
-                  尚无名词解释。发布或更新研究章节后，会把正文里出现的非常用术语写入这里。
+                  尚无名词解释。发布或更新研究章节后，会把本项目业务资料里出现的非常用术语写入这里。
                 </p>
               </div>
             )}
