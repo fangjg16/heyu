@@ -80,20 +80,22 @@ function allChaptersConfirmText(input: {
   published: number;
   showInterview?: boolean;
 }): string {
+  const interviewHint =
+    "先做用户访谈，生成内容会更好、更丰富。";
   if (input.published === 0) {
     if (input.hasAnalysis) {
-      return "知识网络还没有章节。开始更新会按资料重新分析并生成各章。只出页面用「仅重新排版」。";
+      return "开始更新会按资料重新分析并生成各章。只出页面用「仅重新排版」。";
     }
     if (input.showInterview) {
-      return "知识网络还没有章节。开始更新会按当前资料分析并生成各章。也可先「开始访谈」。";
+      return `开始更新会按当前资料分析并生成各章。${interviewHint}`;
     }
-    return "知识网络还没有章节。开始更新会按当前资料分析并生成各章。";
+    return "开始更新会按当前资料分析并生成各章。";
   }
   if (input.hasAnalysis) {
     return "开始更新会按最新资料重跑尚未发布的章节；已发布内容在你确认发布前不会改。只刷新页面用「仅重新排版」。";
   }
   if (input.showInterview) {
-    return "开始更新会按最新资料重跑尚未发布的章节；已发布内容在你确认发布前不会改。也可先「开始访谈」。";
+    return `开始更新会按最新资料重跑尚未发布的章节；已发布内容在你确认发布前不会改。${interviewHint}`;
   }
   return "开始更新会按最新资料重跑尚未发布的章节；已发布内容在你确认发布前不会改。";
 }
