@@ -124,14 +124,8 @@ export function workspaceRoleToUiTier(role: WorkspaceRole): UiTier {
 
 export function roleLabelForProject(
   role: WorkspaceRole,
-  analysisKind?: string | null,
+  _analysisKind?: string | null,
 ): string {
-  if (analysisKind === "early") {
-    if (role === "admin") return "管理员";
-    if (role === "core" || role === "mid" || role === "issuer") return "成员";
-    if (role === "low") return "Basic";
-    if (role === "guest") return "未加入";
-  }
   switch (role) {
     case "admin":
       return "Admin";
