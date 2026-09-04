@@ -93,6 +93,7 @@ import {
   handleShareDocumentWithIssuer,
   handleSuggestCollabFollowUp,
 } from "./collab-routes";
+import { handleListMyOpenQuestions } from "./open-questions-routes";
 import { handlePatchMyProfile } from "./auth-routes";
 import { decodePathProjectId } from "./projects-resolve";
 import { reconcileActiveAgentJobsForUser } from "./agent-jobs";
