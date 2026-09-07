@@ -735,6 +735,7 @@ export default function HomeDashboard() {
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
+                    className="font-display"
                     style={{
                       fontSize: 16.5,
                       fontWeight: 600,
@@ -900,6 +901,7 @@ export default function HomeDashboard() {
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
+                      className="font-display"
                       style={{
                         fontSize: 15.5,
                         fontWeight: 600,
