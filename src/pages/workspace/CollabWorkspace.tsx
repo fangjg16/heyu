@@ -269,7 +269,7 @@ export function CollabOverviewPage() {
                   className="rounded-2xl border border-[rgba(78,66,57,0.1)] bg-white/80 px-4 py-4"
                 >
                   <div className="text-[12px] text-[#59625F]">{label}</div>
-                  <div className="mt-1 text-[28px] font-semibold text-[#1F2423]">
+                  <div className="mt-1 font-display text-[28px] font-semibold text-[#1F2423]">
                     {n}
                   </div>
                 </div>
