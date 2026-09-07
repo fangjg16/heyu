@@ -15,7 +15,7 @@ export const ANALYSIS_KIND_DESCRIPTIONS: Record<AnalysisKind, string> = {
   acquire: "交易目的是买下来过手经营（控股收购、接手）。",
 };
 
-/** 表单展示顺序：家办默认先看投资。 */
+/** 表单展示顺序：家办默认先看投资。新建/编辑不再提供收购经营。 */
 export const ANALYSIS_KIND_OPTIONS: {
   id: AnalysisKind;
   label: string;
@@ -37,6 +37,16 @@ export const ANALYSIS_KIND_OPTIONS: {
     description: ANALYSIS_KIND_DESCRIPTIONS.acquire,
   },
 ];
+
+/** 创建/编辑可选形态；已有收购项目编辑时仍显示该项。 */
+export function analysisKindFormOptions(
+  current?: AnalysisKind | "" | null,
+): typeof ANALYSIS_KIND_OPTIONS {
+  return ANALYSIS_KIND_OPTIONS.filter(
+    (option) =>
+      option.id !== "acquire" || current === "acquire",
+  );
+}
 
 export function parseAnalysisKind(raw: unknown): AnalysisKind | null {
   const v = String(raw ?? "")

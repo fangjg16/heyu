@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, FileText, Folder, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
@@ -10,7 +10,7 @@ import { IndustryCategoryFields, RequiredMark } from "@/components/workspace/Ind
 import { AnalysisKindFields } from "@/components/workspace/AnalysisKindFields";
 import { cn } from "@/lib/utils";
 import {
-  ANALYSIS_KIND_OPTIONS,
+  analysisKindFormOptions,
   type AnalysisKind,
 } from "@/lib/analysis-kind";
 import {
@@ -390,13 +390,12 @@ export default function ProjectOverview() {
     Boolean(showCreateModal || createHint || editProject || deleteProject),
   );
 
-  useEffect(() => {
-    if (!showCreateModal) return;
-    const el = folderInputRef.current;
+  const bindFolderInput = useCallback((el: HTMLInputElement | null) => {
+    folderInputRef.current = el;
     if (!el) return;
     el.setAttribute("webkitdirectory", "");
     el.setAttribute("directory", "");
-  }, [showCreateModal]);
+  }, []);
 
   useEffect(() => {
     const id = loadSessionUserId();
@@ -754,7 +753,7 @@ export default function ProjectOverview() {
                 className="bg-transparent outline-none"
               >
                 <option value="all">全部形态</option>
-                {ANALYSIS_KIND_OPTIONS.map((k) => (
+                {analysisKindFormOptions().map((k) => (
                   <option key={k.id} value={k.id}>
                     {k.label}
                   </option>
@@ -904,6 +903,28 @@ export default function ProjectOverview() {
           aria-modal="true"
           aria-labelledby="create-project-title"
         >
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="sr-only"
+            multiple
+            tabIndex={-1}
+            onChange={(e) => {
+              addDemoFiles(e.target.files);
+              e.currentTarget.value = "";
+            }}
+          />
+          <input
+            ref={bindFolderInput}
+            type="file"
+            className="sr-only"
+            multiple
+            tabIndex={-1}
+            onChange={(e) => {
+              addDemoFiles(e.target.files);
+              e.currentTarget.value = "";
+            }}
+          />
           <div className="flex max-h-[min(86vh,36rem)] w-full max-w-md flex-col overflow-hidden rounded-xl border border-[hsl(var(--sand)/0.9)] bg-white shadow-[0_24px_56px_-24px_rgba(46,30,28,0.45)] animate-in zoom-in-95 slide-in-from-bottom-2 duration-200 ease-out sm:max-w-lg">
             <div className="flex shrink-0 items-start justify-between gap-3 px-4 pb-3 pt-4 sm:px-5 sm:pt-5">
               <div className="min-w-0 pr-2">
@@ -1125,26 +1146,6 @@ export default function ProjectOverview() {
                       选择文件夹
                     </button>
                   </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    className="hidden"
-                    multiple
-                    onChange={(e) => {
-                      addDemoFiles(e.target.files);
-                      e.currentTarget.value = "";
-                    }}
-                  />
-                  <input
-                    ref={folderInputRef}
-                    type="file"
-                    className="hidden"
-                    multiple
-                    onChange={(e) => {
-                      addDemoFiles(e.target.files);
-                      e.currentTarget.value = "";
-                    }}
-                  />
                   <p className="mt-2 text-xs text-muted-foreground">
                     已选择 {newProjectFiles.length} 个文件，可拖入文件夹
                   </p>

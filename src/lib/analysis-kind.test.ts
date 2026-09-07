@@ -2,13 +2,18 @@ import { describe, expect, it } from "vitest";
 import {
   ANALYSIS_KIND_LABELS,
   ANALYSIS_KIND_OPTIONS,
+  analysisKindFormOptions,
   analysisKindLabel,
   parseAnalysisKind,
 } from "./analysis-kind";
 
 describe("analysis-kind labels", () => {
-  it("covers three selectable kinds", () => {
-    expect(ANALYSIS_KIND_OPTIONS.map((o) => o.id)).toEqual([
+  it("lets new projects pick 投资 or 创业, not 收购经营", () => {
+    expect(analysisKindFormOptions().map((o) => o.id)).toEqual([
+      "mature",
+      "early",
+    ]);
+    expect(analysisKindFormOptions("acquire").map((o) => o.id)).toEqual([
       "mature",
       "early",
       "acquire",

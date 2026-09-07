@@ -2,7 +2,7 @@ import { useId } from "react";
 import { RequiredMark } from "@/components/workspace/IndustryCategoryFields";
 import { cn } from "@/lib/utils";
 import {
-  ANALYSIS_KIND_OPTIONS,
+  analysisKindFormOptions,
   type AnalysisKind,
 } from "@/lib/analysis-kind";
 
@@ -33,7 +33,7 @@ export function AnalysisKindFields({
         {required ? <RequiredMark /> : null}
       </legend>
       <div className="grid gap-2">
-        {ANALYSIS_KIND_OPTIONS.map((option) => {
+        {analysisKindFormOptions(value || originalKind).map((option) => {
           const selected = value === option.id;
           return (
             <label
