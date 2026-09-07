@@ -1,13 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowRight, FileText, Folder, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
+import { ArrowRight, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { projectMatchesQuery } from "@/workspace/project-search";
 import { projectCardMarksFor } from "@/workspace/project-card-mark";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import { ProjectEditModal } from "@/components/workspace/ProjectEditModal";
 import { IndustryCategoryFields, RequiredMark } from "@/components/workspace/IndustryCategoryFields";
 import { AnalysisKindFields } from "@/components/workspace/AnalysisKindFields";
+import {
+  CreateProjectAttachments,
+  type CreateUploadProgress,
+} from "@/components/workspace/CreateProjectAttachments";
 import { cn } from "@/lib/utils";
 import {
   analysisKindFormOptions,
@@ -38,12 +42,6 @@ import {
   uploadProjectPackageFile,
   PROJECT_UPLOAD_FOLDER,
 } from "@/lib/project-api";
-import {
-  collectDroppedFiles,
-  isLikelyDirectoryPlaceholder,
-  shouldSkipDroppedPath,
-  snapshotDroppedEntries,
-} from "@/lib/collect-dropped-files";
 import { relativePathFromWebkitFile } from "@/lib/unzip-project-files";
 import { loadSessionUserId } from "@/workspace/session";
 import {
@@ -381,21 +379,15 @@ export default function ProjectOverview() {
   const [deleteProject, setDeleteProject] = useState<WorkspaceProject | null>(null);
   const [deletingProject, setDeletingProject] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const folderInputRef = useRef<HTMLInputElement | null>(null);
+  const [createUpload, setCreateUpload] = useState<CreateUploadProgress | null>(
+    null,
+  );
   const industryTaxonomy = useIndustryTaxonomy();
   const canEditTaxonomyMd = isPlatformAdminUser(userId);
 
   useBodyScrollLock(
     Boolean(showCreateModal || createHint || editProject || deleteProject),
   );
-
-  const bindFolderInput = useCallback((el: HTMLInputElement | null) => {
-    folderInputRef.current = el;
-    if (!el) return;
-    el.setAttribute("webkitdirectory", "");
-    el.setAttribute("directory", "");
-  }, []);
 
   useEffect(() => {
     const id = loadSessionUserId();
@@ -518,6 +510,7 @@ export default function ProjectOverview() {
     setParticipants([]);
     setNewProjectFiles([]);
     setCreatingProject(false);
+    setCreateUpload(null);
   };
 
   const confirmCreateProject = () => {
@@ -540,6 +533,7 @@ export default function ProjectOverview() {
       return;
     }
     setCreatingProject(true);
+    setCreateUpload({ phase: "creating" });
     void (async () => {
       try {
         const project = await createProjectViaApi({
@@ -563,7 +557,14 @@ export default function ProjectOverview() {
         upsertApiProject(project);
         const files = [...newProjectFiles];
         const uploadErrors: string[] = [];
-        for (const file of files) {
+        for (let i = 0; i < files.length; i += 1) {
+          const file = files[i]!;
+          setCreateUpload({
+            phase: "uploading",
+            index: i + 1,
+            total: files.length,
+            name: file.name,
+          });
           try {
             await uploadProjectPackageFile(project.id, userId, file, {
               relativePath: relativePathFromWebkitFile(file, PROJECT_UPLOAD_FOLDER),
@@ -574,6 +575,7 @@ export default function ProjectOverview() {
             );
           }
         }
+        setCreateUpload(null);
         setShowCreateModal(false);
         resetCreateForm();
         const uploadNote =
@@ -586,6 +588,7 @@ export default function ProjectOverview() {
           `项目「${project.name}」已保存。可从「我的项目」进入工作台继续完善。${uploadNote}`,
         );
       } catch (e) {
+        setCreateUpload(null);
         setCreateHint(
           e instanceof Error ? e.message : "创建项目失败，请稍后重试。",
         );
@@ -624,38 +627,6 @@ export default function ProjectOverview() {
     setParticipants((prev) =>
       prev.map((p) => (p.userId === userId ? { ...p, permission } : p))
     );
-  };
-
-  const addDemoFiles = (files: FileList | File[] | null) => {
-    if (!files || files.length === 0) return;
-    const picked = Array.from(files).filter((f) => {
-      if (isLikelyDirectoryPlaceholder(f)) return false;
-      const rel =
-        (f as File & { webkitRelativePath?: string }).webkitRelativePath ?? f.name;
-      return !shouldSkipDroppedPath(rel);
-    });
-    if (picked.length === 0) return;
-    setNewProjectFiles((prev) => {
-      const seen = new Set(
-        prev.map((f) => {
-          const rel =
-            (f as File & { webkitRelativePath?: string }).webkitRelativePath ?? "";
-          return `${rel || f.name}-${f.size}-${f.lastModified}`;
-        }),
-      );
-      const merged = [...prev];
-      picked.forEach((f) => {
-        const rel =
-          (f as File & { webkitRelativePath?: string }).webkitRelativePath ?? "";
-        const key = `${rel || f.name}-${f.size}-${f.lastModified}`;
-        if (!seen.has(key)) merged.push(f);
-      });
-      return merged;
-    });
-  };
-
-  const removeDemoFile = (idx: number) => {
-    setNewProjectFiles((prev) => prev.filter((_, i) => i !== idx));
   };
 
   if (!userId || !user) {
@@ -903,28 +874,6 @@ export default function ProjectOverview() {
           aria-modal="true"
           aria-labelledby="create-project-title"
         >
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="sr-only"
-            multiple
-            tabIndex={-1}
-            onChange={(e) => {
-              addDemoFiles(e.target.files);
-              e.currentTarget.value = "";
-            }}
-          />
-          <input
-            ref={bindFolderInput}
-            type="file"
-            className="sr-only"
-            multiple
-            tabIndex={-1}
-            onChange={(e) => {
-              addDemoFiles(e.target.files);
-              e.currentTarget.value = "";
-            }}
-          />
           <div className="flex max-h-[min(86vh,36rem)] w-full max-w-md flex-col overflow-hidden rounded-xl border border-[hsl(var(--sand)/0.9)] bg-white shadow-[0_24px_56px_-24px_rgba(46,30,28,0.45)] animate-in zoom-in-95 slide-in-from-bottom-2 duration-200 ease-out sm:max-w-lg">
             <div className="flex shrink-0 items-start justify-between gap-3 px-4 pb-3 pt-4 sm:px-5 sm:pt-5">
               <div className="min-w-0 pr-2">
@@ -1110,82 +1059,30 @@ export default function ProjectOverview() {
                 </div>
               </div>
 
-              <div>
-                <span className="mb-1 block text-xs font-medium text-[hsl(var(--warm-charcoal))]">
-                  参考附件
-                </span>
-                <div
-                  className="rounded-lg border border-dashed border-[hsl(var(--sand))] bg-[hsl(var(--linen)/0.4)] p-2.5"
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.dataTransfer.dropEffect = "copy";
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const snap = snapshotDroppedEntries(e.dataTransfer);
-                    void collectDroppedFiles(snap).then((files) => addDemoFiles(files));
-                  }}
-                >
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-[hsl(var(--sand)/0.9)] bg-white px-2.5 py-1.5 text-xs font-medium text-[hsl(var(--warm-charcoal))] transition hover:border-[hsl(var(--wine-deep)/0.35)]"
-                    >
-                      <Upload className="h-3.5 w-3.5 text-[hsl(var(--wine-deep))]" />
-                      选择文件
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => folderInputRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-[hsl(var(--sand)/0.9)] bg-white px-2.5 py-1.5 text-xs font-medium text-[hsl(var(--warm-charcoal))] transition hover:border-[hsl(var(--wine-deep)/0.35)]"
-                    >
-                      <Folder className="h-3.5 w-3.5 text-[hsl(var(--wine-deep))]" />
-                      选择文件夹
-                    </button>
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    已选择 {newProjectFiles.length} 个文件，可拖入文件夹
-                  </p>
-                  {newProjectFiles.length > 0 ? (
-                    <ul className="mt-2 max-h-28 space-y-1.5 overflow-y-auto pr-0.5">
-                      {newProjectFiles.map((f, idx) => {
-                        const rel =
-                          (f as File & { webkitRelativePath?: string })
-                            .webkitRelativePath ?? "";
-                        const label = rel.includes("/") ? rel : f.name;
-                        return (
-                        <li
-                          key={`${label}-${f.size}-${f.lastModified}-${idx}`}
-                          className="flex items-center justify-between gap-2 rounded-lg border border-border/65 bg-white px-3 py-2 text-xs"
-                        >
-                          <span className="flex min-w-0 items-center gap-1.5">
-                            <FileText className="h-3.5 w-3.5 shrink-0 text-primary/80" />
-                            <span className="truncate" title={label}>{label}</span>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => removeDemoFile(idx)}
-                            className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                            aria-label="移除附件"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </li>
-                        );
-                      })}
-                    </ul>
-                  ) : (
-                    <p className="mt-2 text-xs text-muted-foreground">尚未选择附件。</p>
-                  )}
-                </div>
-              </div>
+              <CreateProjectAttachments
+                files={newProjectFiles}
+                onChange={setNewProjectFiles}
+                disabled={creatingProject}
+                uploadProgress={createUpload}
+              />
             </div>
             </div>
 
             <div className="flex shrink-0 items-center justify-end gap-2 bg-[hsl(var(--linen)/0.5)] px-4 py-3 sm:px-5">
+              {creatingProject ? (
+                <p className="mr-auto inline-flex min-w-0 items-center gap-1.5 text-xs text-[hsl(var(--warm-charcoal-muted))]">
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                  <span className="truncate">
+                    {createUpload?.phase === "uploading"
+                      ? `正在上传 ${createUpload.index}/${createUpload.total}：${createUpload.name}`
+                      : "正在创建项目…"}
+                  </span>
+                </p>
+              ) : newProjectFiles.length > 0 ? (
+                <p className="mr-auto text-xs text-[hsl(var(--warm-charcoal-muted))]">
+                  已选 {newProjectFiles.length} 个附件，确定后上传
+                </p>
+              ) : null}
               <button
                 type="button"
                 onClick={() => {
@@ -1201,9 +1098,18 @@ export default function ProjectOverview() {
                 type="button"
                 onClick={confirmCreateProject}
                 disabled={creatingProject}
-                className="rounded-lg border border-[hsl(var(--wine-deep))] bg-[hsl(var(--wine-deep))] px-3.5 py-1.5 text-xs font-semibold text-[hsl(var(--wine-deep-foreground))] transition hover:bg-[hsl(353_42%_28%)] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-90 sm:text-sm sm:px-4 sm:py-2"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--wine-deep))] bg-[hsl(var(--wine-deep))] px-3.5 py-1.5 text-xs font-semibold text-[hsl(var(--wine-deep-foreground))] transition hover:bg-[hsl(353_42%_28%)] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-90 sm:text-sm sm:px-4 sm:py-2"
               >
-                {creatingProject ? "创建中..." : "确定"}
+                {creatingProject ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    {createUpload?.phase === "uploading"
+                      ? `上传 ${createUpload.index}/${createUpload.total}`
+                      : "创建中..."}
+                  </>
+                ) : (
+                  "确定"
+                )}
               </button>
             </div>
           </div>
