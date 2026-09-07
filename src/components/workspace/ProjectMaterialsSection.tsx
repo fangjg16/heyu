@@ -83,6 +83,7 @@ import {
   toVirtualFolder,
 } from "@/lib/project-file-source";
 import { inferDocumentGenre, resolveFileTopic } from "@/lib/file-topic";
+import { humanUploadNote } from "@/lib/upload-note";
 import { documentsInVersionFamily } from "@/lib/document-versions";
 import {
   collectDroppedFiles,
@@ -1429,6 +1430,7 @@ export function ProjectMaterialsSection({
       }
 
       const refLabels = cache?.refs ?? [];
+      const caption = humanUploadNote(file.uploadNote);
       return {
         title: file.filename,
         trail,
@@ -1469,9 +1471,7 @@ export function ProjectMaterialsSection({
             fileCategory: file.fileCategory,
             documentType: cache?.documentType,
           }).label },
-          ...(file.uploadNote?.trim()
-            ? [{ label: "说明", value: file.uploadNote.trim() }]
-            : []),
+          ...(caption ? [{ label: "说明", value: caption }] : []),
         ],
         canPreview: canDownload || file.scope === "session",
         canCreateSubfolder: false,

@@ -97,6 +97,7 @@ import {
   sanitizeRelativePath,
   sessionR2Key,
 } from "./documents-access";
+import { humanUploadNote } from "./upload-note";
 import { notifyProjectUploadOp } from "./project-role-notify";
 import {
   handleCreateProject,
@@ -520,7 +521,7 @@ async function handleListFiles(
     fileCategory: r.file_category ?? null,
     versionGroup: r.version_group ?? null,
     replacesDocumentId: r.replaces_document_id ?? null,
-    uploadNote: r.upload_note ?? null,
+    uploadNote: humanUploadNote(r.upload_note),
   }));
 
   return json({
@@ -651,7 +652,7 @@ async function handleUpload(
         : isFinalRaw === "0" || isFinalRaw === "false"
           ? 0
           : null;
-    const uploadNote = String(form.get("uploadNote") || "").trim() || null;
+    const uploadNote = humanUploadNote(String(form.get("uploadNote") || ""));
     const replacesDocumentId =
       String(form.get("replacesDocumentId") || "").trim() || null;
     const versionGroup =

@@ -9,6 +9,7 @@ import { packageR2Key } from "./documents-access";
 import { runDocumentParseSummaryBackground } from "./documents-parse-summary";
 import { embedDocumentChunks } from "./embeddings";
 import { chunkPlainText } from "./search";
+import { humanUploadNote } from "./upload-note";
 
 type JobLike = {
   id: string;
@@ -81,9 +82,8 @@ function looksLikeDocument(text: string): boolean {
   );
 }
 
-/** 一次性种子：有此标记的资料文件在「更新全部」时沿用、不重写；用过后改成 used。 */
+/** 历史上写在 upload_note 里的种子第一版标记；只给沿用逻辑读，不当人的说明。 */
 export const SEED_FIRST_VERSION_NOTE = "seed:startup-heyu-v1";
-const SEED_FIRST_VERSION_USED_NOTE = "seed:startup-heyu-v1:used";
 
 export function isUnconsumedSeedFirstVersionNote(
   note: string | null | undefined,
@@ -209,7 +209,7 @@ export async function hasUnconsumedSeedFirstVersionDeliverable(
   return isUnconsumedSeedFirstVersionNote(note);
 }
 
-/** 种子第一版仍在：沿用正文并吃掉标记，下次「更新全部」会重新写文件。 */
+/** 种子第一版仍在：沿用正文并清掉内部标记，下次「更新全部」会重新写文件。 */
 export async function tryReuseSeedFirstVersionDeliverable(
   env: Env,
   projectId: string,
@@ -234,16 +234,17 @@ export async function tryReuseSeedFirstVersionDeliverable(
   }
   try {
     await env.DB.prepare(
-      `UPDATE documents SET upload_note = ? WHERE id = ? AND project_id = ?`,
+      `UPDATE documents SET upload_note = NULL WHERE id = ? AND project_id = ?`,
     )
-      .bind(SEED_FIRST_VERSION_USED_NOTE, current.id, projectId)
+      .bind(current.id, projectId)
       .run();
   } catch {
-    /* 标记改不了也沿用正文，避免这次被模型盖掉 */
+    /* 标记清不掉也沿用正文，避免这次被模型盖掉 */
   }
   return { documentId: current.id };
 }
 
+/** 同一路径再写入走版本链（findCurrentAtPath），不用 upload_note 当身份证。 */
 export async function persistMarkdownAtPath(
   env: Env,
   input: {
@@ -264,22 +265,7 @@ export async function persistMarkdownAtPath(
   const body = input.body.trim();
   if (!body) return null;
 
-  const note = (input.uploadNote ?? "").trim();
-  if (note) {
-    try {
-      const existing = await env.DB.prepare(
-        `SELECT id FROM documents
-         WHERE project_id = ? AND upload_note = ?
-           AND (deleted_at IS NULL OR deleted_at = '')
-         LIMIT 1`,
-      )
-        .bind(projectId, note)
-        .first<{ id: string }>();
-      if (existing?.id) return existing.id;
-    } catch {
-      /* upload_note 未迁移时继续写入 */
-    }
-  }
+  const note = humanUploadNote(input.uploadNote);
 
   const prev = await findCurrentAtPath(
     env.DB,
@@ -413,7 +399,6 @@ export async function persistAgentAnswerAsMarkdown(
     body,
     sourceKind: "ai_generated",
     fileCategory: INTENT_TITLE[intent] || "AI生成",
-    uploadNote: `agent_job:${job.id}`,
   });
 }
 
@@ -424,7 +409,6 @@ export async function persistInterviewTranscript(
     userId: string;
     conversationId: string;
     body: string;
-    roundIndex: number;
   },
 ): Promise<string | null> {
   const path = interviewNotesPath();
@@ -437,6 +421,5 @@ export async function persistInterviewTranscript(
     body: input.body,
     sourceKind: "user_interview",
     fileCategory: "用户访谈",
-    uploadNote: `startup_interview:round:${input.roundIndex}:${input.conversationId}`,
   });
 }

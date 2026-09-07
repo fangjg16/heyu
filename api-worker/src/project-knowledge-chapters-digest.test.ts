@@ -148,4 +148,39 @@ describe("three-layer chapter materials", () => {
     );
     expect(mustRead.some((d) => d.id === "md")).toBe(true);
   });
+
+  it("puts human captions in the catalog and hides identity keys", () => {
+    const withNotes = [
+      {
+        ...docs[0]!,
+        upload_note: "BP 口径以附件表格为准",
+      },
+      {
+        id: "ai",
+        filename: "business-due-diligence.md",
+        relative_path: "AI生成/capitallens/02-business",
+        mime: "text/markdown",
+        source_kind: "ai_generated",
+        upload_note: "agent_job:job-99",
+      },
+      {
+        id: "iv",
+        filename: "interview-notes.md",
+        relative_path: "AI生成/startup/00-intake",
+        mime: "text/markdown",
+        source_kind: "user_interview",
+        upload_note: "startup_interview:round:1:conv-1",
+      },
+    ];
+    const { digest } = assembleChapterMaterialsDigest({
+      docs: withNotes,
+      parseMap,
+      byDoc,
+      mustRead: [withNotes[0]!],
+      supplement: [],
+    });
+    expect(digest).toContain("说明：BP 口径以附件表格为准");
+    expect(digest).not.toContain("agent_job:");
+    expect(digest).not.toContain("startup_interview:");
+  });
 });

@@ -93,6 +93,7 @@ export function aiGeneratedPathForIntent(
   };
 }
 
+/** 访谈纪要永远这一篇；再结束一轮 = 同路径新版本。 */
 export function interviewNotesPath(): AiGeneratedPath {
   return {
     pack: "startup",
