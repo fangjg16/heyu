@@ -35,6 +35,7 @@ import {
 import { getWorkspaceUserById } from "./workspace-users-db";
 import { listProjectMemberRoleOverrides } from "./project-member-roles-db";
 import { stripCitationMarkers } from "./kn-citation-markers";
+import { humanUploadNote } from "./upload-note";
 import { callLlm, type LlmClientEnv } from "./llm-client";
 import {
   buildCollabFollowUpUserPrompt,
@@ -169,7 +170,7 @@ async function listItemFiles(
       fileCategory: r.file_category,
       periodLabel: r.period_label,
       isFinal: r.is_final == null ? null : Number(r.is_final) === 1,
-      uploadNote: r.upload_note,
+      uploadNote: humanUploadNote(r.upload_note),
       replacesDocumentId: r.replaces_document_id,
       versionGroup: r.version_group,
     }));
@@ -728,7 +729,9 @@ export async function handleListCollabFiles(
         fileCategory: r.file_category ?? null,
         periodLabel: r.period_label ?? null,
         isFinal: r.is_final == null ? null : Number(r.is_final) === 1,
-        uploadNote: r.upload_note ?? null,
+        uploadNote: humanUploadNote(
+          typeof r.upload_note === "string" ? r.upload_note : null,
+        ),
         replacesDocumentId: r.replaces_document_id ?? null,
         versionGroup: r.version_group ?? null,
       })),

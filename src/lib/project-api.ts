@@ -2,6 +2,7 @@ import { normalizeProjectPhase } from "@/workspace/projects";
 import { apiFetch } from "@/lib/api-auth";
 import { formatOpenQuestionForIssuer } from "@/lib/kn-citations";
 import { sectionLabel } from "@/lib/kn-catalog";
+import { humanUploadNote } from "@/lib/upload-note";
 
 function withAuthHeaders(init?: RequestInit): RequestInit {
   return init ?? {};
@@ -667,6 +668,8 @@ export type ProjectFileRecord = {
   fileCategory?: string | null;
   versionGroup?: string | null;
   replacesDocumentId?: string | null;
+  /** 上传时配的文字说明 */
+  uploadNote?: string | null;
 };
 
 export const DIRECTORY_MIME = "application/x-directory";
@@ -691,7 +694,10 @@ export async function fetchProjectFiles(
     throw new Error(err || `资料列表加载失败（${res.status}）`);
   }
   const data = (await res.json()) as { files?: ProjectFileRecord[] };
-  return data.files ?? [];
+  return (data.files ?? []).map((f) => ({
+    ...f,
+    uploadNote: humanUploadNote(f.uploadNote),
+  }));
 }
 
 export function filterPackageFiles(files: ProjectFileRecord[]): ProjectFileRecord[] {
@@ -827,7 +833,8 @@ export async function uploadProjectPackageFile(
   if (options?.fileCategory) form.append("fileCategory", options.fileCategory);
   if (options?.periodLabel) form.append("periodLabel", options.periodLabel);
   if (options?.isFinal != null) form.append("isFinal", options.isFinal ? "1" : "0");
-  if (options?.uploadNote) form.append("uploadNote", options.uploadNote);
+  const uploadNote = humanUploadNote(options?.uploadNote);
+  if (uploadNote) form.append("uploadNote", uploadNote);
   if (options?.replacesDocumentId) {
     form.append("replacesDocumentId", options.replacesDocumentId);
   }
@@ -2134,7 +2141,13 @@ export async function fetchCollabItem(
   };
   if (!res.ok) throw new Error(data.error || "事项加载失败");
   if (!data.item) throw new Error("事项不存在");
-  return { item: data.item, files: data.files ?? [] };
+  return {
+    item: data.item,
+    files: (data.files ?? []).map((f) => ({
+      ...f,
+      uploadNote: humanUploadNote(f.uploadNote),
+    })),
+  };
 }
 
 export async function publishCollabItem(
@@ -2279,7 +2292,10 @@ export async function fetchCollabFiles(
     error?: string;
   };
   if (!res.ok) throw new Error(data.error || "协作文件加载失败");
-  return data.files ?? [];
+  return (data.files ?? []).map((f) => ({
+    ...f,
+    uploadNote: humanUploadNote(f.uploadNote),
+  }));
 }
 
 export async function shareFileWithIssuer(

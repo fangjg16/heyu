@@ -23,6 +23,12 @@ const LIST_SQLS = [
   LIST_FILES_SQL_NO_BYTE_SIZE,
 ];
 
+describe("LIST_FILES_SQL", () => {
+  it("returns upload_note so file captions can show in 源文件", () => {
+    expect(LIST_FILES_SQL).toMatch(/\bd\.upload_note\b/);
+  });
+});
+
 describe("LIST_FILES_LIMIT", () => {
   it("keeps enough rows that early numbered folders are not dropped by recency", () => {
     expect(LIST_FILES_LIMIT).toBeGreaterThanOrEqual(2000);

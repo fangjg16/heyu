@@ -1,6 +1,7 @@
 import type { AppDatabase } from "./app-database";
 import { normalizeStoredChapterVersion } from "./chapter-version";
 import { isDirectoryMarker } from "./documents-access";
+import { sourceRemark } from "./upload-note";
 import {
   extractCiteIdsFromHtml,
   mergeCitedSourcesIntoTable,
@@ -41,6 +42,7 @@ type PackageSourceRow = {
   mime?: string | null;
   summary?: string | null;
   document_type?: string | null;
+  upload_note?: string | null;
 };
 
 function mapPackageSourceRows(rows: PackageSourceRow[]): SourceFileHint[] {
@@ -53,7 +55,7 @@ function mapPackageSourceRows(rows: PackageSourceRow[]): SourceFileHint[] {
       id: `A-${n}`,
       title: d.filename,
       type: "项目文件",
-      excerpt: (d.summary ?? "").trim().slice(0, 180),
+      excerpt: sourceRemark(d.upload_note, d.summary),
     });
   }
   return files;
@@ -64,6 +66,14 @@ async function listPackageSourceFiles(
   projectId: string,
 ): Promise<SourceFileHint[]> {
   const queries = [
+    `SELECT d.filename, d.mime, p.summary, p.document_type, d.upload_note
+     FROM documents d
+     LEFT JOIN document_parse_results p ON p.document_id = d.id
+     WHERE d.project_id = ?
+       AND d.scope = 'package'
+       AND (d.deleted_at IS NULL OR d.deleted_at = '')
+     ORDER BY d.created_at ASC
+     LIMIT 200`,
     `SELECT d.filename, d.mime, p.summary, p.document_type
      FROM documents d
      LEFT JOIN document_parse_results p ON p.document_id = d.id

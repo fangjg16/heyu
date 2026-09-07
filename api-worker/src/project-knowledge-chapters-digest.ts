@@ -7,6 +7,7 @@ import { AI_GENERATED_ROOT } from "./ai-generated-path";
 import type { EmbedEnv } from "./embeddings";
 import { embedTexts, scoreChunksByEmbedding } from "./embeddings";
 import { isPlaceholderChunkText, scoreChunks, type ChunkRow } from "./search";
+import { documentNameBlob, humanUploadNote } from "./upload-note";
 
 /** 目录层不占正文预算；正文预算只给 must-read 与向量补充 */
 const MUST_READ_BODY_CHARS = 70_000;
@@ -24,6 +25,7 @@ type PackageDocMeta = {
   version_group?: string | null;
   replaces_document_id?: string | null;
   created_at?: string | null;
+  upload_note?: string | null;
 };
 
 type MaterialSourceGroup = "project" | "interview" | "ai";
@@ -54,7 +56,7 @@ async function listPackageDocuments(
     const q = await db
       .prepare(
         `SELECT id, filename, relative_path, mime, source_kind, version_group,
-                replaces_document_id, created_at
+                replaces_document_id, created_at, upload_note
          FROM documents
          WHERE project_id = ?
            AND scope = 'package'
@@ -102,7 +104,7 @@ async function listPackageDocuments(
         .map((d) => ({ ...d, relative_path: null }));
     }
     if (
-      /Unknown column ['`]?(source_kind|version_group|replaces_document_id)['`]?/i.test(
+      /Unknown column ['`]?(source_kind|version_group|replaces_document_id|upload_note)['`]?/i.test(
         msg,
       )
     ) {
@@ -318,7 +320,7 @@ const SECTION_RETRIEVAL_QUERY: Record<string, string> = {
 };
 
 function docSearchBlob(doc: PackageDocMeta): string {
-  return `${doc.filename} ${doc.relative_path ?? ""}`;
+  return `${documentNameBlob(doc.filename ?? "", doc.upload_note)} ${doc.relative_path ?? ""}`;
 }
 
 function docLabel(doc: PackageDocMeta): string {
@@ -476,6 +478,8 @@ function formatCatalogEntry(
   const lines = [`- ${docLabel(doc)}（${flags}）`];
   const path = (doc.relative_path ?? "").trim();
   if (path) lines.push(`  位置：${path}`);
+  const note = humanUploadNote(doc.upload_note);
+  if (note) lines.push(`  说明：${note}`);
   if (parsed?.document_type?.trim()) {
     lines.push(`  类型：${parsed.document_type.trim()}`);
   }
@@ -566,6 +570,8 @@ export function assembleChapterMaterialsDigest(
     const parsed = parseMap.get(doc.id);
     const chunks = byDoc.get(doc.id) ?? [];
     const header = [`── ${docLabel(doc)} ──`];
+    const note = humanUploadNote(doc.upload_note);
+    if (note) header.push(`说明：${note}`);
     if (parsed?.document_type?.trim()) {
       header.push(`类型：${parsed.document_type.trim()}`);
     }

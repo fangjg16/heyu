@@ -154,6 +154,23 @@ NONE
     expect(merged.html).toContain("资料包");
   });
 
+  it("puts file captions into the 摘录/说明 column", () => {
+    const merged = mergeCitedSourcesIntoTable({
+      existingHtml: "",
+      citations: [{ id: "A-1", usedIn: "财务与回报" }],
+      files: [
+        {
+          id: "A-1",
+          title: "附件3.pdf",
+          excerpt: "2024 审计，用来对收入",
+        },
+      ],
+    });
+    expect(merged.html).toContain("附件3.pdf");
+    expect(merged.html).toContain("2024 审计，用来对收入");
+    expect(merged.html).toContain("A-1");
+  });
+
   it("extractGlossaryEntriesFromHtml picks project terms, not analysis-framework acronyms", () => {
     const html = `<p>托管用 Addepar（家族办公室投资组合与报告系统）。市场规模用 TAM（Total Addressable Market）衡量，可服务市场对应 SAM。</p><p>总市场约 30 亿。下一步做 MVP（Minimum Viable Product）。</p>`;
     const terms = extractGlossaryEntriesFromHtml(html).map((e) => e.term);

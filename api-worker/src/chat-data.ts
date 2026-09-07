@@ -9,6 +9,7 @@ import {
   filenameMatchesPriority,
   type ChunkRow,
 } from "./search";
+import { documentNameBlob } from "./upload-note";
 
 export type ChatDataEnv = { DB: AppDatabase };
 
@@ -20,7 +21,7 @@ export async function loadChunks(
 ): Promise<ChunkRow[]> {
   const convKey = conversationId ?? "";
   const cached = await getCachedChunks(projectId, userId, convKey);
-  if (cached) return cached;
+  if (cached) return attachUploadNotes(env, cached);
 
   let results: (ChunkRow & { embedding_json?: string | null })[] | null = null;
   try {
@@ -51,7 +52,7 @@ export async function loadChunks(
   }));
 
   await putCachedChunks(projectId, userId, convKey, rows);
-  return rows;
+  return attachUploadNotes(env, rows);
 }
 
 function mapChunkRows(
@@ -66,6 +67,31 @@ function mapChunkRows(
     scope: r.scope,
     embedding: parseEmbeddingJson(r.embedding_json),
   }));
+}
+
+async function attachUploadNotes(
+  env: ChatDataEnv,
+  chunks: ChunkRow[],
+): Promise<ChunkRow[]> {
+  const ids = [...new Set(chunks.map((c) => c.document_id).filter(Boolean))];
+  if (ids.length === 0) return chunks;
+  try {
+    const placeholders = ids.map(() => "?").join(",");
+    const q = await env.DB.prepare(
+      `SELECT id, upload_note FROM documents WHERE id IN (${placeholders})`,
+    )
+      .bind(...ids)
+      .all<{ id: string; upload_note: string | null }>();
+    const notes = new Map(
+      (q.results ?? []).map((r) => [r.id, r.upload_note] as const),
+    );
+    return chunks.map((c) => ({
+      ...c,
+      upload_note: notes.get(c.document_id) ?? c.upload_note ?? null,
+    }));
+  } catch {
+    return chunks;
+  }
 }
 
 const NAMED_CHUNKS_SQL = `
@@ -114,7 +140,7 @@ async function resolveNamedDocumentIds(
 
   try {
     const q = await env.DB.prepare(
-      `SELECT id, filename FROM documents
+      `SELECT id, filename, upload_note FROM documents
        WHERE project_id = ?
          AND (deleted_at IS NULL OR deleted_at = '')
          AND (
@@ -125,9 +151,16 @@ async function resolveNamedDocumentIds(
        LIMIT 2000`,
     )
       .bind(projectId, userId, conversationId)
-      .all<{ id: string; filename: string }>();
+      .all<{ id: string; filename: string; upload_note?: string | null }>();
     for (const row of q.results ?? []) {
-      if (filenameMatchesPriority(row.filename, names)) found.add(row.id);
+      if (
+        filenameMatchesPriority(
+          documentNameBlob(row.filename, row.upload_note),
+          names,
+        )
+      ) {
+        found.add(row.id);
+      }
     }
   } catch {
     try {
@@ -170,11 +203,11 @@ async function loadChunksByDocumentIds(
     return mapChunkRows(q.results ?? []);
   };
   try {
-    return await trySql(NAMED_CHUNKS_SQL);
+    return attachUploadNotes(env, await trySql(NAMED_CHUNKS_SQL));
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (/Unknown column ['`]?deleted_at['`]?/i.test(msg) || /no such column:\s*deleted_at/i.test(msg)) {
-      return trySql(NAMED_CHUNKS_SQL_NO_SOFT_DELETE);
+      return attachUploadNotes(env, await trySql(NAMED_CHUNKS_SQL_NO_SOFT_DELETE));
     }
     throw e;
   }

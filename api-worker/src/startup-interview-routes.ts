@@ -329,7 +329,6 @@ async function persistEndedInterviewAndDraft(
       userId: draftActorUserId,
       conversationId: interview.conversationId,
       body: transcript,
-      roundIndex: interview.roundIndex,
     });
   } catch (e) {
     console.error("[startup-interview] persist transcript", e);
