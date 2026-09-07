@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { MessageSquare, RefreshCw, X } from "lucide-react";
+import { MessageSquare, Pencil, RefreshCw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import {
@@ -13,7 +13,10 @@ import {
   fetchProjectPermissions,
   type ProjectPermissionMember,
 } from "@/lib/project-api";
-import { canManageProjectPermissions } from "@/workspace/project-manage";
+import {
+  canManageProjectPermissions,
+  canUserManageProjectMetadata,
+} from "@/workspace/project-manage";
 import { judgmentFromPhase } from "@/workspace/project-judgment";
 import type { WorkspaceProject } from "@/workspace/projects";
 import {
@@ -92,6 +95,7 @@ type ProjectWorkspaceHeaderProps = {
   userId: string;
   tab: "overview" | "knowledge" | "materials" | "collab";
   onChat: () => void;
+  onEditProject?: () => void;
   chatReturnPath?: string | null;
   onUpdateOverview?: () => void;
   overviewBusy?: boolean;
@@ -121,6 +125,7 @@ export function ProjectWorkspaceHeader({
   userId,
   tab,
   onChat,
+  onEditProject,
   chatReturnPath = null,
   onUpdateOverview,
   overviewBusy = false,
@@ -133,6 +138,8 @@ export function ProjectWorkspaceHeader({
   const role = getProjectRole(userId, project.id, project.createdBy, project.analysisKind);
   const judgment = judgmentFromPhase(project.phase);
   const canManage = canManageProjectPermissions(userId, project);
+  const canEditProject =
+    Boolean(onEditProject) && canUserManageProjectMetadata(userId, project);
   const [members, setMembers] = useState<ProjectPermissionMember[] | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
   const [confirmKind, setConfirmKind] = useState<null | "overview">(null);
@@ -240,6 +247,17 @@ export function ProjectWorkspaceHeader({
             <span className="rounded-md bg-[rgba(78,66,57,0.07)] px-2.5 py-0.5 text-xs text-[hsl(var(--warm-charcoal-muted))]">
               {roleLabelForProject(role as WorkspaceRole, project.analysisKind)}
             </span>
+            {canEditProject ? (
+              <button
+                type="button"
+                onClick={onEditProject}
+                title="编辑项目名称、阶段、分类等"
+                className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-[12.5px] font-medium text-[hsl(var(--warm-charcoal-muted))] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
+              >
+                <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
+                编辑项目
+              </button>
+            ) : null}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-3">

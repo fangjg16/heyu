@@ -24,6 +24,7 @@ import { ProjectMaterialsSection } from "@/components/workspace/ProjectMaterials
 import { ProjectOverviewPanel } from "@/components/workspace/ProjectOverviewPanel";
 import { InvestorCollabSection } from "@/components/workspace/InvestorCollabSection";
 import { ProjectWorkspaceHeader } from "@/components/workspace/ProjectWorkspaceHeader";
+import { ProjectEditModal } from "@/components/workspace/ProjectEditModal";
 import {
   canDownloadProjectMaterials,
   canManageProjectUploads,
@@ -46,6 +47,7 @@ import { unwatchDraftRun, watchDraftRun } from "@/lib/draft-progress-watch";
 import {
   getMergedProjects,
   setApiProjects,
+  upsertApiProject,
 } from "@/workspace/project-registry";
 import { loadSessionUserId } from "@/workspace/session";
 import {
@@ -223,6 +225,7 @@ function ProjectWorkspaceLayout() {
   const navigate = useNavigate();
   const userId = loadSessionUserId() ?? "";
   const [project, setProject] = useState<WorkspaceProject | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [guestDialog, setGuestDialog] = useState(false);
   const [overviewBusy, setOverviewBusy] = useState(false);
@@ -324,6 +327,10 @@ function ProjectWorkspaceLayout() {
       cancelled = true;
     };
   }, [projectId, userId, knowledgeRefreshKey, overviewRefreshKey]);
+
+  useEffect(() => {
+    setEditOpen(false);
+  }, [projectId]);
 
   useEffect(() => {
     if (!projectId) {
@@ -966,6 +973,7 @@ function ProjectWorkspaceLayout() {
           tab={tab}
           chatReturnPath={resolveChatReturnPath(project.id, locationState)}
           onChat={goChat}
+          onEditProject={() => setEditOpen(true)}
           onUpdateOverview={() => void onUpdateOverview()}
           overviewBusy={overviewBusy}
           canUpdateOverview={canUpdateOverview}
@@ -1054,6 +1062,21 @@ function ProjectWorkspaceLayout() {
             </button>
           </div>
         </div>
+      ) : null}
+
+      {project && userId ? (
+        <ProjectEditModal
+          projectId={project.id}
+          project={project}
+          userId={userId}
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+          onSaved={(updated) => {
+            upsertApiProject(updated);
+            setProject(updated);
+            setEditOpen(false);
+          }}
+        />
       ) : null}
 
       <KnowledgeDraftGeneratingDialog
