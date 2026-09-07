@@ -16,6 +16,9 @@ describe("analysis-kind labels", () => {
     expect(ANALYSIS_KIND_LABELS.mature).toBe("投资");
     expect(ANALYSIS_KIND_LABELS.early).toBe("创业");
     expect(ANALYSIS_KIND_LABELS.acquire).toBe("收购经营");
+    expect(ANALYSIS_KIND_OPTIONS.find((o) => o.id === "early")?.description).toBe(
+      "从零验证产品与市场，可做用户访谈。不设项目协作。",
+    );
   });
 
   it("labels unset as 未选定", () => {
