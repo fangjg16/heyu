@@ -814,7 +814,7 @@ export default function KnowledgeChapterDraftReviewPage() {
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             <div className="text-[11px] font-medium tracking-wide text-[#A06358]">
-              知识网络 · 更新审核
+              知识网络 · 审核草案
             </div>
             <h1 className="mt-1 font-[family-name:var(--font-serif,serif)] text-[26px] font-semibold text-[#1F2423]">
               {rows.length === 1
@@ -841,7 +841,7 @@ export default function KnowledgeChapterDraftReviewPage() {
               to={`/app/projects/${projectId}/knowledge`}
               className="text-[13px] font-medium text-[#A06358] hover:underline"
             >
-              返回知识网络
+              返回项目
             </Link>
           </div>
         </div>

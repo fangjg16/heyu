@@ -18,55 +18,20 @@ import { useJoinReviews } from "@/hooks/use-join-reviews";
 import { UserAvatar } from "@/components/workspace/UserAvatar";
 import { ProfileDialog } from "@/components/workspace/ProfileDialog";
 import { topBarUploadLabel, useUploadQueue } from "@/workspace/upload-queue";
+import { workspaceBreadcrumbs } from "@/workspace/workspace-breadcrumbs";
 
-export type BreadcrumbItem = {
-  label: string;
-  to?: string;
-  current?: boolean;
-};
-
-function useBreadcrumbs(): BreadcrumbItem[] {
+function useBreadcrumbs() {
   const { pathname } = useLocation();
   const params = useParams();
-
-  if (pathname.startsWith("/app/home")) {
-    return [{ label: "总览", current: true }];
-  }
-  if (pathname.startsWith("/app/notifications")) {
-    return [{ label: "通知", current: true }];
-  }
-  if (pathname.startsWith("/app/admin") || pathname.startsWith("/app/settings")) {
-    return [{ label: "系统管理", current: true }];
-  }
-  if (pathname.startsWith("/app/chat")) {
-    const projectId = params.projectId;
-    if (projectId) {
-      const project = getMergedProjects().find((p) => p.id === projectId);
-      return [
-        { label: "项目库", to: "/app/projects" },
-        {
-          label: project?.name ?? projectId,
-          to: `/app/projects/${projectId}/overview`,
-        },
-        { label: "AI 分析与对话", current: true },
-      ];
-    }
-    return [{ label: "对话", current: true }];
-  }
-  if (pathname.startsWith("/app/projects/")) {
-    const projectId = params.projectId;
-    const project = projectId
-      ? getMergedProjects().find((p) => p.id === projectId)
-      : undefined;
-    return [
-      { label: "项目库", to: "/app/projects" },
-      { label: project?.name ?? projectId ?? "项目", current: true },
-    ];
-  }
-  if (pathname.startsWith("/app/projects")) {
-    return [{ label: "项目库", current: true }];
-  }
-  return [{ label: "工作台", current: true }];
+  const projectId = params.projectId;
+  const project = projectId
+    ? getMergedProjects().find((p) => p.id === projectId)
+    : undefined;
+  return workspaceBreadcrumbs({
+    pathname,
+    projectId,
+    projectName: project?.name,
+  });
 }
 
 function isProjectLibraryPath(pathname: string): boolean {
