@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
@@ -867,14 +868,15 @@ export default function ProjectOverview() {
         </div>
       ) : null}
 
-      {showCreateModal ? (
+      {showCreateModal
+        ? createPortal(
         <div
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/35 p-4 backdrop-blur-sm animate-in fade-in duration-200 sm:p-6"
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/35 p-4 sm:p-6"
           role="dialog"
           aria-modal="true"
           aria-labelledby="create-project-title"
         >
-          <div className="flex max-h-[min(86vh,36rem)] w-full max-w-md flex-col overflow-hidden rounded-xl border border-[hsl(var(--sand)/0.9)] bg-white shadow-[0_24px_56px_-24px_rgba(46,30,28,0.45)] animate-in zoom-in-95 slide-in-from-bottom-2 duration-200 ease-out sm:max-w-lg">
+          <div className="flex max-h-[min(86vh,36rem)] w-full max-w-md flex-col overflow-hidden rounded-xl border border-[hsl(var(--sand)/0.9)] bg-white shadow-[0_24px_56px_-24px_rgba(46,30,28,0.45)] sm:max-w-lg">
             <div className="flex shrink-0 items-start justify-between gap-3 px-4 pb-3 pt-4 sm:px-5 sm:pt-5">
               <div className="min-w-0 pr-2">
                 <h2
@@ -1113,8 +1115,10 @@ export default function ProjectOverview() {
               </button>
             </div>
           </div>
-        </div>
-      ) : null}
+        </div>,
+        document.body,
+      )
+    : null}
 
       {createHint ? (
         <div
