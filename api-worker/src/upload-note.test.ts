@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { humanUploadNote } from "./upload-note";
+import { documentNameBlob, humanUploadNote, sourceRemark } from "./upload-note";
 
 describe("humanUploadNote", () => {
   it("keeps ordinary captions", () => {
@@ -28,6 +28,21 @@ describe("humanUploadNote", () => {
     expect(humanUploadNote(null)).toBeNull();
     expect(humanUploadNote("")).toBeNull();
     expect(humanUploadNote("   ")).toBeNull();
+  });
+});
+
+describe("documentNameBlob / sourceRemark", () => {
+  it("appends human captions for retrieval", () => {
+    expect(documentNameBlob("合同.pdf", "对赌协议")).toBe("合同.pdf 对赌协议");
+    expect(documentNameBlob("合同.pdf", "agent_job:x")).toBe("合同.pdf");
+  });
+
+  it("prefers captions in source remarks", () => {
+    expect(sourceRemark("2024 审计，用来对收入", "解析摘要")).toBe(
+      "2024 审计，用来对收入",
+    );
+    expect(sourceRemark("agent_job:x", "解析摘要")).toBe("解析摘要");
+    expect(sourceRemark(null, "解析摘要")).toBe("解析摘要");
   });
 });
 

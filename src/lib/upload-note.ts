@@ -14,3 +14,12 @@ export function humanUploadNote(
   if (INTERNAL_UPLOAD_NOTE_PREFIX.test(text)) return null;
   return text;
 }
+
+/** 源文件筛选：文件名不够时用说明对上「对赌协议」「2024 审计」。 */
+export function documentNameBlob(
+  filename: string,
+  uploadNote?: string | null,
+): string {
+  const note = humanUploadNote(uploadNote);
+  return [filename.trim(), note].filter(Boolean).join(" ");
+}

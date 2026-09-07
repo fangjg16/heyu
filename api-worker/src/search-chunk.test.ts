@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   chunkPlainText,
+  chunkMatchesNamedFile,
   filenameMatchesPriority,
   normalizeFilenameForMatch,
   selectChunksForChat,
+  scoreChunks,
   type ChunkRow,
 } from "./search";
 
@@ -57,5 +59,49 @@ describe("selectChunksForChat named package files", () => {
       prioritizeDocumentIds: ["whitsunday"],
     });
     expect(hits[0]?.id).toBe("named-1");
+  });
+});
+
+describe("upload_note in retrieval", () => {
+  it("matches a named file by caption, not only filename", () => {
+    const chunk: ChunkRow = {
+      id: "c1",
+      document_id: "d1",
+      chunk_index: 0,
+      text: "第一条 估值调整",
+      filename: "合同.pdf",
+      scope: "package",
+      upload_note: "对赌协议",
+    };
+    expect(
+      chunkMatchesNamedFile(chunk, { filenames: ["对赌协议"] }),
+    ).toBe(true);
+  });
+
+  it("ranks a file when the query hits the caption", () => {
+    const ranked = scoreChunks(
+      [
+        {
+          id: "c1",
+          document_id: "d1",
+          chunk_index: 0,
+          text: "合并利润表",
+          filename: "附件3.pdf",
+          scope: "package",
+          upload_note: "2024 审计，用来对收入",
+        },
+        {
+          id: "c2",
+          document_id: "d2",
+          chunk_index: 0,
+          text: "无关段落",
+          filename: "其他.pdf",
+          scope: "package",
+        },
+      ],
+      "2024 审计",
+      2,
+    );
+    expect(ranked[0]?.id).toBe("c1");
   });
 });

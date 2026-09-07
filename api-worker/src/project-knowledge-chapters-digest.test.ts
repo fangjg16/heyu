@@ -180,7 +180,28 @@ describe("three-layer chapter materials", () => {
       supplement: [],
     });
     expect(digest).toContain("说明：BP 口径以附件表格为准");
+    expect(digest).toMatch(
+      /【本章深读 · must-read 全文】[\s\S]*说明：BP 口径以附件表格为准/,
+    );
     expect(digest).not.toContain("agent_job:");
     expect(digest).not.toContain("startup_interview:");
+  });
+
+  it("can must-read a file whose caption matches the query", () => {
+    const extra = {
+      id: "contract",
+      filename: "合同.pdf",
+      relative_path: "法务",
+      mime: "application/pdf",
+      upload_note: "对赌协议",
+    };
+    const mustRead = selectMustReadDocs(
+      [...docs, extra],
+      parseMap,
+      new Map([...byDoc, ["contract", []]]),
+      "legal",
+      "对赌协议",
+    );
+    expect(mustRead.some((d) => d.id === "contract")).toBe(true);
   });
 });

@@ -83,7 +83,7 @@ import {
   toVirtualFolder,
 } from "@/lib/project-file-source";
 import { inferDocumentGenre, resolveFileTopic } from "@/lib/file-topic";
-import { humanUploadNote } from "@/lib/upload-note";
+import { documentNameBlob, humanUploadNote } from "@/lib/upload-note";
 import { documentsInVersionFamily } from "@/lib/document-versions";
 import {
   collectDroppedFiles,
@@ -305,7 +305,8 @@ function matchesFilters(
   if (isHiddenKeep(file)) return false;
   const q = query.trim().toLowerCase();
   if (q) {
-    const hay = `${file.filename} ${file.relativePath ?? ""}`.toLowerCase();
+    const hay =
+      `${documentNameBlob(file.filename, file.uploadNote)} ${file.relativePath ?? ""}`.toLowerCase();
     if (!hay.includes(q)) return false;
   }
   if (kind !== "all" && classifyFileKind(file) !== kind) return false;
@@ -1899,9 +1900,15 @@ export function ProjectMaterialsSection({
                           type="button"
                           className="min-w-0 flex-1 truncate text-left text-[13px] text-[#1F2423] hover:text-[hsl(var(--wine))]"
                           onClick={() => selectFile(file)}
+                          title={
+                            humanUploadNote(file.uploadNote)
+                              ? `${file.filename}\n${humanUploadNote(file.uploadNote)}`
+                              : file.filename
+                          }
                         >
                           {file.filename}
                         </button>
+                        <NoteMark note={humanUploadNote(file.uploadNote)} />
                         {canManage && canShareWithIssuer(file) ? (
                           <span className="flex w-[7.5rem] shrink-0 justify-end">
                             <IssuerShareTick
@@ -2321,6 +2328,18 @@ function UploadMenu({
   );
 }
 
+function NoteMark({ note }: { note: string | null }) {
+  if (!note) return null;
+  return (
+    <span
+      className="inline-flex h-4 shrink-0 items-center rounded px-1 text-[10px] font-medium text-[#A06358] bg-[#EFE7E6]"
+      title={note}
+    >
+      注
+    </span>
+  );
+}
+
 function TreeRow({
   node,
   depth,
@@ -2352,6 +2371,7 @@ function TreeRow({
       canManage &&
       fileSourceBucket(node.file) === "project" &&
       node.file.scope === "package";
+    const caption = humanUploadNote(node.file.uploadNote);
     return (
       <div
         role="button"
@@ -2381,7 +2401,7 @@ function TreeRow({
           background: selected ? "#EFE7E6" : "transparent",
           color: selected ? "#A06358" : "#4a524e",
         }}
-        title={node.name}
+        title={caption ? `${node.name}\n${caption}` : node.name}
       >
         <span className="w-3 shrink-0" />
         <FileText className="h-[15px] w-[15px] shrink-0 opacity-70" strokeWidth={1.8} />
@@ -2393,6 +2413,7 @@ function TreeRow({
         >
           {node.name}
         </span>
+        <NoteMark note={caption} />
       </div>
     );
   }

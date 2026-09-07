@@ -1,5 +1,6 @@
 import type { EmbedEnv } from "./embeddings";
 import { embedTexts, scoreChunksByEmbedding } from "./embeddings";
+import { documentNameBlob } from "./upload-note";
 
 export type ChunkRow = {
   id: string;
@@ -9,6 +10,7 @@ export type ChunkRow = {
   filename?: string;
   scope?: string;
   embedding?: number[] | null;
+  upload_note?: string | null;
 };
 
 const PACKAGE_SCOPE = "package";
@@ -50,13 +52,19 @@ export function filenameMatchesPriority(filename: string, priorities: string[]):
 }
 
 export function chunkMatchesNamedFile(
-  chunk: Pick<ChunkRow, "document_id" | "filename">,
+  chunk: Pick<ChunkRow, "document_id" | "filename" | "upload_note">,
   options: { ids?: string[]; filenames?: string[] },
 ): boolean {
   const ids = (options.ids ?? []).map((s) => s.trim()).filter(Boolean);
   if (ids.length > 0 && ids.includes(chunk.document_id)) return true;
   const names = (options.filenames ?? []).filter(Boolean);
-  if (names.length > 0 && filenameMatchesPriority(chunk.filename ?? "", names)) {
+  if (
+    names.length > 0 &&
+    filenameMatchesPriority(
+      documentNameBlob(chunk.filename ?? "", chunk.upload_note),
+      names,
+    )
+  ) {
     return true;
   }
   return false;
@@ -183,7 +191,8 @@ export function scoreChunks(chunks: ChunkRow[], query: string, topK = 6): ChunkR
   if (terms.length === 0) return pool.slice(0, topK);
 
   const scored = pool.map((c) => {
-    const hay = `${c.text} ${c.filename ?? ""}`.toLowerCase();
+    const hay =
+      `${c.text} ${documentNameBlob(c.filename ?? "", c.upload_note)}`.toLowerCase();
     let score = 0;
     for (const term of terms) {
       if (hay.includes(term)) score += 1;
