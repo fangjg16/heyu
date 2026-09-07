@@ -1071,20 +1071,6 @@ export default function ProjectOverview() {
             </div>
 
             <div className="flex shrink-0 items-center justify-end gap-2 bg-[hsl(var(--linen)/0.5)] px-4 py-3 sm:px-5">
-              {creatingProject ? (
-                <p className="mr-auto inline-flex min-w-0 items-center gap-1.5 text-xs text-[hsl(var(--warm-charcoal-muted))]">
-                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
-                  <span className="truncate">
-                    {createUpload?.phase === "uploading"
-                      ? `正在上传 ${createUpload.index}/${createUpload.total}：${createUpload.name}`
-                      : "正在创建项目…"}
-                  </span>
-                </p>
-              ) : newProjectFiles.length > 0 ? (
-                <p className="mr-auto text-xs text-[hsl(var(--warm-charcoal-muted))]">
-                  已选 {newProjectFiles.length} 个附件，确定后上传
-                </p>
-              ) : null}
               <button
                 type="button"
                 onClick={() => {
@@ -1105,9 +1091,7 @@ export default function ProjectOverview() {
                 {creatingProject ? (
                   <>
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    {createUpload?.phase === "uploading"
-                      ? `上传 ${createUpload.index}/${createUpload.total}`
-                      : "创建中..."}
+                    创建中...
                   </>
                 ) : (
                   "确定"
