@@ -7,6 +7,7 @@ import {
 export type UploadQueueItem = {
   file: File;
   relativePath: string;
+  uploadNote?: string;
 };
 
 export type UploadJobStatus = "queued" | "uploading" | "done" | "error";
@@ -146,7 +147,10 @@ async function pump(): Promise<void> {
             job.projectId,
             job.userId,
             item.file,
-            { relativePath: item.relativePath },
+            {
+              relativePath: item.relativePath,
+              uploadNote: item.uploadNote,
+            },
           );
           job.ok += 1;
           if (uploaded.documentId) {

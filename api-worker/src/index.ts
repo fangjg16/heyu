@@ -450,6 +450,7 @@ async function handleListFiles(
     file_category?: string | null;
     version_group?: string | null;
     replaces_document_id?: string | null;
+    upload_note?: string | null;
   };
 
   let results: Row[] | null = null;
@@ -464,6 +465,7 @@ async function handleListFiles(
       /Unknown column ['`]?file_category['`]?/i.test(msg) ||
       /Unknown column ['`]?version_group['`]?/i.test(msg) ||
       /Unknown column ['`]?replaces_document_id['`]?/i.test(msg) ||
+      /Unknown column ['`]?upload_note['`]?/i.test(msg) ||
       /no such column:\s*(source_kind|shared_with_issuer|file_category)/i.test(msg)
     ) {
       const q = await bindList(LIST_FILES_SQL_NO_COLLAB).all<Row>();
@@ -518,6 +520,7 @@ async function handleListFiles(
     fileCategory: r.file_category ?? null,
     versionGroup: r.version_group ?? null,
     replacesDocumentId: r.replaces_document_id ?? null,
+    uploadNote: r.upload_note ?? null,
   }));
 
   return json({
@@ -632,7 +635,12 @@ async function handleUpload(
     createdAt: now,
   });
 
-  if (isIssuerRole(role) || form.get("collabItemId") || form.get("sourceKind")) {
+  if (
+    isIssuerRole(role) ||
+    form.get("collabItemId") ||
+    form.get("sourceKind") ||
+    form.get("uploadNote")
+  ) {
     const collabItemId = String(form.get("collabItemId") || "").trim() || null;
     const fileCategory = String(form.get("fileCategory") || "").trim() || null;
     const periodLabel = String(form.get("periodLabel") || "").trim() || null;

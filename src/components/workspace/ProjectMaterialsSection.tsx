@@ -506,6 +506,11 @@ export function ProjectMaterialsSection({
   const [folderBusy, setFolderBusy] = useState(false);
   const [unzipHint, setUnzipHint] = useState<string | null>(null);
   const [uploadHint, setUploadHint] = useState<string | null>(null);
+  const [pendingUpload, setPendingUpload] = useState<{
+    items: { file: File; relativePath: string }[];
+    warnings: string[];
+  } | null>(null);
+  const [pendingNote, setPendingNote] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [unzippingId, setUnzippingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -687,14 +692,18 @@ export function ProjectMaterialsSection({
   }, [facet]);
 
   const enqueueItems = useCallback(
-    (items: { file: File; relativePath: string }[]) => {
+    (items: { file: File; relativePath: string }[], uploadNote?: string) => {
       if (!items.length || !useLive || !canManage) return;
       setError(null);
+      const note = uploadNote?.trim();
       enqueueProjectUpload({
         projectId,
         projectName: projectName?.trim() || projectId,
         userId,
-        items,
+        items: items.map((it) => ({
+          ...it,
+          uploadNote: note || undefined,
+        })),
       });
       const folders = new Set(
         items.map((it) =>
@@ -831,13 +840,15 @@ export function ProjectMaterialsSection({
         if (warnings.length > 0) {
           setError(warnings.slice(0, 3).join("；"));
         }
-        enqueueItems(items);
+        if (!items.length) return;
+        setPendingNote("");
+        setPendingUpload({ items, warnings });
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
         setUnzipHint(null);
       }
     },
-    [enqueueItems],
+    [],
   );
 
   const onFolderInputChange = useCallback(
@@ -1458,6 +1469,9 @@ export function ProjectMaterialsSection({
             fileCategory: file.fileCategory,
             documentType: cache?.documentType,
           }).label },
+          ...(file.uploadNote?.trim()
+            ? [{ label: "说明", value: file.uploadNote.trim() }]
+            : []),
         ],
         canPreview: canDownload || file.scope === "session",
         canCreateSubfolder: false,
@@ -2027,6 +2041,24 @@ export function ProjectMaterialsSection({
         }
       />
 
+      {pendingUpload ? (
+        <UploadNoteDialog
+          fileCount={pendingUpload.items.length}
+          names={pendingUpload.items.map((it) => it.file.name)}
+          note={pendingNote}
+          onNoteChange={setPendingNote}
+          onCancel={() => {
+            setPendingUpload(null);
+            setPendingNote("");
+          }}
+          onConfirm={() => {
+            enqueueItems(pendingUpload.items, pendingNote);
+            setPendingUpload(null);
+            setPendingNote("");
+          }}
+        />
+      ) : null}
+
       {previewFileId ? (
         <FilePreviewModal
           projectId={projectId}
@@ -2114,6 +2146,88 @@ function IssuerShareTick({
       />
       {showLabel ? "协作方可见" : null}
     </label>
+  );
+}
+
+function UploadNoteDialog({
+  fileCount,
+  names,
+  note,
+  onNoteChange,
+  onCancel,
+  onConfirm,
+}: {
+  fileCount: number;
+  names: string[];
+  note: string;
+  onNoteChange: (next: string) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const preview = names.slice(0, 6);
+  const extra = fileCount - preview.length;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[280] flex items-center justify-center bg-black/35 px-4 backdrop-blur-[2px]"
+      role="dialog"
+      aria-modal
+      aria-labelledby="upload-note-title"
+      onPointerDown={markBackdropPointerDown}
+      onClick={(e) => dismissIfBackdropClick(e, onCancel)}
+    >
+      <div
+        className="w-full max-w-md overflow-hidden rounded-xl border border-[rgba(78,66,57,0.12)] bg-white shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="border-b border-[rgba(78,66,57,0.1)] px-5 py-4">
+          <h3
+            id="upload-note-title"
+            className="font-display text-lg font-semibold text-[#1F2423]"
+          >
+            为文件配上说明
+          </h3>
+          <p className="mt-2 text-[12.5px] leading-relaxed text-[#59625F]">
+            补充这些文件是什么、怎么用，便于之后对照。可留空。
+          </p>
+          <ul className="mt-3 max-h-28 space-y-1 overflow-auto text-[12.5px] text-[#1F2423]">
+            {preview.map((name, i) => (
+              <li key={`${i}-${name}`} className="truncate">
+                {name}
+              </li>
+            ))}
+            {extra > 0 ? (
+              <li className="text-[#969E9A]">另有 {extra} 个文件</li>
+            ) : null}
+          </ul>
+        </div>
+        <div className="px-5 py-4">
+          <textarea
+            value={note}
+            onChange={(e) => onNoteChange(e.target.value)}
+            rows={4}
+            placeholder="例如：2024 年审计报告，用于核对收入与成本"
+            className="h-24 w-full resize-none rounded-lg border border-[rgba(78,66,57,0.14)] bg-[rgba(255,252,248,0.9)] px-3 py-2 text-[13px] text-[#1F2423] outline-none placeholder:text-[#969E9A] focus:border-[rgba(160,99,88,0.4)]"
+          />
+        </div>
+        <div className="flex justify-end gap-2 border-t border-[rgba(78,66,57,0.1)] px-5 py-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="h-9 rounded-lg px-3.5 text-[13px] font-medium text-[#59625F] hover:bg-[rgba(78,66,57,0.05)]"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="h-9 rounded-lg bg-[#A06358] px-3.5 text-[13px] font-medium text-white hover:bg-[#922233]"
+          >
+            上传
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 

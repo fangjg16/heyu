@@ -667,6 +667,8 @@ export type ProjectFileRecord = {
   fileCategory?: string | null;
   versionGroup?: string | null;
   replacesDocumentId?: string | null;
+  /** 上传时配的文字说明 */
+  uploadNote?: string | null;
 };
 
 export const DIRECTORY_MIME = "application/x-directory";
