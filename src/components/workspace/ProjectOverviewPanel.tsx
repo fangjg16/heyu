@@ -8,7 +8,7 @@ import {
 import { linkifyCitationMarkersHtml } from "@/lib/kn-citations";
 import { stripAuthoringHintsFromHtml } from "@/lib/strip-authoring-hints";
 import { fetchProjectKnowledgeChapter, listProjectKnowledgeChapters } from "@/lib/project-api";
-import { formatChapterVersionLabel, formatOverviewVersionLabel } from "@/lib/chapter-version";
+import { formatChapterVersionLabel } from "@/lib/chapter-version";
 import { cn } from "@/lib/utils";
 import type { WorkspaceProject } from "@/workspace/projects";
 
@@ -29,7 +29,6 @@ export function ProjectOverviewPanel({
   const [graph, setGraph] = useState<ProjectGraphData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [overviewVersion, setOverviewVersion] = useState(0);
   const [overviewKnVersion, setOverviewKnVersion] = useState(0);
   const [knVersion, setKnVersion] = useState(0);
 
@@ -51,7 +50,6 @@ export function ProjectOverviewPanel({
       ]);
       setHtml(overview.html?.trim() ? overview.html : null);
       setGraph(parseProjectGraphHtml(graphRow?.html ?? null));
-      setOverviewVersion(listed?.overviewVersion ?? 0);
       setOverviewKnVersion(listed?.overviewKnVersion ?? 0);
       setKnVersion(listed?.currentVersion ?? 0);
     } catch (e) {
@@ -118,19 +116,16 @@ export function ProjectOverviewPanel({
     );
   }
 
+  const showVersionDrift =
+    knVersion > 0 &&
+    overviewKnVersion > 0 &&
+    knVersion !== overviewKnVersion;
+
   return (
     <div className="space-y-2">
-      {html?.trim() || graph ? (
+      {showVersionDrift ? (
         <p className="text-[12.5px] leading-relaxed text-[#59625F]">
-          项目概览 {formatOverviewVersionLabel(overviewVersion)}
-          {overviewKnVersion > 0
-            ? ` · 对应知识网络 ${formatChapterVersionLabel(overviewKnVersion)}`
-            : ""}
-          {knVersion > 0 &&
-          overviewKnVersion > 0 &&
-          knVersion !== overviewKnVersion
-            ? `。当前知识网络已是 ${formatChapterVersionLabel(knVersion)}，建议更新概览以对齐。`
-            : ""}
+          当前知识网络已是 {formatChapterVersionLabel(knVersion)}，建议更新概览以对齐。
         </p>
       ) : null}
       {displayHtml ? (

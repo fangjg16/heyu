@@ -143,7 +143,7 @@ function CollabHeader({
           <div className="text-[11px] font-medium tracking-wide text-[#A06358]">
             项目协作方协作
           </div>
-          <h1 className="mt-1 font-[family-name:var(--font-serif,serif)] text-[22px] font-semibold text-[#1F2423]">
+          <h1 className="mt-1 font-display text-[22px] font-semibold text-[#1F2423]">
             {project.name}
           </h1>
         </div>
@@ -349,7 +349,9 @@ export function CollabItemsPage() {
                     className="flex items-start justify-between gap-3 rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/80 px-4 py-3 hover:border-[rgba(160,99,88,0.3)]"
                   >
                     <div className="min-w-0">
-                      <div className="font-semibold text-[#1F2423]">{preview.title}</div>
+                      <div className="font-display text-[15px] font-semibold text-[#1F2423]">
+                        {preview.title}
+                      </div>
                       {preview.detail ? (
                         <div className="mt-1 line-clamp-2 text-[12.5px] text-[#59625F]">
                           {preview.detail}

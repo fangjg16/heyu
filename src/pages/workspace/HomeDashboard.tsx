@@ -1024,6 +1024,7 @@ export default function HomeDashboard() {
                     }}
                   >
                     <div
+                      className="font-display"
                       style={{
                         fontSize: 18,
                         fontWeight: 600,
