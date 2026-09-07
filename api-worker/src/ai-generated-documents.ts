@@ -4,6 +4,11 @@ import {
   aiGeneratedPathForIntent,
   interviewNotesPath,
 } from "./ai-generated-path";
+import { getStoredAnalysisKind } from "./analysis-kind";
+import {
+  chatDeliverablePath,
+  deliverableForChatIntent,
+} from "./chat-kind-deliverable";
 import { invalidateChunkCache } from "./chunk-cache";
 import { packageR2Key } from "./documents-access";
 import { runDocumentParseSummaryBackground } from "./documents-parse-summary";
@@ -385,10 +390,15 @@ export async function persistAgentAnswerAsMarkdown(
   answer: string,
 ): Promise<void> {
   const intent = (job.skill_intent ?? "").trim();
-  const path = aiGeneratedPathForIntent(intent);
+  const kind = await getStoredAnalysisKind(env.DB, job.project_id).catch(
+    () => null,
+  );
+  const path =
+    chatDeliverablePath(intent, kind) ?? aiGeneratedPathForIntent(intent);
   if (!path) return;
   const body = extractMarkdownBody(answer);
   if (!looksLikeDocument(body)) return;
+  const file = deliverableForChatIntent(intent, kind);
 
   await persistMarkdownAtPath(env, {
     projectId: job.project_id,
@@ -398,7 +408,7 @@ export async function persistAgentAnswerAsMarkdown(
     filename: path.filename,
     body,
     sourceKind: "ai_generated",
-    fileCategory: INTENT_TITLE[intent] || "AI生成",
+    fileCategory: file?.title || INTENT_TITLE[intent] || "AI生成",
   });
 }
 

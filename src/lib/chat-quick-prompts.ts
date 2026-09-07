@@ -4,6 +4,7 @@ export const CHAT_QUICK_PROMPTS: { label: string; message: string }[] = [
   { label: "五维覆盖度", message: "根据尽调资料做五维覆盖度，用 ✅⚠️❌ 标注" },
   { label: "尽调清单", message: "生成尽调清单，标出已有和还缺的材料" },
   { label: "风险矩阵", message: "做一版风险矩阵，列主要风险和缓释建议" },
+  { label: "风险清单", message: "做一版风险清单，列关键风险和缓释" },
   { label: "IC 备忘录", message: "写一版投资委员会备忘录草稿" },
   { label: "查外部资料", message: "查外部资料：补充这个项目公开信息并与现有材料对照" },
 ];

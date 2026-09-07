@@ -61,6 +61,13 @@ describe("due-diligence chat intents", () => {
     );
   });
 
+  it("routes 创业风险清单 to startup-design, not capitallens risk-matrix", () => {
+    expect(detectSkillIntent("想要风险清单", "early")).toBe("startup_design");
+    expect(detectSkillIntent("做一版风险评估", "early")).toBe("startup_design");
+    expect(detectSkillIntent("做一版风险矩阵", "early")).toBe("startup_design");
+    expect(detectSkillIntent("想要风险清单")).toBe("risk_matrix");
+  });
+
   it("forces skill by slash directory name", () => {
     expect(detectSkillIntent("/startup-design 随便聊聊")).toBe("startup_design");
     expect(detectSkillIntent("/acquisition-gate 买不买")).toBe(

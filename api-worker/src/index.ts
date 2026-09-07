@@ -44,6 +44,7 @@ import {
   usesFullPackageCorpus,
   type SkillIntent,
 } from "./chat-modes";
+import { persistIntentForChat } from "./chat-kind-deliverable";
 import {
   cancelAgentJob,
   completeAgentJob,
@@ -82,7 +83,10 @@ import { embedDocumentChunks } from "./embeddings";
 import { isGenericProjectQuestion } from "./search";
 import { getProjectById as getDbProjectById } from "./projects-db";
 import { maybeHandleInterviewChat } from "./startup-interview-routes";
-import { getStoredAnalysisKind } from "./analysis-kind";
+import {
+  getStoredAnalysisKind,
+  type AnalysisKind,
+} from "./analysis-kind";
 import {
   DIRECTORY_MIME,
   isDirectoryMarker,
@@ -970,6 +974,7 @@ async function handleChatViaHermes(
     message: string;
     history: { role: string; content: string }[];
     chatMode: SkillIntent;
+    analysisKind?: AnalysisKind | null;
     citationMap: Record<string, string>;
     projectTitleHint: string;
     files?: string[];
@@ -988,6 +993,11 @@ async function handleChatViaHermes(
     });
   }
 
+  const persistIntent = persistIntentForChat(
+    params.analysisKind,
+    params.message,
+    params.chatMode,
+  );
   const jobId = crypto.randomUUID();
   try {
     await createAgentJob(env, {
@@ -995,7 +1005,7 @@ async function handleChatViaHermes(
       projectId: params.projectId,
       userId: params.userId,
       conversationId: params.conversationId,
-      skillIntent: params.chatMode,
+      skillIntent: persistIntent,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -1056,6 +1066,8 @@ async function handleChatViaHermes(
       hasExistingKb,
       slotBatched: useSlotBatch,
       knSlotRegistry,
+      analysisKind: params.analysisKind,
+      persistIntent,
     },
   );
 
@@ -1264,7 +1276,7 @@ async function handleChatViaHermes(
       citationMap: params.citationMap,
       projectId: params.projectId,
       chatMode: params.chatMode,
-      skillIntent: params.chatMode,
+      skillIntent: persistIntent,
       hermesRunId: fallbackId,
       deepPath: "hermes-chat-fallback",
     });
@@ -1291,7 +1303,7 @@ async function handleChatViaHermes(
     citationMap: params.citationMap,
     projectId: params.projectId,
     chatMode: params.chatMode,
-    skillIntent: params.chatMode,
+    skillIntent: persistIntent,
     hermesRunId: runId,
     deepPath: "hermes-runs",
   });
@@ -1829,6 +1841,7 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
       message: modelMessage,
       history,
       chatMode,
+      analysisKind,
       citationMap,
       projectTitleHint,
       files: body.files,

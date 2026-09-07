@@ -3,6 +3,12 @@ import {
   extractKnowledgeNetworkHtmlLoose,
   type SkillIntent,
 } from "./chat-modes";
+import type { AnalysisKind } from "./analysis-kind";
+import {
+  chatDeliverableInstructionLines,
+  deliverableForChatIntent,
+  hermesSkillForChatIntent,
+} from "./chat-kind-deliverable";
 import { INTENT_TO_SKILL } from "./skill-intent-map";
 import {
   buildHermesKnowledgeNetworkFileProtocol,
@@ -228,11 +234,15 @@ export function buildHermesAgentInstructions(
     knSlotRegistry?: import("./knowledge-network-kb-config").KnSlotRegistry | null;
     /** MySQL 意图映射（缺省回退代码 INTENT_TO_SKILL） */
     intentToSkill?: Record<string, string>;
+    analysisKind?: AnalysisKind | null;
+    /** 点名的目录文件 id（如 risk-analysis），优先于 chatMode */
+    persistIntent?: string;
   },
 ): string {
   const jfoBase = (env.JFO_API_PUBLIC_BASE || "https://jfo-api.jfo-api.workers.dev").trim();
   const userId = (ctx?.userId ?? "").trim();
   const conversationId = (ctx?.conversationId ?? "").trim();
+  const persistIntent = (ctx?.persistIntent ?? intent).trim();
   const knMode =
     intent === "knowledge_network"
       ? detectKnowledgeNetworkUpdateMode(
@@ -241,10 +251,14 @@ export function buildHermesAgentInstructions(
         )
       : undefined;
   const map = ctx?.intentToSkill ?? INTENT_TO_SKILL;
-  const primarySkill =
+  const deliverable = deliverableForChatIntent(persistIntent, ctx?.analysisKind);
+  const mappedSkill =
     intent === "standard"
       ? "project-intake"
-      : map[intent] ?? INTENT_TO_SKILL[intent as keyof typeof INTENT_TO_SKILL] ?? "project-intake";
+      : map[intent] ??
+        INTENT_TO_SKILL[intent as keyof typeof INTENT_TO_SKILL] ??
+        hermesSkillForChatIntent(persistIntent, ctx?.analysisKind);
+  const primarySkill = deliverable?.skill ?? mappedSkill;
 
   const lines = [
     "你是联合家办平台的后台分析引擎。用户在网站对话中提需求，你的回复将直接展示在家办平台（用户不知道后台 Agent、插件或技能包等实现细节）。",
@@ -268,6 +282,10 @@ export function buildHermesAgentInstructions(
     "- 不要元叙述开场（如「我们以尽调视角」），直接交付分析结果。",
     "- 不要结尾推销后台模板或工具名。",
   ];
+
+  if (deliverable) {
+    lines.push(...chatDeliverableInstructionLines(deliverable));
+  }
 
   if (intent === "ic_memo") {
     lines.push(

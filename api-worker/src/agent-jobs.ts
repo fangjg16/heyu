@@ -922,7 +922,7 @@ export async function createAgentJob(
     projectId: string;
     userId: string;
     conversationId?: string;
-    skillIntent: SkillIntent;
+    skillIntent: string;
   },
 ): Promise<void> {
   const t = nowIso();

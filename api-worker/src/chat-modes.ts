@@ -1,6 +1,10 @@
 import { isKnowledgeNetworkDeliveryIntent } from "./knowledge-network-intent";
 import type { AnalysisKind } from "./analysis-kind";
 import { skillNameToIntent } from "./skill-intent-map";
+import {
+  matchChatDeliverable,
+  skillIntentForDeliverable,
+} from "./chat-kind-deliverable";
 
 /**
  * 网站对话 ↔ Hermes skills 意图映射（内部用，用户不可见 skill 名）
@@ -117,7 +121,7 @@ const INTENT_RULES: IntentRule[] = [
   },
   { intent: "dd_checklist", re: /dd\s*checklist|尽调清单|diligence request|data room review|尽调跟踪|还要查什么|what do we still need to check|工作流清单/u },
   { intent: "dd_claim_audit", re: /声明审计|claim audit|verify claims|cross check|信息审计|矛盾|contradiction|审计.*声明|可信度|is this true|audit this/u },
-  { intent: "risk_matrix", re: /风险矩阵|risk matrix|风险评估|what could go wrong|what are the risks|风险登记/u },
+  { intent: "risk_matrix", re: /风险清单|风险分析|风险矩阵|risk matrix|风险评估|what could go wrong|what are the risks|风险登记/u },
   { intent: "returns_analysis", re: /回报测算|returns analysis|what'?s the irr|投资回报|financial model|cash flow model|irr|npv|equity multiple|估值测算|valuation model|\/valuation/u },
   { intent: "sensitivity_analysis", re: /敏感性分析|sensitivity|what if|假设变动|tornado|stress test|情景/u },
   { intent: "background_check", re: /背景调查|background check|对手调查|实控人|counterparty|who is this|check the seller|关联交易/u },
@@ -176,6 +180,15 @@ export function detectSkillIntent(
   const text = slash?.rest || m;
   if (isKnowledgeNetworkDeliveryIntent(text) || isKnowledgeNetworkDeliveryIntent(m)) {
     return "knowledge_network";
+  }
+  if (kind === "early" || kind === "acquire") {
+    const file = matchChatDeliverable(kind, text) ?? matchChatDeliverable(kind, m);
+    if (file) {
+      const mapped = skillIntentForDeliverable(file);
+      if (mapped && mapped !== "standard") {
+        return mapped as SkillIntent;
+      }
+    }
   }
   for (const { intent, re } of INTENT_RULES) {
     if (re.test(text) || re.test(m)) {
@@ -402,6 +415,7 @@ export const USER_QUICK_PROMPTS: { label: string; message: string }[] = [
   { label: "五维覆盖度", message: "根据尽调资料做五维覆盖度，用 ✅⚠️❌ 标注" },
   { label: "尽调清单", message: "生成尽调清单，标出已有和还缺的材料" },
   { label: "风险矩阵", message: "做一版风险矩阵，列主要风险和缓释建议" },
+  { label: "风险清单", message: "做一版风险清单，列关键风险和缓释" },
   { label: "IC 备忘录", message: "写一版投资委员会备忘录草稿" },
   { label: "查外部资料", message: "查外部资料：补充这个项目公开信息并与现有材料对照" },
 ];

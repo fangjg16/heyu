@@ -24,7 +24,7 @@ const DEEP_SKILL_PATTERNS: RegExp[] = [
   /合规分析|合规尽调|合规检查|牌照资质|监管约束|compliance[-\s]?check/iu,
   /dd\s*checklist|尽调清单|diligence request|data room review|尽调跟踪|还要查什么|what do we still need to check|工作流清单/u,
   /声明审计|claim audit|verify claims|cross check|信息审计|矛盾|contradiction|审计.*声明|可信度|is this true|audit this/u,
-  /风险矩阵|risk matrix|风险评估|what could go wrong|what are the risks|风险登记/u,
+  /风险清单|风险分析|风险矩阵|risk matrix|风险评估|what could go wrong|what are the risks|风险登记/u,
   /回报测算|returns analysis|what'?s the irr|投资回报|financial model|cash flow model|irr|npv|equity multiple/u,
   /敏感性分析|sensitivity|what if|假设变动|tornado|stress test|情景/u,
   /背景调查|background check|对手调查|实控人|counterparty|who is this|check the seller|关联交易/u,

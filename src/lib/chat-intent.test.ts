@@ -11,6 +11,7 @@ describe("isDeepSkillMessage", () => {
   it("still flags explicit intake / diligence phrasing", () => {
     expect(isDeepSkillMessage("帮我做个尽调")).toBe(true);
     expect(isDeepSkillMessage("请做一次深度分析")).toBe(true);
+    expect(isDeepSkillMessage("想要风险清单")).toBe(true);
   });
 
   it("does not treat reading links inside a file as a deep organize-files job", () => {
