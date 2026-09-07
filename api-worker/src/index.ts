@@ -46,6 +46,11 @@ import {
 } from "./chat-modes";
 import { persistIntentForChat } from "./chat-kind-deliverable";
 import {
+  classifyChatIntent,
+  resolveClassifiedChatIntent,
+  shouldClassifyChatIntent,
+} from "./chat-intent-classify";
+import {
   cancelAgentJob,
   completeAgentJob,
   createAgentJob,
@@ -975,6 +980,7 @@ async function handleChatViaHermes(
     history: { role: string; content: string }[];
     chatMode: SkillIntent;
     analysisKind?: AnalysisKind | null;
+    persistIntent?: string;
     citationMap: Record<string, string>;
     projectTitleHint: string;
     files?: string[];
@@ -993,11 +999,9 @@ async function handleChatViaHermes(
     });
   }
 
-  const persistIntent = persistIntentForChat(
-    params.analysisKind,
-    params.message,
-    params.chatMode,
-  );
+  const persistIntent =
+    params.persistIntent ??
+    persistIntentForChat(params.analysisKind, params.message, params.chatMode);
   const jobId = crypto.randomUUID();
   try {
     await createAgentJob(env, {
@@ -1661,7 +1665,16 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
   const analysisKind = await getStoredAnalysisKind(env.DB, projectId).catch(
     () => null,
   );
-  const chatMode: SkillIntent = detectSkillIntent(message, analysisKind);
+  let chatMode: SkillIntent = detectSkillIntent(message, analysisKind);
+  let persistIntent: string | undefined;
+  if (shouldClassifyChatIntent(message, analysisKind)) {
+    const classified = await classifyChatIntent(env, message, analysisKind);
+    if (classified) {
+      const resolved = resolveClassifiedChatIntent(classified, analysisKind);
+      chatMode = resolved.chatMode;
+      persistIntent = resolved.persistIntent;
+    }
+  }
   const modelMessage = messageForSkillModel(message);
   if (chatMode === "knowledge_network") {
     return json({
@@ -1842,6 +1855,7 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
       history,
       chatMode,
       analysisKind,
+      persistIntent,
       citationMap,
       projectTitleHint,
       files: body.files,

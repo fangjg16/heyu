@@ -99,6 +99,14 @@ export function deliverableByAnyId(id: string): DeliverableFile | undefined {
   return undefined;
 }
 
+/** 对话原文是否点到目录别名或标题（只做召回，不代表就要生成）。 */
+export function hitsDeliverableRecall(
+  kind: AnalysisKind | null | undefined,
+  message: string,
+): boolean {
+  return matchChatDeliverable(kind, message) !== null;
+}
+
 /** 对话原文点到哪一份目录文件。 */
 export function matchChatDeliverable(
   kind: AnalysisKind | null | undefined,

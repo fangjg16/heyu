@@ -147,6 +147,27 @@ export function parseSlashSkill(
   return { skill: m[1], rest: (m[2] ?? "").trim() };
 }
 
+/** 句子是否像在点名某项深度交付（短语，不含单字「风险」「分析」）。 */
+export function messageHitsSkillPhrases(message: string): boolean {
+  const m = (message ?? "").trim();
+  if (!m) return false;
+  const slash = parseSlashSkill(m);
+  const text = slash?.rest || m;
+  for (const { re } of INTENT_RULES) {
+    if (re.test(text) || re.test(m)) return true;
+  }
+  return false;
+}
+
+/** 没点名具体文件时的尽调/深度分析。 */
+export function genericIntakeIntent(
+  kind: AnalysisKind | null | undefined,
+): SkillIntent {
+  if (kind === "early") return "startup_design";
+  if (kind === "acquire") return "acquisition_intake";
+  return "project_intake";
+}
+
 function remapIntentForKind(
   intent: SkillIntent,
   kind: AnalysisKind | null | undefined,

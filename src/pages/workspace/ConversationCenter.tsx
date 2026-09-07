@@ -2802,9 +2802,9 @@ export default function ConversationCenter() {
         RAGFLOW_MODE !== "native" &&
         RAGFLOW_MODE !== "openai" &&
         Boolean(requestBody && typeof requestBody === "object" && "projectId" in requestBody);
-      const useWorkerStream = useWorkerJson && !deepSkill;
+      const expectStreamUi = useWorkerJson;
 
-      if (useWorkerStream) {
+      if (expectStreamUi) {
         streamAssistantId = `assistant-${Date.now()}`;
         setLiveError(null);
         appendLiveMessage(effectiveConversationId, {
@@ -2813,17 +2813,7 @@ export default function ConversationCenter() {
           content: "",
           time: getCurrentDateTimeLabel(),
           isStreaming: true,
-        });
-      } else if (deepSkill && useWorkerJson) {
-        streamAssistantId = `assistant-${Date.now()}`;
-        setLiveError(null);
-        appendLiveMessage(effectiveConversationId, {
-          id: streamAssistantId,
-          role: "assistant",
-          content: "",
-          time: getCurrentDateTimeLabel(),
-          isStreaming: true,
-          streamStatusLabel: "正在提交任务…",
+          streamStatusLabel: deepSkill ? "正在提交任务…" : undefined,
         });
       }
 
@@ -2845,7 +2835,7 @@ export default function ConversationCenter() {
       };
 
       if (
-        useWorkerStream &&
+        expectStreamUi &&
         streamAssistantId &&
         (res.headers.get("Content-Type") ?? "").includes("text/event-stream")
       ) {
