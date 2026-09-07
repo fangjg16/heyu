@@ -59,6 +59,45 @@ function filterDroppedFiles(files: FileList | File[] | null): File[] {
   });
 }
 
+function fileFromFolder(file: File): boolean {
+  const rel =
+    (file as File & { webkitRelativePath?: string }).webkitRelativePath || "";
+  return rel.includes("/");
+}
+
+function pickerBusy(
+  uploadProgress: CreateUploadProgress | null | undefined,
+  files: File[],
+  readingDrop: boolean,
+): { file: boolean; folder: boolean } {
+  if (readingDrop) return { file: false, folder: true };
+  if (!uploadProgress) return { file: false, folder: false };
+  const current =
+    uploadProgress.phase === "uploading"
+      ? files[uploadProgress.index - 1]
+      : files[0];
+  if (!current) return { file: false, folder: false };
+  const folder = fileFromFolder(current);
+  return { file: !folder, folder };
+}
+
+function PickerGlyph({
+  busy,
+  icon: Icon,
+}: {
+  busy: boolean;
+  icon: typeof Upload;
+}) {
+  const Glyph = busy ? Loader2 : Icon;
+  return (
+    <Glyph
+      className={cn(
+        "h-3.5 w-3.5 text-[hsl(var(--wine-deep))]",
+        busy && "animate-spin",
+      )}
+    />
+  );
+}
 function mergeUniqueFiles(prev: File[], incoming: File[]): File[] {
   const seen = new Set(prev.map(fileKey));
   const merged = [...prev];
@@ -94,6 +133,7 @@ export function CreateProjectAttachments({
   const folderInputRef = useRef<HTMLInputElement | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [picked, setPicked] = useState<File[]>(files);
+  const [readingDrop, setReadingDrop] = useState(false);
 
   useEffect(() => {
     setPicked(files);
@@ -141,6 +181,7 @@ export function CreateProjectAttachments({
 
   const uploading =
     uploadProgress?.phase === "uploading" ? uploadProgress : null;
+  const busy = pickerBusy(uploadProgress, picked, readingDrop);
 
   return (
     <div>
@@ -200,31 +241,34 @@ export function CreateProjectAttachments({
           e.preventDefault();
           e.stopPropagation();
           setDragOver(false);
+          setReadingDrop(true);
           const snap = snapshotDroppedEntries(e.dataTransfer);
-          void collectDroppedFiles(snap).then((dropped) =>
-            applyIncoming(filterDroppedFiles(dropped)),
-          );
+          void collectDroppedFiles(snap)
+            .then((dropped) => applyIncoming(filterDroppedFiles(dropped)))
+            .finally(() => setReadingDrop(false));
         }}
       >
         <div className="flex flex-wrap gap-2">
           <label
             htmlFor={FILE_INPUT_ID}
+            aria-busy={busy.file}
             className={cn(
               "inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-[hsl(var(--sand)/0.9)] bg-white px-2.5 py-1.5 text-xs font-medium text-[hsl(var(--warm-charcoal))] transition hover:border-[hsl(var(--wine-deep)/0.35)]",
               disabled && "pointer-events-none opacity-60",
             )}
           >
-            <Upload className="h-3.5 w-3.5 text-[hsl(var(--wine-deep))]" />
+            <PickerGlyph busy={busy.file} icon={Upload} />
             选择文件
           </label>
           <label
             htmlFor={FOLDER_INPUT_ID}
+            aria-busy={busy.folder}
             className={cn(
               "inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-[hsl(var(--sand)/0.9)] bg-white px-2.5 py-1.5 text-xs font-medium text-[hsl(var(--warm-charcoal))] transition hover:border-[hsl(var(--wine-deep)/0.35)]",
               disabled && "pointer-events-none opacity-60",
             )}
           >
-            <Folder className="h-3.5 w-3.5 text-[hsl(var(--wine-deep))]" />
+            <PickerGlyph busy={busy.folder} icon={Folder} />
             选择文件夹
           </label>
         </div>
