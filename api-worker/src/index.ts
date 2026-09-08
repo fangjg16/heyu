@@ -533,6 +533,7 @@ async function handleListFiles(
       chunkCount: Number(r.chunk_count) || 0,
       filename: r.filename,
       mime: r.mime,
+      sourceKind: r.source_kind ?? null,
     }),
     sourceKind: r.source_kind ?? null,
     sharedWithIssuer: Number(r.shared_with_issuer ?? 0) === 1,

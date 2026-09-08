@@ -57,13 +57,16 @@ export function digestPlainTextSource(input: {
   return { summary, documentType, keyPoints: keys };
 }
 
-/** 列表「已解析」：有摘要行，或纯文本已切块（检索已可用）。 */
+/** 列表「已解析」：我们写出来的稿不必再抽字；上传件则看是否已有摘要或纯文本已切块。 */
 export function documentListLooksParsed(input: {
   parseCount: number;
   chunkCount: number;
   filename: string;
   mime?: string | null;
+  sourceKind?: string | null;
 }): boolean {
+  const kind = (input.sourceKind ?? "").trim();
+  if (kind === "ai_generated" || kind === "user_interview") return true;
   if (input.parseCount > 0) return true;
   return input.chunkCount > 0 && isPlainTextFileName(input.filename, input.mime);
 }

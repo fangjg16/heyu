@@ -39,6 +39,18 @@ describe("digestPlainTextSource", () => {
 });
 
 describe("documentListLooksParsed", () => {
+  it("treats authored AI markdown as parsed without a summary row", () => {
+    expect(
+      documentListLooksParsed({
+        parseCount: 0,
+        chunkCount: 0,
+        filename: "positioning.md",
+        mime: "text/markdown",
+        sourceKind: "ai_generated",
+      }),
+    ).toBe(true);
+  });
+
   it("treats chunked markdown as parsed even without a summary row", () => {
     expect(
       documentListLooksParsed({
