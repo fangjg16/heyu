@@ -237,14 +237,14 @@ export function shouldForceExternalSearch(intent: SkillIntent): boolean {
 }
 
 /**
- * 已接 Hermes 时：对话默认进 Agent（含闲聊）。由 Hermes 决定短答还是开 skill。
- * 知识网络整页仍只在项目页生成，不走对话 runs。
+ * 要动手（读全包资料、开 skill、公开检索）才走 Hermes /v1/runs。
+ * 闲聊走千问流式，避免寒暄也排队轮询。
  */
 export function shouldRouteToHermes(intent: SkillIntent): boolean {
-  return intent !== "knowledge_network";
+  return intent !== "standard" && intent !== "knowledge_network";
 }
 
-/** 未接 Hermes、走千问兜底时：不要打 Hermes 的 chat/completions。 */
+/** 闲聊走千问流式，不要打 Hermes 的 chat/completions（空流仍算成功，不会降级）。 */
 export function shouldSkipHermesForLightChat(intent: SkillIntent): boolean {
   return intent === "standard";
 }
