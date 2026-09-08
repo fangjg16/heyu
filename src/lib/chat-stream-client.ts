@@ -93,7 +93,22 @@ export async function consumeChatSse(
 
   while (true) {
     const { done, value } = await reader.read();
-    if (done) break;
+    if (done) {
+      buffer += dec.decode();
+      if (buffer) {
+        const line = buffer;
+        buffer = "";
+        if (line.startsWith(":")) {
+          /* keepalive */
+        } else if (line.startsWith("event:")) {
+          flushEvent();
+          eventName = line.slice(6).trim();
+        } else if (line.startsWith("data:")) {
+          dataLines.push(line.slice(5).trim());
+        }
+      }
+      break;
+    }
     buffer += dec.decode(value, { stream: true });
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
