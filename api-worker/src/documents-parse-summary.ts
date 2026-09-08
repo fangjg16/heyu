@@ -31,6 +31,9 @@ import {
   type SourceParseRoute,
 } from "./source-parse-route";
 import {
+  digestPlainTextSource,
+} from "./plain-text-parse-digest";
+import {
   buildSourceFileParseMessages,
   sourceParseVisionLlmOptions,
 } from "./source-parse-vision";
@@ -305,6 +308,41 @@ async function upsertParseResult(
   );
 }
 
+/** 正文已在手：立刻落卡片摘要，请求不必等模型。 */
+export async function recordPlainTextParseResult(
+  env: Env,
+  input: {
+    documentId: string;
+    filename: string;
+    body: string;
+    fileCategory?: string | null;
+    chunkCount: number;
+  },
+): Promise<void> {
+  const digest = digestPlainTextSource({
+    body: input.body,
+    filename: input.filename,
+    fileCategory: input.fileCategory,
+  });
+  await upsertParseResult(
+    env,
+    input.documentId,
+    {
+      summary: digest.summary,
+      documentType: inferDocumentGenre({
+        filename: input.filename,
+        documentType: digest.documentType,
+      }),
+      keyPoints: digest.keyPoints,
+      refs: [],
+      usedFor: [],
+      chunkCount: input.chunkCount,
+      llmBackend: "plain-text",
+    },
+    input.filename,
+  );
+}
+
 /** 解析得到的文件类型写入 file_category（已有人工分类则不覆盖） */
 async function refreshFileCategoryFromParse(
   env: Env,
@@ -502,10 +540,11 @@ async function handleParseProjectFileSummaryUnlocked(
     mime: string | null;
     deleted_at?: string | null;
     relative_path?: string | null;
+    file_category?: string | null;
   }) | null = null;
   try {
     row = await env.DB.prepare(
-      `SELECT id, project_id, filename, relative_path, scope, conversation_id, uploaded_by, r2_key, mime, deleted_at
+      `SELECT id, project_id, filename, relative_path, scope, conversation_id, uploaded_by, r2_key, mime, deleted_at, file_category
        FROM documents WHERE id = ? AND project_id = ?`,
     )
       .bind(id, projectId)
@@ -743,6 +782,45 @@ async function handleParseProjectFileSummaryUnlocked(
       usedFor: [],
       warning: extractWarning ?? null,
     });
+  }
+
+  if (!useVision && sourceText.trim()) {
+    const digest = digestPlainTextSource({
+      body: sourceText,
+      filename: row.filename,
+      fileCategory: row.file_category,
+    });
+    const payload: DocumentParsePayload = {
+      summary: digest.summary,
+      documentType: inferDocumentGenre({
+        filename: row.filename,
+        documentType: digest.documentType,
+      }),
+      keyPoints: digest.keyPoints,
+      refs: [],
+      usedFor: [],
+      chunkCount,
+      llmBackend: "plain-text",
+    };
+    try {
+      await upsertParseResult(env, id, payload, row.filename);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (
+        /no such table:\s*document_parse_results/i.test(msg) ||
+        /Unknown table ['`]?document_parse_results['`]?/i.test(msg)
+      ) {
+        return json({
+          ...parseResponseBody(row, payload, { warning: extractWarning ?? null }),
+          persistError:
+            "解析成功但未落库：请执行 migration 0014（document_parse_results）",
+        });
+      }
+      throw e;
+    }
+    return json(
+      parseResponseBody(row, payload, { warning: extractWarning ?? null }),
+    );
   }
 
   try {
