@@ -186,6 +186,14 @@ export function productizeKnJobSubmitContent(
   const knJob = isKnowledgeNetworkJobIntent(skillIntent);
   const technicalKn = TECHNICAL_SUBMIT_RE.test(t);
 
+  if (skillIntent === "standard") {
+    if (!t || technicalKn || /已开始生成项目知识网络|13 个板块|已提交深度分析|后台引擎|兼容模式/i.test(t)) {
+      return "正在生成，请稍候…";
+    }
+    if (/^正在深度分析|^深度分析进行中/i.test(t)) return "正在生成，请稍候…";
+    return t;
+  }
+
   if (skillIntent && !knJob) {
     if (!t || technicalKn || /已开始生成项目知识网络|13 个板块/i.test(t)) {
       return DEEP_ANALYSIS_SUBMIT_COPY;

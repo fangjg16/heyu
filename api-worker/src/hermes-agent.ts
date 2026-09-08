@@ -25,7 +25,10 @@ import {
   resolveKnowledgeNetworkSlotsFromMessage,
 } from "./knowledge-network-slot-aliases";
 import { buildKnowledgeNetworkDeepRefResolutionLines } from "./knowledge-network-deep-refs";
-import { buildJfoMaterialsInstructions } from "./hermes-materials-instructions";
+import {
+  buildHermesWebSearchInstructions,
+  buildJfoMaterialsInstructions,
+} from "./hermes-materials-instructions";
 import { detectKnowledgeNetworkUpdateMode } from "./knowledge-network-mode";
 import {
   buildCompactFragmentBatchRequiredReads,
@@ -253,20 +256,29 @@ export function buildHermesAgentInstructions(
   const map = ctx?.intentToSkill ?? INTENT_TO_SKILL;
   const deliverable = deliverableForChatIntent(persistIntent, ctx?.analysisKind);
   const mappedSkill =
-    intent === "standard"
-      ? "project-intake"
-      : map[intent] ??
-        INTENT_TO_SKILL[intent as keyof typeof INTENT_TO_SKILL] ??
-        hermesSkillForChatIntent(persistIntent, ctx?.analysisKind);
+    map[intent] ??
+    INTENT_TO_SKILL[intent as keyof typeof INTENT_TO_SKILL] ??
+    hermesSkillForChatIntent(persistIntent, ctx?.analysisKind);
   const primarySkill = deliverable?.skill ?? mappedSkill;
+  const isOpenChat = intent === "standard";
 
   const lines = [
     "你是联合家办平台的后台分析引擎。用户在网站对话中提需求，你的回复将直接展示在家办平台（用户不知道后台 Agent、插件或技能包等实现细节）。",
     `当前项目 projectId=${projectId}（${projectTitleHint}）。`,
     "",
     "【工作顺序】",
-    `1. jfo-r2-materials：先确认资料清单与当前 KB，再按任务按需读取正文（见下方策略；非机械全文拉取）。`,
-    `2. 执行主任务（内部 skill：${primarySkill}）完成用户交付。`,
+    ...(isOpenChat
+      ? [
+          "先判断本轮要短答还是专项交付，不要默认跑尽调 skill。",
+          "- 寒暄、与项目无关的短问：直接短答，不必读完全部资料、不必公开检索。",
+          "- 问项目值不值得投、怎么看、是否值得跟进：先用 jfo-r2-materials 读项目事实，需要公开信息时再检索；给出有依据的判断，并标明资料不足处。",
+          "- 用户明确要尽调、清单、IC、风险矩阵等专项交付：再选用对应 skill。",
+          "- 禁止为闲聊生成整页知识网络 HTML。",
+        ]
+      : [
+          "1. jfo-r2-materials：先确认资料清单与当前 KB，再按任务按需读取正文（见下方策略；非机械全文拉取）。",
+          `2. 执行主任务（内部 skill：${primarySkill}）完成用户交付。`,
+        ]),
     buildJfoMaterialsInstructions(
       jfoBase,
       projectId,
@@ -275,6 +287,7 @@ export function buildHermesAgentInstructions(
       conversationId,
       knMode,
     ),
+    buildHermesWebSearchInstructions(jfoBase),
     "",
     "【对用户输出的要求】",
     "- 用简体中文，Markdown 表格与结构化正文。",
@@ -283,7 +296,7 @@ export function buildHermesAgentInstructions(
     "- 不要结尾推销后台模板或工具名。",
   ];
 
-  if (deliverable) {
+  if (deliverable && !isOpenChat) {
     lines.push(...chatDeliverableInstructionLines(deliverable));
   }
 

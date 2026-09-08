@@ -536,7 +536,7 @@ export async function persistAgentJobPendingChatTurn(
   if (!projectExists) return;
 
   const now = params.timeLabel ?? nowIso();
-  const preview = userMessage.replace(/\s+/gu, " ").trim().slice(0, 120) || "深度分析";
+  const preview = userMessage.replace(/\s+/gu, " ").trim().slice(0, 120) || "对话";
   const job: AgentJobRow = {
     id: params.jobId,
     project_id: params.projectId,
@@ -568,7 +568,7 @@ export async function persistAgentJobPendingChatTurn(
   const assistantMsg: SyncChatMessage = {
     id: assistantMsgId,
     role: "assistant",
-    content: "正在深度分析…",
+    content: "正在生成，请稍候…",
     time: now,
     sortIndex: 1,
     pendingJobId: params.jobId,

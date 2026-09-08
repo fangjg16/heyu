@@ -9,6 +9,7 @@ import {
   handleHermesGetKnowledgeNetworkCurrent,
   handleHermesPutKnowledgeNetworkCurrent,
 } from "./hermes-knowledge-network";
+import { handleHermesWebSearch } from "./hermes-web-search";
 import { isPlaceholderChunkText } from "./search";
 import { getProjectById } from "./projects-db";
 import {
@@ -29,6 +30,7 @@ export type HermesBridgeEnv = {
   DASHSCOPE_API_KEY?: string;
   EMBED_MODEL?: string;
   EMBED_DIMENSION?: string;
+  TAVILY_API_KEY?: string;
 };
 
 const MAX_TEXT_CHARS = 500_000;
@@ -387,6 +389,10 @@ export async function tryHandleHermesRoutes(
 
   const auth = requireHermesAuth(request, env);
   if (auth) return auth;
+
+  if (path === "/api/hermes/web-search") {
+    return handleHermesWebSearch(request, env, json);
+  }
 
   const manifestMatch = /^\/api\/hermes\/projects\/([^/]+)\/manifest$/u.exec(path);
   if (manifestMatch && request.method === "GET") {

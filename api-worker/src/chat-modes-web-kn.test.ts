@@ -105,17 +105,18 @@ describe("due-diligence chat intents", () => {
 });
 
 describe("light chat stays off Hermes skills and Hermes chat", () => {
-  it("treats 值不值得投 as a light question", () => {
+  it("treats 值不值得投 as open chat so Hermes can decide short answer vs skill", () => {
     expect(detectSkillIntent("这个项目值不值得投")).toBe("standard");
     expect(detectSkillIntent("帮我看看 帕金森这个项目值不值得投资")).toBe(
       "standard",
     );
   });
 
-  it("skips Hermes chat completions for standard, not for deep skills", () => {
-    expect(shouldSkipHermesForLightChat("standard")).toBe(true);
-    expect(shouldRouteToHermes("standard")).toBe(false);
-    expect(shouldSkipHermesForLightChat("project_intake")).toBe(false);
+  it("sends open chat to Hermes Agent runs, not only deep skills", () => {
+    expect(shouldRouteToHermes("standard")).toBe(true);
     expect(shouldRouteToHermes("project_intake")).toBe(true);
+    expect(shouldRouteToHermes("knowledge_network")).toBe(false);
+    expect(shouldSkipHermesForLightChat("standard")).toBe(true);
+    expect(shouldSkipHermesForLightChat("project_intake")).toBe(false);
   });
 });
