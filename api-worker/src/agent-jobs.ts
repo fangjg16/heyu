@@ -3,9 +3,8 @@ import type { AppDatabase } from "./app-database";
 import type { SkillIntent } from "./chat-modes";
 import { extractKnowledgeNetworkHtmlLoose } from "./chat-modes";
 import {
-  AGENT_ANSWER_PERSIST_FAIL_NOTE,
   persistAgentAnswerAsMarkdownWithRetry,
-  shouldTellUserPersistFailed,
+  withAgentPersistChatNote,
 } from "./ai-generated-documents";
 import { humanizeUpstreamLlmError } from "./llm-client";
 import { syncAgentJobTerminalToChat } from "./chat-sync";
@@ -988,23 +987,20 @@ export async function completeAgentJob(
 
   const displayAnswer = stripStructuredKbPayloadFromDisplayAnswer(finalized.answer);
 
-  let chatAnswer = displayAnswer;
   const persist = await persistAgentAnswerAsMarkdownWithRetry(
     env,
     rowBefore,
     displayAnswer,
   );
-  if (shouldTellUserPersistFailed(persist, displayAnswer)) {
+  if (!persist.ok && persist.reason !== "no_path") {
     console.error(
       "[ai-gen-persist] job",
       jobId,
-      persist.ok ? "ok" : persist.reason,
-      persist.ok ? "" : persist.error ?? "",
+      persist.reason,
+      persist.error ?? "",
     );
-    if (!displayAnswer.includes(AGENT_ANSWER_PERSIST_FAIL_NOTE)) {
-      chatAnswer = `${displayAnswer}\n\n${AGENT_ANSWER_PERSIST_FAIL_NOTE}`;
-    }
   }
+  const chatAnswer = withAgentPersistChatNote(displayAnswer, persist);
 
   await env.DB.prepare(
     `UPDATE agent_jobs SET status = 'completed', answer = ?, knowledge_network_html = ?, error = NULL, updated_at = ? WHERE id = ?`,

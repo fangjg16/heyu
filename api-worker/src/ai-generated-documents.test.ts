@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatAgentPersistSuccessNote,
   persistAgentAnswerAsMarkdown,
   persistAgentAnswerAsMarkdownWithRetry,
   persistMarkdownAtPath,
   shouldTellUserPersistFailed,
+  withAgentPersistChatNote,
 } from "./ai-generated-documents";
 
 const ANALYSIS = `核心结论
@@ -88,6 +90,8 @@ describe("persistAgentAnswerAsMarkdown", () => {
       ok: true,
       relativePath: "AI生成/startup/01-discovery",
       filename: "competitor-landscape.md",
+      skillName: "startup-competitors",
+      title: "竞争格局",
     });
     expect(documents.length).toBeGreaterThan(0);
     expect(documents[0]?.args).toContain("competitor-landscape.md");
@@ -193,10 +197,72 @@ describe("shouldTellUserPersistFailed", () => {
     ).toBe(false);
     expect(
       shouldTellUserPersistFailed(
-        { ok: true, documentId: "x", relativePath: "a", filename: "b.md" },
+        {
+          ok: true,
+          documentId: "x",
+          relativePath: "a",
+          filename: "b.md",
+          skillName: "startup-competitors",
+          title: "竞争格局",
+        },
         ANALYSIS,
       ),
     ).toBe(false);
+  });
+});
+
+describe("withAgentPersistChatNote", () => {
+  it("appends skill name and stored path after a successful write", () => {
+    const note = formatAgentPersistSuccessNote({
+      skillName: "startup-competitors",
+      title: "竞争格局",
+      relativePath: "AI生成/startup/01-discovery",
+      filename: "competitor-landscape.md",
+    });
+    expect(note).toContain("系统 skill 「startup-competitors」（竞争格局）");
+    expect(note).toContain(
+      "生成的文件已保存在源文件：AI生成/startup/01-discovery/competitor-landscape.md",
+    );
+    const chat = withAgentPersistChatNote(ANALYSIS, {
+      ok: true,
+      documentId: "doc-1",
+      relativePath: "AI生成/startup/01-discovery",
+      filename: "competitor-landscape.md",
+      skillName: "startup-competitors",
+      title: "竞争格局",
+    });
+    expect(chat.startsWith(ANALYSIS.trimEnd())).toBe(true);
+    expect(chat).toContain("startup-competitors");
+    expect(chat).toContain(
+      "AI生成/startup/01-discovery/competitor-landscape.md",
+    );
+  });
+
+  it("does not duplicate the success note", () => {
+    const once = withAgentPersistChatNote(ANALYSIS, {
+      ok: true,
+      documentId: "doc-1",
+      relativePath: "AI生成/startup/01-discovery",
+      filename: "competitor-landscape.md",
+      skillName: "startup-competitors",
+      title: "竞争格局",
+    });
+    expect(withAgentPersistChatNote(once, {
+      ok: true,
+      documentId: "doc-1",
+      relativePath: "AI生成/startup/01-discovery",
+      filename: "competitor-landscape.md",
+      skillName: "startup-competitors",
+      title: "竞争格局",
+    })).toBe(once);
+  });
+
+  it("appends the retry hint when write fails", () => {
+    const chat = withAgentPersistChatNote(ANALYSIS, {
+      ok: false,
+      reason: "write_failed",
+    });
+    expect(chat).toContain("这份分析还没写进源文件，请再生成一次。");
   });
 });
 

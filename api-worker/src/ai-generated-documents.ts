@@ -8,6 +8,7 @@ import { getStoredAnalysisKind } from "./analysis-kind";
 import {
   chatDeliverablePath,
   deliverableForChatIntent,
+  hermesSkillForChatIntent,
 } from "./chat-kind-deliverable";
 import { invalidateChunkCache } from "./chunk-cache";
 import { packageR2Key, sanitizeRelativePath } from "./documents-access";
@@ -353,7 +354,14 @@ export async function persistMarkdownAtPath(
 }
 
 export type PersistAgentAnswerResult =
-  | { ok: true; documentId: string; relativePath: string; filename: string }
+  | {
+      ok: true;
+      documentId: string;
+      relativePath: string;
+      filename: string;
+      skillName: string;
+      title: string;
+    }
   | {
       ok: false;
       reason: "no_path" | "not_document" | "write_receipt" | "write_failed";
@@ -363,8 +371,42 @@ export type PersistAgentAnswerResult =
 export const AGENT_ANSWER_PERSIST_FAIL_NOTE =
   "这份分析还没写进源文件，请再生成一次。";
 
+export const AGENT_ANSWER_PERSIST_SUCCESS_MARKER =
+  "生成的文件已保存在源文件：";
+
 function sleepMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function formatAgentPersistSuccessNote(input: {
+  skillName: string;
+  title?: string | null;
+  relativePath: string;
+  filename: string;
+}): string {
+  const skill = input.skillName.trim() || "分析";
+  const title = (input.title ?? "").trim();
+  const skillBit =
+    title && title !== skill ? `「${skill}」（${title}）` : `「${skill}」`;
+  const stored = `${input.relativePath.replace(/\/+$/u, "")}/${input.filename}`.replace(
+    /\/{2,}/gu,
+    "/",
+  );
+  return `本次使用了系统 skill ${skillBit}。\n${AGENT_ANSWER_PERSIST_SUCCESS_MARKER}${stored}`;
+}
+
+export function withAgentPersistChatNote(
+  displayAnswer: string,
+  persist: PersistAgentAnswerResult,
+): string {
+  const body = displayAnswer.trimEnd();
+  if (persist.ok) {
+    if (body.includes(AGENT_ANSWER_PERSIST_SUCCESS_MARKER)) return body;
+    return `${body}\n\n${formatAgentPersistSuccessNote(persist)}`;
+  }
+  if (!shouldTellUserPersistFailed(persist, displayAnswer)) return body;
+  if (body.includes(AGENT_ANSWER_PERSIST_FAIL_NOTE)) return body;
+  return `${body}\n\n${AGENT_ANSWER_PERSIST_FAIL_NOTE}`;
 }
 
 /** 深度任务完成后，把 Markdown 正文落入源文件「AI生成」分目录 */
@@ -409,6 +451,8 @@ export async function persistAgentAnswerAsMarkdown(
       documentId,
       relativePath: path.relativePath,
       filename: path.filename,
+      skillName: file?.skill || hermesSkillForChatIntent(intent, kind),
+      title: file?.title || INTENT_TITLE[intent] || "",
     };
   } catch (e) {
     const error = e instanceof Error ? e.message : String(e);

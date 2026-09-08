@@ -76,6 +76,7 @@ describe("early chat deliverables", () => {
     expect(lines.join("\n")).toContain("风险清单");
     expect(lines.join("\n")).toContain("平台会把本条回复写入资料包");
     expect(lines.join("\n")).toContain("禁止写");
+    expect(lines.join("\n")).toContain("平台会自行告知用户");
     expect(lines.join("\n")).not.toContain("capitallens");
   });
 
