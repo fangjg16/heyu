@@ -1112,7 +1112,7 @@ async function handleChatViaHermes(
     /* 章节摘录失败不阻断 Hermes */
   }
 
-  if (usesFullPackageCorpus(params.chatMode) || params.chatMode === "standard") {
+  if (usesFullPackageCorpus(params.chatMode)) {
     try {
       const digest = await buildHermesMaterialsDigest(
         env,
