@@ -26,7 +26,7 @@ grep -q revealAnchor /opt/data/skills/knowledge-base-generation/assets/kb-templa
 
 `reference/` 目录为 v2.7 历史归档，见 `reference/DEPRECATED.md`，**不得**引入运行链路。
 
-`jfo-r2-materials` 是 Hermes 版「项目资料读取层」：先 manifest + 当前 KB，再**按任务按需**拉 textUrl（非机械全文）。Worker 指令与 SOUL 已对齐。
+`jfo-r2-materials` 是 Hermes 版「项目资料读取层」：先检索上传时已解析的 chunk 缓存，不够再按需拉 textUrl（禁止每轮全文重读）。Worker 指令与 SOUL 已对齐。
 
 ## 1. ACK 部署
 

@@ -79,8 +79,8 @@ function formatDigestSection(
 }
 
 /**
- * Worker 侧「资料摘录」预注入：按任务强度节选，非机械全文。
- * Hermes 仍应通过 jfo-r2-materials 先 manifest、再按需 textUrl。
+ * Worker 侧「资料摘录」预注入：按任务强度从解析缓存节选，非机械全文。
+ * Hermes 仍应先 search 缓存；不够再按需 textUrl。短答不预塞（走流式路径的检索注入）。
  */
 export async function buildHermesMaterialsDigest(
   env: { DB: AppDatabase },
@@ -154,12 +154,12 @@ export async function buildHermesMaterialsDigest(
 
   const intensityNote =
     intensity === "light"
-      ? "本预注入为轻量节选（优先对话附件）；缺事实时请 manifest 后按需 GET 相关 textUrl，勿无差别拉全文。"
+      ? "本预注入为轻量节选（优先对话附件）；缺事实时请先 search 解析缓存，再按需 GET 相关 textUrl，勿无差别拉全文。"
       : intensity === "moderate"
-        ? "本预注入为首次 KB 核心节选（非全文）；manifest 后仅对缺口文件 GET textUrl。"
+        ? "本预注入为首次 KB 核心节选（非全文）；缺事实时 search，仅对缺口文件 GET textUrl。"
         : intensity === "session_priority"
-          ? "本预注入为任务相关节选；完整 manifest 仍须确认，正文按任务按需拉取。"
-          : "本预注入为主要资料节选（全量重做）；仍须 manifest 确认清单，勿机械拉取每个 textUrl。";
+          ? "本预注入为任务相关节选（同一套解析缓存）；完整清单仅在缺口时确认，正文按需拉取。"
+          : "本预注入为主要资料节选（全量重做）；仍先 search，勿机械拉取每个 textUrl。";
 
   const parts = [
     "",

@@ -40,7 +40,7 @@ import {
   detectSkillIntent,
   KNOWLEDGE_NETWORK_USE_WEB_ANSWER,
   messageForSkillModel,
-  shouldRouteToHermes,
+  shouldRouteToHermesRuns,
   shouldSkipHermesForLightChat,
   hermesChatSubmitAnswer,
   hermesChatFallbackSubmitAnswer,
@@ -218,7 +218,7 @@ export interface Env {
   HERMES_UPSTREAM_URL?: string;
   HERMES_API_KEY?: string;
   HERMES_MODEL?: string;
-  /** Hermes 经 /api/hermes/web-search 做公开检索；未接 Hermes 时轻问仍可走平台 Tavily */
+  /** Hermes 经 /api/hermes/web-search 做公开检索；短答用解析缓存，未接 Hermes 时才由平台代搜 */
   TAVILY_API_KEY?: string;
   /** Hermes 只读拉取项目资料（/api/hermes/*） */
   JFO_INTERNAL_KEY?: string;
@@ -1846,7 +1846,7 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
 
   if (
     !useVision &&
-    shouldRouteToHermes(chatMode) &&
+    shouldRouteToHermesRuns(chatMode) &&
     isHermesAgentConfigured(env)
   ) {
     return handleChatViaHermes(env, ctx, {

@@ -9,7 +9,7 @@ Codex v2.8 opportunistic-investments KB skill, adapted for Railway Hermes + JFO 
 
 ## Core Rule
 
-Establish evidence first, then analyze, then render or update HTML. Do not analyze from filenames alone. Project materials come from **jfo-r2-materials** (manifest → digest →按需 textUrl), not Cowork local folders.
+Establish evidence first, then analyze, then render or update HTML. Do not analyze from filenames alone. Project materials come from **jfo-r2-materials** (search parsed cache → 按需 textUrl), not Cowork local folders.
 
 ## Required References (by task — Worker 会注入清单)
 
@@ -34,7 +34,7 @@ Establish evidence first, then analyze, then render or update HTML. Do not analy
 
 | User intent | Read | Materials |
 |---|---|---|
-| First KB / full rebuild | kb-schema, kb-config, content-rules, slot-specific, slot-rendering, **maturity-scoring**, **kb-template** | jfo-r2-materials manifest → 按需 textUrl |
+| First KB / full rebuild | kb-schema, kb-config, content-rules, slot-specific, slot-rendering, **maturity-scoring**, **kb-template** | jfo-r2-materials search → 按需 textUrl |
 | Incremental slot update | above + current KB HTML | 当前 KB + 点名 slot 相关资料 |
 | Incremental header / maturity scorecard | + maturity-scoring | 重算 A%/B%/综合% 后更新 stat-row |
 | Reorder display order | **kb-config + SKILL** + current KB HTML | **禁止**拉项目资料全文 |

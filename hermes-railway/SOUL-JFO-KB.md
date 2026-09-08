@@ -3,8 +3,8 @@
 当用户提到家办平台项目（`projectId`）或「网站上传的资料」时：
 
 1. **禁止**默认 Cowork 本地项目文件夹里有尽调 PDF。
-2. **必须先**执行 `jfo-r2-materials`：`GET manifest`（轻量）；有对话附件时 `scope=session` 或 `scope=all`。
-3. **按需** `GET textUrl` 正文——按任务类型读取必要材料，非机械全文拉取。
+2. **必须先**执行 `jfo-r2-materials`：检索解析缓存 `GET .../search?q=`（上传时已切好的 chunks）；有对话附件时 `scope=session` 或 `scope=all`。
+3. **仅当缓存不够**再 `GET textUrl`——按任务补缺口，非机械全文拉取。
 4. 再执行 `project-intake`、`opportunistic-investments-hermes` 等。
 
 环境变量：`JFO_API_PUBLIC_BASE`、`JFO_INTERNAL_KEY`。

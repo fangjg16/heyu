@@ -352,7 +352,7 @@ export function buildHermesKnowledgeNetworkRequiredReads(
     "规则摘要（Hermes v2.92 · schema v2.91）：",
     "- 13 个 core canonical slot + Appendix A–D；展示顺序由 <!-- KB-CONFIG --> display-order 驱动（schema-version: 2.91）。",
     "- legacy v2.8 / 11-slot KB 须全量重建（Route A），禁止增量 patch 旧 anchor。",
-    "- 资料仅经 jfo-r2-materials：manifest/digest → 按需 textUrl，禁止机械全文拉取。",
+    "- 资料仅经 jfo-r2-materials：先 search 解析缓存 → 不够再按需 textUrl，禁止机械全文拉取。",
     "- 正文 citation（如 #source-U-1）须对应 Appendix A id；Worker 渲染时自动生成 nav / KB-CONFIG / revealAnchor。",
     "- **timeline-milestones** 仅写项目推进节点；行业/市场背景写 industry-market/comps-benchmark/risks-mitigation。",
     "- **成熟度三张卡** `.stat-value` 由 Worker 在入库后重算；Hermes **禁止**为抬高 Factor A / maturity / qualityCoverage 编造事实或凑数。",
@@ -420,7 +420,7 @@ function knModeWorkflowLines(mode: KnowledgeNetworkUpdateMode): {
         modeLine:
           "全量重做（v2.91）：legacy v2.8 KB 须重建；按 kb-schema 13-slot 产出 structured-kb-data JSON，由 Worker 渲染。",
         materialsLine:
-          "资料：jfo-r2-materials manifest 后读取主要项目资料与本对话 session 附件（按需）。**禁止** web_search / 公开检索（除非用户消息明确要求「查外部资料」）。",
+          "资料：jfo-r2-materials 先 search 解析缓存，不够再按需 textUrl / session 附件。**禁止** web_search / 公开检索（除非用户消息明确要求「查外部资料」）。",
         getStep: "全量可跳过 GET；或 curl GET … || echo NO_CURRENT_KB（只读参考，勿整页编辑）",
         editStep:
           "填充 structured-kb-data（13 slots + sources + maturity + meta）；**禁止**手写整页 HTML / nav / KB-CONFIG / Appendix D。",
@@ -439,7 +439,7 @@ function knModeWorkflowLines(mode: KnowledgeNetworkUpdateMode): {
         modeLine:
           "增量更新（v2.91）：GET 当前版；slot-specific-rules 只改用户点名 slot。",
         materialsLine:
-          "资料：当前 KB + 点名 slot 相关资料片段 + session 附件（按需 textUrl）。",
+          "资料：当前 KB + search 点名 slot 缓存；不够再 session/package textUrl。",
         getStep: "必做：curl GET 当前版到工作文件",
         editStep:
           "局部编辑点名 slot；若含 timeline-milestones 须读 timeline-rules.md 并过 eligibility gate。",
@@ -450,7 +450,7 @@ function knModeWorkflowLines(mode: KnowledgeNetworkUpdateMode): {
         modeLine:
           "首次生成（v2.91）：无已发布版；按 kb-schema 13-slot 产出 structured-kb-data JSON，由 Worker 渲染。",
         materialsLine:
-          "资料：jfo-r2-materials manifest 后按需读取主要资料 + session 附件。",
+          "资料：jfo-r2-materials 先 search 解析缓存，不够再按需 textUrl + session 附件。",
         getStep: "无旧版可跳过 GET；或 curl GET … || echo NO_CURRENT_KB（只读参考）",
         editStep:
           "填充 structured-kb-data JSON（config/meta/maturity/slots/sources）；timeline-milestones 须经 eligibility gate。",

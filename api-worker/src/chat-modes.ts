@@ -9,8 +9,9 @@ import {
 /**
  * 网站对话 ↔ Hermes skills 意图映射（内部用，用户不可见 skill 名）
  *
- * jfo-r2-materials：Hermes 版项目资料读取层（manifest + 按需 textUrl）；Worker 可预注入任务相关摘录。
- * public-info-search：与 Tavily 联网配合（index 里强制触发外部检索）。
+ * jfo-r2-materials：先检索上传时已解析的 chunks，不够再按需 textUrl。
+ * 短答与深度任务是同一套对话模型；差别只是要不要开 /v1/runs 工具循环。
+ * public-info-search：Hermes 经 /api/hermes/web-search 联网。
  */
 
 export type SkillIntent =
@@ -237,14 +238,23 @@ export function shouldForceExternalSearch(intent: SkillIntent): boolean {
 }
 
 /**
- * 要动手（读全包资料、开 skill、公开检索）才走 Hermes /v1/runs。
- * 闲聊走千问流式，避免寒暄也排队轮询。
+ * 要不要开 Hermes /v1/runs（skill、全文、公开检索的工具循环）。
+ * 短答不是「离开 Hermes」：同一套 HERMES_MODEL，Worker 先内联「检索解析缓存」再流式吐字。
+ * 寒暄不能丢进 runs——那条路径是分钟级任务轮询，不是对话。
  */
-export function shouldRouteToHermes(intent: SkillIntent): boolean {
+export function shouldRouteToHermesRuns(intent: SkillIntent): boolean {
   return intent !== "standard" && intent !== "knowledge_network";
 }
 
-/** 闲聊走千问流式，不要打 Hermes 的 chat/completions（空流仍算成功，不会降级）。 */
+/** @deprecated 名字像「对话要不要进 Hermes」；请用 shouldRouteToHermesRuns */
+export function shouldRouteToHermes(intent: SkillIntent): boolean {
+  return shouldRouteToHermesRuns(intent);
+}
+
+/**
+ * 短答不要打 Hermes Gateway /v1/chat/completions（空流曾被当成成功、不会降级）。
+ * 仍用同一 HERMES_MODEL，经 DashScope 流式；资料来自已解析缓存，不是另一套脑子。
+ */
 export function shouldSkipHermesForLightChat(intent: SkillIntent): boolean {
   return intent === "standard";
 }

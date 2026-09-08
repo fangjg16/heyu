@@ -10,6 +10,7 @@ import {
   handleHermesPutKnowledgeNetworkCurrent,
 } from "./hermes-knowledge-network";
 import { handleHermesWebSearch } from "./hermes-web-search";
+import { handleHermesMaterialsSearch } from "./hermes-materials-search";
 import { isPlaceholderChunkText } from "./search";
 import { getProjectById } from "./projects-db";
 import {
@@ -392,6 +393,11 @@ export async function tryHandleHermesRoutes(
 
   if (path === "/api/hermes/web-search") {
     return handleHermesWebSearch(request, env, json);
+  }
+
+  const searchMatch = /^\/api\/hermes\/projects\/([^/]+)\/search$/u.exec(path);
+  if (searchMatch && (request.method === "GET" || request.method === "POST")) {
+    return handleHermesMaterialsSearch(request, env, searchMatch[1], json);
   }
 
   const manifestMatch = /^\/api\/hermes\/projects\/([^/]+)\/manifest$/u.exec(path);

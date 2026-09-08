@@ -16,8 +16,8 @@ JFO API (Miniflare Worker 运行时，K8s Pod)
     └─ /api/hermes/*（Hermes 读项目资料）
          ↓
 Hermes Gateway (ACK Deployment，共 PVC /opt/data)
-    ├─ /v1/chat/completions（轻问）
-    └─ /v1/runs（深度 + skills）
+    ├─ /v1/chat/completions（Gateway 对话；空流时平台改走同一模型的 DashScope 流式）
+    └─ /v1/runs（需要 skill / 全文 / 公开检索时的工具循环）
 Skills Bridge (ACK，同 PVC) ← Admin 同步 skill 文件树
          ↓
 LLM 服务（如 DashScope 千问）
@@ -66,13 +66,12 @@ LLM 服务（如 DashScope 千问）
 
 ## 四、Hermes 读资料
 
-Hermes 不直连 MinIO，而是通过 API 内部桥：
+Hermes 不直连 MinIO，而是通过 API 内部桥。对话与深度任务是**同一套模型**；差别是执行方式。
 
-1. Worker 配置 `JFO_INTERNAL_KEY`
-2. Hermes skill `jfo-r2-materials` 调用 `GET /api/hermes/projects/{id}/materials/manifest`
-3. 按需 `GET /api/hermes/projects/{id}/materials/{docId}/text`
-
-详见 Hermes skills 目录与 `api-worker/src/hermes-bridge.ts`。
+1. 上传时 parse/OCR → MySQL `chunks`（解析缓存 = 项目记忆）
+2. 短答：Worker 先检索相关 chunks，同一 `HERMES_MODEL` 流式作答（内联第一工具，避免寒暄进 `/v1/runs` 排队）
+3. 深度任务：Hermes `/v1/runs` 先 `GET /api/hermes/projects/{id}/search`，缓存不够再按需 `textUrl`
+4. Worker 配置 `JFO_INTERNAL_KEY`；容器内用 `JFO_API_INTERNAL_BASE`（不要把公网 Tunnel 写进 Agent 指令）
 
 ---
 

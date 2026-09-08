@@ -104,7 +104,7 @@ describe("due-diligence chat intents", () => {
   });
 });
 
-describe("light chat stays off Hermes skills and Hermes chat", () => {
+describe("light chat streams the same model; skills still open Hermes runs", () => {
   it("treats 值不值得投 as streaming light chat, not a Hermes job", () => {
     expect(detectSkillIntent("这个项目值不值得投")).toBe("standard");
     expect(detectSkillIntent("帮我看看 帕金森这个项目值不值得投资")).toBe(
@@ -112,7 +112,7 @@ describe("light chat stays off Hermes skills and Hermes chat", () => {
     );
   });
 
-  it("keeps Hermes runs for skills, not for open chat", () => {
+  it("keeps Hermes runs for skills; open chat streams the same model with parsed cache", () => {
     expect(shouldRouteToHermes("standard")).toBe(false);
     expect(shouldRouteToHermes("project_intake")).toBe(true);
     expect(shouldRouteToHermes("knowledge_network")).toBe(false);

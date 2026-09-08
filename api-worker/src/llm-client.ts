@@ -32,7 +32,7 @@ export type LlmMessage = { role: string; content: string | LlmContentPart[] };
 export type LlmCallOptions = {
   /** 看图回合走百炼视觉模型，不经 Hermes */
   forceDashscope?: boolean;
-  /** 轻问：不要打 Hermes chat/completions，直接走千问 */
+  /** 短答：跳过 Gateway /v1/chat/completions（空流 bug），同一 HERMES_MODEL 走 DashScope */
   skipHermes?: boolean;
   model?: string;
 };

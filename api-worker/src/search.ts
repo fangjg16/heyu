@@ -219,7 +219,7 @@ export function isGenericProjectQuestion(message: string): boolean {
   );
 }
 
-/** 优先向量检索（chunk 已 embedding），否则关键词；轻问仍走 Hermes，仅减少摘录体积 */
+/** 优先向量检索（chunk 已 embedding），否则关键词；短答只取相关缓存，不灌全文 */
 export async function selectChunksForChatWithVectors(
   env: EmbedEnv,
   chunks: ChunkRow[],
