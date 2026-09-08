@@ -5,6 +5,14 @@ function sseLine(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
+/** 流结束时必须有可展示正文；空流不能把空 answer 丢给前端。 */
+export const CHAT_EMPTY_ANSWER_RETRY = "这次没有生成出来，请再问一次。";
+
+export function finalizeChatStreamAnswer(full: string): string {
+  const text = (full ?? "").trim();
+  return text || CHAT_EMPTY_ANSWER_RETRY;
+}
+
 /** 防止长时间检索/生成无字节导致浏览器或代理判定连接空闲而断开 */
 function scheduleSseKeepalive(
   controller: ReadableStreamDefaultController<Uint8Array>,
@@ -103,9 +111,10 @@ export function transformOpenAiStreamToJfo(
             }
           }
         }
-        onDone?.(full);
+        const answer = finalizeChatStreamAnswer(full);
+        onDone?.(answer);
         controller.enqueue(
-          enc.encode(sseLine("done", { answer: full, knowledgeNetworkHtml: null })),
+          enc.encode(sseLine("done", { answer, knowledgeNetworkHtml: null })),
         );
         controller.close();
       } catch (e) {
