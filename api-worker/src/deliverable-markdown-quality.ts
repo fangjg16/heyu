@@ -36,6 +36,21 @@ export function looksLikeMarkdownFile(text: string): boolean {
   return hasHeading || (hasTable && t.length >= 800);
 }
 
+/** 对话 skill 回写资料包：接受 # 标题，也接受「一、」「核心结论」这类中文分析稿。 */
+export function looksLikeAnalysisBody(text: string): boolean {
+  const t = (text ?? "").trim();
+  if (looksLikeMarkdownFile(t)) return true;
+  if (t.length < 400) return false;
+  if (isWriteReceiptMarkdown(t)) return false;
+  if (/^深度分析失败/.test(t)) return false;
+  return (
+    /^[一二三四五六七八九十]+[、.．]/mu.test(t) ||
+    /(^|\n)#{0,3}\s*核心结论/u.test(t) ||
+    /^\*\*[^*\n]{2,80}\*\*/mu.test(t) ||
+    t.length >= 800
+  );
+}
+
 /** 资料包里已是完整分析（不是回执）时，更新全部不要再让模型重写。 */
 export function shouldReuseExistingDeliverable(
   existing: string | null | undefined,

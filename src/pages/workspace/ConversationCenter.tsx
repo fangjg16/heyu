@@ -53,6 +53,7 @@ import {
   type StartupInterviewDto,
 } from "@/lib/project-api";
 import { apiFetch } from "@/lib/api-auth";
+import { notifyProjectFilesChanged } from "@/lib/project-files-changed";
 import { loadSessionToken } from "@/workspace/session";
 import {
   formatKnowledgeChapterCiteTag,
@@ -525,6 +526,7 @@ async function pollAgentJobUntilDone(params: {
   ) => void;
   onError: (msg: string) => void;
   onPersist?: () => void;
+  onFilesChanged?: () => void;
 }): Promise<void> {
   const {
     userId,
@@ -536,6 +538,7 @@ async function pollAgentJobUntilDone(params: {
     onUpdate,
     onError,
     onPersist,
+    onFilesChanged,
   } = params;
   for (let i = 0; i < AGENT_JOB_MAX_POLLS; i++) {
     if (shouldAbort?.()) return;
@@ -585,6 +588,7 @@ async function pollAgentJobUntilDone(params: {
           pendingJobId: undefined,
           jobProgressLabel: undefined,
         });
+        onFilesChanged?.();
         onPersist?.();
         return;
       }
@@ -1080,6 +1084,10 @@ export default function ConversationCenter() {
     ProjectFileRecord[]
   >([]);
   const [fileTreeRefreshKey, setFileTreeRefreshKey] = useState(0);
+  const notifyFilesAfterAgentJob = useCallback(() => {
+    if (projectId) notifyProjectFilesChanged(projectId);
+    setFileTreeRefreshKey((k) => k + 1);
+  }, [projectId]);
   const [conversationFilesLoading, setConversationFilesLoading] = useState(false);
   const [deletingSessionFileId, setDeletingSessionFileId] = useState<string | null>(null);
   const conversationFilesMenuRef = useRef<HTMLDivElement>(null);
@@ -2375,6 +2383,7 @@ export default function ConversationCenter() {
           onUpdate: updateLiveMessage,
           onError: setLiveError,
           onPersist: () => flushChatPersist(),
+          onFilesChanged: notifyFilesAfterAgentJob,
         });
       }
     }
@@ -2386,6 +2395,7 @@ export default function ConversationCenter() {
     liveMessagesByConversation,
     liveCitationMap,
     flushChatPersist,
+    notifyFilesAfterAgentJob,
   ]);
 
   const registerLiveChatActivity = () => {
@@ -2927,6 +2937,7 @@ export default function ConversationCenter() {
             onUpdate: updateLiveMessage,
             onError: setLiveError,
             onPersist: () => flushChatPersist(),
+            onFilesChanged: notifyFilesAfterAgentJob,
           });
           flushChatPersist();
           return;
@@ -3042,6 +3053,7 @@ export default function ConversationCenter() {
           onUpdate: updateLiveMessage,
           onError: setLiveError,
           onPersist: () => flushChatPersist(),
+          onFilesChanged: notifyFilesAfterAgentJob,
         });
         flushChatPersist();
         return;

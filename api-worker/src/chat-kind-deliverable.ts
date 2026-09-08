@@ -201,7 +201,8 @@ export function chatDeliverableInstructionLines(file: DeliverableFile): string[]
     "",
     "【本次要写的那份资料】",
     `用户要的是「${file.title}」，不是别的章节。`,
-    `写一份完整 Markdown，对应资料包文件：${path}。`,
+    `写一份完整 Markdown，从 # 或 ## 标题起写正文。平台会把本条回复写入资料包：${path}。`,
+    "禁止写「已写入」「文件已保存」或只交回执；本条回复本身就是那份文件。",
   ];
   if (file.id === "risk-analysis") {
     lines.push(

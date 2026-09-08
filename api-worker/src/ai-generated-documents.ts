@@ -10,7 +10,13 @@ import {
   deliverableForChatIntent,
 } from "./chat-kind-deliverable";
 import { invalidateChunkCache } from "./chunk-cache";
-import { packageR2Key } from "./documents-access";
+import { packageR2Key, sanitizeRelativePath } from "./documents-access";
+import { insertDocumentRow } from "./documents-persist";
+import {
+  extractMarkdownBody,
+  isWriteReceiptMarkdown,
+  looksLikeAnalysisBody,
+} from "./deliverable-markdown-quality";
 import { runDocumentParseSummaryBackground } from "./documents-parse-summary";
 import { embedDocumentChunks } from "./embeddings";
 import { chunkPlainText } from "./search";
@@ -66,25 +72,6 @@ function backgroundCtx(): ExecutionContext {
     },
     passThroughOnException() {},
   } as ExecutionContext;
-}
-
-function extractMarkdownBody(answer: string): string {
-  const fenced = /```(?:markdown|md)?\s*\n([\s\S]*?)```/iu.exec(answer.trim());
-  if (fenced?.[1]?.trim() && fenced[1].trim().length >= 200) {
-    return fenced[1].trim();
-  }
-  return answer.trim();
-}
-
-function looksLikeDocument(text: string): boolean {
-  if (text.length < 400) return false;
-  if (/^深度分析失败/.test(text)) return false;
-  return (
-    /^#{1,3}\s/m.test(text) ||
-    text.includes("\n- ") ||
-    text.includes("\n1. ") ||
-    text.length >= 800
-  );
 }
 
 /** 历史上写在 upload_note 里的种子第一版标记；只给沿用逻辑读，不当人的说明。 */
@@ -269,19 +256,16 @@ export async function persistMarkdownAtPath(
   if (!projectId || !userId) return null;
   const body = input.body.trim();
   if (!body) return null;
+  const relativePath = sanitizeRelativePath(input.relativePath);
+  const filename = (input.filename || "analysis.md").trim() || "analysis.md";
 
   const note = humanUploadNote(input.uploadNote);
 
-  const prev = await findCurrentAtPath(
-    env.DB,
-    projectId,
-    input.relativePath,
-    input.filename,
-  );
+  const prev = await findCurrentAtPath(env.DB, projectId, relativePath, filename);
   const docId = crypto.randomUUID();
   const versionGroup = prev?.versionGroup || prev?.id || docId;
   const replacesId = prev?.id ?? null;
-  const r2Key = packageR2Key(projectId, docId, input.filename);
+  const r2Key = packageR2Key(projectId, docId, filename);
   const bytes = new TextEncoder().encode(body);
   const now = new Date().toISOString();
 
@@ -289,42 +273,19 @@ export async function persistMarkdownAtPath(
     httpMetadata: { contentType: "text/markdown; charset=utf-8" },
   });
 
-  try {
-    await env.DB.prepare(
-      `INSERT INTO documents (id, project_id, conversation_id, filename, relative_path, r2_key, mime, byte_size, scope, uploaded_by, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'package', ?, ?)`,
-    )
-      .bind(
-        docId,
-        projectId,
-        input.conversationId ?? null,
-        input.filename,
-        input.relativePath,
-        r2Key,
-        "text/markdown",
-        bytes.byteLength,
-        userId,
-        now,
-      )
-      .run();
-  } catch {
-    await env.DB.prepare(
-      `INSERT INTO documents (id, project_id, conversation_id, filename, relative_path, r2_key, mime, scope, uploaded_by, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'package', ?, ?)`,
-    )
-      .bind(
-        docId,
-        projectId,
-        input.conversationId ?? null,
-        input.filename,
-        input.relativePath,
-        r2Key,
-        "text/markdown",
-        userId,
-        now,
-      )
-      .run();
-  }
+  await insertDocumentRow(env, {
+    id: docId,
+    projectId,
+    conversationId: input.conversationId ?? null,
+    filename,
+    relativePath,
+    r2Key,
+    mime: "text/markdown",
+    byteSize: bytes.byteLength,
+    scope: "package",
+    uploadedBy: userId,
+    createdAt: now,
+  });
 
   try {
     await env.DB.prepare(
@@ -351,36 +312,59 @@ export async function persistMarkdownAtPath(
         .bind(input.sourceKind, input.fileCategory, note || null, docId, projectId)
         .run();
     } catch {
-      /* 0026 未迁移时忽略 */
+      /* 0026 未迁移时忽略；文件已在目录里 */
     }
   }
 
-  const parts = chunkPlainText(body);
-  for (let i = 0; i < parts.length; i++) {
-    await env.DB.prepare(
-      `INSERT INTO chunks (id, document_id, chunk_index, text) VALUES (?, ?, ?, ?)`,
-    )
-      .bind(`${docId}-${i}`, docId, i, parts[i])
-      .run();
+  try {
+    const parts = chunkPlainText(body);
+    for (let i = 0; i < parts.length; i++) {
+      await env.DB.prepare(
+        `INSERT INTO chunks (id, document_id, chunk_index, text) VALUES (?, ?, ?, ?)`,
+      )
+        .bind(`${docId}-${i}`, docId, i, parts[i])
+        .run();
+    }
+    if (parts.length > 0) {
+      const ctx = backgroundCtx();
+      ctx.waitUntil(embedDocumentChunks(env as never, docId));
+      ctx.waitUntil(
+        runDocumentParseSummaryBackground(env as never, ctx, {
+          projectId,
+          documentId: docId,
+          userId,
+        }),
+      );
+    }
+  } catch (e) {
+    console.error("[ai-gen-persist] chunks/embed", e);
   }
 
-  await invalidateChunkCache(
-    projectId,
-    userId,
-    input.conversationId ?? undefined,
-  );
-  if (parts.length > 0) {
-    const ctx = backgroundCtx();
-    ctx.waitUntil(embedDocumentChunks(env as never, docId));
-    ctx.waitUntil(
-      runDocumentParseSummaryBackground(env as never, ctx, {
-        projectId,
-        documentId: docId,
-        userId,
-      }),
+  try {
+    await invalidateChunkCache(
+      projectId,
+      userId,
+      input.conversationId ?? undefined,
     );
+  } catch (e) {
+    console.error("[ai-gen-persist] cache invalidate", e);
   }
   return docId;
+}
+
+export type PersistAgentAnswerResult =
+  | { ok: true; documentId: string; relativePath: string; filename: string }
+  | {
+      ok: false;
+      reason: "no_path" | "not_document" | "write_receipt" | "write_failed";
+      error?: string;
+    };
+
+export const AGENT_ANSWER_PERSIST_FAIL_NOTE =
+  "这份分析还没写进源文件，请再生成一次。";
+
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /** 深度任务完成后，把 Markdown 正文落入源文件「AI生成」分目录 */
@@ -388,28 +372,86 @@ export async function persistAgentAnswerAsMarkdown(
   env: Env,
   job: JobLike,
   answer: string,
-): Promise<void> {
+): Promise<PersistAgentAnswerResult> {
   const intent = (job.skill_intent ?? "").trim();
   const kind = await getStoredAnalysisKind(env.DB, job.project_id).catch(
     () => null,
   );
   const path =
     chatDeliverablePath(intent, kind) ?? aiGeneratedPathForIntent(intent);
-  if (!path) return;
+  if (!path) return { ok: false, reason: "no_path" };
   const body = extractMarkdownBody(answer);
-  if (!looksLikeDocument(body)) return;
+  if (isWriteReceiptMarkdown(body)) {
+    return { ok: false, reason: "write_receipt" };
+  }
+  const isCatalogFile = Boolean(chatDeliverablePath(intent, kind));
+  if (!looksLikeAnalysisBody(body) && !(isCatalogFile && body.length >= 400)) {
+    return { ok: false, reason: "not_document" };
+  }
   const file = deliverableForChatIntent(intent, kind);
 
-  await persistMarkdownAtPath(env, {
-    projectId: job.project_id,
-    userId: job.user_id,
-    conversationId: job.conversation_id,
-    relativePath: path.relativePath,
-    filename: path.filename,
-    body,
-    sourceKind: "ai_generated",
-    fileCategory: file?.title || INTENT_TITLE[intent] || "AI生成",
-  });
+  try {
+    const documentId = await persistMarkdownAtPath(env, {
+      projectId: job.project_id,
+      userId: job.user_id,
+      conversationId: job.conversation_id,
+      relativePath: path.relativePath,
+      filename: path.filename,
+      body,
+      sourceKind: "ai_generated",
+      fileCategory: file?.title || INTENT_TITLE[intent] || "AI生成",
+    });
+    if (!documentId) {
+      return { ok: false, reason: "write_failed", error: "写入资料包失败" };
+    }
+    return {
+      ok: true,
+      documentId,
+      relativePath: path.relativePath,
+      filename: path.filename,
+    };
+  } catch (e) {
+    const error = e instanceof Error ? e.message : String(e);
+    console.error("[ai-gen-persist] write failed", intent, path.filename, error);
+    return { ok: false, reason: "write_failed", error };
+  }
+}
+
+export async function persistAgentAnswerAsMarkdownWithRetry(
+  env: Env,
+  job: JobLike,
+  answer: string,
+  attempts = 3,
+): Promise<PersistAgentAnswerResult> {
+  let last: PersistAgentAnswerResult = {
+    ok: false,
+    reason: "write_failed",
+    error: "写入资料包失败",
+  };
+  for (let i = 0; i < attempts; i++) {
+    last = await persistAgentAnswerAsMarkdown(env, job, answer);
+    if (last.ok) return last;
+    if (
+      last.reason === "no_path" ||
+      last.reason === "not_document" ||
+      last.reason === "write_receipt"
+    ) {
+      return last;
+    }
+    if (i < attempts - 1) await sleepMs(400 * (i + 1));
+  }
+  return last;
+}
+
+export function shouldTellUserPersistFailed(
+  result: PersistAgentAnswerResult,
+  answer: string,
+): boolean {
+  if (result.ok || result.reason === "no_path") return false;
+  if (result.reason === "write_failed" || result.reason === "write_receipt") {
+    return true;
+  }
+  return extractMarkdownBody(answer).length >= 400;
 }
 
 export async function persistInterviewTranscript(

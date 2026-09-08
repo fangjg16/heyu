@@ -2,7 +2,11 @@ import type { AppObjectStorage } from "./app-storage";
 import type { AppDatabase } from "./app-database";
 import type { SkillIntent } from "./chat-modes";
 import { extractKnowledgeNetworkHtmlLoose } from "./chat-modes";
-import { persistAgentAnswerAsMarkdown } from "./ai-generated-documents";
+import {
+  AGENT_ANSWER_PERSIST_FAIL_NOTE,
+  persistAgentAnswerAsMarkdownWithRetry,
+  shouldTellUserPersistFailed,
+} from "./ai-generated-documents";
 import { humanizeUpstreamLlmError } from "./llm-client";
 import { syncAgentJobTerminalToChat } from "./chat-sync";
 import {
@@ -984,10 +988,28 @@ export async function completeAgentJob(
 
   const displayAnswer = stripStructuredKbPayloadFromDisplayAnswer(finalized.answer);
 
+  let chatAnswer = displayAnswer;
+  const persist = await persistAgentAnswerAsMarkdownWithRetry(
+    env,
+    rowBefore,
+    displayAnswer,
+  );
+  if (shouldTellUserPersistFailed(persist, displayAnswer)) {
+    console.error(
+      "[ai-gen-persist] job",
+      jobId,
+      persist.ok ? "ok" : persist.reason,
+      persist.ok ? "" : persist.error ?? "",
+    );
+    if (!displayAnswer.includes(AGENT_ANSWER_PERSIST_FAIL_NOTE)) {
+      chatAnswer = `${displayAnswer}\n\n${AGENT_ANSWER_PERSIST_FAIL_NOTE}`;
+    }
+  }
+
   await env.DB.prepare(
     `UPDATE agent_jobs SET status = 'completed', answer = ?, knowledge_network_html = ?, error = NULL, updated_at = ? WHERE id = ?`,
   )
-    .bind(displayAnswer, finalized.knowledgeNetworkHtml, nowIso(), jobId)
+    .bind(chatAnswer, finalized.knowledgeNetworkHtml, nowIso(), jobId)
     .run();
 
   const row = await env.DB.prepare(
@@ -999,14 +1021,9 @@ export async function completeAgentJob(
     .first<AgentJobRow>();
   if (row) {
     await syncAgentJobTerminalToChat(env, row, {
-      answer: displayAnswer,
+      answer: chatAnswer,
       knowledgeNetworkHtml: finalized.knowledgeNetworkHtml,
     });
-    try {
-      await persistAgentAnswerAsMarkdown(env, row, displayAnswer);
-    } catch {
-      /* 源文件落库失败不影响对话 */
-    }
   }
 }
 

@@ -74,6 +74,32 @@ describe("early chat deliverables", () => {
       "AI生成/startup/06-validation/risk-analysis.md",
     );
     expect(lines.join("\n")).toContain("风险清单");
+    expect(lines.join("\n")).toContain("平台会把本条回复写入资料包");
+    expect(lines.join("\n")).toContain("禁止写");
     expect(lines.join("\n")).not.toContain("capitallens");
+  });
+
+  it("maps 竞争格局 to startup competitor-landscape.md", () => {
+    expect(matchChatDeliverable("early", "帮我看看竞争格局")?.id).toBe(
+      "competitor-landscape",
+    );
+    expect(
+      persistIntentForChat("early", "帮我看看竞争格局", "startup_competitors"),
+    ).toBe("competitor-landscape");
+    expect(chatDeliverablePath("competitor-landscape", "early")).toEqual({
+      pack: "startup",
+      folder: "01-discovery",
+      filename: "competitor-landscape.md",
+      relativePath: "AI生成/startup/01-discovery",
+    });
+    expect(chatDeliverablePath("startup_competitors", "early")).toEqual({
+      pack: "startup",
+      folder: "01-discovery",
+      filename: "competitor-landscape.md",
+      relativePath: "AI生成/startup/01-discovery",
+    });
+    expect(hermesSkillForChatIntent("competitor-landscape", "early")).toBe(
+      "startup-competitors",
+    );
   });
 });

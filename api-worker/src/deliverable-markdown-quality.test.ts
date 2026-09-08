@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractMarkdownBody,
   isWriteReceiptMarkdown,
+  looksLikeAnalysisBody,
   looksLikeMarkdownFile,
   shouldReuseExistingDeliverable,
 } from "./deliverable-markdown-quality";
@@ -73,5 +74,37 @@ describe("extractMarkdownBody", () => {
     expect(extractMarkdownBody("```md\n# 标题\n\n正文\n```")).toBe(
       "# 标题\n\n正文",
     );
+  });
+});
+
+describe("looksLikeAnalysisBody", () => {
+  it("accepts Chinese 一、 / 核心结论 analysis without # headings", () => {
+    const md = `核心结论
+
+市场并不空白，现有工具把运营做成了记录，没有做成判断。家办投研不是再做一个知识库，而是把材料收成判断。
+
+一、竞争者总览
+
+六类对手里，真正贴近「家办投资运营」的只有两家。其余是通用知识库或咨询外包。
+
+二、功能矩阵
+
+对战卡按产品、交付、收费、证据四列写。缺公开数据处标待补，不编造份额。
+`.repeat(4);
+    expect(md.length).toBeGreaterThanOrEqual(400);
+    expect(looksLikeMarkdownFile(md)).toBe(false);
+    expect(looksLikeAnalysisBody(md)).toBe(true);
+    expect(isWriteReceiptMarkdown(md)).toBe(false);
+  });
+
+  it("rejects competitor write receipts", () => {
+    expect(looksLikeAnalysisBody(COMPETITOR_RECEIPT)).toBe(false);
+    expect(looksLikeAnalysisBody(SCORECARD_RECEIPT)).toBe(false);
+  });
+
+  it("accepts a long body even without numbered sections", () => {
+    const md = "这是一段没有标题的分析正文。".repeat(80);
+    expect(md.length).toBeGreaterThanOrEqual(800);
+    expect(looksLikeAnalysisBody(md)).toBe(true);
   });
 });

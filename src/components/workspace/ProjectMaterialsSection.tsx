@@ -100,6 +100,7 @@ import {
   useUploadQueue,
 } from "@/workspace/upload-queue";
 import { openChatAskAboutFile } from "@/workspace/chat-ask-source";
+import { subscribeProjectFilesChanged } from "@/lib/project-files-changed";
 
 const DND_DOC_MIME = "application/x-taizi-document";
 
@@ -574,6 +575,12 @@ export function ProjectMaterialsSection({
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    return subscribeProjectFilesChanged(projectId, () => {
+      void reload();
+    });
+  }, [projectId, reload]);
 
   useEffect(() => {
     const el = folderInputRef.current;
