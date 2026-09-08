@@ -12,9 +12,10 @@ describe("productizeKnJobSubmitContent", () => {
         "project_intake",
       ),
     ).toBe("已开始深度分析，完成后将自动更新本对话。");
-    expect(productizeKnJobSubmitContent("", "project_intake")).toBe(
-      "已开始深度分析，完成后将自动更新本对话。",
-    );
+    expect(productizeKnJobSubmitContent("", "standard")).toBe("正在生成，请稍候…");
+    expect(
+      productizeKnJobSubmitContent("已提交深度分析任务，正在由后台引擎处理", "standard"),
+    ).toBe("正在生成，请稍候…");
   });
 
   it("keeps KN copy only for knowledge_network jobs", () => {

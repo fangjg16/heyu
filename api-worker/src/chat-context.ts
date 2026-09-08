@@ -207,9 +207,10 @@ export async function prepareStandardChatContext(
   const fileUrls = extractHttpUrls(namedTextBlob);
   const followLinks = wantsLinkedPageFollow(message);
   const needsExternal =
-    wantsExternalSearch(message) ||
-    shouldForceExternalSearch(chatMode) ||
-    (followLinks && (fileUrls.length > 0 || tavilyConfigured));
+    !hermesConfigured &&
+    (wantsExternalSearch(message) ||
+      shouldForceExternalSearch(chatMode) ||
+      (followLinks && (fileUrls.length > 0 || tavilyConfigured)));
 
   let externalResult: { used: boolean; block: string } = { used: false, block: "" };
   if (needsExternal) {
@@ -351,7 +352,7 @@ export async function prepareStandardChatContext(
   const systemParts = [
     ...websitePlatformIdentityLines(),
     "你是联合家办平台项目助手，服务机会型投资尽调场景。回答须综合三类依据：（1）【资料摘录】中的项目内事实；（2）若有【外部检索】则纳入公开网页信息；（3）为衔接上下文的行业/流程推论——须标明「推论」或「待核实」，不得冒充已核实事实。",
-    "你不是「只能读上传 PDF」的机器人：项目内问题以摘录为主；公开信息、政策、市场动态在触发联网或摘录不足时，应结合外部检索或明确说明缺口与下一步（如建议用户说「查外部资料：…」）。",
+    "你不是「只能读上传 PDF」的机器人：项目内问题以摘录为主；公开信息在已注入【外部检索】时纳入，否则标明缺口。",
     "用户可能使用项目简称；与摘录中明显同一项目时，应正常作答，勿因简称不同而拒绝。",
     ...(overviewQuestion || hadPackageChunks || namedFileTurn || citedChapterExcerpt
       ? [namedFilePrompt]

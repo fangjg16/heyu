@@ -42,6 +42,8 @@ import {
   messageForSkillModel,
   shouldRouteToHermes,
   shouldSkipHermesForLightChat,
+  hermesChatSubmitAnswer,
+  hermesChatFallbackSubmitAnswer,
   usesFullPackageCorpus,
   type SkillIntent,
 } from "./chat-modes";
@@ -216,7 +218,7 @@ export interface Env {
   HERMES_UPSTREAM_URL?: string;
   HERMES_API_KEY?: string;
   HERMES_MODEL?: string;
-  /** 用户说「查外部资料」等时联网检索（与 Railway Hermes 的 Tavily 独立配置） */
+  /** Hermes 经 /api/hermes/web-search 做公开检索；未接 Hermes 时轻问仍可走平台 Tavily */
   TAVILY_API_KEY?: string;
   /** Hermes 只读拉取项目资料（/api/hermes/*） */
   JFO_INTERNAL_KEY?: string;
@@ -1276,8 +1278,7 @@ async function handleChatViaHermes(
       jobId,
       assistantMessageId: `assistant-job-${jobId}`,
       status: "running",
-      answer:
-        "已提交深度分析。引擎走长对话兼容模式（Runs 未启动时自动降级），通常 3～10 分钟；下方会显示实时进度。",
+      answer: hermesChatFallbackSubmitAnswer(params.chatMode),
       citationMap: params.citationMap,
       projectId: params.projectId,
       chatMode: params.chatMode,
@@ -1303,8 +1304,7 @@ async function handleChatViaHermes(
     jobId,
     assistantMessageId: `assistant-job-${jobId}`,
     status: "running",
-    answer:
-      "已提交深度分析任务，正在由后台引擎处理（通常 1～5 分钟）。下方会显示实时进度，完成后自动更新。",
+    answer: hermesChatSubmitAnswer(params.chatMode),
     citationMap: params.citationMap,
     projectId: params.projectId,
     chatMode: params.chatMode,

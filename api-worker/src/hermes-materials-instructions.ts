@@ -1,6 +1,25 @@
 import type { SkillIntent } from "./chat-modes";
 import type { KnowledgeNetworkUpdateMode } from "./knowledge-network-mode";
 
+/** Hermes 用内部接口做公开网页检索（Tavily），不要让网站对话层抢先搜 */
+export function buildHermesWebSearchInstructions(jfoBase: string): string {
+  const url = `${jfoBase.replace(/\/$/u, "")}/api/hermes/web-search`;
+  return [
+    "",
+    "【公开检索 · Tavily】",
+    "需要核对公开网页、新闻、政策、工商或用户给出的 http(s) 链接时，用本接口，不要用搜索引擎口令敷衍，也不要让用户再说一遍「查外部资料」。",
+    "微信公众号（mp.weixin.qq.com）常被登录墙挡住：搜得到登录页就说明读不了正文，如实告知，请用户粘贴文章或上传，禁止编造正文。",
+    "",
+    "调用：",
+    `POST ${url}`,
+    "Header: Authorization: Bearer $JFO_INTERNAL_KEY",
+    "Header: Content-Type: application/json",
+    `Body: {"query":"<检索词或完整 URL>","maxResults":5}`,
+    "用返回的 hits[].title / url / content 对照项目资料；引用时写 URL，不要虚构链接。",
+    "寒暄或纯项目内事实、用户未要求核实公开信息时，不要调用。",
+  ].join("\n");
+}
+
 /** Hermes 版「项目资料读取层」说明：先确认来源，再按需拉正文 */
 export function buildJfoMaterialsInstructions(
   jfoBase: string,
@@ -169,6 +188,17 @@ function taskReadingGuidance(
         "先 GET 当前 KB（若存在）",
         "仅拉取与本任务相关的资料片段（财务、法律、合同等）",
         "session 新附件若与任务相关则全文读取",
+      ],
+    };
+  }
+
+  if (intent === "standard") {
+    return {
+      summary: "对话短答 · 按问题取资料",
+      bullets: [
+        "manifest 确认有哪些文件",
+        "只拉与本问相关的正文；寒暄可不拉",
+        "session 新附件若被问到则读取",
       ],
     };
   }

@@ -236,14 +236,32 @@ export function shouldForceExternalSearch(intent: SkillIntent): boolean {
   return intent === "public_info_search";
 }
 
-/** 非轻问任务走 Hermes Agent（真 skills），需配置 HERMES_BASE_URL + HERMES_API_KEY */
+/**
+ * 已接 Hermes 时：对话默认进 Agent（含闲聊）。由 Hermes 决定短答还是开 skill。
+ * 知识网络整页仍只在项目页生成，不走对话 runs。
+ */
 export function shouldRouteToHermes(intent: SkillIntent): boolean {
-  return intent !== "standard" && intent !== "knowledge_network";
+  return intent !== "knowledge_network";
 }
 
-/** 轻问只走千问，不要先打 Hermes 的 chat/completions（空流仍算成功，不会降级）。 */
+/** 未接 Hermes、走千问兜底时：不要打 Hermes 的 chat/completions。 */
 export function shouldSkipHermesForLightChat(intent: SkillIntent): boolean {
   return intent === "standard";
+}
+
+/** Hermes 任务提交时给用户看的占位（闲聊不要写成「深度分析」） */
+export function hermesChatSubmitAnswer(intent: SkillIntent): string {
+  if (intent === "standard") {
+    return "正在生成，请稍候…";
+  }
+  return "已提交深度分析任务，正在由后台引擎处理（通常 1～5 分钟）。下方会显示实时进度，完成后自动更新。";
+}
+
+export function hermesChatFallbackSubmitAnswer(intent: SkillIntent): string {
+  if (intent === "standard") {
+    return "正在生成，请稍候…";
+  }
+  return "已提交深度分析。引擎走长对话兼容模式（Runs 未启动时自动降级），通常 3～10 分钟；下方会显示实时进度。";
 }
 
 export function websitePlatformIdentityLines(): string[] {
@@ -253,7 +271,7 @@ export function websitePlatformIdentityLines(): string[] {
     "【元叙述禁令】禁止用整段开场白解释工作方式（如「我们以机会型投资视角」「全文仅使用报告」）——直接写交付正文。",
     "【收尾禁令】禁止结尾推销「如需生成 Hermes xxx」；下一步用人话，如「需要尽调清单或 IC 备忘录，直接说即可」。",
     "本页可完成深度分析交付：入驻评估、尽调清单、风险矩阵、回报测算、IC 备忘录等。项目知识网络请在项目页生成，不要在对话里产出整页 HTML。",
-    "对人话命名：项目入驻评估、尽调清单、风险矩阵、投资委员会备忘录、项目知识网络、公开资料检索（「查外部资料：…」）。",
+    "对人话命名：项目入驻评估、尽调清单、风险矩阵、投资委员会备忘录、项目知识网络、公开资料检索。公开信息由助手在需要时自行检索，不要让用户背口令。",
   ];
 }
 
