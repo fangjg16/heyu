@@ -109,7 +109,6 @@ import {
   sessionR2Key,
 } from "./documents-access";
 import { humanUploadNote } from "./upload-note";
-import { documentListLooksParsed } from "./plain-text-parse-digest";
 import { notifyProjectUploadOp } from "./project-role-notify";
 import {
   handleCreateProject,
@@ -528,13 +527,7 @@ async function handleListFiles(
     createdAt: r.created_at,
     uploadedBy: r.uploaded_by,
     chunkCount: Number(r.chunk_count) || 0,
-    parsed: documentListLooksParsed({
-      parseCount: Number(r.parse_count) || 0,
-      chunkCount: Number(r.chunk_count) || 0,
-      filename: r.filename,
-      mime: r.mime,
-      sourceKind: r.source_kind ?? null,
-    }),
+    parsed: Number(r.parse_count) > 0,
     sourceKind: r.source_kind ?? null,
     sharedWithIssuer: Number(r.shared_with_issuer ?? 0) === 1,
     fileCategory: r.file_category ?? null,

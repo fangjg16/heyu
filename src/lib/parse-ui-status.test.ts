@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatMaterialsNetworkError,
+  isParseStatusPlaceholder,
   parseDetailPendingText,
   resolveParseUiStatus,
   shouldRefetchParseSummary,
@@ -82,6 +83,13 @@ describe("shouldSendParseRefresh", () => {
     expect(shouldSendParseRefresh({})).toBe(false);
   });
 
+  it("does not send refresh while the LLM summary is still pending", () => {
+    expect(shouldSendParseRefresh({ cachedSummary: "正在生成摘要…" })).toBe(
+      false,
+    );
+    expect(shouldRefetchParseSummary("正在生成摘要…")).toBe(false);
+  });
+
   it("sends refresh on the icon click or a stale client summary", () => {
     expect(shouldSendParseRefresh({ force: true })).toBe(true);
     expect(
@@ -133,5 +141,12 @@ describe("formatMaterialsNetworkError", () => {
     expect(formatMaterialsNetworkError(new Error("Failed to fetch"))).toMatch(
       /接口连不上/,
     );
+  });
+});
+
+describe("isParseStatusPlaceholder", () => {
+  it("treats generating-summary copy as a placeholder", () => {
+    expect(isParseStatusPlaceholder("正在生成摘要…")).toBe(true);
+    expect(isParseStatusPlaceholder("项目定位是版权经纪。")).toBe(false);
   });
 });

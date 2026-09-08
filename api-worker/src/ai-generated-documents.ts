@@ -18,6 +18,7 @@ import {
   isWriteReceiptMarkdown,
   looksLikeAnalysisBody,
 } from "./deliverable-markdown-quality";
+import { runDocumentParseSummaryBackground } from "./documents-parse-summary";
 import { embedDocumentChunks } from "./embeddings";
 import { chunkPlainText } from "./search";
 import { humanUploadNote } from "./upload-note";
@@ -328,6 +329,13 @@ export async function persistMarkdownAtPath(
     if (parts.length > 0) {
       const ctx = backgroundCtx();
       ctx.waitUntil(embedDocumentChunks(env as never, docId));
+      ctx.waitUntil(
+        runDocumentParseSummaryBackground(env as never, ctx, {
+          projectId,
+          documentId: docId,
+          userId,
+        }),
+      );
     }
   } catch (e) {
     console.error("[ai-gen-persist] chunks/embed", e);

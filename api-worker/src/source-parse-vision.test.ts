@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  PARSE_TEXT_LLM_OPTIONS,
   PARSE_VISION_SYSTEM,
   buildSourceFileParseMessages,
   sourceParseVisionLlmOptions,
@@ -45,5 +46,11 @@ describe("sourceParseVisionLlmOptions", () => {
       forceDashscope: true,
       model: "qwen3-vl-plus",
     });
+  });
+});
+
+describe("PARSE_TEXT_LLM_OPTIONS", () => {
+  it("skips Hermes so text summaries do not queue behind /v1/runs", () => {
+    expect(PARSE_TEXT_LLM_OPTIONS.skipHermes).toBe(true);
   });
 });

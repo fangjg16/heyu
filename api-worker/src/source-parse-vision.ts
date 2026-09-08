@@ -28,6 +28,9 @@ export const PARSE_VISION_SYSTEM = `你是投研工作台的源文件解析助�
 3. 禁止写「OCR 失败 / 未能抽出文字 / 建议重新 OCR」；禁止因为没有可复制文字就说原文未披露。
 4. ${PARSE_JSON_FIELDS}`;
 
+/** 文本摘要走千问，不进 Hermes；避免刚写完稿又和 /v1/runs 抢同一条队列。 */
+export const PARSE_TEXT_LLM_OPTIONS: LlmCallOptions = { skipHermes: true };
+
 export function sourceParseVisionLlmOptions(env: {
   QWEN_VL_MODEL?: string;
 }): LlmCallOptions {

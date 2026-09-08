@@ -709,6 +709,7 @@ export type ProjectFileParseSummary = {
   filename: string;
   mime: string | null;
   parsed: boolean;
+  pending?: boolean;
   summary: string;
   chunkCount: number;
   documentType?: string;
@@ -719,6 +720,9 @@ export type ProjectFileParseSummary = {
   fromCache?: boolean;
   warning?: string | null;
 };
+
+const PARSE_PENDING_POLL_MS = 1_200;
+const PARSE_PENDING_MAX_MS = 180_000;
 
 /** 点击解析：抽取正文后调用三方大模型；结果落库，再次请求读库。refresh 时丢掉缓存重跑。 */
 export async function fetchProjectFileParseSummary(
@@ -752,6 +756,7 @@ export async function fetchProjectFileParseSummary(
     filename: data.filename ?? "",
     mime: data.mime ?? null,
     parsed: Boolean(data.parsed),
+    pending: Boolean(data.pending) && !data.parsed,
     summary: String(data.summary ?? "").trim() || "—",
     chunkCount: Number(data.chunkCount) || 0,
     documentType: String(data.documentType ?? "").trim() || undefined,
@@ -762,6 +767,27 @@ export async function fetchProjectFileParseSummary(
     fromCache: data.fromCache,
     warning: data.warning ?? null,
   };
+}
+
+/** 后台在写摘要时接口会先返回 pending；后续轮询禁止带 refresh=1。 */
+export async function fetchProjectFileParseSummaryUntilSettled(
+  projectId: string,
+  documentId: string,
+  userId: string,
+  opts?: { refresh?: boolean },
+): Promise<ProjectFileParseSummary> {
+  const started = Date.now();
+  let result = await fetchProjectFileParseSummary(
+    projectId,
+    documentId,
+    userId,
+    opts,
+  );
+  while (result.pending && Date.now() - started < PARSE_PENDING_MAX_MS) {
+    await new Promise((r) => setTimeout(r, PARSE_PENDING_POLL_MS));
+    result = await fetchProjectFileParseSummary(projectId, documentId, userId);
+  }
+  return result;
 }
 
 export function filterConversationSessionFiles(
