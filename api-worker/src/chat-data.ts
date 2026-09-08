@@ -240,6 +240,7 @@ export type NamedParseSummary = {
   filename: string;
   summary: string;
   keyPoints: string[];
+  scope?: string;
 };
 
 function parseKeyPointsJson(raw: string | null | undefined): string[] {
@@ -250,6 +251,94 @@ function parseKeyPointsJson(raw: string | null | undefined): string[] {
     if (!Array.isArray(parsed)) return [];
     return parsed.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 8);
   } catch {
+    return [];
+  }
+}
+
+function mapParseSummaryRows(
+  rows: {
+    id: string;
+    filename: string;
+    summary: string | null;
+    key_points_json: string | null;
+    scope?: string | null;
+  }[],
+): NamedParseSummary[] {
+  return rows
+    .map((r) => ({
+      documentId: r.id,
+      filename: r.filename,
+      summary: (r.summary ?? "").trim(),
+      keyPoints: parseKeyPointsJson(r.key_points_json),
+      scope: r.scope === "session" ? "session" : "package",
+    }))
+    .filter((r) => r.summary.length > 0);
+}
+
+/** 本项目上传后已解析的知识卡片（摘要 + 要点），不是本轮临时检索。 */
+export async function loadProjectParseSummaries(
+  env: ChatDataEnv,
+  projectId: string,
+  userId: string,
+  conversationId?: string,
+  limit = 40,
+): Promise<NamedParseSummary[]> {
+  const convKey = conversationId ?? "";
+  const cap = Math.min(80, Math.max(1, Math.floor(limit)));
+  const sql = `
+    SELECT d.id, d.filename, d.scope, p.summary, p.key_points_json
+    FROM documents d
+    JOIN document_parse_results p ON p.document_id = d.id
+    WHERE d.project_id = ?
+      AND (d.deleted_at IS NULL OR d.deleted_at = '')
+      AND (
+        d.scope = 'package'
+        OR (d.scope = 'session' AND d.uploaded_by = ? AND d.conversation_id = ?)
+      )
+    ORDER BY d.created_at DESC
+    LIMIT ${cap}
+  `;
+  const sqlNoSoft = `
+    SELECT d.id, d.filename, d.scope, p.summary, p.key_points_json
+    FROM documents d
+    JOIN document_parse_results p ON p.document_id = d.id
+    WHERE d.project_id = ?
+      AND (
+        d.scope = 'package'
+        OR (d.scope = 'session' AND d.uploaded_by = ? AND d.conversation_id = ?)
+      )
+    ORDER BY d.created_at DESC
+    LIMIT ${cap}
+  `;
+  try {
+    const q = await env.DB.prepare(sql)
+      .bind(projectId, userId, convKey)
+      .all<{
+        id: string;
+        filename: string;
+        scope: string | null;
+        summary: string | null;
+        key_points_json: string | null;
+      }>();
+    return mapParseSummaryRows(q.results ?? []);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/Unknown column ['`]?deleted_at['`]?/i.test(msg) || /no such column:\s*deleted_at/i.test(msg)) {
+      try {
+        const q = await env.DB.prepare(sqlNoSoft)
+          .bind(projectId, userId, convKey)
+          .all<{
+            id: string;
+            filename: string;
+            scope: string | null;
+            summary: string | null;
+            key_points_json: string | null;
+          }>();
+        return mapParseSummaryRows(q.results ?? []);
+      } catch {
+        return [];
+      }
+    }
     return [];
   }
 }

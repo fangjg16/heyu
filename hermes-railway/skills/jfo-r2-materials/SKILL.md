@@ -1,7 +1,7 @@
 ---
 name: jfo-r2-materials
-description: "Hermes bridge to 联合家办 platform materials (MinIO/MySQL via JFO API). Search the already-parsed chunk cache first; fetch full file bodies only when the cache cannot answer. Use before project-intake, knowledge-base-generation, dd, valuation, or any skill needing uploaded evidence. scope=all = package + current conversation session attachments."
-version: 1.3.0
+description: "Hermes bridge to 联合家办 platform materials. Project knowledge is already injected after upload/parse. Use this skill only to recall more chunks or fetch a specific full file when that knowledge is not enough. scope=all = package + current conversation session attachments."
+version: 1.4.0
 metadata:
   hermes:
     tags: [family-office, jfo, r2, materials]
@@ -12,17 +12,19 @@ metadata:
 
 Website uploads live in **MinIO + MySQL**, exposed to Hermes via **JFO API `/api/hermes/*`**, not in a Cowork local project folder.
 
-Upload already runs parse/OCR → `chunks`. That cache **is** the project memory. Do **not** re-read every file on every turn.
+This skill is the Hermes bridge when **already-injected project knowledge is not enough**.
 
-This skill is: **search parsed cache → answer if enough → targeted textUrl only for gaps**.
+Upload already runs parse/OCR → summaries + `chunks`. That **is** the project knowledge. Worker puts it into the conversation. Do **not** re-read every file on every turn, and do **not** treat Q&A as a retrieve-then-answer procedure.
+
+Use this skill to **recall more** or fetch a specific full file. Everyday answers should use the knowledge already in the prompt.
 
 ## Platform reading policy (Worker instructions align)
 
-1. **Greetings / off-topic**: answer immediately. No search, no textUrl.
-2. **Project facts**: `GET .../search?q=` (parsed chunks). Treat `hits[].text` as already read.
-3. **Gaps only**: if cache misses a clause/number, `GET manifest` then `GET textUrl` for **that file**.
+1. **Q&A**: answer from project knowledge already in the prompt (parse-time summaries + original excerpts). No curl.
+2. **Need more detail**: `GET .../search?q=` to recall more chunks from the same knowledge store.
+3. **Gaps only**: if knowledge still misses a clause/number, `GET manifest` then `GET textUrl` for **that file**.
 4. **Never** download every `parsed=true` file. Never conclude from filenames alone.
-5. **Session priority**: if user uploaded in chat, search `scope=all` (or `session`) — not package-only.
+5. **Session priority**: if user uploaded in chat, knowledge includes `session` — not package-only.
 6. **scope=all** = project package **plus** current `userId` + `conversationId` session attachments.
 
 ## Required environment

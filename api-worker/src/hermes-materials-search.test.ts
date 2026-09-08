@@ -68,8 +68,8 @@ describe("handleHermesMaterialsSearch", () => {
   });
 });
 
-describe("materials instructions prefer parsed cache search", () => {
-  it("tells Hermes to search chunks before textUrl", () => {
+describe("materials instructions treat parsed uploads as standing knowledge", () => {
+  it("does not make Q&A a search procedure", () => {
     const text = buildJfoMaterialsInstructions(
       "http://jfo-api:8787",
       "demo-project",
@@ -77,12 +77,12 @@ describe("materials instructions prefer parsed cache search", () => {
       "alice",
       "conv-1",
     );
+    expect(text).toContain("【项目知识】");
+    expect(text).toContain("不是每轮要跑的流程");
     expect(text).toContain("/api/hermes/projects/demo-project/search");
-    expect(text).toContain("解析缓存");
-    expect(text).toContain("足够作答就不要再 GET textUrl");
   });
 
-  it("puts cache search before full-file reads in agent instructions", () => {
+  it("tells agent runs to use injected project knowledge first", () => {
     const text = buildHermesAgentInstructions(
       {
         JFO_API_PUBLIC_BASE: "https://expired.trycloudflare.com",
@@ -95,6 +95,6 @@ describe("materials instructions prefer parsed cache search", () => {
     );
     expect(text).toContain("http://jfo-api:8787/api/hermes/projects/demo-project/search");
     expect(text).not.toContain("expired.trycloudflare.com");
-    expect(text).toContain("先检索解析缓存");
+    expect(text).toContain("先用已注入的项目知识");
   });
 });

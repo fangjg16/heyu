@@ -41,7 +41,6 @@ import {
   KNOWLEDGE_NETWORK_USE_WEB_ANSWER,
   messageForSkillModel,
   shouldRouteToHermesRuns,
-  shouldSkipHermesForLightChat,
   hermesChatSubmitAnswer,
   hermesChatFallbackSubmitAnswer,
   usesFullPackageCorpus,
@@ -1924,13 +1923,9 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
         const messages = useVision
           ? attachVisionToLastUserMessage(prepared.messages, visionImages.images)
           : prepared.messages;
-        const lightChat = shouldSkipHermesForLightChat(chatMode);
         const [conversationTopic, llm] = await Promise.all([
           topicPromise,
-          fetchLlmUpstream(env, messages, {
-            ...visionLlmOptions,
-            skipHermes: lightChat,
-          }),
+          fetchLlmUpstream(env, messages, visionLlmOptions),
         ]);
         const { upstream, llmBackend } = llm;
         return {
@@ -1941,12 +1936,12 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
           },
           upstream,
           onDone: (answer) => scheduleMemoryRefresh(answer),
-          onEmptyRetry: lightChat
-            ? async () => {
+          onEmptyRetry: useVision
+            ? undefined
+            : async () => {
                 const { answer } = await callQwen(env, messages);
                 return answer;
-              }
-            : undefined,
+              },
         };
       });
       return new Response(stream, {
@@ -1964,10 +1959,7 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
       : prepared.messages;
     const [conversationTopic, llmResult] = await Promise.all([
       firstUserTurn ? generateConversationTopic(env, message) : Promise.resolve(undefined),
-      callLlm(env, messages, {
-        ...visionLlmOptions,
-        skipHermes: shouldSkipHermesForLightChat(chatMode),
-      }),
+      callLlm(env, messages, visionLlmOptions),
     ]);
     const { answer, llmBackend } = llmResult;
     scheduleMemoryRefresh(answer);

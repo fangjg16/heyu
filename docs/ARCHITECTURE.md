@@ -68,9 +68,9 @@ LLM 服务（如 DashScope 千问）
 
 Hermes 不直连 MinIO，而是通过 API 内部桥。对话与深度任务是**同一套模型**；差别是执行方式。
 
-1. 上传时 parse/OCR → MySQL `chunks`（解析缓存 = 项目记忆）
-2. 短答：Worker 先检索相关 chunks，同一 `HERMES_MODEL` 流式作答（内联第一工具，避免寒暄进 `/v1/runs` 排队）
-3. 深度任务：Hermes `/v1/runs` 先 `GET /api/hermes/projects/{id}/search`，缓存不够再按需 `textUrl`
+1. 上传时 parse/OCR → MySQL `document_parse_results` + `chunks`（项目知识状态）
+2. 普通问答：走 Hermes `/v1/chat/completions`（Hermes 接的 LLM）。Worker 把已解析知识注入对话，不是每轮检索流程。空流才降级同一模型。
+3. 深度任务：Hermes `/v1/runs`。知识同样先注入；不够再 `GET /api/hermes/projects/{id}/search` 或按需 `textUrl`
 4. Worker 配置 `JFO_INTERNAL_KEY`；容器内用 `JFO_API_INTERNAL_BASE`（不要把公网 Tunnel 写进 Agent 指令）
 
 ---

@@ -45,7 +45,7 @@ describe("open chat Hermes instructions", () => {
     );
     expect(text).toContain("http://jfo-api:8787/api/hermes/web-search");
     expect(text).not.toContain("expired.trycloudflare.com");
-    expect(text).toContain("先判断本轮要短答还是专项交付");
+    expect(text).toContain("你处在本项目里回答");
     expect(text).toContain("/api/hermes/web-search");
     expect(text).not.toContain("执行主任务（内部 skill：project-intake）");
   });

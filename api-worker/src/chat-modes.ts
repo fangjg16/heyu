@@ -238,25 +238,24 @@ export function shouldForceExternalSearch(intent: SkillIntent): boolean {
 }
 
 /**
- * 要不要开 Hermes /v1/runs（skill、全文、公开检索的工具循环）。
- * 短答不是「离开 Hermes」：同一套 HERMES_MODEL，Worker 先内联「检索解析缓存」再流式吐字。
- * 寒暄不能丢进 runs——那条路径是分钟级任务轮询，不是对话。
+ * 要不要开 Hermes /v1/runs（写交付、拉全文、公开检索的工具循环）。
+ * 普通问答走 Hermes 接的 LLM（/v1/chat/completions），项目知识作为对话状态在场。
  */
 export function shouldRouteToHermesRuns(intent: SkillIntent): boolean {
   return intent !== "standard" && intent !== "knowledge_network";
 }
 
-/** @deprecated 名字像「对话要不要进 Hermes」；请用 shouldRouteToHermesRuns */
+/** @deprecated 请用 shouldRouteToHermesRuns */
 export function shouldRouteToHermes(intent: SkillIntent): boolean {
   return shouldRouteToHermesRuns(intent);
 }
 
 /**
- * 短答不要打 Hermes Gateway /v1/chat/completions（空流曾被当成成功、不会降级）。
- * 仍用同一 HERMES_MODEL，经 DashScope 流式；资料来自已解析缓存，不是另一套脑子。
+ * 普通问答也走 Hermes 的 chat/completions。
+ * 空流时由调用方用同一模型降级，而不是一开始就绕开 Hermes。
  */
-export function shouldSkipHermesForLightChat(intent: SkillIntent): boolean {
-  return intent === "standard";
+export function shouldSkipHermesForLightChat(_intent: SkillIntent): boolean {
+  return false;
 }
 
 /** Hermes 任务提交时给用户看的占位（闲聊不要写成「深度分析」） */
@@ -359,7 +358,7 @@ const SKILL_PROMPTS: Record<Exclude<SkillIntent, "standard">, string[]> = {
   ],
   dd_checklist: [
     "【尽调清单】按行业与交易类型生成多工作流 checklist 表格，列：工作流 | 检查项 | 状态 | 优先级 | 备注。",
-    "工作流至少含：财务、法律、税务、商业/运营、工程/建设、环境、人事、IT。结合【资料摘录】标注已覆盖项，其余标待索取。",
+    "工作流至少含：财务、法律、税务、商业/运营、工程/建设、环境、人事、IT。结合【项目知识】标注已覆盖项，其余标待索取。",
     "状态列仅用：✅已有、⚠️部分、❌缺失（或待索取）。不要写「dd-checklist skill」；标题用「尽调清单与待办」。",
     "输出格式：先一行标题 ## 尽调清单与待办，简短说明不超过 2 行，然后直接输出 Markdown 表格；不要长段元叙述（如「我们以机会型视角」）。",
   ],
@@ -370,7 +369,7 @@ const SKILL_PROMPTS: Record<Exclude<SkillIntent, "standard">, string[]> = {
     "【项目文件索引】按类型整理已知文件：文件名 | 类型（尽调/财务/法律/…）| 日期 | 摘要一句 | 关联项。基于摘录与文件名推断。",
   ],
   public_info_search: [
-    "【公开信息检索】本轮应结合【外部检索】与【资料摘录】：先列公开来源要点 [WEB:n]，再与内部材料对照（一致/差异/待核）。",
+    "【公开信息检索】本轮应结合【外部检索】与【项目知识】：先列公开来源要点 [WEB:n]，再与内部材料对照（一致/差异/待核）。",
   ],
   term_annotator: [
     "【术语注释】列出文中专业术语表格：术语 | 英文/缩写 | 简要解释 | 首次出现上下文。若用户针对某词提问，重点解释该词。",

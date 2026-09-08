@@ -104,19 +104,19 @@ describe("due-diligence chat intents", () => {
   });
 });
 
-describe("light chat streams the same model; skills still open Hermes runs", () => {
-  it("treats 值不值得投 as streaming light chat, not a Hermes job", () => {
+describe("light chat uses Hermes LLM; skills still open Hermes runs", () => {
+  it("treats 值不值得投 as streaming chat, not a Hermes job", () => {
     expect(detectSkillIntent("这个项目值不值得投")).toBe("standard");
     expect(detectSkillIntent("帮我看看 帕金森这个项目值不值得投资")).toBe(
       "standard",
     );
   });
 
-  it("keeps Hermes runs for skills; open chat streams the same model with parsed cache", () => {
+  it("keeps Hermes runs for skills; open chat still goes through Hermes LLM", () => {
     expect(shouldRouteToHermes("standard")).toBe(false);
     expect(shouldRouteToHermes("project_intake")).toBe(true);
     expect(shouldRouteToHermes("knowledge_network")).toBe(false);
-    expect(shouldSkipHermesForLightChat("standard")).toBe(true);
+    expect(shouldSkipHermesForLightChat("standard")).toBe(false);
     expect(shouldSkipHermesForLightChat("project_intake")).toBe(false);
   });
 });

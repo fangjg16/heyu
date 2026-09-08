@@ -59,41 +59,40 @@ export function buildJfoMaterialsInstructions(
 
   const lines = [
     "",
-    "【项目资料 · 解析缓存优先（jfo-r2-materials）】",
-    "上传时已经解析进 chunks。问答先检索缓存，不要每轮把资料包全文再读一遍。",
+    "【项目知识】",
+    "上传并解析后的资料已经是本项目的知识，不是每轮要跑的流程。指令里若已有【项目知识】/【原文】/预注入摘录，视为已经在场，直接用。",
+    "只有知识盖不住（缺某份全文、要公开网页、要写专项交付）才补读。",
     "",
     `- projectId=${projectId}`,
-    `- 解析缓存检索（默认第一步）：GET ${searchUrl}&q=<问题关键词>`,
+    `- 需要从项目知识里回想更多原文时：GET ${searchUrl}&q=<主题>`,
     "  Header: Authorization: Bearer $JFO_INTERNAL_KEY",
-    "  也可用 POST，JSON：{\"query\":\"...\",\"scope\":\"all\",\"userId\":\"...\",\"conversationId\":\"...\"}",
-    `- 文件清单（只在缓存不够、或要确认有哪些文件时才 GET）：${packageManifest}`,
+    `- 文件清单（确认有哪些文件，或知识不够时）：${packageManifest}`,
     ...(sessionManifest
       ? [
           `- 本对话附件清单：${sessionManifest}`,
           `- 资料包 + 本对话：${allManifest}`,
         ]
-      : ["- 本对话无 conversationId：检索 scope=package；用户称刚上传附件时向 Worker 确认 userId/conversationId"]),
+      : ["- 本对话无 conversationId：知识范围是资料包；用户称刚上传附件时向 Worker 确认 userId/conversationId"]),
     `- 当前版知识网络 KB（任务涉及 KB 时）：GET ${knUrl}`,
     "",
     "规则：",
-    "- 寒暄、与项目无关的短问：直接短答，不必检索、不必拉 textUrl。",
-    "- 问项目事实：先 search；返回的 hits[].text 视为已读。足够作答就不要再 GET textUrl。",
-    "- 缓存没命中或明显缺条款/数字：再 GET manifest，只对缺口文件 GET textUrl。禁止机械拉取每个 parsed=true 的文件。",
-    "- 禁止只凭文件名或未检索缓存做结论。",
-    "- 引用与事实须可追溯到缓存片段、KB、textUrl 或公开来源。",
-    "- 用户刚在对话上传文件时：search 用 scope=all（或 session），不能只搜 package。",
-    "- 若上方有【Worker 预注入 · 用户点名源文件】：视为已读到该文件，禁止声称无法访问或需要重传；不足时再 GET 其 textUrl。",
-    "- 若上方有【Worker 预注入 · 项目资料摘录】：那是同一套解析缓存的节选，视为已读；缺事实再 search 或按需 textUrl。",
-    "- 若上方有【Slot Material Hints】：为文件级阅读导航（soft guidance）；先 search，不要用 hints 代替检索。",
-    "- 若上方有【Slot Reading Plan】：为确定性阅读路线（mustRead/shouldRead/stopRule），不是事实结论；未读文件不得强结论，缺事实写 gap。",
+    "- 问答默认基于已在场的项目知识，不要每轮 curl 一遍资料。",
+    "- 知识不够时再 search 或对缺口文件 GET textUrl。禁止机械拉取每个 parsed=true 的文件。",
+    "- 禁止只凭文件名做结论。",
+    "- 引用与事实须可追溯到项目知识、KB、textUrl 或公开来源。",
+    "- 用户刚在对话上传文件时：知识范围含 session，不能只看 package。",
+    "- 若上方有【Worker 预注入 · 用户点名源文件】：视为已经掌握该文件。",
+    "- 若上方有【Worker 预注入 · 项目知识】或【项目资料摘录】：就是本项目已掌握的内容。",
+    "- 若上方有【Slot Material Hints】：阅读导航；先用已在场的知识。",
+    "- 若上方有【Slot Reading Plan】：阅读路线（mustRead/shouldRead/stopRule），不是事实结论；未掌握的文件不得强结论，缺事实写 gap。",
     "- incremental 未点名 slot 时 hints/plan 仅为 global 紧凑列表（最多 5 个）；initial/full 才展开 13 slot。",
-    "- reorder 模式不注入 hints 与 reading plan，也不必 search 资料包。",
+    "- reorder 模式不注入 hints 与 reading plan，也不必补读资料包。",
     "",
-    `本任务正文读取策略：${readingByTask.summary}`,
+    `本任务补读策略：${readingByTask.summary}`,
     ...readingByTask.bullets.map((b) => `- ${b}`),
     "",
-    "textUrl 拉取：Header Authorization: Bearer $JFO_INTERNAL_KEY；仅对缓存不够覆盖的文件 GET。",
-    "完成资料确认后，再执行主分析 skill 交付用户可见结果。",
+    "textUrl：Header Authorization: Bearer $JFO_INTERNAL_KEY；仅对知识盖不住的文件 GET。",
+    "知识够用就直接交付；不够再补读后执行主分析 skill。",
   ];
 
   return lines.join("\n");
@@ -213,11 +212,11 @@ function taskReadingGuidance(
 
   if (intent === "standard") {
     return {
-      summary: "对话短答 · 检索解析缓存",
+      summary: "对话 · 项目知识已在场",
       bullets: [
-        "寒暄直接短答",
-        "问项目：只 search 缓存，命中即答",
-        "缓存不够再对缺口文件 textUrl；session 新附件若被问到则纳入检索",
+        "直接用已注入的项目知识作答",
+        "不要为短问 curl 资料",
+        "知识盖不住再补读缺口文件",
       ],
     };
   }

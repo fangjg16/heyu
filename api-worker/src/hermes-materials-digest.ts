@@ -1,7 +1,8 @@
 import type { AppDatabase } from "./app-database";
 import type { SkillIntent } from "./chat-modes";
 import { getCitationSlots, matchCitationSlot } from "./citations";
-import { loadChunks, loadNamedDocumentChunks, loadNamedParseSummaries, mergeChunkRows } from "./chat-data";
+import { loadChunks, loadNamedDocumentChunks, loadNamedParseSummaries, loadProjectParseSummaries, mergeChunkRows } from "./chat-data";
+import { formatProjectKnowledgeState } from "./project-knowledge-state";
 import type { KnowledgeNetworkUpdateMode } from "./knowledge-network-mode";
 import { chunkMatchesNamedFile, isPlaceholderChunkText, selectChunksForChat } from "./search";
 
@@ -79,8 +80,8 @@ function formatDigestSection(
 }
 
 /**
- * Worker 侧「资料摘录」预注入：按任务强度从解析缓存节选，非机械全文。
- * Hermes 仍应先 search 缓存；不够再按需 textUrl。短答不预塞（走流式路径的检索注入）。
+ * Worker 把上传后已解析的项目知识注入任务。这是状态，不是每轮检索流程。
+ * 知识不够时 Hermes 再 search / textUrl。
  */
 export async function buildHermesMaterialsDigest(
   env: { DB: AppDatabase },
@@ -96,12 +97,21 @@ export async function buildHermesMaterialsDigest(
   const intensity = resolveMaterialsDigestIntensity(intent, knMode);
   if (intensity === "none") return "";
 
-  let allChunks: Awaited<ReturnType<typeof loadChunks>>;
+  let allChunks: Awaited<ReturnType<typeof loadChunks>> = [];
+  let knowledge = "";
   try {
     allChunks = await loadChunks(env, projectId, userId, conversationId);
   } catch {
-    return "";
+    allChunks = [];
   }
+  try {
+    knowledge = formatProjectKnowledgeState(
+      await loadProjectParseSummaries(env, projectId, userId, conversationId),
+    );
+  } catch {
+    knowledge = "";
+  }
+  if (allChunks.length === 0 && !knowledge) return "";
   const ids = (prioritizeDocumentIds ?? []).map((s) => s.trim()).filter(Boolean);
   const names = (prioritizeFilenames ?? []).filter(Boolean);
   if (ids.length > 0 || names.length > 0) {
@@ -119,7 +129,15 @@ export async function buildHermesMaterialsDigest(
       /* 点名文件拉取失败时仍用资料包节选 */
     }
   }
-  if (allChunks.length === 0) return "";
+  if (allChunks.length === 0) {
+    if (!knowledge) return "";
+    return [
+      "",
+      "【Worker 预注入 · 项目知识】",
+      "这些是上传解析后已经进入本项目的内容，视为已经在场，不是本轮临时去搜的。",
+      knowledge,
+    ].join("\n");
+  }
 
   const limits = INTENSITY_LIMITS[intensity];
   const searchQuery = (userMessage ?? "").trim() || "项目尽调 资料包 商业模式 时间轴 区位 财务";
@@ -147,27 +165,32 @@ export async function buildHermesMaterialsDigest(
           prioritizeDocumentIds: ids,
         });
 
-  const sessionBlock = formatDigestSection("本对话上传附件摘录", sessionHits, slots);
-  const packageBlock = formatDigestSection("项目资料包摘录", packageHits, slots);
+  const sessionBlock = formatDigestSection("本对话上传附件", sessionHits, slots);
+  const packageBlock = formatDigestSection("项目资料包原文", packageHits, slots);
 
-  if (!sessionBlock && !packageBlock) return "";
+  if (!sessionBlock && !packageBlock && !knowledge) return "";
 
   const intensityNote =
     intensity === "light"
-      ? "本预注入为轻量节选（优先对话附件）；缺事实时请先 search 解析缓存，再按需 GET 相关 textUrl，勿无差别拉全文。"
+      ? "原文为相关段落；知识不够再补读缺口文件，勿无差别拉全文。"
       : intensity === "moderate"
-        ? "本预注入为首次 KB 核心节选（非全文）；缺事实时 search，仅对缺口文件 GET textUrl。"
+        ? "原文为首次 KB 核心段落；知识不够仅对缺口文件 GET textUrl。"
         : intensity === "session_priority"
-          ? "本预注入为任务相关节选（同一套解析缓存）；完整清单仅在缺口时确认，正文按需拉取。"
-          : "本预注入为主要资料节选（全量重做）；仍先 search，勿机械拉取每个 textUrl。";
+          ? "原文为任务相关段落；完整清单仅在缺口时确认。"
+          : "原文为主要资料节选（全量重做）；勿机械拉取每个 textUrl。";
 
   const parts = [
     "",
-    "【Worker 预注入 · 项目资料摘录（事实依据，非版式依据）】",
-    intensityNote,
-    "「本对话上传附件」优先于「项目资料包」；若用户刚上传文件，必须纳入分析。",
-    "版式以 assets/kb-template.html 为准；勿为生成 KB 读取 style-guide / components 全文。",
+    "【Worker 预注入 · 项目知识】",
+    "这些是上传解析后已经进入本项目的内容，视为已经在场，不是本轮临时去搜的。",
   ];
+  if (knowledge) parts.push(knowledge);
+  parts.push(
+    "",
+    intensityNote,
+    "「本对话附件」优先于「项目资料包」；若用户刚上传文件，必须纳入分析。",
+    "版式以 assets/kb-template.html 为准；勿为生成 KB 读取 style-guide / components 全文。",
+  );
   if (sessionBlock) parts.push("", sessionBlock);
   if (packageBlock) parts.push("", packageBlock);
   return parts.join("\n");

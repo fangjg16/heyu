@@ -5,7 +5,7 @@ import {
   getCitationSlots,
   matchCitationSlot,
 } from "./citations";
-import { loadChunks, loadNamedDocumentChunks, loadNamedParseSummaries, mergeChunkRows } from "./chat-data";
+import { loadChunks, loadNamedDocumentChunks, loadNamedParseSummaries, loadProjectParseSummaries, mergeChunkRows } from "./chat-data";
 import { buildLlmMessages, getConversationMemorySummary, splitHistoryForMemory } from "./chat-memory";
 import {
   shouldForceExternalSearch,
@@ -32,6 +32,7 @@ import {
 import { getQueryEmbeddingCached } from "./query-embedding-cache";
 import type { EmbedEnv } from "./embeddings";
 import { buildCitedChapterExcerpt } from "./knowledge-network-chapter-cite";
+import { formatProjectKnowledgeState } from "./project-knowledge-state";
 
 const FILE_ONLY_USER_PROMPT =
   /已发送\s*\d+\s*个文件|请基于资料继续|请阅读刚上传/u;
@@ -40,8 +41,8 @@ const DEEP_EXCERPT_MAX_CHARS = 95_000;
 const OVERVIEW_EXCERPT_MAX_CHARS = 36_000;
 
 export const CHAT_STATUS = {
-  loading: "正在加载项目资料…",
-  retrieving: "正在检索相关片段…",
+  loading: "正在载入项目知识…",
+  retrieving: "正在载入项目知识…",
   external: "正在联网搜索公开资料…",
   generating: "正在生成回答…",
 } as const;
@@ -85,9 +86,7 @@ function buildExcerptFromHits(
   dbProjectSummary: string,
 ): string {
   if (hits.length === 0) {
-    return dbProjectSummary
-      ? `${dbProjectSummary}（资料包暂无可用正文摘录；请结合上方项目登记信息作答，并说明需用户补充材料处。）`
-      : "（未检索到资料摘录；请明确说明依据不足，勿编造。）";
+    return dbProjectSummary.trim();
   }
 
   const onlyPlaceholders = hits.every((h) => isPlaceholderChunkText(h.text));
@@ -166,7 +165,7 @@ export async function prepareStandardChatContext(
   const tavilyKey = (env.TAVILY_API_KEY || "").trim();
   const historyForQuery = history.filter((m) => m.role === "user" || m.role === "assistant");
 
-  const [poolChunks, namedChunks, memorySummary, queryEmbedding] = await Promise.all([
+  const [poolChunks, namedChunks, projectSummaries, memorySummary, queryEmbedding] = await Promise.all([
     loadChunks(env, projectId, userId, params.conversationId),
     namedFileTurn
       ? loadNamedDocumentChunks(
@@ -178,6 +177,7 @@ export async function prepareStandardChatContext(
           prioritizeFilenames,
         )
       : Promise.resolve([] as ChunkRow[]),
+    loadProjectParseSummaries(env, projectId, userId, params.conversationId),
     getConversationMemorySummary(env, userId, conversationKey),
     willUseVectors
       ? getQueryEmbeddingCached(env, projectId, searchQuery)
@@ -199,6 +199,12 @@ export async function prepareStandardChatContext(
       prioritizeFilenames,
     );
   }
+  const knowledgeSummaries = [
+    ...projectSummaries,
+    ...namedSummaries.filter(
+      (s) => !projectSummaries.some((p) => p.documentId === s.documentId),
+    ),
+  ];
 
   const namedTextBlob = [
     ...namedUsable.map((c) => c.text),
@@ -303,20 +309,16 @@ export async function prepareStandardChatContext(
     if (prepend.length > 0) hits = [...prepend, ...hits];
   }
 
-  let excerptBlock = buildExcerptFromHits(hits, slots, usedSlotIds, dbProjectSummary);
+  const knowledgeBlock = formatProjectKnowledgeState(
+    knowledgeSummaries,
+    dbProjectSummary,
+  );
+  let excerptBlock = buildExcerptFromHits(hits, slots, usedSlotIds, "");
   const summaryFallback = formatNamedSummaryFallback(namedSummaries);
-  if (summaryFallback) {
+  if (summaryFallback && !knowledgeSummaries.length) {
     excerptBlock = excerptBlock
       ? `${summaryFallback}\n\n---\n\n${excerptBlock}`
-      : `${dbProjectSummary}${summaryFallback}`;
-  }
-  if (
-    hits.length === 0 &&
-    !summaryFallback &&
-    dbProjectSummary &&
-    !excerptBlock.startsWith("【项目登记")
-  ) {
-    excerptBlock = dbProjectSummary;
+      : summaryFallback;
   }
 
   let citedChapterExcerpt: string | null = null;
@@ -343,35 +345,46 @@ export async function prepareStandardChatContext(
   const citationLines = buildCitationSystemLines(activeSlots);
   const { recent } = splitHistoryForMemory(history);
 
+  const hasProjectKnowledge =
+    knowledgeBlock.length > 0 ||
+    hits.length > 0 ||
+    Boolean(citedChapterExcerpt) ||
+    namedFileTurn ||
+    hadPackageChunks;
+
   const namedFilePrompt = namedFileTurn
-    ? "用户本轮点名或附上了项目源文件（不一定是本对话新上传）。【资料摘录】中对应文件的正文或已解析摘要视为已经读到：必须据此作答，禁止声称无法访问、无法读取、文件不在资料包中或需要用户重传。若摘录含 URL，先列出链接；若有【外部检索】再整理网页要点。"
+    ? "用户本轮点名或附上了项目源文件。【项目知识】与【原文】里对应文件视为本项目已经掌握的内容：必须据此作答，禁止声称无法访问、无法读取、文件不在资料包中或需要用户重传。若含 URL，先列出链接；若有【外部检索】再整理网页要点。"
     : citedChapterExcerpt
-      ? "用户本轮引用了项目知识网络的某一章。【资料摘录】开头的【知识网络章节】视为已经读到：须优先据此作答，并说明依据来自该章；不要声称看不到知识网络。"
-      : "【资料摘录】来自本项目上传时已解析并缓存的片段，不是把全部文件再读一遍。视为已经读到：必须据此介绍项目背景与要点；禁止声称「没有看到任何项目资料」。摘录盖不住的问题标明缺口，不要编造。寒暄不必强行引用资料。";
+      ? "用户本轮引用了项目知识网络的某一章。【原文】开头的【知识网络章节】视为已经掌握：须优先据此作答，并说明依据来自该章；不要声称看不到知识网络。"
+      : "你处在本项目里回答。【项目知识】是上传并解析后已经进入本项目的内容，不是本轮临时去搜的流程。所有问答都基于这些知识。细节以【原文】为准。知识里没有的标明缺口，不要编造。";
 
   const systemParts = [
     ...websitePlatformIdentityLines(),
-    "你是联合家办平台项目助手，服务机会型投资尽调场景。回答须综合三类依据：（1）【资料摘录】中的项目内事实；（2）若有【外部检索】则纳入公开网页信息；（3）为衔接上下文的行业/流程推论——须标明「推论」或「待核实」，不得冒充已核实事实。",
-    "你不是「只能读上传 PDF」的机器人：项目内问题以摘录为主；公开信息在已注入【外部检索】时纳入，否则标明缺口。",
-    "用户可能使用项目简称；与摘录中明显同一项目时，应正常作答，勿因简称不同而拒绝。",
-    ...(overviewQuestion || hadPackageChunks || namedFileTurn || citedChapterExcerpt
-      ? [namedFilePrompt]
-      : []),
-    "引用规范：上传资料用 [ID:n]（仅可引用摘录中实际出现且下列存在的编号）；网页用 [WEB:n] 并附 URL；勿混用。",
+    "你是联合家办平台项目助手。回答须综合：（1）本项目已经掌握的知识；（2）若有【外部检索】则纳入公开网页；（3）行业/流程推论须标明「推论」或「待核实」。",
+    "用户可能使用项目简称；与项目知识中明显同一项目时，应正常作答，勿因简称不同而拒绝。",
+    ...(hasProjectKnowledge ? [namedFilePrompt] : []),
+    "引用规范：上传资料用 [ID:n]（仅可引用原文中实际出现且下列存在的编号）；网页用 [WEB:n] 并附 URL；勿混用。",
     ...(chatMode === "standard"
       ? [
           hermesConfigured
-            ? "短答：平台已替你检索解析缓存（下方【资料摘录】），用同一套对话模型流式作答。用户明确要尽调清单、知识网络、IC 备忘录等需要动手的交付时，说明将转入后台任务（勿自称无法完成）。"
-            : "若用户需要全面分析、尽调清单、风险矩阵、回报测算、知识网络或 IC 备忘录，在本对话直接说明即可；平台会注入更完整资料摘录并输出结构化结果。",
+            ? "由 Hermes 接的对话模型直接作答。用户明确要尽调清单、知识网络、IC 备忘录等需要动手的交付时，说明将转入后台任务（勿自称无法完成）。"
+            : "若用户需要全面分析、尽调清单、风险矩阵、回报测算、知识网络或 IC 备忘录，在本对话直接说明即可。",
         ]
       : skillIntentSystemLines(chatMode, projectTitleHint)),
     ...tavilyCapabilitySystemLines(tavilyConfigured),
     "可用引用编号与文献名：",
     citationLines,
     "",
-    "【资料摘录】",
-    excerptBlock,
+    "【项目知识】",
+    knowledgeBlock ||
+      (hadPackageChunks
+        ? "资料已上传。下面【原文】是本项目知识中的相关段落。"
+        : "本项目还没有可用的解析知识；不要编造项目事实。"),
   ];
+
+  if (excerptBlock.trim()) {
+    systemParts.push("", "【原文】", excerptBlock);
+  }
 
   if (usedExternalSearch) {
     systemParts.push(
@@ -379,7 +392,7 @@ export async function prepareStandardChatContext(
       "【外部检索（Tavily）】",
       externalBlock,
       "",
-      "【本轮指令】用户需要公开信息。以【外部检索】为主、与【资料摘录】交叉验证：一致处可加强信心，冲突处分别列出并建议待核项；勿否认本轮已具备的联网结果。",
+      "【本轮指令】用户需要公开信息。以【外部检索】为主、与【项目知识】/【原文】交叉验证：一致处可加强信心，冲突处分别列出并建议待核项；勿否认本轮已具备的联网结果。",
     );
   }
 
