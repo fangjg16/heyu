@@ -5,6 +5,67 @@ function sseLine(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
+/** 流结束时必须有可展示正文；空流不能把空 answer 丢给前端。 */
+export const CHAT_EMPTY_ANSWER_RETRY = "这次没有生成出来，请再问一次。";
+
+export function finalizeChatStreamAnswer(full: string): string {
+  const text = (full ?? "").trim();
+  return text || CHAT_EMPTY_ANSWER_RETRY;
+}
+
+function textFromContentField(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (typeof part === "string") return part;
+        if (part && typeof part === "object") {
+          const row = part as Record<string, unknown>;
+          if (typeof row.text === "string") return row.text;
+          if (typeof row.content === "string") return row.content;
+        }
+        return "";
+      })
+      .join("");
+  }
+  return "";
+}
+
+/** 上游流可能是 OpenAI delta、content 数组，或 Hermes 直接给 content/text。 */
+export function textFromLlmStreamPayload(json: Record<string, unknown>): string {
+  const choice = Array.isArray(json.choices)
+    ? (json.choices[0] as Record<string, unknown> | undefined)
+    : undefined;
+  const delta = (choice?.delta ?? json.delta) as Record<string, unknown> | undefined;
+  const message = (choice?.message ?? json.message) as
+    | Record<string, unknown>
+    | undefined;
+  return (
+    textFromContentField(delta?.content) ||
+    textFromContentField(delta?.reasoning_content) ||
+    textFromContentField(message?.content) ||
+    textFromContentField(message?.reasoning_content) ||
+    textFromContentField(json.content) ||
+    textFromContentField(json.text) ||
+    textFromContentField(json.output) ||
+    ""
+  );
+}
+
+export function llmStreamBlockedMessage(
+  json: Record<string, unknown>,
+): string | null {
+  const reason = Array.isArray(json.choices)
+    ? (json.choices[0] as { finish_reason?: string } | undefined)?.finish_reason
+    : undefined;
+  if (reason === "content_filter") {
+    return "这次没法按这个问题生成，请换个问法再试。";
+  }
+  const err = json.error;
+  if (err) return CHAT_EMPTY_ANSWER_RETRY;
+  return null;
+}
+
 /** 防止长时间检索/生成无字节导致浏览器或代理判定连接空闲而断开 */
 function scheduleSseKeepalive(
   controller: ReadableStreamDefaultController<Uint8Array>,
@@ -51,61 +112,75 @@ export function transformOpenAiStreamToJfo(
         controller.enqueue(enc.encode(sseLine("meta", meta)));
       }
       const reader = upstream.getReader();
+      let rawAll = "";
+      let sawDataLine = false;
+      let blocked: string | null = null;
+      const ingestJson = (json: Record<string, unknown>) => {
+        blocked = blocked || llmStreamBlockedMessage(json);
+        const piece = textFromLlmStreamPayload(json);
+        if (piece) {
+          full += piece;
+          controller.enqueue(enc.encode(sseLine("delta", { text: piece })));
+        }
+      };
+      const ingestLine = (line: string) => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith(":")) return;
+        if (trimmed.startsWith("data:")) {
+          sawDataLine = true;
+          const payload = trimmed.slice(5).trim();
+          if (!payload || payload === "[DONE]") return;
+          try {
+            ingestJson(JSON.parse(payload) as Record<string, unknown>);
+          } catch {
+            /* 单行不是 JSON 就跳过 */
+          }
+          return;
+        }
+        if (trimmed.startsWith("{")) {
+          try {
+            ingestJson(JSON.parse(trimmed) as Record<string, unknown>);
+          } catch {
+            /* 半截 JSON，留给整包回退 */
+          }
+        }
+      };
       try {
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
-          buffer += dec.decode(value, { stream: true });
+          if (value) {
+            const chunk = dec.decode(value, { stream: !done });
+            rawAll += chunk;
+            buffer += chunk;
+          }
+          if (done) {
+            if (!value) {
+              const tail = dec.decode();
+              rawAll += tail;
+              buffer += tail;
+            }
+            if (buffer.trim()) ingestLine(buffer);
+            buffer = "";
+            break;
+          }
           const parts = buffer.split("\n");
           buffer = parts.pop() ?? "";
-
-          for (const line of parts) {
-            const trimmed = line.trim();
-            if (!trimmed.startsWith("data:")) continue;
-            const payload = trimmed.slice(5).trim();
-            if (payload === "[DONE]") continue;
-            try {
-              const json = JSON.parse(payload) as {
-                choices?: {
-                  delta?: {
-                    content?: string | null;
-                    reasoning_content?: string | null;
-                  };
-                  message?: {
-                    content?: string | null;
-                    reasoning_content?: string | null;
-                  };
-                  finish_reason?: string;
-                }[];
-              };
-              const choice = json.choices?.[0];
-              const deltaText =
-                choice?.delta?.content ??
-                choice?.message?.content ??
-                "";
-              // Qwen3.x thinking：最终正文有时只在 reasoning 流里，或 content 为空
-              const reasoningDelta =
-                choice?.delta?.reasoning_content ??
-                choice?.message?.reasoning_content ??
-                "";
-              const piece =
-                typeof deltaText === "string" && deltaText
-                  ? deltaText
-                  : typeof reasoningDelta === "string"
-                    ? reasoningDelta
-                    : "";
-              if (piece) {
-                full += piece;
-                controller.enqueue(enc.encode(sseLine("delta", { text: piece })));
-              }
-            } catch {
-              /* 忽略单行解析失败 */
-            }
+          for (const line of parts) ingestLine(line);
+        }
+        if (!full.trim() && rawAll.trim() && !sawDataLine) {
+          try {
+            ingestJson(JSON.parse(rawAll) as Record<string, unknown>);
+          } catch {
+            /* 不是整包 JSON */
           }
         }
-        onDone?.(full);
+        if (!full.trim() && blocked) {
+          full = blocked;
+        }
+        const answer = finalizeChatStreamAnswer(full);
+        onDone?.(answer);
         controller.enqueue(
-          enc.encode(sseLine("done", { answer: full, knowledgeNetworkHtml: null })),
+          enc.encode(sseLine("done", { answer, knowledgeNetworkHtml: null })),
         );
         controller.close();
       } catch (e) {

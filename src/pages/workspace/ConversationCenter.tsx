@@ -88,6 +88,7 @@ import {
   sanitizeInterviewAssistantText,
 } from "@/lib/interview-copy";
 import { stripAssistantThinkTags } from "@/lib/chat-think-tags";
+import { visibleAssistantAnswer } from "@/lib/chat-visible-answer";
 import type { LiveChatMessage } from "@/workspace/chat-types";
 import {
   loadChatStateForUser,
@@ -2931,9 +2932,11 @@ export default function ConversationCenter() {
           return;
         }
 
-        let rawAnswer =
-          (payload && typeof payload.answer === "string" ? payload.answer : "") ||
-          "已收到消息，但未返回可展示答案。";
+        let rawAnswer = visibleAssistantAnswer({
+          doneAnswer:
+            payload && typeof payload.answer === "string" ? payload.answer : "",
+          streamed: streamAccumulated,
+        });
         if (payload?.truncated === true) {
           rawAnswer += STREAM_TRUNCATED_FOOTER;
           setLiveError("模型输出因上游超时提前结束，已保留上文内容。");
@@ -3044,7 +3047,9 @@ export default function ConversationCenter() {
         return;
       }
 
-      const rawAnswer = extractRagflowAnswer(payload) || "已收到消息，但未返回可展示答案。";
+      const rawAnswer = visibleAssistantAnswer({
+        doneAnswer: extractRagflowAnswer(payload),
+      });
       const answer = formatCitationMarkers(rawAnswer + uploadNotes, mergedCitationMap);
       const knFromApi =
         payload &&
