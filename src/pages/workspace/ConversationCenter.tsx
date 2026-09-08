@@ -3645,7 +3645,7 @@ export default function ConversationCenter() {
                       {m.isStreaming ? (
                         <ChatThinkingBadge className="mb-3">思考中…</ChatThinkingBadge>
                       ) : null}
-                      {m.content.trim() ? (
+                      {displayAssistantText.trim() ? (
                         <div
                           className={cn(
                             "text-[13px]",

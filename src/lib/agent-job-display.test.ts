@@ -32,7 +32,18 @@ describe("productizeKnJobSubmitContent", () => {
       "已开始深度分析，完成后将自动更新本对话。",
     );
     expect(
+      productizeAssistantBubbleContent("正在生成，请稍候…", {
+        pendingJobId: "job-1",
+        skillIntent: "standard",
+      }),
+    ).toBe("");
+    expect(
       productizeAssistantBubbleContent("", { pendingJobId: "job-1" }),
-    ).toBe("已开始深度分析，完成后将自动更新本对话。");
+    ).toBe("");
+    expect(
+      productizeAssistantBubbleContent(
+        "项目资料 API 暂时不可用。根据项目名称，这是澳洲储能。",
+      ),
+    ).toBe("根据项目名称，这是澳洲储能。");
   });
 });

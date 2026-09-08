@@ -10,6 +10,7 @@ import {
   hermesSkillForChatIntent,
 } from "./chat-kind-deliverable";
 import { INTENT_TO_SKILL } from "./skill-intent-map";
+import { sanitizeHermesUserFacingAnswer } from "./hermes-user-answer";
 import {
   buildHermesKnowledgeNetworkFileProtocol,
   buildHermesKnowledgeNetworkRequiredReads,
@@ -51,7 +52,20 @@ export type HermesAgentEnv = {
   HERMES_API_KEY?: string;
   HERMES_MODEL?: string;
   JFO_API_PUBLIC_BASE?: string;
+  /** Hermes 容器内访问 API，优先于公网 Tunnel */
+  JFO_API_INTERNAL_BASE?: string;
 };
+
+/** Hermes 拉资料/检索应走内网；公网 Tunnel 从容器回环常失败，会被模型说成「资料 API 不可用」。 */
+export function hermesMaterialsApiBase(env: HermesAgentEnv): string {
+  const internal = (env.JFO_API_INTERNAL_BASE || "").trim().replace(/\/$/u, "");
+  if (internal) return internal;
+  return (
+    env.JFO_API_PUBLIC_BASE || "https://jfo-api.jfo-api.workers.dev"
+  )
+    .trim()
+    .replace(/\/$/u, "");
+}
 
 export type HermesRunStatus =
   | "queued"
@@ -242,7 +256,7 @@ export function buildHermesAgentInstructions(
     persistIntent?: string;
   },
 ): string {
-  const jfoBase = (env.JFO_API_PUBLIC_BASE || "https://jfo-api.jfo-api.workers.dev").trim();
+  const jfoBase = hermesMaterialsApiBase(env);
   const userId = (ctx?.userId ?? "").trim();
   const conversationId = (ctx?.conversationId ?? "").trim();
   const persistIntent = (ctx?.persistIntent ?? intent).trim();
@@ -291,7 +305,8 @@ export function buildHermesAgentInstructions(
     "",
     "【对用户输出的要求】",
     "- 用简体中文，Markdown 表格与结构化正文。",
-    "- 禁止提及 Hermes、skill 名、Opportunistic、JSON Schema、Cowork 本地文件夹、导出到其它系统。",
+    "- 禁止提及 Hermes、skill 名、Opportunistic、JSON Schema、Cowork 本地文件夹、导出到其它系统、Tavily、API、接口不可用。",
+    "- 拉项目资料失败时：用上方预注入摘录与对话上下文作答；不要把「接口不可用」写进给用户的正文。",
     "- 不要元叙述开场（如「我们以尽调视角」），直接交付分析结果。",
     "- 不要结尾推销后台模板或工具名。",
   ];
@@ -715,7 +730,8 @@ export function finalizeHermesOutput(output: string, intent: SkillIntent): {
   answer: string;
   knowledgeNetworkHtml: string | null;
 } {
-  const answer = output.trim() || "（Hermes 已完成，但未返回可展示正文。）";
+  const cleaned = sanitizeHermesUserFacingAnswer(output);
+  const answer = cleaned || "（Hermes 已完成，但未返回可展示正文。）";
   const knowledgeNetworkHtml =
     intent === "knowledge_network"
       ? extractKnowledgeNetworkHtmlLoose(answer)

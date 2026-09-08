@@ -21,7 +21,7 @@ export function resolveMaterialsDigestIntensity(
   intent: SkillIntent,
   knMode?: KnowledgeNetworkUpdateMode,
 ): DigestIntensity {
-  if (intent === "standard") return "none";
+  if (intent === "standard") return "light";
   if (intent === "knowledge_network") {
     if (knMode === "reorder") return "none";
     if (knMode === "incremental") return "session_priority";

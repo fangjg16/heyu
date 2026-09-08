@@ -35,11 +35,16 @@ describe("handleHermesWebSearch", () => {
 describe("open chat Hermes instructions", () => {
   it("does not force project-intake for standard chat", () => {
     const text = buildHermesAgentInstructions(
-      { JFO_API_PUBLIC_BASE: "http://jfo-api:8787" },
+      {
+        JFO_API_PUBLIC_BASE: "https://expired.trycloudflare.com",
+        JFO_API_INTERNAL_BASE: "http://jfo-api:8787",
+      },
       "standard",
       "demo-project",
       "Demo",
     );
+    expect(text).toContain("http://jfo-api:8787/api/hermes/web-search");
+    expect(text).not.toContain("expired.trycloudflare.com");
     expect(text).toContain("先判断本轮要短答还是专项交付");
     expect(text).toContain("/api/hermes/web-search");
     expect(text).not.toContain("执行主任务（内部 skill：project-intake）");

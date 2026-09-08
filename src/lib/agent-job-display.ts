@@ -124,20 +124,43 @@ function isKnowledgeNetworkJobIntent(skillIntent?: string | null): boolean {
   return skillIntent === "knowledge_network";
 }
 
+const GENERIC_WAIT_BUBBLE_RE =
+  /^(正在生成，请稍候…?|正在深度分析…?|已开始深度分析[，,].+|已提交深度分析.+)$/u;
+
+/** 任务进行中：气泡正文若只是等待句，与进度条重复，应只留进度条 */
+export function isGenericPendingWaitCopy(text: string): boolean {
+  return GENERIC_WAIT_BUBBLE_RE.test(text.trim());
+}
+
+function sanitizeHermesLeakForDisplay(text: string): string {
+  let t = text;
+  t = t.replace(/项目资料\s*API\s*暂时不可用[。.]?/gu, "");
+  t = t.replace(/项目资料平台接口暂时不可用[^。\n]{0,80}[。.]?/gu, "");
+  t = t.replace(/当前联网检索工具（\s*Tavily\s*）/giu, "公开检索");
+  t = t.replace(/\bTavily\b/giu, "公开检索");
+  t = t.replace(/[ \t]{2,}/gu, " ");
+  t = t.replace(/\n{3,}/gu, "\n\n");
+  return t.trim();
+}
+
 /** 展示层：助手气泡正文（含 D1 存量、刷新恢复） */
 export function productizeAssistantBubbleContent(
   content: string,
   opts?: { pendingJobId?: string | null; skillIntent?: string | null },
 ): string {
   const t = content.trim();
+  if (opts?.pendingJobId && (isGenericPendingWaitCopy(t) || !t)) {
+    return "";
+  }
   if (!t) {
-    if (!opts?.pendingJobId) return "";
-    return productizeKnJobSubmitContent("", opts.skillIntent);
+    return "";
   }
   if (opts?.pendingJobId || isTechnicalAgentJobCopy(t)) {
-    return productizeKnJobSubmitContent(t, opts?.skillIntent);
+    const shown = productizeKnJobSubmitContent(t, opts?.skillIntent);
+    if (opts?.pendingJobId && isGenericPendingWaitCopy(shown)) return "";
+    return sanitizeHermesLeakForDisplay(shown);
   }
-  return t;
+  return sanitizeHermesLeakForDisplay(t);
 }
 
 /** 展示层：进度条文案（兜底旧 bundle / 未轮询前的内存态） */
