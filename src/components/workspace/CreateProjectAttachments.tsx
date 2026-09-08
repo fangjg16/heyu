@@ -7,6 +7,11 @@ import {
   shouldSkipDroppedPath,
   snapshotDroppedEntries,
 } from "@/lib/collect-dropped-files";
+import {
+  afterPaint,
+  pickerButtonBusy,
+  type PickerKind,
+} from "@/lib/create-project-picker-busy";
 import { cn } from "@/lib/utils";
 
 export type CreateUploadProgress =
@@ -59,28 +64,6 @@ function filterDroppedFiles(files: FileList | File[] | null): File[] {
   });
 }
 
-function fileFromFolder(file: File): boolean {
-  const rel =
-    (file as File & { webkitRelativePath?: string }).webkitRelativePath || "";
-  return rel.includes("/");
-}
-
-function pickerBusy(
-  uploadProgress: CreateUploadProgress | null | undefined,
-  files: File[],
-  readingDrop: boolean,
-): { file: boolean; folder: boolean } {
-  if (readingDrop) return { file: false, folder: true };
-  if (!uploadProgress) return { file: false, folder: false };
-  const current =
-    uploadProgress.phase === "uploading"
-      ? files[uploadProgress.index - 1]
-      : files[0];
-  if (!current) return { file: false, folder: false };
-  const folder = fileFromFolder(current);
-  return { file: !folder, folder };
-}
-
 function PickerGlyph({
   busy,
   icon: Icon,
@@ -98,6 +81,7 @@ function PickerGlyph({
     />
   );
 }
+
 function mergeUniqueFiles(prev: File[], incoming: File[]): File[] {
   const seen = new Set(prev.map(fileKey));
   const merged = [...prev];
@@ -131,13 +115,57 @@ export function CreateProjectAttachments({
   onChangeRef.current = onChange;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const folderInputRef = useRef<HTMLInputElement | null>(null);
+  const awaitingRef = useRef<PickerKind | null>(null);
+  const ingestTokenRef = useRef(0);
+  const ingestTimeoutRef = useRef(0);
+  const pickerOpenedAtRef = useRef(0);
   const [dragOver, setDragOver] = useState(false);
   const [picked, setPicked] = useState<File[]>(files);
   const [readingDrop, setReadingDrop] = useState(false);
+  const [ingesting, setIngesting] = useState<PickerKind | null>(null);
 
   useEffect(() => {
     setPicked(files);
   }, [files]);
+
+  const stopIngesting = useCallback(() => {
+    window.clearTimeout(ingestTimeoutRef.current);
+    awaitingRef.current = null;
+    setIngesting(null);
+  }, []);
+
+  const beginIngesting = useCallback((kind: PickerKind) => {
+    setIngesting(kind);
+    window.clearTimeout(ingestTimeoutRef.current);
+    ingestTimeoutRef.current = window.setTimeout(() => {
+      awaitingRef.current = null;
+      setIngesting(null);
+    }, 60_000);
+  }, []);
+
+  const armPicker = useCallback(
+    (kind: PickerKind) => {
+      if (disabled) return;
+      awaitingRef.current = kind;
+      pickerOpenedAtRef.current = Date.now();
+    },
+    [disabled],
+  );
+
+  useEffect(() => {
+    const onWindowFocus = () => {
+      const kind = awaitingRef.current;
+      if (!kind) return;
+      // 点「选择文件」时窗口可能立刻 focus，那还在系统对话框里，不要转圈。
+      if (Date.now() - pickerOpenedAtRef.current < 300) return;
+      beginIngesting(kind);
+    };
+    window.addEventListener("focus", onWindowFocus);
+    return () => {
+      window.removeEventListener("focus", onWindowFocus);
+      window.clearTimeout(ingestTimeoutRef.current);
+    };
+  }, [beginIngesting]);
 
   const applyIncoming = useCallback((incoming: File[]) => {
     if (incoming.length === 0) return;
@@ -151,16 +179,32 @@ export function CreateProjectAttachments({
     });
   }, []);
 
+  const onPickerCancel = useCallback(() => {
+    stopIngesting();
+  }, [stopIngesting]);
+  const onPickerCancelRef = useRef(onPickerCancel);
+  onPickerCancelRef.current = onPickerCancel;
+
   const onInputChange = useCallback(
     (event: Event | { target: EventTarget | null }) => {
       const target = event.target as HTMLInputElement | null;
       if (!target) return;
-      applyIncoming(snapshotPickerFiles(target.files));
-      window.setTimeout(() => {
-        target.value = "";
-      }, 0);
+      const kind: PickerKind =
+        target.id === FOLDER_INPUT_ID ? "folder" : "file";
+      awaitingRef.current = null;
+      const token = ++ingestTokenRef.current;
+      beginIngesting(kind);
+      const list = target.files;
+      afterPaint(() => {
+        if (token !== ingestTokenRef.current) return;
+        applyIncoming(snapshotPickerFiles(list));
+        stopIngesting();
+        window.setTimeout(() => {
+          target.value = "";
+        }, 0);
+      });
     },
-    [applyIncoming],
+    [applyIncoming, beginIngesting, stopIngesting],
   );
   const onInputChangeRef = useRef(onInputChange);
   onInputChangeRef.current = onInputChange;
@@ -169,6 +213,7 @@ export function CreateProjectAttachments({
     fileInputRef.current = el;
     if (!el) return;
     el.onchange = (event) => onInputChangeRef.current(event);
+    el.oncancel = () => onPickerCancelRef.current();
   }, []);
 
   const bindFolderInput = useCallback((el: HTMLInputElement | null) => {
@@ -177,11 +222,12 @@ export function CreateProjectAttachments({
     el.setAttribute("webkitdirectory", "");
     el.setAttribute("directory", "");
     el.onchange = (event) => onInputChangeRef.current(event);
+    el.oncancel = () => onPickerCancelRef.current();
   }, []);
 
   const uploading =
     uploadProgress?.phase === "uploading" ? uploadProgress : null;
-  const busy = pickerBusy(uploadProgress, picked, readingDrop);
+  const busy = pickerButtonBusy(ingesting, readingDrop);
 
   return (
     <div>
@@ -252,6 +298,7 @@ export function CreateProjectAttachments({
           <label
             htmlFor={FILE_INPUT_ID}
             aria-busy={busy.file}
+            onClick={() => armPicker("file")}
             className={cn(
               "inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-[hsl(var(--sand)/0.9)] bg-white px-2.5 py-1.5 text-xs font-medium text-[hsl(var(--warm-charcoal))] transition hover:border-[hsl(var(--wine-deep)/0.35)]",
               disabled && "pointer-events-none opacity-60",
@@ -263,6 +310,7 @@ export function CreateProjectAttachments({
           <label
             htmlFor={FOLDER_INPUT_ID}
             aria-busy={busy.folder}
+            onClick={() => armPicker("folder")}
             className={cn(
               "inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-[hsl(var(--sand)/0.9)] bg-white px-2.5 py-1.5 text-xs font-medium text-[hsl(var(--warm-charcoal))] transition hover:border-[hsl(var(--wine-deep)/0.35)]",
               disabled && "pointer-events-none opacity-60",
