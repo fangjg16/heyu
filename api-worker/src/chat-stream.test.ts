@@ -99,4 +99,25 @@ describe("transformOpenAiStreamToJfo", () => {
     );
     expect(answer).toBe("整包 JSON 也有正文");
   });
+
+  it("asks the LLM again when the stream has no text", async () => {
+    let done = "";
+    const out = transformOpenAiStreamToJfo(
+      streamOf(""),
+      {},
+      (full) => {
+        done = full;
+      },
+      {
+        emitMeta: false,
+        onEmptyRetry: async () => "补上的正文",
+      },
+    );
+    const reader = out.getReader();
+    while (true) {
+      const { done: finished } = await reader.read();
+      if (finished) break;
+    }
+    expect(done).toBe("补上的正文");
+  });
 });

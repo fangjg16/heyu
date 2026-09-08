@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   detectSkillIntent,
   KNOWLEDGE_NETWORK_USE_WEB_ANSWER,
+  shouldRouteToHermes,
+  shouldSkipHermesForLightChat,
   USER_QUICK_PROMPTS,
   websitePlatformIdentityLines,
 } from "./chat-modes";
@@ -99,5 +101,21 @@ describe("due-diligence chat intents", () => {
       detectSkillIntent("帮我整理文件中链接跳转网页的信息"),
     ).toBe("standard");
     expect(detectSkillIntent("帮我整理文件")).toBe("document_reorganize");
+  });
+});
+
+describe("light chat stays off Hermes skills and Hermes chat", () => {
+  it("treats 值不值得投 as a light question", () => {
+    expect(detectSkillIntent("这个项目值不值得投")).toBe("standard");
+    expect(detectSkillIntent("帮我看看 帕金森这个项目值不值得投资")).toBe(
+      "standard",
+    );
+  });
+
+  it("skips Hermes chat completions for standard, not for deep skills", () => {
+    expect(shouldSkipHermesForLightChat("standard")).toBe(true);
+    expect(shouldRouteToHermes("standard")).toBe(false);
+    expect(shouldSkipHermesForLightChat("project_intake")).toBe(false);
+    expect(shouldRouteToHermes("project_intake")).toBe(true);
   });
 });

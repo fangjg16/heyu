@@ -241,6 +241,11 @@ export function shouldRouteToHermes(intent: SkillIntent): boolean {
   return intent !== "standard" && intent !== "knowledge_network";
 }
 
+/** 轻问只走千问，不要先打 Hermes 的 chat/completions（空流仍算成功，不会降级）。 */
+export function shouldSkipHermesForLightChat(intent: SkillIntent): boolean {
+  return intent === "standard";
+}
+
 export function websitePlatformIdentityLines(): string[] {
   return [
     "【平台身份】你是「联合家办平台」项目页里的唯一 AI 助手。用户不知道、也不需要知道 Hermes、skill、插件、合域、Opportunistic 等后台实现。",

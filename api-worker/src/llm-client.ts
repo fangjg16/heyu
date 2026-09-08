@@ -32,6 +32,8 @@ export type LlmMessage = { role: string; content: string | LlmContentPart[] };
 export type LlmCallOptions = {
   /** 看图回合走百炼视觉模型，不经 Hermes */
   forceDashscope?: boolean;
+  /** 轻问：不要打 Hermes chat/completions，直接走千问 */
+  skipHermes?: boolean;
   model?: string;
 };
 
@@ -250,7 +252,7 @@ async function callLlmOnce(
     return { ...result, llmBackend: "dashscope-vl" };
   }
 
-  if (isHermesAgentConfigured(env)) {
+  if (!options?.skipHermes && isHermesAgentConfigured(env)) {
     try {
       const result = await callHermes(resolved, messages);
       return { ...result, llmBackend: "hermes-chat" };

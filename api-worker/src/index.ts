@@ -41,6 +41,7 @@ import {
   KNOWLEDGE_NETWORK_USE_WEB_ANSWER,
   messageForSkillModel,
   shouldRouteToHermes,
+  shouldSkipHermesForLightChat,
   usesFullPackageCorpus,
   type SkillIntent,
 } from "./chat-modes";
@@ -796,7 +797,7 @@ async function streamLlm(
   const model =
     (options?.model || resolved.HERMES_MODEL || DEFAULT_LLM_CHAT_MODEL).trim() ||
     DEFAULT_LLM_CHAT_MODEL;
-  const skipHermes = Boolean(options?.forceDashscope);
+  const skipHermes = Boolean(options?.forceDashscope || options?.skipHermes);
 
   if (!skipHermes && isHermesAgentConfigured(env)) {
     const rawBase = (env.HERMES_BASE_URL || "").trim();
@@ -869,7 +870,7 @@ async function fetchLlmUpstream(
   const model =
     (options?.model || resolved.HERMES_MODEL || DEFAULT_LLM_CHAT_MODEL).trim() ||
     DEFAULT_LLM_CHAT_MODEL;
-  const skipHermes = Boolean(options?.forceDashscope);
+  const skipHermes = Boolean(options?.forceDashscope || options?.skipHermes);
 
   if (!skipHermes && isHermesAgentConfigured(env)) {
     const rawBase = (env.HERMES_BASE_URL || "").trim();
@@ -1922,9 +1923,13 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
         const messages = useVision
           ? attachVisionToLastUserMessage(prepared.messages, visionImages.images)
           : prepared.messages;
+        const lightChat = shouldSkipHermesForLightChat(chatMode);
         const [conversationTopic, llm] = await Promise.all([
           topicPromise,
-          fetchLlmUpstream(env, messages, visionLlmOptions),
+          fetchLlmUpstream(env, messages, {
+            ...visionLlmOptions,
+            skipHermes: lightChat,
+          }),
         ]);
         const { upstream, llmBackend } = llm;
         return {
@@ -1935,6 +1940,12 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
           },
           upstream,
           onDone: (answer) => scheduleMemoryRefresh(answer),
+          onEmptyRetry: lightChat
+            ? async () => {
+                const { answer } = await callQwen(env, messages);
+                return answer;
+              }
+            : undefined,
         };
       });
       return new Response(stream, {
@@ -1952,7 +1963,10 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
       : prepared.messages;
     const [conversationTopic, llmResult] = await Promise.all([
       firstUserTurn ? generateConversationTopic(env, message) : Promise.resolve(undefined),
-      callLlm(env, messages, visionLlmOptions),
+      callLlm(env, messages, {
+        ...visionLlmOptions,
+        skipHermes: shouldSkipHermesForLightChat(chatMode),
+      }),
     ]);
     const { answer, llmBackend } = llmResult;
     scheduleMemoryRefresh(answer);

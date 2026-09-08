@@ -98,7 +98,7 @@ export function transformOpenAiStreamToJfo(
   upstream: ReadableStream<Uint8Array>,
   meta: Record<string, unknown>,
   onDone?: (fullAnswer: string) => void,
-  options?: { emitMeta?: boolean },
+  options?: { emitMeta?: boolean; onEmptyRetry?: () => Promise<string> },
 ): ReadableStream<Uint8Array> {
   const enc = new TextEncoder();
   const dec = new TextDecoder();
@@ -177,6 +177,17 @@ export function transformOpenAiStreamToJfo(
         if (!full.trim() && blocked) {
           full = blocked;
         }
+        if (!full.trim() && options?.onEmptyRetry) {
+          try {
+            const retry = (await options.onEmptyRetry()).trim();
+            if (retry) {
+              full = retry;
+              controller.enqueue(enc.encode(sseLine("delta", { text: retry })));
+            }
+          } catch {
+            /* 再请一次失败则走下面的兜底 */
+          }
+        }
         const answer = finalizeChatStreamAnswer(full);
         onDone?.(answer);
         controller.enqueue(
@@ -250,6 +261,7 @@ export type ChatPipelinePrepareResult = {
   meta: Record<string, unknown>;
   upstream: ReadableStream<Uint8Array>;
   onDone?: (fullAnswer: string) => void;
+  onEmptyRetry?: () => Promise<string>;
 };
 
 /**
@@ -268,9 +280,12 @@ export function buildChatPipelineStream(
       };
       try {
         emitStatus(CHAT_STATUS.loading);
-        const { meta, upstream, onDone } = await prepare(emitStatus);
+        const { meta, upstream, onDone, onEmptyRetry } = await prepare(emitStatus);
         controller.enqueue(enc.encode(sseLine("meta", meta)));
-        const body = transformOpenAiStreamToJfo(upstream, meta, onDone, { emitMeta: false });
+        const body = transformOpenAiStreamToJfo(upstream, meta, onDone, {
+          emitMeta: false,
+          onEmptyRetry,
+        });
         const reader = body.getReader();
         while (true) {
           const { done, value } = await reader.read();
