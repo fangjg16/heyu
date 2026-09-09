@@ -136,7 +136,28 @@ async function resolveNamedDocumentIds(
   if (ids.length === 0 && names.length === 0) return [];
 
   const found = new Set(ids);
-  if (names.length === 0) return [...found];
+  const lookupNames = [...names];
+
+  if (ids.length > 0) {
+    try {
+      const placeholders = ids.map(() => "?").join(",");
+      const q = await env.DB.prepare(
+        `SELECT filename FROM documents
+         WHERE project_id = ? AND id IN (${placeholders})`,
+      )
+        .bind(projectId, ...ids)
+        .all<{ filename: string | null }>();
+      for (const row of q.results ?? []) {
+        const n = (row.filename ?? "").trim();
+        if (n) lookupNames.push(n);
+      }
+    } catch {
+      /* 查文件名失败时仍按调用方传入的名字扩 */
+    }
+  }
+
+  const uniqueNames = [...new Set(lookupNames.map((s) => s.trim()).filter(Boolean))];
+  if (uniqueNames.length === 0) return [...found];
 
   try {
     const q = await env.DB.prepare(
@@ -156,7 +177,7 @@ async function resolveNamedDocumentIds(
       if (
         filenameMatchesPriority(
           documentNameBlob(row.filename, row.upload_note),
-          names,
+          uniqueNames,
         )
       ) {
         found.add(row.id);
@@ -177,7 +198,7 @@ async function resolveNamedDocumentIds(
         .bind(projectId, userId, conversationId)
         .all<{ id: string; filename: string }>();
       for (const row of q.results ?? []) {
-        if (filenameMatchesPriority(row.filename, names)) found.add(row.id);
+        if (filenameMatchesPriority(row.filename, uniqueNames)) found.add(row.id);
       }
     } catch {
       /* 列表失败时仍用调用方传入的 id */

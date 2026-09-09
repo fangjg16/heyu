@@ -94,3 +94,27 @@ export function classifySourceParseRoute(input: {
   }
   return "pdf-ocr";
 }
+
+/**
+ * 对话看图只服务少页图面。49 页 BP 若走前 8 页栅格，模型会当成「7 页精要」而不是全文。
+ * 长文档交给抽字 / OCR。
+ */
+export function pdfShouldRasterizeForChat(input: {
+  fileName: string;
+  mime?: string | null;
+  pageCount: number;
+  extractedCharCount: number;
+  preferVision?: boolean;
+}): boolean {
+  const pages = Math.max(0, input.pageCount || 0);
+  if (pages > SOURCE_PARSE_PDF_VL_MAX_PAGES) return false;
+  if (input.preferVision) return true;
+  return (
+    classifySourceParseRoute({
+      fileName: input.fileName,
+      mime: input.mime,
+      pageCount: pages > 0 ? pages : 1,
+      extractedCharCount: input.extractedCharCount,
+    }) === "pdf-vl"
+  );
+}

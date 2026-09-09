@@ -3,6 +3,7 @@ import {
   classifySourceParseRoute,
   looksLikePlanOrMapFileName,
   pdfExtractLooksSparse,
+  pdfShouldRasterizeForChat,
 } from "./source-parse-route";
 
 describe("looksLikePlanOrMapFileName", () => {
@@ -95,5 +96,41 @@ describe("pdfExtractLooksSparse", () => {
     expect(
       pdfExtractLooksSparse("【测绘图.pdf · PDF 提取正文】\nSP265790 Stone Island", 2),
     ).toBe(true);
+  });
+});
+
+describe("pdfShouldRasterizeForChat", () => {
+  it("does not send a 49-page business plan as the first 8 cover slides", () => {
+    expect(
+      pdfShouldRasterizeForChat({
+        fileName: "数字克隆 SZKL.CN 商业计划书.pdf",
+        mime: "application/pdf",
+        pageCount: 49,
+        extractedCharCount: 0,
+      }),
+    ).toBe(false);
+  });
+
+  it("still rasters a few-page sparse scan", () => {
+    expect(
+      pdfShouldRasterizeForChat({
+        fileName: "scan.pdf",
+        mime: "application/pdf",
+        pageCount: 3,
+        extractedCharCount: 0,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not let preferVision override a long PDF", () => {
+    expect(
+      pdfShouldRasterizeForChat({
+        fileName: "scan.pdf",
+        mime: "application/pdf",
+        pageCount: 49,
+        extractedCharCount: 0,
+        preferVision: true,
+      }),
+    ).toBe(false);
   });
 });

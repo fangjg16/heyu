@@ -3,6 +3,7 @@ import {
   classifySourceParseRoute,
   looksLikePlanOrMapFileName,
   pdfExtractLooksSparse,
+  pdfShouldRasterizeForChat,
 } from "../src/source-parse-route.ts";
 
 assert.equal(looksLikePlanOrMapFileName("02_大陆地块测绘图_SP265790.pdf"), true);
@@ -66,6 +67,35 @@ assert.equal(
 assert.equal(
   pdfExtractLooksSparse("【测绘图.pdf · PDF 提取正文】\nSP265790 Stone Island", 2),
   true,
+);
+
+assert.equal(
+  pdfShouldRasterizeForChat({
+    fileName: "数字克隆 SZKL.CN 商业计划书.pdf",
+    mime: "application/pdf",
+    pageCount: 49,
+    extractedCharCount: 0,
+  }),
+  false,
+);
+assert.equal(
+  pdfShouldRasterizeForChat({
+    fileName: "scan.pdf",
+    mime: "application/pdf",
+    pageCount: 3,
+    extractedCharCount: 0,
+  }),
+  true,
+);
+assert.equal(
+  pdfShouldRasterizeForChat({
+    fileName: "scan.pdf",
+    mime: "application/pdf",
+    pageCount: 49,
+    extractedCharCount: 0,
+    preferVision: true,
+  }),
+  false,
 );
 
 console.log("source-parse-route: ok");

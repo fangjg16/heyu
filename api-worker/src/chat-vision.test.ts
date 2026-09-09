@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   attachVisionToLastUserMessage,
+  pdfShouldRasterizeForChat,
   pdfTextLooksTooSparseForSkipVision,
   QWEN_VL_MODEL_DEFAULT,
   VL_IMAGE_RAW_MAX,
@@ -111,6 +112,19 @@ describe("pdfTextLooksTooSparseForSkipVision", () => {
     expect(pdfTextLooksTooSparseForSkipVision(`【合同.pdf · PDF 提取正文】\n${body}`, 2)).toBe(
       false,
     );
+  });
+});
+
+describe("pdfShouldRasterizeForChat", () => {
+  it("does not rasterize a 49-page deck", () => {
+    expect(
+      pdfShouldRasterizeForChat({
+        fileName: "数字克隆 SZKL.CN 商业计划书.pdf",
+        mime: "application/pdf",
+        pageCount: 49,
+        extractedCharCount: 80,
+      }),
+    ).toBe(false);
   });
 });
 
