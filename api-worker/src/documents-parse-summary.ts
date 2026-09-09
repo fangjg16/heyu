@@ -32,6 +32,7 @@ import {
 } from "./source-parse-route";
 import {
   buildSourceFileParseMessages,
+  PARSE_TEXT_LLM_OPTIONS,
   sourceParseVisionLlmOptions,
 } from "./source-parse-vision";
 
@@ -445,7 +446,20 @@ function keepLastGoodParseResponse(
   );
 }
 
-const PARSE_INFLIGHT = new Map<string, Promise<Response>>();
+const PARSE_LLM_JOBS = new Map<string, Promise<Response>>();
+
+function enqueueParseLlmJob(
+  key: string,
+  run: () => Promise<Response>,
+): Promise<Response> {
+  const existing = PARSE_LLM_JOBS.get(key);
+  if (existing) return existing;
+  const job = run().finally(() => {
+    if (PARSE_LLM_JOBS.get(key) === job) PARSE_LLM_JOBS.delete(key);
+  });
+  PARSE_LLM_JOBS.set(key, job);
+  return job;
+}
 
 /** GET /api/projects/:projectId/files/:docId/parse-summary?userId=&refresh=1 */
 export async function handleParseProjectFileSummary(
@@ -455,28 +469,13 @@ export async function handleParseProjectFileSummary(
   pathProjectId: string,
   docId: string,
 ): Promise<Response> {
-  const projectId = decodePathProjectId(pathProjectId);
-  const id = docId.trim();
-  const forceRefresh = parseSummaryRefreshRequested(new URL(request.url).searchParams);
-  const lockKey = `${projectId}:${id}:${forceRefresh ? "r" : "g"}`;
-  const existingLock = PARSE_INFLIGHT.get(lockKey);
-  if (existingLock) {
-    const res = await existingLock;
-    return res.clone();
-  }
-  const run = handleParseProjectFileSummaryUnlocked(
+  return handleParseProjectFileSummaryUnlocked(
     request,
     env,
     ctx,
     pathProjectId,
     docId,
   );
-  PARSE_INFLIGHT.set(lockKey, run);
-  try {
-    return await run;
-  } finally {
-    if (PARSE_INFLIGHT.get(lockKey) === run) PARSE_INFLIGHT.delete(lockKey);
-  }
 }
 
 async function handleParseProjectFileSummaryUnlocked(
@@ -490,6 +489,7 @@ async function handleParseProjectFileSummaryUnlocked(
   const userId = normalizeUserId(url.searchParams.get("userId"));
   if (!userId) return json({ error: "缺少 userId 查询参数" }, 400);
   const forceRefresh = parseSummaryRefreshRequested(url.searchParams);
+  const waitForLlm = url.searchParams.get("wait") === "1";
 
   const projectId = decodePathProjectId(pathProjectId);
   const id = docId.trim();
@@ -745,104 +745,129 @@ async function handleParseProjectFileSummaryUnlocked(
     });
   }
 
-  try {
-    const messages = buildSourceFileParseMessages({
-      filename: row.filename,
-      mime: row.mime,
-      sourceText: truncateSource(sourceText),
-      images: visionImages,
-    });
-    const { answer, llmBackend } = await callLlm(
-      env,
-      messages,
-      useVision ? sourceParseVisionLlmOptions(env) : undefined,
-    );
-    const parsed = parseLlmDocumentJson(answer);
-    let nextChunkCount = chunkCount;
-    const junkChunks =
-      useVision &&
-      (!sourceText.trim() ||
-        looksLikeUnparsedPlaceholder(sourceText) ||
-        looksLikeOcrGaveUp(sourceText));
-    if (junkChunks) {
-      const digest = [
-        `【${row.filename} · 视觉理解】`,
-        parsed.summary,
-        ...parsed.keyPoints,
-      ]
-        .filter(Boolean)
-        .join("\n");
-      try {
-        nextChunkCount = await replaceDocumentChunks(env, id, digest);
-      } catch {
-        /* chunks 表异常时仍返回摘要 */
-      }
-    }
-    const payload: DocumentParsePayload = {
-      summary: parsed.summary,
-      documentType: inferDocumentGenre({
-        filename: row.filename,
-        documentType: parsed.documentType,
-      }),
-      keyPoints: parsed.keyPoints,
-      refs: parsed.refs,
-      usedFor: parsed.usedFor,
-      chunkCount: nextChunkCount,
-      llmBackend,
-      fromCache: false,
-    };
+  const llmJobKey = `${projectId}:${id}:${forceRefresh ? "r" : "g"}`;
+  const runLlmSummary = async (): Promise<Response> => {
     try {
-      await upsertParseResult(env, id, payload, row.filename);
+      const messages = buildSourceFileParseMessages({
+        filename: row.filename,
+        mime: row.mime,
+        sourceText: truncateSource(sourceText),
+        images: visionImages,
+      });
+      const { answer, llmBackend } = await callLlm(
+        env,
+        messages,
+        useVision ? sourceParseVisionLlmOptions(env) : PARSE_TEXT_LLM_OPTIONS,
+      );
+      const parsed = parseLlmDocumentJson(answer);
+      let nextChunkCount = chunkCount;
+      const junkChunks =
+        useVision &&
+        (!sourceText.trim() ||
+          looksLikeUnparsedPlaceholder(sourceText) ||
+          looksLikeOcrGaveUp(sourceText));
+      if (junkChunks) {
+        const visionDigest = [
+          `【${row.filename} · 视觉理解】`,
+          parsed.summary,
+          ...parsed.keyPoints,
+        ]
+          .filter(Boolean)
+          .join("\n");
+        try {
+          nextChunkCount = await replaceDocumentChunks(env, id, visionDigest);
+        } catch {
+          /* chunks 表异常时仍返回摘要 */
+        }
+      }
+      const payload: DocumentParsePayload = {
+        summary: parsed.summary,
+        documentType: inferDocumentGenre({
+          filename: row.filename,
+          documentType: parsed.documentType,
+        }),
+        keyPoints: parsed.keyPoints,
+        refs: parsed.refs,
+        usedFor: parsed.usedFor,
+        chunkCount: nextChunkCount,
+        llmBackend,
+        fromCache: false,
+      };
+      try {
+        await upsertParseResult(env, id, payload, row.filename);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (
+          /no such table:\s*document_parse_results/i.test(msg) ||
+          /Unknown table ['`]?document_parse_results['`]?/i.test(msg)
+        ) {
+          return json({
+            ...parseResponseBody(row, payload, { warning: extractWarning ?? null }),
+            persistError:
+              "解析成功但未落库：请执行 migration 0014（document_parse_results）",
+          });
+        }
+        throw e;
+      }
+      return json(
+        parseResponseBody(row, payload, { warning: extractWarning ?? null }),
+      );
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (
-        /no such table:\s*document_parse_results/i.test(msg) ||
-        /Unknown table ['`]?document_parse_results['`]?/i.test(msg)
-      ) {
-        return json({
-          ...parseResponseBody(row, payload, { warning: extractWarning ?? null }),
-          persistError:
-            "解析成功但未落库：请执行 migration 0014（document_parse_results）",
+      const kept = keepLastGoodParseResponse(row, cached);
+      if (kept) return kept;
+      const failSummary = useVision
+        ? `视觉理解未能读出图面：${msg}`
+        : `大模型解析失败：${msg}`;
+      try {
+        await upsertParseResult(env, id, {
+          summary: truncateSummary(failSummary),
+          documentType: "",
+          keyPoints: [],
+          refs: [],
+          usedFor: [],
+          chunkCount,
         });
+      } catch {
+        /* ignore persist */
       }
-      throw e;
-    }
-    return json(
-      parseResponseBody(row, payload, { warning: extractWarning ?? null }),
-    );
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    const kept = keepLastGoodParseResponse(row, cached);
-    if (kept) return kept;
-    const failSummary = useVision
-      ? `视觉理解未能读出图面：${msg}`
-      : `大模型解析失败：${msg}`;
-    try {
-      await upsertParseResult(env, id, {
-        summary: truncateSummary(failSummary),
+      return json({
+        documentId: id,
+        filename: row.filename,
+        mime: row.mime,
+        parsed: false,
+        summary: failSummary,
+        chunkCount,
         documentType: "",
         keyPoints: [],
         refs: [],
         usedFor: [],
-        chunkCount,
+        warning: extractWarning ?? null,
       });
-    } catch {
-      /* ignore persist */
     }
-    return json({
-      documentId: id,
-      filename: row.filename,
-      mime: row.mime,
-      parsed: false,
-      summary: failSummary,
-      chunkCount,
-      documentType: "",
-      keyPoints: [],
-      refs: [],
-      usedFor: [],
-      warning: extractWarning ?? null,
-    });
+  };
+
+  const llmJob = enqueueParseLlmJob(llmJobKey, runLlmSummary);
+  if (waitForLlm) return llmJob;
+  ctx.waitUntil(llmJob.then(() => undefined).catch(() => undefined));
+  const latest = await loadParseResult(env, id);
+  if (latest && !forceRefresh && !shouldRefreshCachedSummary(latest.summary)) {
+    return json(parseResponseBody(row, rowToPayload(latest)));
   }
+  return json({
+    documentId: id,
+    filename: row.filename,
+    mime: row.mime,
+    parsed: false,
+    pending: true,
+    summary: "正在生成摘要…",
+    chunkCount,
+    documentType: "",
+    keyPoints: [],
+    refs: [],
+    usedFor: [],
+    warning: extractWarning ?? null,
+  });
 }
 
 /** 上传后后台解析；失败不影响上传结果 */
@@ -856,7 +881,7 @@ export async function runDocumentParseSummaryBackground(
   if (!userId || !documentId) return;
   try {
     const req = new Request(
-      `https://jfo.local/parse-summary?userId=${encodeURIComponent(userId)}`,
+      `https://jfo.local/parse-summary?userId=${encodeURIComponent(userId)}&wait=1`,
     );
     await handleParseProjectFileSummary(
       req,

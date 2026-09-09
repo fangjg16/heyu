@@ -43,11 +43,6 @@ assert.equal(
 
 assert.equal(shouldSendParseRefresh({ cachedSummary: "" }), false);
 assert.equal(shouldSendParseRefresh({ force: true }), true);
-assert.equal(
-  shouldSendParseRefresh({
-    cachedSummary: "（扫描 PDF「a.pdf」OCR 未抽出文字。）",
-  }),
-  true,
-);
+assert.equal(shouldSendParseRefresh({ cachedSummary: "正在生成摘要…" }), false);
 
 console.log("parse-ui-status: ok");

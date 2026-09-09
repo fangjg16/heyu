@@ -35,10 +35,18 @@ export function parseDetailPendingText(input: {
   return null;
 }
 
+/** 客户端占位句，不是模型摘要；轮询时不要带 refresh=1。 */
+export function isParseStatusPlaceholder(summary: string): boolean {
+  return /^(正在解析…|正在重新解析…|正在生成摘要…|加载详情中…|上传后自动解析中…)$/u.test(
+    summary.trim(),
+  );
+}
+
 /** 点开源文件时是否丢掉缓存、再拉 parse-summary（扫描件改走视觉理解） */
 export function shouldRefetchParseSummary(summary: string): boolean {
   const t = summary.trim();
   if (!t || t === "—") return true;
+  if (isParseStatusPlaceholder(t)) return false;
   if (t.startsWith("{") && /"summary"\s*:/u.test(t)) return true;
   if (/detached ArrayBuffer/iu.test(t)) return true;
   if (/Failed to fetch|Illegal invocation|接口连不上/iu.test(t)) return true;

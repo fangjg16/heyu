@@ -15,6 +15,7 @@ import {
 } from "@/lib/backdrop-dismiss";
 import {
   formatMaterialsNetworkError,
+  isParseStatusPlaceholder,
   parseDetailPendingText,
   resolveParseUiStatus,
   shouldRefetchParseSummary,
@@ -46,7 +47,7 @@ import {
   createProjectPackageFolder,
   deleteProjectFile,
   ENABLE_LIVE_CHAT,
-  fetchProjectFileParseSummary,
+  fetchProjectFileParseSummaryUntilSettled,
   fetchProjectFiles,
   moveProjectFile,
   PROJECT_UPLOAD_FOLDER,
@@ -752,11 +753,26 @@ export function ProjectMaterialsSection({
       void (async () => {
         for (const docId of parseQueue) {
           try {
-            const result = await fetchProjectFileParseSummary(
+            const result = await fetchProjectFileParseSummaryUntilSettled(
               projectId,
               docId,
               userId,
             );
+            if (result.pending) {
+              setParsedById((prev) => ({
+                ...prev,
+                [docId]: {
+                  summary: "正在生成摘要…",
+                  chunkCount: result.chunkCount,
+                  status: "parsing",
+                  documentType: result.documentType,
+                  keyPoints: result.keyPoints ?? [],
+                  refs: result.refs ?? [],
+                  usedFor: result.usedFor ?? [],
+                },
+              }));
+              continue;
+            }
             setParsedById((prev) => ({
               ...prev,
               [docId]: {
@@ -1275,7 +1291,6 @@ export function ProjectMaterialsSection({
           return;
         }
       }
-      if (!force && parsedById[file.id]?.status === "parsing") return;
       if (!force && parsingId === file.id) return;
       const refresh = shouldSendParseRefresh({ force, cachedSummary });
       const loadingCached = Boolean(file.parsed) && !refresh;
@@ -1306,12 +1321,27 @@ export function ProjectMaterialsSection({
       setParsingId(file.id);
       setError(null);
       try {
-        const result = await fetchProjectFileParseSummary(
+        const result = await fetchProjectFileParseSummaryUntilSettled(
           projectId,
           file.id,
           userId,
           refresh ? { refresh: true } : undefined,
         );
+        if (result.pending) {
+          setParsedById((prev) => ({
+            ...prev,
+            [file.id]: {
+              summary: "正在生成摘要…",
+              chunkCount: result.chunkCount,
+              status: "parsing",
+              documentType: result.documentType,
+              keyPoints: result.keyPoints ?? [],
+              refs: result.refs ?? [],
+              usedFor: result.usedFor ?? [],
+            },
+          }));
+          return;
+        }
         setParsedById((prev) => ({
           ...prev,
           [file.id]: {
@@ -1419,14 +1449,13 @@ export function ProjectMaterialsSection({
         ...folderPathTrail(fullTree, selectedFileNode.relativePath),
         { label: file.filename, path: `file:${file.id}` },
       ];
-      const pendingCopy = /^(正在解析…|正在重新解析…|加载详情中…)$/u;
       let summary = "点击文件以解析（将调用大模型生成摘要）";
       if (cache?.status === "parsed") summary = cache.summary || "—";
       else if (cache?.status === "failed") summary = cache.summary || "解析失败";
       else if (
         cache?.status === "parsing" &&
         cache.summary &&
-        !pendingCopy.test(cache.summary)
+        !isParseStatusPlaceholder(cache.summary)
       ) {
         summary = cache.summary;
       } else if (file.scope === "package" && !canDownload) {
