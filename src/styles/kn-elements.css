@@ -283,8 +283,11 @@
   font-family: "Noto Serif SC", serif;
   font-size: 17px;
   font-weight: 700;
-  line-height: 1.35;
+  line-height: 1.45;
+  white-space: normal;
+  overflow: visible;
   overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .kn-stat__note {

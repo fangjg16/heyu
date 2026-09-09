@@ -1219,20 +1219,28 @@ export function renderJourneyMapLead(md: string): string {
   return `<div class="kn-jmap" style="--n:${n}"><p class="kn-chart__cap">用户感受</p><svg class="kn-jmap__curve" viewBox="0 0 ${w} 48" preserveAspectRatio="none" role="img" aria-label="用户感受">${`<polyline class="kn-jmap__line" points="${pts}" />`}${dots}</svg><div class="kn-jmap__cols">${cols}</div></div>`;
 }
 
+/** 数字条里的定性说明可以换行，不要剪成「建模…」 */
+const STAT_CARD_VALUE_MAX = 160;
+
 function metricNear(md: string, labelRe: RegExp): string {
   for (const m of md.matchAll(/^\*\*([^*]+?)[:：]\s*\*\*\s*(.+)$/gmu)) {
-    if (labelRe.test(m[1] ?? "")) return clip(m[2] ?? "", 18);
+    if (labelRe.test(m[1] ?? "")) return clip(m[2] ?? "", STAT_CARD_VALUE_MAX);
   }
   for (const t of parseTables(md)) {
     for (const row of t.rows) {
       if (labelRe.test(row[0] ?? "") || labelRe.test(row.join(" "))) {
         const val =
           row.find((c, i) => i > 0 && /[\d$月]/.test(c)) ?? row[1] ?? "";
-        if (val) return clip(val, 18);
+        if (val) return clip(val, STAT_CARD_VALUE_MAX);
       }
     }
   }
   return "";
+}
+
+function statCard(label: string, value: string): string {
+  const shown = value || "待补";
+  return `<div class="kn-stat"><div class="kn-stat__label">${escapeHtml(label)}</div><div class="kn-stat__value" title="${escapeHtml(shown)}">${escapeHtml(shown)}</div></div>`;
 }
 
 export function renderCostStatsLead(md: string): string {
@@ -1240,9 +1248,7 @@ export function renderCostStatsLead(md: string): string {
   const burn = metricNear(md, /burn|月消耗|monthly (?:cost|spend)|固定成本/iu);
   const rev = metricNear(md, /收入|预收|revenue|arr/iu);
   if ([runway, burn, rev].filter(Boolean).length < 2) return "";
-  const cell = (label: string, value: string) =>
-    `<div class="kn-stat"><div class="kn-stat__label">${escapeHtml(label)}</div><div class="kn-stat__value">${escapeHtml(value || "待补")}</div></div>`;
-  return `<div class="kn-stats">${cell("跑道", runway)}${cell("月消耗", burn)}${cell("收入 / 预收", rev)}</div>`;
+  return `<div class="kn-stats">${statCard("跑道", runway)}${statCard("月消耗", burn)}${statCard("收入 / 预收", rev)}</div>`;
 }
 
 export function renderUnitEconLead(md: string): string {
@@ -1259,10 +1265,7 @@ export function renderUnitEconLead(md: string): string {
   if (parts.length < 2) return "";
   const wrap = parts.length >= 4 ? "kn-stats kn-stats--4" : "kn-stats";
   return `<div class="${wrap}">${parts
-    .map(
-      ([label, value]) =>
-        `<div class="kn-stat"><div class="kn-stat__label">${escapeHtml(label!)}</div><div class="kn-stat__value">${escapeHtml(value!)}</div></div>`,
-    )
+    .map(([label, value]) => statCard(label!, value!))
     .join("")}</div>`;
 }
 

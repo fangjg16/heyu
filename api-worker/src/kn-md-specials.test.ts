@@ -662,6 +662,20 @@ BOM 待补。
 `, "business-model")).toContain("获客成本");
   });
 
+  it("keeps long CAC / 定价 sentences instead of clipping to 18 chars", () => {
+    const html = renderUnitEconLead(`# 商业模式
+
+**获客成本:** 签约一名艺人的总成本（含法务、建模、训练与首年运营）
+**终身价值:** 单名艺人在合同期内的总授权收入
+**定价:** 有行业参考 (Metaphysic、Synthesia)，需按片酬分成校准
+`);
+    expect(html).toContain("训练与首年运营");
+    expect(html).toContain("总授权收入");
+    expect(html).toContain("Synthesia");
+    expect(html).not.toMatch(/建模…/u);
+    expect(html).not.toMatch(/Metaphysic、…/u);
+  });
+
   it("reads three-year revenue into projection stats", () => {
     const html = renderProjectionLead(`# 三年预测
 
