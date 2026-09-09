@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ChevronLeft,
   ChevronRight,
+  Loader2,
   PanelLeftClose,
   PanelRightClose,
   Plus,
@@ -90,6 +91,8 @@ function kindLabel(kind: ChangeKind): string {
       return "失败";
     case "revising":
       return "改写中";
+    case "pending":
+      return "生成中";
     default:
       return "待生成";
   }
@@ -104,6 +107,8 @@ function kindClass(kind: ChangeKind): string {
     case "failed":
       return "bg-[rgba(160,99,88,0.14)] text-[#A06358]";
     case "revising":
+      return "bg-[rgba(176,125,31,0.12)] text-[#8A6218]";
+    case "pending":
       return "bg-[rgba(176,125,31,0.12)] text-[#8A6218]";
     case "unchanged":
       return "bg-[rgba(78,66,57,0.08)] text-[#59625F]";
@@ -127,6 +132,14 @@ function classifyItem(
     return "unchanged";
   }
   return "changed";
+}
+
+function formatWaitClock(ms: number): string {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  if (m > 0) return `${m}分${s}秒`;
+  return `${s}秒`;
 }
 
 function isPublishableKind(kind: ChangeKind): boolean {
@@ -176,6 +189,13 @@ export default function KnowledgeChapterDraftReviewPage() {
     {},
   );
   const [chapterBusy, setChapterBusy] = useState<string | null>(null);
+  const [runProgress, setRunProgress] = useState<{
+    done: number;
+    total: number;
+    lastLabel?: string;
+  } | null>(null);
+  const [regenStartedAt, setRegenStartedAt] = useState<number | null>(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
   const [hasGraphDraft, setHasGraphDraft] = useState(false);
   const [graphDraftRaw, setGraphDraftRaw] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -309,6 +329,11 @@ export default function KnowledgeChapterDraftReviewPage() {
         setOverviewKnVersion(draft.overviewKnVersion ?? 0);
         setBaseVersion(draft.run.baseVersion);
         setRunStatus(draft.run.status);
+        setRunProgress({
+          done: Number(draft.run.progressDone) || 0,
+          total: Number(draft.run.progressTotal) || 0,
+          lastLabel: undefined,
+        });
         try {
           const listed = await listProjectKnowledgeChapters(projectId, userId);
           const flags: Record<string, boolean> = {};
@@ -414,16 +439,39 @@ export default function KnowledgeChapterDraftReviewPage() {
     [graphDraftRaw],
   );
   const hasRevising = rows.some((r) => r.kind === "revising");
+  const hasPending = rows.some((r) => r.kind === "pending");
+  const runGenerating = runStatus === "generating";
+  const shouldPollDraft =
+    hasRevising || hasPending || runGenerating || Boolean(chapterBusy);
   const reviseBusy =
     reviseSubmitting || selected?.kind === "revising";
+  const regenElapsedMs =
+    regenStartedAt != null ? Math.max(0, nowTick - regenStartedAt) : 0;
+  const selectedGenerating =
+    Boolean(selected) &&
+    (chapterBusy === selected?.id || selected?.kind === "pending");
 
   useEffect(() => {
-    if (!hasRevising) return;
+    if (!shouldPollDraft) return;
     const timer = window.setInterval(() => {
       void loadReview({ keepSelection: true, silent: true });
     }, 2000);
     return () => window.clearInterval(timer);
-  }, [hasRevising, loadReview]);
+  }, [shouldPollDraft, loadReview]);
+
+  useEffect(() => {
+    if (!shouldPollDraft) return;
+    const timer = window.setInterval(() => setNowTick(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [shouldPollDraft]);
+
+  useEffect(() => {
+    if (selectedGenerating) {
+      setRegenStartedAt((prev) => prev ?? Date.now());
+      return;
+    }
+    if (!chapterBusy) setRegenStartedAt(null);
+  }, [selectedGenerating, chapterBusy]);
 
   useEffect(() => {
     if (selected?.kind === "revising" && selected.error?.trim()) {
@@ -792,12 +840,22 @@ export default function KnowledgeChapterDraftReviewPage() {
       return;
     }
     const label = selected.label;
-    setChapterBusy(selected.id);
+    const sectionId = selected.id;
+    setChapterBusy(sectionId);
+    setRegenStartedAt(Date.now());
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === sectionId ? { ...r, kind: "pending" as const } : r,
+      ),
+    );
     setError(null);
     setNotice(null);
     try {
-      await generateChapterDraftSection(projectId, runId, selected.id, userId, {
+      await generateChapterDraftSection(projectId, runId, sectionId, userId, {
         force: true,
+        onProgress: () => {
+          void loadReview({ keepSelection: true, silent: true });
+        },
       });
       setNotice(`已重新生成「${label}」`);
       await loadReview({ keepSelection: true });
@@ -805,6 +863,7 @@ export default function KnowledgeChapterDraftReviewPage() {
       setError(e instanceof Error ? e.message : "重新生成本章失败");
     } finally {
       setChapterBusy(null);
+      setRegenStartedAt(null);
     }
   };
 
@@ -1133,14 +1192,40 @@ export default function KnowledgeChapterDraftReviewPage() {
                         disabled={Boolean(chapterBusy) || actionLocked}
                         className="mt-3 h-9 rounded-[9px] border border-[rgba(160,99,88,0.3)] bg-white px-3.5 text-[12.5px] font-medium text-[#A06358] hover:bg-[#EFE7E6] disabled:opacity-45"
                       >
-                        {chapterBusy === selected.id
-                          ? "正在重新生成…"
-                          : "重新生成本章草案"}
+                        {chapterBusy === selected.id ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            {regenElapsedMs > 0
+                              ? `正在重新生成 · ${formatWaitClock(regenElapsedMs)}`
+                              : "正在重新生成…"}
+                          </span>
+                        ) : (
+                          "重新生成本章草案"
+                        )}
                       </button>
                     ) : null}
                   </div>
-                ) : selected.kind === "pending" ? (
-                  <p className="text-[13px] text-[#969E9A]">本章仍在生成中…</p>
+                ) : selectedGenerating ? (
+                  <div className="flex min-h-[240px] flex-col items-center justify-center rounded-xl border border-[rgba(176,125,31,0.22)] bg-[rgba(176,125,31,0.06)] px-4 py-8 text-center">
+                    <Loader2
+                      className="h-6 w-6 animate-spin text-[#8A6218]"
+                      aria-hidden
+                    />
+                    <p className="mt-3 text-[14px] font-medium text-[#1F2423]">
+                      正在生成「{selected?.label}」
+                    </p>
+                    <p className="mt-1.5 text-[12.5px] text-[#59625F]">
+                      {regenElapsedMs > 0
+                        ? `已等待 ${formatWaitClock(regenElapsedMs)}`
+                        : "已开始"}
+                      {runGenerating && runProgress && runProgress.total > 1
+                        ? ` · 全部 ${runProgress.done}/${runProgress.total}`
+                        : ""}
+                    </p>
+                    <p className="mt-2 max-w-sm text-[12px] leading-relaxed text-[#969E9A]">
+                      可先离开，回来后会继续显示进度。完成后草案会出现在这里。
+                    </p>
+                  </div>
                 ) : selected.kind === "revising" ? (
                   selected.draftHtml?.trim() ? (
                     <div className="rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/70 p-3">
@@ -1368,6 +1453,23 @@ export default function KnowledgeChapterDraftReviewPage() {
                         {failedCount}
                       </dd>
                     </div>
+                    {runGenerating && runProgress && runProgress.total > 0 ? (
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-[#59625F]">生成进度</dt>
+                        <dd className="font-semibold text-[#8A6218]">
+                          {runProgress.done}/{runProgress.total}
+                        </dd>
+                      </div>
+                    ) : selectedGenerating ? (
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-[#59625F]">本章生成</dt>
+                        <dd className="font-semibold text-[#8A6218]">
+                          {regenElapsedMs > 0
+                            ? `已等待 ${formatWaitClock(regenElapsedMs)}`
+                            : "进行中"}
+                        </dd>
+                      </div>
+                    ) : null}
                     <div className="flex justify-between gap-2">
                       <dt className="text-[#59625F]">基于版本</dt>
                       <dd className="font-semibold">{baseVersionLabel}</dd>
@@ -1532,9 +1634,16 @@ export default function KnowledgeChapterDraftReviewPage() {
                       }
                       className="mt-2.5 flex h-10 w-full items-center justify-center rounded-[11px] border border-[rgba(78,66,57,0.18)] text-[13.5px] font-medium text-[#1F2423] hover:bg-[rgba(78,66,57,0.04)] disabled:cursor-not-allowed disabled:opacity-45"
                     >
-                      {chapterBusy === selected?.id
-                        ? "正在重新生成…"
-                        : "重新生成本章草案"}
+                      {chapterBusy === selected?.id ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          {regenElapsedMs > 0
+                            ? `正在重新生成 · ${formatWaitClock(regenElapsedMs)}`
+                            : "正在重新生成…"}
+                        </span>
+                      ) : (
+                        "重新生成本章草案"
+                      )}
                     </button>
                   ) : null}
                   <button
@@ -1564,9 +1673,16 @@ export default function KnowledgeChapterDraftReviewPage() {
                       }
                       className="mt-5 flex h-10 w-full items-center justify-center rounded-[11px] border border-[rgba(78,66,57,0.18)] text-[13.5px] font-medium text-[#1F2423] hover:bg-[rgba(78,66,57,0.04)] disabled:cursor-not-allowed disabled:opacity-45"
                     >
-                      {chapterBusy === selected?.id
-                        ? "正在重新生成…"
-                        : "重新生成本章草案"}
+                      {chapterBusy === selected?.id ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          {regenElapsedMs > 0
+                            ? `正在重新生成 · ${formatWaitClock(regenElapsedMs)}`
+                            : "正在重新生成…"}
+                        </span>
+                      ) : (
+                        "重新生成本章草案"
+                      )}
                     </button>
                   ) : null}
                     <button

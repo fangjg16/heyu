@@ -1570,7 +1570,13 @@ export async function generateChapterDraftSection(
   runId: string,
   sectionId: string,
   userId: string,
-  opts?: { force?: boolean },
+  opts?: {
+    force?: boolean;
+    onProgress?: (
+      summary: DraftRunProgressSummary,
+      snap: GetChapterDraftRunResponse,
+    ) => void;
+  },
 ): Promise<{ ok: true; sectionId: string; html?: string; run?: ChapterDraftRun }> {
   const q = new URLSearchParams({ userId });
   if (opts?.force) q.set("force", "1");
@@ -1591,7 +1597,13 @@ export async function generateChapterDraftSection(
     throw new Error(data.error || `草案章节生成失败（${res.status}）`);
   }
   if (data.accepted || data.status === "pending" || res.status === 202) {
-    return waitForDraftSectionSettled(projectId, runId, sectionId, userId);
+    return waitForDraftSectionSettled(
+      projectId,
+      runId,
+      sectionId,
+      userId,
+      opts?.onProgress,
+    );
   }
   return {
     ok: true,
@@ -1651,10 +1663,15 @@ async function waitForDraftSectionSettled(
   runId: string,
   sectionId: string,
   userId: string,
+  onProgress?: (
+    summary: DraftRunProgressSummary,
+    snap: GetChapterDraftRunResponse,
+  ) => void,
 ): Promise<{ ok: true; sectionId: string; html?: string; run?: ChapterDraftRun }> {
   const snap = await waitForDraftRunSettled(projectId, runId, userId, {
     sectionIds: [sectionId],
     timeoutMs: DRAFT_SECTION_TIMEOUT_MS,
+    onProgress,
   });
   const item = snap.items.find((i) => i.sectionId === sectionId);
   if (!item || item.status === "pending" || item.status === "revising") {
