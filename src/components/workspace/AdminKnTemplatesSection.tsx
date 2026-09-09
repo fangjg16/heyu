@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ChevronDown, ChevronRight, FileText, Loader2, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -9,6 +10,9 @@ import {
   saveKnChapterTemplate,
   type KnChapterTemplate,
 } from "@/lib/admin-kn-templates-api";
+import { fetchAdminSkills } from "@/lib/admin-skills-api";
+import { AdminChapterSkillMap } from "@/components/workspace/AdminChapterSkillMap";
+import { FALLBACK_CHAPTER_SKILL_MAP } from "@/lib/chapter-skill-map";
 
 type GroupBlock = {
   groupId: string;
@@ -26,6 +30,7 @@ function stripFrontmatter(markdown: string): string {
 }
 
 export function AdminKnTemplatesSection() {
+  const navigate = useNavigate();
   const [templates, setTemplates] = useState<KnChapterTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +50,8 @@ export function AdminKnTemplatesSection() {
   const [systemMeta, setSystemMeta] = useState<string>("");
   const [systemBusy, setSystemBusy] = useState(false);
   const [mdView, setMdView] = useState<"source" | "preview">("source");
+  const [skillMap, setSkillMap] = useState(FALLBACK_CHAPTER_SKILL_MAP);
+  const [knownSkills, setKnownSkills] = useState<Set<string>>(() => new Set());
 
   const chapterDirty =
     draftMarkdown !== savedMarkdown || draftHint !== savedHint;
@@ -90,10 +97,13 @@ export function AdminKnTemplatesSection() {
     setLoading(true);
     setError(null);
     try {
-      const [rows, sys] = await Promise.all([
+      const [rows, sys, skills] = await Promise.all([
         listKnChapterTemplates(),
         getGenerateSystemPrompt().catch(() => null),
+        fetchAdminSkills().catch(() => null),
       ]);
+      setSkillMap(skills?.chapterSkillMap ?? FALLBACK_CHAPTER_SKILL_MAP);
+      setKnownSkills(new Set((skills?.skills ?? []).map((s) => s.name)));
       setTemplates(rows);
       if (sys) {
         if (!(opts?.keepSelection && systemDirty)) {
@@ -261,8 +271,8 @@ export function AdminKnTemplatesSection() {
               知识网络章节 MD 与提示词
             </h2>
             <p className="mt-0.5 text-[12.5px] text-[#59625F]">
-              编辑全局 System、每章专用提示词与 MD
-              骨架。保存后立即作用于「更新本章」，无版本。
+              上方是各形态章节选用的 Skill；下面编辑全局 System、每章专用提示词与
+              MD 骨架。保存后立即作用于「更新本章」，无版本。
             </p>
           </div>
         </div>
@@ -279,6 +289,25 @@ export function AdminKnTemplatesSection() {
           )}
           刷新
         </button>
+      </div>
+
+      <div className="border-b border-[rgba(78,66,57,0.08)] px-5 py-4">
+        <h3 className="text-[13px] font-semibold text-[#1F2423]">
+          章节选用的 Skill
+        </h3>
+        <p className="mt-1 text-[12px] leading-relaxed text-[#59625F]">
+          网页知识网络按「项目类型 × 章节」选用 Skill。点名称会打开 Hermes
+          Skills 编辑。
+        </p>
+        <AdminChapterSkillMap
+          data={skillMap}
+          knownSkills={knownSkills}
+          onOpenSkill={(name) => {
+            navigate(
+              `/app/admin/skills?skill=${encodeURIComponent(name)}`,
+            );
+          }}
+        />
       </div>
 
       {error ? (
