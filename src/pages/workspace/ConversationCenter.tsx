@@ -66,6 +66,7 @@ import {
   cancelAgentJobRemote,
   mergeAsyncAgentJobIntoConversation,
 } from "@/lib/chat-sync-api";
+import { overlayInFlightAssistantMessages } from "@/lib/chat-streaming-placeholder";
 import {
   buildProductizedJobProgressLabel,
   formatAgentJobFailureDisplay,
@@ -1592,7 +1593,10 @@ export default function ConversationCenter() {
 
       if (remote) {
         const messagesByConversation = sortMessagesByConversation(
-          remote.messagesByConversation,
+          overlayInFlightAssistantMessages(
+            remote.messagesByConversation,
+            cached?.messagesByConversation,
+          ),
         );
         const next = mergeConversationsForBootstrap(
           remote.conversations,
@@ -2345,10 +2349,20 @@ export default function ConversationCenter() {
   };
 
   const appendLiveMessage = (conversationKey: string, message: LiveChatMessage) => {
-    setLiveMessagesByConversation((prev) => ({
-      ...prev,
-      [conversationKey]: appendMessageWithSortIndex(prev[conversationKey] ?? [], message),
-    }));
+    setLiveMessagesByConversation((prev) => {
+      const next = {
+        ...prev,
+        [conversationKey]: appendMessageWithSortIndex(
+          prev[conversationKey] ?? [],
+          message,
+        ),
+      };
+      persistSnapshotRef.current = {
+        ...persistSnapshotRef.current,
+        liveMessagesByConversation: next,
+      };
+      return next;
+    });
   };
 
   const updateLiveMessage = (
@@ -2356,12 +2370,19 @@ export default function ConversationCenter() {
     messageId: string,
     patch: Partial<LiveChatMessage>,
   ) => {
-    setLiveMessagesByConversation((prev) => ({
-      ...prev,
-      [conversationKey]: (prev[conversationKey] ?? []).map((m) =>
-        m.id === messageId ? { ...m, ...patch } : m,
-      ),
-    }));
+    setLiveMessagesByConversation((prev) => {
+      const next = {
+        ...prev,
+        [conversationKey]: (prev[conversationKey] ?? []).map((m) =>
+          m.id === messageId ? { ...m, ...patch } : m,
+        ),
+      };
+      persistSnapshotRef.current = {
+        ...persistSnapshotRef.current,
+        liveMessagesByConversation: next,
+      };
+      return next;
+    });
   };
 
   /** 刷新页面后恢复未完成的 Hermes 异步任务轮询 */
@@ -2745,6 +2766,28 @@ export default function ConversationCenter() {
     setSendingConversationId(sendConversationId);
     const sendAbort = new AbortController();
     chatSendAbortRef.current = sendAbort;
+    const useWorkerJson =
+      RAGFLOW_MODE !== "native" &&
+      RAGFLOW_MODE !== "openai";
+    const expectStreamUi = useWorkerJson;
+    const deepSkill = isDeepSkillMessage(apiMessage);
+    if (expectStreamUi) {
+      streamAssistantId = `assistant-${Date.now()}`;
+      appendLiveMessage(sendConversationId, {
+        id: streamAssistantId,
+        role: "assistant",
+        content: "",
+        time: getCurrentDateTimeLabel(),
+        isStreaming: true,
+        streamStatusLabel:
+          filesToUpload.length > 0
+            ? "正在处理附件…"
+            : deepSkill
+              ? "正在提交任务…"
+              : "正在生成…",
+      });
+      flushChatPersist();
+    }
     try {
       let uploadNotes = "";
       let uploadedFileIds: string[] = [];
@@ -2808,23 +2851,9 @@ export default function ConversationCenter() {
                 stream: true,
               };
 
-      const deepSkill = isDeepSkillMessage(apiMessage);
-      const useWorkerJson =
-        RAGFLOW_MODE !== "native" &&
-        RAGFLOW_MODE !== "openai" &&
-        Boolean(requestBody && typeof requestBody === "object" && "projectId" in requestBody);
-      const expectStreamUi = useWorkerJson;
-
-      if (expectStreamUi) {
-        streamAssistantId = `assistant-${Date.now()}`;
-        setLiveError(null);
-        appendLiveMessage(effectiveConversationId, {
-          id: streamAssistantId,
-          role: "assistant",
-          content: "",
-          time: getCurrentDateTimeLabel(),
-          isStreaming: true,
-          streamStatusLabel: deepSkill ? "正在提交任务…" : undefined,
+      if (streamAssistantId) {
+        updateLiveMessage(sendConversationId, streamAssistantId, {
+          streamStatusLabel: deepSkill ? "正在提交任务…" : "正在生成…",
         });
       }
 

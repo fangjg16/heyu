@@ -5,6 +5,10 @@ import {
 } from "@/lib/agent-job-display";
 import type { LiveChatMessage } from "@/workspace/chat-types";
 import { isBlankAssistantPlaceholder } from "@/workspace/chat-message-order";
+import {
+  contentForStreamingPersist,
+  reviveStreamingMessages,
+} from "@/lib/chat-streaming-placeholder";
 import type { PersistedConversation } from "@/workspace/chat-persistence";
 import { AI_CHAT_ENDPOINT } from "@/lib/project-api";
 
@@ -130,7 +134,9 @@ export async function fetchRemoteChatState(
   };
   return {
     conversations: data.conversations ?? [],
-    messagesByConversation: data.messagesByConversation ?? {},
+    messagesByConversation: reviveStreamingMessages(
+      data.messagesByConversation ?? {},
+    ),
     syncedAt: data.syncedAt,
     projectIds: data.projectIds,
   };
@@ -267,8 +273,15 @@ function sanitizeMessagesForSync(
     out[convId] = (msgs ?? [])
       .filter((m) => !isBlankAssistantPlaceholder(m))
       .map(
-      ({ jobProgressLabel: _j, isStreaming: _s, streamStatusLabel: _l, ...rest }) => rest,
-    );
+        ({ jobProgressLabel: _j, isStreaming: _s, streamStatusLabel: _l, ...rest }) => ({
+          ...rest,
+          content: contentForStreamingPersist({
+            content: rest.content,
+            isStreaming: _s,
+            pendingJobId: rest.pendingJobId,
+          }),
+        }),
+      );
   }
   return out;
 }
