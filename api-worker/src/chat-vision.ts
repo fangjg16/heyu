@@ -1,18 +1,19 @@
 import type { AppDatabase } from "./app-database";
 import type { AppObjectStorage } from "./app-storage";
 import { documentAccessError, type DocumentRow } from "./documents-access";
-import {
-  copyOwnedBytes,
-  looksLikeOcrGaveUp,
-  looksLikeUnparsedPlaceholder,
-} from "./extract-document-text";
+import { copyOwnedBytes } from "./extract-document-text";
 import { isImageFileName, isPdfFileName } from "./file-mime";
 import type { LlmContentPart, LlmMessage } from "./llm-client";
 import { getProjectById } from "./projects-db";
 import { extractPdfPlainText } from "./pdf-text";
 import { encodePngRgba } from "./png-encode";
 import { uint8ToBase64 } from "./qwen-ocr";
-import { pdfExtractLooksSparse } from "./source-parse-route";
+import {
+  pdfExtractLooksSparse,
+  pdfShouldRasterizeForChat,
+  sourceParseBodyCharCount,
+  SOURCE_PARSE_PDF_VL_MAX_PAGES,
+} from "./source-parse-route";
 import { resolveProjectRole, roleCanViewAllSessionUploads } from "./workspace-roles";
 import { extractImages, getDocumentProxy } from "unpdf";
 
@@ -21,7 +22,7 @@ export const VL_IMAGE_RAW_MAX = 7 * 1024 * 1024;
 export const VL_IMAGE_COMPRESS_MAX_INPUT = 40 * 1024 * 1024;
 export const VL_PDF_RAW_MAX = 12 * 1024 * 1024;
 export const VL_MAX_IMAGES = 8;
-export const VL_MAX_PDF_PAGES = 8;
+export const VL_MAX_PDF_PAGES = SOURCE_PARSE_PDF_VL_MAX_PAGES;
 
 export type ChatVisionImage = {
   dataUrl: string;
@@ -205,6 +206,8 @@ async function canView(
   return !documentAccessError(row, userId, { viewAllSession });
 }
 
+export { pdfShouldRasterizeForChat };
+
 /** 文字层很稀：测绘图/扫描件常有少量矢量注记，不能因此跳过看图 */
 export function pdfTextLooksTooSparseForSkipVision(
   text: string,
@@ -321,18 +324,20 @@ export async function visionImagesFromFileBytes(opts: {
 
   if (!isPdfFileName(fileName, mime)) return [];
 
-  if (!opts.preferVision) {
-    const local = await extractPdfPlainText(
-      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+  const local = await extractPdfPlainText(
+    bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+    fileName,
+  );
+  if (
+    !pdfShouldRasterizeForChat({
       fileName,
-    );
-    const needVision =
-      !local.parsed ||
-      !local.text.trim() ||
-      looksLikeUnparsedPlaceholder(local.text) ||
-      looksLikeOcrGaveUp(local.text) ||
-      pdfTextLooksTooSparseForSkipVision(local.text, local.totalPages);
-    if (!needVision) return [];
+      mime,
+      pageCount: local.totalPages,
+      extractedCharCount: sourceParseBodyCharCount(local.text),
+      preferVision: opts.preferVision,
+    })
+  ) {
+    return [];
   }
 
   const raster = await rasterizePdfViaNodeHelper(opts.rasterEnv, {

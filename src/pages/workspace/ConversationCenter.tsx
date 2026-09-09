@@ -47,6 +47,7 @@ import {
   fetchProjectsFromApi,
   fetchProjectFiles,
   fetchStartupInterview,
+  collapseFilesByFilename,
   filterConversationSessionFiles,
   SESSION_UPLOAD_FOLDER,
   type ProjectFileRecord,
@@ -2069,8 +2070,8 @@ export default function ConversationCenter() {
 
   const conversationFileTreeItems = useMemo(() => {
     if (isLiveAiMode) {
-      return conversationFileRecords.map((f) => ({
-        key: f.id,
+      return collapseFilesByFilename(conversationFileRecords).map((f) => ({
+        key: f.filename,
         documentId: f.id,
         fileConversationId: f.conversationId ?? effectiveConversationId,
         name: f.filename,
@@ -2107,14 +2108,29 @@ export default function ConversationCenter() {
       setDeletingSessionFileId(documentId);
       setLiveError(null);
       try {
-        await deleteProjectFile(
-          projectId,
-          documentId,
-          userId,
-          AI_CHAT_ENDPOINT,
-          fileConversationId?.trim() || effectiveConversationId,
+        const copies = conversationFileRecords.filter((f) => f.filename === filename);
+        const targets =
+          copies.length > 0
+            ? copies
+            : [
+                {
+                  id: documentId,
+                  conversationId: fileConversationId ?? effectiveConversationId,
+                },
+              ];
+        for (const target of targets) {
+          await deleteProjectFile(
+            projectId,
+            target.id,
+            userId,
+            AI_CHAT_ENDPOINT,
+            (target.conversationId ?? fileConversationId)?.trim() ||
+              effectiveConversationId,
+          );
+        }
+        setConversationFileRecords((prev) =>
+          prev.filter((f) => f.filename !== filename),
         );
-        setConversationFileRecords((prev) => prev.filter((f) => f.id !== documentId));
         setConversations((prev) =>
           prev.map((c) =>
             c.id === effectiveConversationId
@@ -2129,7 +2145,13 @@ export default function ConversationCenter() {
         setDeletingSessionFileId(null);
       }
     },
-    [projectId, userId, effectiveConversationId, isLiveAiMode],
+    [
+      projectId,
+      userId,
+      effectiveConversationId,
+      isLiveAiMode,
+      conversationFileRecords,
+    ],
   );
 
   useEffect(() => {

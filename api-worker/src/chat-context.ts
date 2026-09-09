@@ -188,6 +188,14 @@ export async function prepareStandardChatContext(
   const namedUsable = namedChunks.filter(
     (c) => !isPlaceholderChunkText(c.text) && c.text.trim().length > 0,
   );
+  const prioritizeDocumentIdsResolved = namedFileTurn
+    ? [
+        ...new Set([
+          ...prioritizeDocumentIds,
+          ...namedChunks.map((c) => c.document_id).filter(Boolean),
+        ]),
+      ]
+    : prioritizeDocumentIds;
   let namedSummaries: Awaited<ReturnType<typeof loadNamedParseSummaries>> = [];
   if (namedFileTurn && namedUsable.length === 0) {
     namedSummaries = await loadNamedParseSummaries(
@@ -195,7 +203,7 @@ export async function prepareStandardChatContext(
       projectId,
       userId,
       params.conversationId,
-      prioritizeDocumentIds,
+      prioritizeDocumentIdsResolved,
       prioritizeFilenames,
     );
   }
@@ -259,7 +267,7 @@ export async function prepareStandardChatContext(
       : namedMaxChars,
     topK: overviewQuestion ? 24 : namedFileTurn ? 12 : 5,
     prioritizeFilenames,
-    prioritizeDocumentIds,
+    prioritizeDocumentIds: prioritizeDocumentIdsResolved,
   };
 
   let hits = await selectChunksForChatWithVectors(
@@ -284,7 +292,7 @@ export async function prepareStandardChatContext(
         maxChars: OVERVIEW_EXCERPT_MAX_CHARS,
         topK: 24,
         prioritizeFilenames,
-        prioritizeDocumentIds,
+        prioritizeDocumentIds: prioritizeDocumentIdsResolved,
       },
       queryEmbedding,
     );
@@ -293,7 +301,7 @@ export async function prepareStandardChatContext(
   if (namedFileTurn) {
     const namedHits = allChunks.filter((c) =>
       chunkMatchesNamedFile(c, {
-        ids: prioritizeDocumentIds,
+        ids: prioritizeDocumentIdsResolved,
         filenames: prioritizeFilenames,
       }),
     );
