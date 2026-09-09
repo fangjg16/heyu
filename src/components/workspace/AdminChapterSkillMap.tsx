@@ -44,7 +44,7 @@ export function AdminChapterSkillMap({
   if (!data.kinds.length) return null;
 
   return (
-    <div className="mt-4 space-y-4">
+    <div className="mt-3 space-y-4">
       {data.kinds.map((kind) => {
         const sections =
           data.sectionsByKind?.[kind.id] ??
@@ -123,8 +123,8 @@ export function AdminChapterSkillMap({
         );
       })}
       <p className="px-1 text-[10px] text-muted-foreground">
-        每种项目形态各自一张表。深色为主 skill，浅色为借用。点名称打开对应
-        Skill。
+        每种项目形态各自一张表。深色为主 skill，浅色为借用。点名称打开 Hermes
+        Skills 编辑。
       </p>
     </div>
   );

@@ -1,16 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
 import {
   Download,
   FileText,
   Folder,
   Loader2,
-  Pencil,
   Plus,
   RefreshCw,
   RotateCcw,
   Sparkles,
-  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -27,8 +26,7 @@ import {
   type AdminSkillRow,
   type AdminSkillsList,
 } from "@/lib/admin-skills-api";
-import { AdminChapterSkillMap } from "@/components/workspace/AdminChapterSkillMap";
-import { FALLBACK_CHAPTER_SKILL_MAP } from "@/lib/chapter-skill-map";
+import { AdminSkillPackTree } from "@/components/workspace/AdminSkillPackTree";
 import { SKILL_PACKS, skillPackForName } from "@/lib/skill-packs";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import {
@@ -70,19 +68,6 @@ function groupSkillFiles(
     groups.push({ dir, files: byDir.get(dir) ?? [] });
   }
   return groups;
-}
-
-function syncBadge(status: AdminSkillRow["syncStatus"]) {
-  if (status === "ok") {
-    return "border-emerald-200 bg-emerald-50 text-emerald-800";
-  }
-  if (status === "error") {
-    return "border-rose-200 bg-rose-50 text-rose-700";
-  }
-  if (status === "not_in_db") {
-    return "border-slate-300 bg-slate-50 text-slate-700";
-  }
-  return "border-amber-200 bg-amber-50 text-amber-800";
 }
 
 function syncLabel(status: AdminSkillRow["syncStatus"]) {
@@ -128,6 +113,8 @@ export function AdminSkillsSection() {
   const [syncConfirm, setSyncConfirm] = useState(false);
   const [restartConfirm, setRestartConfirm] = useState(false);
   const [restarting, setRestarting] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openedQuerySkill = useRef(false);
 
   useBodyScrollLock(
     Boolean(
@@ -160,6 +147,21 @@ export function AdminSkillsSection() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (openedQuerySkill.current) return;
+    const skill = (searchParams.get("skill") ?? "").trim();
+    if (!skill) return;
+    openedQuerySkill.current = true;
+    const file = (searchParams.get("file") ?? "").trim() || undefined;
+    void openEdit(skill, file);
+    const next = new URLSearchParams(searchParams);
+    next.delete("skill");
+    next.delete("file");
+    setSearchParams(next, { replace: true });
+    // 只处理进页时的 ?skill=
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- openEdit 每次渲染都会换
+  }, []);
 
   const onSyncAll = async () => {
     setSyncing(true);
@@ -218,14 +220,14 @@ export function AdminSkillsSection() {
     }
   };
 
-  const openEdit = async (name: string) => {
+  const openEdit = async (name: string, filePath?: string) => {
     setEditName(name);
     setEditTitle(name);
     setEditDescription("");
     setEditOriginalDescription("");
     setEditFiles([]);
     setEditDrafts({});
-    setEditActivePath("SKILL.md");
+    setEditActivePath(filePath || "SKILL.md");
     setEditMeta(null);
     setEditError(null);
     setEditLoading(true);
@@ -256,10 +258,13 @@ export function AdminSkillsSection() {
       setEditOriginalDescription(data.description);
       setEditFiles(files);
       setEditDrafts(drafts);
+      const preferred = (filePath ?? "").trim();
       setEditActivePath(
-        files.some((f) => f.path === "SKILL.md")
-          ? "SKILL.md"
-          : (files[0]?.path ?? "SKILL.md"),
+        preferred && files.some((f) => f.path === preferred)
+          ? preferred
+          : files.some((f) => f.path === "SKILL.md")
+            ? "SKILL.md"
+            : (files[0]?.path ?? "SKILL.md"),
       );
       setEditMeta(
         [
@@ -430,8 +435,8 @@ export function AdminSkillsSection() {
               Skills 管理
             </h2>
             <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-              网页知识网络按「项目类型 × 章节」选用 Skill。下表是当前映射，再下面是全部
-              Skill 文件。
+              按创业 / 财务投资 / 收购 / 平台共用展开我们写的 Skill。点 Skill
+              或里面的文件即可编辑。
             </p>
           </div>
         </div>
@@ -531,111 +536,16 @@ export function AdminSkillsSection() {
         <p className="mt-3 text-[11px] font-medium text-emerald-700">{hint}</p>
       ) : null}
 
-      <AdminChapterSkillMap
-        data={list?.chapterSkillMap ?? FALLBACK_CHAPTER_SKILL_MAP}
-        knownSkills={new Set(skills.map((s) => s.name))}
-        onOpenSkill={(name) => {
-          const el = document.getElementById(`admin-skill-${name}`);
-          el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-          void openEdit(name);
-        }}
-      />
-
       {!loading && skills.length > 0 ? (
-        <div className="mt-4 space-y-5">
-          {skillsByPack.map((group) => (
-            <div key={group.id}>
-              <p className="mb-2 text-[11px] font-semibold tracking-wide text-muted-foreground">
-                {group.label}
-                <span className="ml-1 font-mono text-[10px] font-normal">
-                  {group.id}
-                </span>
-              </p>
-              <ul className="space-y-2">
-                {group.skills.map((s) => (
-            <li
-              id={`admin-skill-${s.name}`}
-              key={s.name}
-              className="flex flex-col gap-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {s.title}
-                </p>
-                {s.description ? (
-                  <p className="mt-0.5 line-clamp-2 text-[12px] text-foreground/80">
-                    {s.description}
-                  </p>
-                ) : null}
-                <p className="truncate text-[11px] text-muted-foreground">
-                  {s.name}
-                  {s.inDatabase ? ` · ${s.fileCount} 文件` : " · 仅本地"}
-                  {s.onVolume && s.inDatabase ? " · 卷上有" : ""}
-                  {s.intents.length > 0
-                    ? ` · 路由：${s.intents.join(", ")}`
-                    : ""}
-                </p>
-                {s.filePaths.length > 0 ? (
-                  <p className="mt-0.5 line-clamp-2 font-mono text-[10px] leading-relaxed text-muted-foreground/85">
-                    {s.filePaths.join("  ·  ")}
-                  </p>
-                ) : null}
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
-                <span
-                  className={cn(
-                    "rounded-full border px-2 py-0.5 text-[10px] font-semibold",
-                    syncBadge(s.syncStatus),
-                  )}
-                  title={s.syncError ?? undefined}
-                >
-                  {syncLabel(s.syncStatus)}
-                </span>
-                {s.syncStatus === "error" ? (
-                  <button
-                    type="button"
-                    onClick={() => void onRetryOne(s.name)}
-                    className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-900 hover:bg-amber-100"
-                  >
-                    重试同步
-                  </button>
-                ) : null}
-                {s.syncStatus === "not_in_db" ? (
-                  <button
-                    type="button"
-                    onClick={() => void openEdit(s.name)}
-                    className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-800 hover:bg-slate-100"
-                  >
-                    入库并编辑
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => void openEdit(s.name)}
-                    className="inline-flex items-center gap-1 rounded-full border border-border/80 bg-white px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-muted/40"
-                  >
-                    <Pencil className="h-3 w-3" aria-hidden />
-                    编辑
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDeleteName(s.name);
-                    setDeleteError(null);
-                  }}
-                  className="inline-flex items-center gap-1 rounded-full border border-rose-200/80 bg-rose-50/70 px-2.5 py-1 text-[11px] font-medium text-rose-700 hover:bg-rose-50"
-                >
-                  <Trash2 className="h-3 w-3" aria-hidden />
-                  删除
-                </button>
-              </div>
-            </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+        <AdminSkillPackTree
+          skillsByPack={skillsByPack}
+          onEdit={(name, filePath) => void openEdit(name, filePath)}
+          onDelete={(name) => {
+            setDeleteName(name);
+            setDeleteError(null);
+          }}
+          onRetry={(name) => void onRetryOne(name)}
+        />
       ) : null}
 
       {!loading && !error && skills.length === 0 ? (
