@@ -11,6 +11,11 @@ import {
 import { AI_GENERATED_ROOT } from "./ai-generated-path";
 import type { SkillPackId } from "./skill-packs";
 
+export type DeliverableLegacyPath = {
+  readonly folder: string;
+  readonly filename: string;
+};
+
 export type DeliverableFile = {
   readonly id: string;
   readonly pack: Exclude<SkillPackId, "platform">;
@@ -20,6 +25,10 @@ export type DeliverableFile = {
   readonly skill: string;
   readonly knSectionIds: readonly string[];
   readonly phase: number;
+  /** 相对 skill 目录；有则网页写文件只喂这些说明书，不灌整份 SKILL.md */
+  readonly skillFiles?: readonly string[];
+  /** 旧资料包路径，渲染时若新路径还没有文件则回退 */
+  readonly legacy?: readonly DeliverableLegacyPath[];
 };
 
 function f(
@@ -31,8 +40,21 @@ function f(
   skill: string,
   knSectionIds: readonly string[],
   phase: number,
+  skillFiles?: readonly string[],
+  legacy?: readonly DeliverableLegacyPath[],
 ): DeliverableFile {
-  return { id, pack, folder, filename, title, skill, knSectionIds, phase };
+  return {
+    id,
+    pack,
+    folder,
+    filename,
+    title,
+    skill,
+    knSectionIds,
+    phase,
+    ...(skillFiles?.length ? { skillFiles } : {}),
+    ...(legacy?.length ? { legacy } : {}),
+  };
 }
 
 const EARLY: readonly DeliverableFile[] = [
@@ -63,21 +85,82 @@ const EARLY: readonly DeliverableFile[] = [
   f("action-plan-30-days", "startup", "07-next", "action-plan-30-days.md", "下一步行动", "startup-design", ["action-plan-30d"], 7),
 ];
 
+const HONESTY = "references/honesty-protocol.md";
+
+const INDUSTRY_KN = [
+  "industry-overview",
+  "industry-demand",
+  "industry-value-chain",
+  "industry-competition-structure",
+  "industry-outlook",
+] as const;
+
+const BUSINESS_KN = [
+  "business-overview",
+  "product-situation",
+  "technology-situation",
+  "commercial-model",
+  "core-competitiveness",
+  "company-team",
+] as const;
+
 const MATURE: readonly DeliverableFile[] = [
-  f("brief", "capitallens", "00-intake", "brief.md", "项目简报", "project-intake", ["project-summary"], 1),
-  f("theme", "capitallens", "00-intake", "theme.md", "投资主题", "classify-investment-theme", ["project-summary"], 1),
-  f("industry-due-diligence", "capitallens", "01-industry", "industry-due-diligence.md", "行业尽调", "industry-due-diligence", ["industry-competition"], 2),
-  f("business-due-diligence", "capitallens", "02-business", "business-due-diligence.md", "商业尽调", "business-due-diligence", ["business-technology"], 3),
-  f("background-check", "capitallens", "04-company", "background-check.md", "背景调查", "background-check", ["company-team"], 4),
-  f("compliance-check", "capitallens", "04-company", "compliance-check.md", "合规检查", "compliance-check", ["company-team"], 4),
-  f("financial-due-diligence", "capitallens", "03-financials", "financial-due-diligence.md", "财务尽调", "financial-due-diligence", ["financial-diligence"], 5),
-  f("returns", "capitallens", "05-decision", "returns.md", "回报测算", "returns-analysis", ["investment-structure-returns"], 6),
-  f("risk-matrix", "capitallens", "05-decision", "risk-matrix.md", "风险矩阵", "risk-matrix", ["investment-risks"], 7),
-  f("gaps", "capitallens", "05-decision", "gaps.md", "信息缺口", "gap-tracking", ["diligence-gaps"], 8),
-  f("dd-checklist", "capitallens", "05-decision", "dd-checklist.md", "尽调清单", "dd-checklist", ["diligence-gaps"], 8),
-  f("investment-analysis-report", "capitallens", "05-decision", "investment-analysis-report.md", "投资分析", "ic-memo", ["investment-conclusion"], 9),
-  f("value-creation-plan", "capitallens", "05-decision", "value-creation-plan.md", "增值方案", "value-creation-plan", ["investment-conclusion"], 9),
+  f("brief", "capitallens", "01-intake", "project-brief.md", "项目简报", "deal-screening", [], 1, ["references/project-intake.md", HONESTY], [{ folder: "00-intake", filename: "brief.md" }]),
+  f("theme", "capitallens", "01-intake", "theme-classification.md", "投资主题", "deal-screening", [], 1, ["references/theme-classification.md", "references/taxonomy.md", "references/decision-rules.md", HONESTY], [{ folder: "00-intake", filename: "theme.md" }]),
+  f("enrichment", "capitallens", "02-screening", "enrichment.md", "公开信息补充", "deal-screening", [], 1, ["references/enrichment.md", "references/research-principles.md", HONESTY]),
+  f("screening-memo", "capitallens", "02-screening", "screening-memo.md", "筛选备忘录", "deal-screening", [], 1, ["references/screening-memo.md", "references/scoring.md", "references/open-questions.md", HONESTY]),
+  f("industry-due-diligence", "capitallens", "03-diligence", "industry-diligence.md", "行业尽调", "due-diligence", INDUSTRY_KN, 2, ["references/dd-industry.md", HONESTY], [{ folder: "01-industry", filename: "industry-due-diligence.md" }]),
+  f("business-due-diligence", "capitallens", "03-diligence", "business-diligence.md", "商业尽调", "due-diligence", BUSINESS_KN, 3, ["references/dd-business.md", HONESTY], [{ folder: "02-business", filename: "business-due-diligence.md" }]),
+  f("background-check", "capitallens", "03-diligence", "background-check.md", "背景调查", "due-diligence", ["company-background"], 4, ["references/dd-background-check.md", HONESTY], [{ folder: "04-company", filename: "background-check.md" }]),
+  f("compliance-check", "capitallens", "03-diligence", "legal-screening.md", "合规筛查", "due-diligence", [], 4, ["references/dd-legal.md", HONESTY], [{ folder: "04-company", filename: "compliance-check.md" }]),
+  f("financial-due-diligence", "capitallens", "03-diligence", "financial-diligence.md", "财务尽调", "due-diligence", ["financial-diligence"], 5, ["references/dd-financial.md", HONESTY], [{ folder: "03-financials", filename: "financial-due-diligence.md" }]),
+  f("returns", "capitallens", "04-underwriting", "valuation-and-returns.md", "回报测算", "due-diligence", ["investment-structure-returns"], 6, ["references/returns-analysis.md", HONESTY], [{ folder: "05-decision", filename: "returns.md" }]),
+  f("risk-matrix", "capitallens", "05-decision", "investment-risks.md", "投资风险", "due-diligence", [], 7, ["references/risk-matrix.md", HONESTY], [{ folder: "05-decision", filename: "risk-matrix.md" }]),
+  f("gaps", "capitallens", "03-diligence", "diligence-request-list.md", "尽调请求", "due-diligence", ["diligence-gaps"], 8, ["references/dd-checklist.md", "references/dd-principles.md", HONESTY], [{ folder: "05-decision", filename: "gaps.md" }]),
+  f("dd-checklist", "capitallens", "03-diligence", "diligence-readiness.md", "尽调就绪", "due-diligence", [], 8, ["references/dd-principles.md", "references/dd-checklist.md", HONESTY], [{ folder: "05-decision", filename: "dd-checklist.md" }]),
+  f("claim-audit", "capitallens", "03-diligence", "claim-audit.md", "声明审计", "due-diligence", ["assumption-validation"], 8, ["references/dd-claim-audit.md", HONESTY]),
+  f("investment-analysis-report", "capitallens", "05-decision", "investment-analysis-report.md", "投资分析", "due-diligence", [], 9, ["references/dd-synthesis.md", HONESTY]),
+  f("source-register", "capitallens", "02-evidence", "source-register.md", "引用来源", "due-diligence", [], 9, ["references/shared/source-grading.md", "references/shared/evidence-contract.md", HONESTY]),
 ];
+
+/** 一份尽调文件切到多个二级 tab 时，按标题抽取。 */
+export const MATURE_KN_HEADING_SLICES: Readonly<
+  Record<string, Readonly<Record<string, readonly string[]>>>
+> = {
+  "industry-due-diligence": {
+    "industry-overview": [
+      "行业定义与坐标",
+      "市场现状、规模与增长",
+      "发展历程与关键拐点",
+    ],
+    "industry-demand": [
+      "行业逻辑与需求形成",
+      "渗透、驱动因素与约束",
+      "驱动因素与约束",
+    ],
+    "industry-value-chain": ["价值链与利润池"],
+    "industry-competition-structure": ["竞争结构与参与者"],
+    "industry-outlook": ["趋势、技术与监管"],
+  },
+  "business-due-diligence": {
+    "business-overview": ["真实业务与边界", "业务演进与战略一致性", "业务概览"],
+    "product-situation": ["产品情况", "产品定义", "产品与技术"],
+    "technology-situation": ["技术情况", "技术原理", "研发与知识产权"],
+    "commercial-model": ["商业模式与交易闭环", "商业模式"],
+    "core-competitiveness": ["核心能力与竞争力归因", "核心竞争力"],
+    "company-team": ["运营、组织与关键依赖", "公司与团队", "公司基本信息"],
+  },
+};
+
+export function headingSlicesForDeliverable(
+  file: DeliverableFile,
+  sectionId: string,
+): readonly string[] | null {
+  const map = MATURE_KN_HEADING_SLICES[file.id];
+  if (!map) return null;
+  const titles = map[sectionId];
+  return titles?.length ? titles : null;
+}
 
 const ACQUIRE: readonly DeliverableFile[] = [
   f("intake", "buy-to-build", "00-intake", "intake.md", "收购立项", "acquisition-intake", ["decision-object"], 1),

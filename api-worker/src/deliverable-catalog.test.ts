@@ -9,6 +9,7 @@ import {
   isDeliverableDraftHtml,
   orderDeliverableDraftIds,
   unpublishedGenerateItemIds,
+  headingSlicesForDeliverable,
 } from "./deliverable-catalog";
 import { deliverableDraftId, fullDraftSectionIds } from "./kn-catalog";
 import { skillPackForName } from "./skill-packs";
@@ -23,7 +24,14 @@ describe("deliverable-catalog", () => {
       expect(new Set(paths).size).toBe(paths.length);
       expect(files.every((d) => d.filename.endsWith(".md"))).toBe(true);
       for (const d of files) {
-        expect(skillPackForName(d.skill)).not.toBe("platform");
+        const pack = skillPackForName(d.skill);
+        if (
+          kind === "acquire" &&
+          ["risk-matrix", "gap-tracking", "dd-claim-audit"].includes(d.skill)
+        ) {
+          continue;
+        }
+        expect(pack).not.toBe("platform");
       }
     }
   });
@@ -40,6 +48,21 @@ describe("deliverable-catalog", () => {
     expect(idx("scorecard")).toBeLessThan(idx("readme"));
     expect(early.at(-1)?.id).toBe("action-plan-30-days");
     expect(early.some((d) => d.id === "brand")).toBe(false);
+  });
+
+  it("uses CapitalLens v3.2 folders and the two workstream skills", () => {
+    const mature = deliverablesForKind("mature");
+    expect(mature.find((d) => d.id === "brief")?.filename).toBe(
+      "project-brief.md",
+    );
+    expect(mature.find((d) => d.id === "brief")?.folder).toBe("01-intake");
+    expect(mature.some((d) => d.id === "screening-memo")).toBe(true);
+    expect(mature.some((d) => d.id === "value-creation-plan")).toBe(false);
+    expect(
+      mature.every((d) =>
+        ["deal-screening", "due-diligence"].includes(d.skill),
+      ),
+    ).toBe(true);
   });
 
   it("puts file items before knowledge chapters, and overview last, on a full run", () => {
@@ -74,11 +97,30 @@ describe("deliverable-catalog", () => {
     expect(
       deliverablesForKnSection("early", "lean-business-model").map((d) => d.id),
     ).toEqual(["lean-canvas", "business-model"]);
+    expect(draftGenerateItemIds("mature", "section", "project-summary")).toEqual(
+      ["project-summary"],
+    );
     expect(draftGenerateItemIds("mature", "section", "company-team")).toEqual([
-      deliverableDraftId("background-check"),
-      deliverableDraftId("compliance-check"),
+      deliverableDraftId("business-due-diligence"),
       "company-team",
     ]);
+    expect(
+      draftGenerateItemIds("mature", "section", "company-background"),
+    ).toEqual([deliverableDraftId("background-check"), "company-background"]);
+    expect(
+      headingSlicesForDeliverable(
+        deliverablesForKind("mature").find((d) => d.id === "industry-due-diligence")!,
+        "industry-overview",
+      ),
+    ).toEqual([
+      "行业定义与坐标",
+      "市场现状、规模与增长",
+      "发展历程与关键拐点",
+    ]);
+    expect(deliverablesForKnSection("mature", "sources")).toEqual([]);
+    expect(deliverablesForKind("mature").some((d) => d.id === "source-register")).toBe(
+      true,
+    );
   });
 
   it("adds earlier-phase files as context predecessors", () => {

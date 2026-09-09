@@ -1302,6 +1302,11 @@ export function ProjectKnowledgeNetworkSection({
             <div className="flex items-center gap-1 overflow-x-auto border-b border-[rgba(78,66,57,0.1)] px-3.5 py-2.5">
               {chapterGroups.map((g) => {
                 const active = g.id === activeGroup.id;
+                const gBusy = g.sections.some(
+                  (s) =>
+                    busyBySection[s.id] ??
+                    (updatingChapterIds.includes(s.id) ? "generate" : null),
+                );
                 return (
                   <button
                     key={g.id}
@@ -1315,10 +1320,16 @@ export function ProjectKnowledgeNetworkSection({
                     )}
                   >
                     {g.label}
+                    {gBusy ? (
+                      <span className="ml-1 text-[11px] font-normal text-[#969E9A]">
+                        ·更新中
+                      </span>
+                    ) : null}
                   </button>
                 );
               })}
             </div>
+            {activeGroup.sections.length > 1 ? (
             <div className="flex items-center gap-0.5 overflow-x-auto border-b border-[rgba(78,66,57,0.08)] px-[18px]">
               {activeGroup.sections.map((s) => {
                 const active = s.id === sectionId;
@@ -1347,6 +1358,7 @@ export function ProjectKnowledgeNetworkSection({
                 );
               })}
             </div>
+            ) : null}
               </>
             )}
 

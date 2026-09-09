@@ -61,6 +61,15 @@ describe("due-diligence chat intents", () => {
     expect(detectSkillIntent("帮我做个尽调", "acquire")).toBe(
       "acquisition_intake",
     );
+    expect(detectSkillIntent("看下这个项目", "mature")).toBe("deal_screening");
+    expect(detectSkillIntent("做一份商业尽调", "mature")).toBe(
+      "due_diligence",
+    );
+  });
+
+  it("routes deal screening phrasing before generic intake", () => {
+    expect(detectSkillIntent("这个项目值不值得投资")).toBe("deal_screening");
+    expect(detectSkillIntent("写一份尽调报告")).toBe("due_diligence");
   });
 
   it("routes 创业风险清单 to startup-design, not capitallens risk-matrix", () => {

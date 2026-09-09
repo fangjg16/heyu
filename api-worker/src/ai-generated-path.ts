@@ -19,6 +19,14 @@ const INTENT_FOLDER: Record<string, { folder: string; filename: string }> = {
   startup_positioning: { folder: "02-strategy", filename: "positioning.md" },
   startup_pitch: { folder: "04-product", filename: "pitch.md" },
   project_intake: { folder: "00-intake", filename: "brief.md" },
+  deal_screening: {
+    folder: "01-intake",
+    filename: "project-brief.md",
+  },
+  due_diligence: {
+    folder: "05-decision",
+    filename: "investment-analysis-report.md",
+  },
   classify_investment_theme: {
     folder: "00-intake",
     filename: "theme.md",

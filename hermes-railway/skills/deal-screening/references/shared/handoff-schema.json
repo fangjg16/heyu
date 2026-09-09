@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Heyu Opportunistic Investment Handoff",
+  "type": "object",
+  "required": ["contractVersion", "projectId", "runId", "plugin", "fromSkill", "status"],
+  "properties": {
+    "contractVersion": {"const": "1.0.0"},
+    "projectId": {"type": "string", "minLength": 1},
+    "underlyingProjectId": {"type": "string", "minLength": 1},
+    "analysisId": {"type": "string", "minLength": 1},
+    "runId": {"type": "string", "minLength": 1},
+    "plugin": {"enum": ["startup", "capitallens"]},
+    "fromSkill": {"type": "string", "minLength": 1},
+    "workstream": {"type": "string"},
+    "status": {"enum": ["completed", "partial", "deferred", "blocked", "invalidated"]},
+    "inputsUsed": {"type": "array", "items": {"type": "string"}},
+    "claims": {"type": "array", "items": {"type": "object"}},
+    "pluginAssessments": {
+      "type": "object",
+      "propertyNames": {"enum": ["startup", "capitallens"]},
+      "additionalProperties": {"type": "object"}
+    },
+    "sources": {"type": "array", "items": {"type": "object"}},
+    "evidenceRequests": {"type": "array", "items": {"type": "object"}},
+    "assumptions": {"type": "array", "items": {"type": "object"}},
+    "risks": {"type": "array", "items": {"type": "object"}},
+    "openQuestions": {"type": "array", "items": {"type": "object"}},
+    "decisionsRequired": {"type": "array", "items": {"type": "object"}},
+    "artifactsCreated": {"type": "array", "items": {"type": "string"}},
+    "invalidates": {"type": "array", "items": {"type": "string"}},
+    "statePatch": {"type": "object"},
+    "completionCheck": {
+      "type": "object",
+      "properties": {
+        "passed": {"type": "boolean"},
+        "missing": {"type": "array", "items": {"type": "string"}}
+      },
+      "required": ["passed", "missing"]
+    }
+  },
+  "additionalProperties": false
+}

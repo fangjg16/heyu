@@ -196,6 +196,8 @@ function taskReadingGuidance(
     intent === "startup_positioning" ||
     intent === "startup_pitch" ||
     intent === "classify_investment_theme" ||
+    intent === "deal_screening" ||
+    intent === "due_diligence" ||
     intent === "compliance_check" ||
     intent === "dd_claim_audit" ||
     intent === "background_check"

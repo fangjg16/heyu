@@ -67,27 +67,42 @@ describe("kn-catalog", () => {
     expect(fullDraftSectionIds("acquire").at(-1)).toBe("project-overview");
   });
 
-  it("shows 结论 first in the mature catalog but generates it after other research chapters", () => {
+  it("uses a mixed one-/two-level catalog for mature CapitalLens", () => {
     expect(researchSectionsForKind("mature").map((s) => s.id)).toEqual([
-      "investment-conclusion",
       "project-summary",
-      "industry-competition",
-      "business-technology",
+      "industry-overview",
+      "industry-demand",
+      "industry-value-chain",
+      "industry-competition-structure",
+      "industry-outlook",
+      "business-overview",
+      "product-situation",
+      "technology-situation",
+      "commercial-model",
+      "core-competitiveness",
       "company-team",
+      "company-background",
       "financial-diligence",
       "investment-structure-returns",
-      "investment-risks",
+      "assumption-validation",
       "diligence-gaps",
     ]);
     const mature = fullDraftSectionIds("mature");
-    expect(mature.at(-2)).toBe("investment-conclusion");
-    expect(mature.indexOf("project-summary")).toBeLessThan(
-      mature.indexOf("investment-conclusion"),
-    );
+    expect(mature.at(-1)).toBe("project-overview");
+    expect(mature.at(-2)).toBe("diligence-gaps");
+    expect(mature).toContain("industry-overview");
+    expect(mature).not.toContain("investment-conclusion");
+    expect(mature).not.toContain("industry-competition");
   });
 
   it("labels deliverable draft items with the file title, not a path", () => {
     expect(sectionLabel(deliverableDraftId("market-analysis"))).toBe("市场分析");
     expect(sectionLabel(deliverableDraftId("readme"))).toBe("执行摘要");
+    expect(sectionLabel(deliverableDraftId("source-register"))).toBe("引用来源");
+    expect(sectionLabel("financial-diligence", "mature")).toBe("财务分析");
+    expect(sectionLabel("investment-structure-returns", "mature")).toBe(
+      "估值与回报",
+    );
+    expect(sectionLabel("assumption-validation", "mature")).toBe("假设验证");
   });
 });

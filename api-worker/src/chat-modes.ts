@@ -32,6 +32,9 @@ export type SkillIntent =
   | "startup_competitors"
   | "startup_positioning"
   | "startup_pitch"
+  | "deal_screening"
+  | "due_diligence"
+  | "capital_lens"
   | "classify_investment_theme"
   | "compliance_check"
   | "dd_checklist"
@@ -113,6 +116,14 @@ const INTENT_RULES: IntentRule[] = [
     re: /创业设计|早期项目设计|startup\s*design|早期验证/iu,
   },
   {
+    intent: "deal_screening",
+    re: /deal[-\s]?screening|项目筛选|机会筛选|初筛|值不值得投资|值不值得尽调|能不能投|筛一下这个|入口筛选/iu,
+  },
+  {
+    intent: "due_diligence",
+    re: /正式尽调|尽调报告|投资分析报告|diligence\s*readiness/iu,
+  },
+  {
     intent: "classify_investment_theme",
     re: /投资主题|主题分类|属于什么赛道|什么行业主题|classify[-\s]?investment[-\s]?theme/iu,
   },
@@ -180,11 +191,37 @@ function remapIntentForKind(
     if (intent === "project_intake") return "startup_design";
     if (intent === "industry_due_diligence") return "startup_competitors";
     if (intent === "ic_memo") return "startup_pitch";
+    if (intent === "deal_screening" || intent === "due_diligence") {
+      return "startup_design";
+    }
   }
   if (kind === "acquire") {
     if (intent === "project_intake") return "acquisition_intake";
     if (intent === "business_due_diligence") return "acquisition_due_diligence";
     if (intent === "ic_memo") return "acquisition_gate";
+    if (intent === "deal_screening") return "target_screening";
+    if (intent === "due_diligence") return "acquisition_due_diligence";
+  }
+  if (kind === "mature") {
+    if (intent === "project_intake" || intent === "classify_investment_theme") {
+      return "deal_screening";
+    }
+    if (
+      intent === "business_due_diligence" ||
+      intent === "industry_due_diligence" ||
+      intent === "financial_due_diligence" ||
+      intent === "background_check" ||
+      intent === "compliance_check" ||
+      intent === "returns_analysis" ||
+      intent === "risk_matrix" ||
+      intent === "ic_memo" ||
+      intent === "dd_checklist" ||
+      intent === "dd_claim_audit" ||
+      intent === "gap_tracking" ||
+      intent === "value_creation_plan"
+    ) {
+      return "due_diligence";
+    }
   }
   return intent;
 }
@@ -349,6 +386,19 @@ const SKILL_PROMPTS: Record<Exclude<SkillIntent, "standard">, string[]> = {
   ],
   startup_pitch: [
     "【路演材料】按已有资料整理融资叙述。缺证据就标缺口，不要编增长曲线。",
+  ],
+  deal_screening: [
+    "【投资筛选】这是财务投资看新项目的默认第一步。根据描述或 BP 做主题坐标、公开信息补充、分维评分、开放问题和筛选备忘录。",
+    "给出 Exciting / Promising / Watch / Pass 建议。不要写估值、IRR、尽调报告或投委会材料。不要按家办偏好打分。",
+    "筛选稿由分析师起草；是否进入尽调由投资团队决定，不要自行把项目标成已尽调或已投资。",
+  ],
+  due_diligence: [
+    "【正式尽调】在筛选之后写尽调和投委会材料。按业务 / 背景 / 财务 / 行业 / 合规筛查取证，再做声明审计、交叉核对、回报和投资风险，汇总成一份九域投资分析报告。",
+    "背景调查是尽调里的一环，不是单独技能。正式闸门是 Diligence Readiness。缺证据写待补，禁止编造。",
+    "不要产出 HTML 知识网络；网页知识网络由项目页生成。",
+  ],
+  capital_lens: [
+    "【投资分流】只判断下一步是筛选还是尽调，不要在这里写分析稿。新项目或「帮我看看」默认走筛选；明确要求尽调、估值或投委会时走尽调。",
   ],
   classify_investment_theme: [
     "【投资主题分类】按经济实质归入一级主题和二级赛道白名单。名称不足或跨界时说明置信度，不得为了给标签而强行归类。",

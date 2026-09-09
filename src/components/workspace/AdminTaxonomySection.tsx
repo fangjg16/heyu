@@ -8,7 +8,7 @@ import {
 } from "@/lib/admin-skills-api";
 import { parseTaxonomyMarkdown } from "@/workspace/parse-taxonomy-markdown";
 
-const SKILL_NAME = "classify-investment-theme";
+const SKILL_NAME = "deal-screening";
 const TAXONOMY_PATH = "references/taxonomy.md";
 
 export function AdminTaxonomySection() {
@@ -96,7 +96,7 @@ export function AdminTaxonomySection() {
         <div>
           <h2 className="text-base font-semibold text-foreground">行业分类白名单</h2>
           <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
-            编辑 <code className="text-[12px]">classify-investment-theme/references/taxonomy.md</code>
+            编辑 <code className="text-[12px]">deal-screening/references/taxonomy.md</code>
             。项目创建/编辑的一二级下拉会读取这份文件；也可在表单里手动输入白名单之外的分类。
           </p>
           {meta ? (

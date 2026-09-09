@@ -9,6 +9,9 @@ export const INTENT_TO_SKILL: Record<
   // 仅网页知识网络任务；对话检测到该意图会直接引导去项目页，不 invoke
   knowledge_network: "opportunistic-investments-hermes",
   ic_memo: "ic-memo",
+  deal_screening: "deal-screening",
+  due_diligence: "due-diligence",
+  capital_lens: "capital-lens",
   business_due_diligence: "business-due-diligence",
   industry_due_diligence: "industry-due-diligence",
   financial_due_diligence: "financial-due-diligence",

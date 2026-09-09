@@ -67,17 +67,9 @@ describe("chapter-version", () => {
     };
     expect(researchChaptersComplete(html)).toBe(false);
     expect(researchChaptersComplete(html, "mature")).toBe(false);
-    const full = {
-      "project-summary": "<p>a</p>",
-      "industry-competition": "<p>a</p>",
-      "business-technology": "<p>a</p>",
-      "company-team": "<p>a</p>",
-      "financial-diligence": "<p>a</p>",
-      "investment-structure-returns": "<p>a</p>",
-      "investment-risks": "<p>a</p>",
-      "diligence-gaps": "<p>a</p>",
-      "investment-conclusion": "<p>a</p>",
-    };
+    const full = Object.fromEntries(
+      researchSectionIdsForKind("mature").map((id) => [id, "<p>a</p>"]),
+    );
     expect(researchChaptersComplete(full, "mature")).toBe(true);
     expect(researchChaptersComplete(full, "early")).toBe(false);
     const early = Object.fromEntries(
@@ -98,7 +90,8 @@ describe("chapter-version", () => {
     expect(isResearchChapterId("market-analysis")).toBe(true);
     expect(isResearchChapterId("exec-summary")).toBe(true);
     expect(isResearchChapterId("exec-verdict")).toBe(true);
-    expect(isResearchChapterId("investment-conclusion")).toBe(true);
+    expect(isResearchChapterId("industry-overview")).toBe(true);
+    expect(isResearchChapterId("assumption-validation")).toBe(true);
     expect(isResearchChapterId("glossary")).toBe(false);
     expect(isResearchChapterId("project-overview")).toBe(false);
   });

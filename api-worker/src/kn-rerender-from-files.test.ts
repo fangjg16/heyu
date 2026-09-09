@@ -16,9 +16,14 @@ describe("rerender knowledge chapters from files", () => {
   it("covers mature research chapters that render from files", () => {
     const ids = knSectionsToRerenderFromFiles("mature");
     expect(ids).not.toContain("project-overview");
-    expect(ids).toContain("project-summary");
-    expect(ids).toContain("industry-competition");
-    expect(ids).toContain("investment-conclusion");
+    expect(ids).not.toContain("project-summary");
+    expect(ids).toContain("industry-overview");
+    expect(ids).toContain("company-background");
+    expect(ids).toContain("assumption-validation");
+    expect(ids).toContain("diligence-gaps");
+    expect(ids).not.toContain("industry-competition");
+    expect(ids).not.toContain("investment-conclusion");
+    expect(ids).not.toContain("sources");
   });
 
   it("returns enough research chapters to rebuild a draft from files", () => {

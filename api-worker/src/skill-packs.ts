@@ -1,6 +1,7 @@
 /**
  * 后台 Skills 四组：startup / capitallens / buy-to-build / 平台共用。
  * 与 src/lib/skill-packs.ts 保持一致。
+ * CapitalLens v3.2：财务投资包只含分流 + 筛选 + 尽调；旧拆分 skill 仍留在磁盘供收购章借用。
  */
 
 export const SKILL_PACKS = [
@@ -20,20 +21,9 @@ const STARTUP = [
 ] as const;
 
 const CAPITALENS = [
-  "project-intake",
-  "classify-investment-theme",
-  "industry-due-diligence",
-  "business-due-diligence",
-  "financial-due-diligence",
-  "background-check",
-  "compliance-check",
-  "returns-analysis",
-  "risk-matrix",
-  "ic-memo",
-  "value-creation-plan",
-  "gap-tracking",
-  "dd-checklist",
-  "dd-claim-audit",
+  "capital-lens",
+  "deal-screening",
+  "due-diligence",
 ] as const;
 
 const BUY_TO_BUILD = [

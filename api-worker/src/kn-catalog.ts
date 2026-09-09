@@ -17,23 +17,61 @@ const OVERVIEW: KnCatalogSection = {
   label: "项目概览",
 };
 
-const MATURE_SECTIONS: readonly KnCatalogSection[] = [
-  { id: "investment-conclusion", label: "结论" },
-  { id: "project-summary", label: "项目概况" },
-  { id: "industry-competition", label: "行业与竞争" },
-  { id: "business-technology", label: "业务与技术" },
-  { id: "company-team", label: "公司与团队" },
-  { id: "financial-diligence", label: "财务研究" },
-  { id: "investment-structure-returns", label: "投资方案与收益预测" },
-  { id: "investment-risks", label: "投资风险" },
-  { id: "diligence-gaps", label: "待解决问题" },
+const MATURE_GROUPS: readonly KnCatalogGroup[] = [
+  {
+    id: "project-summary",
+    label: "项目概况",
+    sections: [{ id: "project-summary", label: "项目概况" }],
+  },
+  {
+    id: "industry-competition",
+    label: "行业与竞争",
+    sections: [
+      { id: "industry-overview", label: "行业概况" },
+      { id: "industry-demand", label: "市场需求" },
+      { id: "industry-value-chain", label: "产业链" },
+      { id: "industry-competition-structure", label: "竞争结构" },
+      { id: "industry-outlook", label: "发展趋势" },
+    ],
+  },
+  {
+    id: "business-technology",
+    label: "业务与技术",
+    sections: [
+      { id: "business-overview", label: "业务概览" },
+      { id: "product-situation", label: "产品情况" },
+      { id: "technology-situation", label: "技术情况" },
+      { id: "commercial-model", label: "商业模式" },
+      { id: "core-competitiveness", label: "核心竞争力" },
+    ],
+  },
+  {
+    id: "company-team",
+    label: "公司与团队",
+    sections: [
+      { id: "company-team", label: "公司基本信息" },
+      { id: "company-background", label: "背景调查" },
+    ],
+  },
+  {
+    id: "financial-diligence",
+    label: "财务分析",
+    sections: [{ id: "financial-diligence", label: "财务分析" }],
+  },
+  {
+    id: "risk-return",
+    label: "风险与回报",
+    sections: [
+      { id: "investment-structure-returns", label: "估值与回报" },
+      { id: "assumption-validation", label: "假设验证" },
+    ],
+  },
+  {
+    id: "diligence-gaps",
+    label: "待解决问题",
+    sections: [{ id: "diligence-gaps", label: "待解决问题" }],
+  },
 ];
-
-const MATURE_GROUPS: readonly KnCatalogGroup[] = MATURE_SECTIONS.map((s) => ({
-  id: s.id,
-  label: s.label,
-  sections: [s],
-}));
 
 const ACQUIRE_GROUPS: readonly KnCatalogGroup[] = [
   {
@@ -159,6 +197,10 @@ export const LEGACY_RESEARCH_SECTION_IDS = [
   "financials",
   "validation",
   "brand",
+  "industry-competition",
+  "business-technology",
+  "investment-risks",
+  "investment-conclusion",
 ] as const;
 
 export const META_SECTION_IDS = [
@@ -186,15 +228,11 @@ export function researchSectionIdsForKind(
   return researchSectionsForKind(kind).map((s) => s.id);
 }
 
-/** 「更新全部」：研究章 + 最后生成项目概览。投资形态的结论放在研究章之后、概览之前生成。 */
+/** 「更新全部」：研究章 + 最后生成项目概览。 */
 export function fullDraftSectionIds(
   kind: AnalysisKind = DEFAULT_ANALYSIS_KIND,
 ): string[] {
   const ids = researchSectionIdsForKind(kind);
-  if (kind === "mature") {
-    const rest = ids.filter((id) => id !== "investment-conclusion");
-    return [...rest, "investment-conclusion", OVERVIEW.id];
-  }
   if (kind === "early") {
     const rest = ids.filter(
       (id) => id !== "exec-summary" && id !== "project-scorecard",
@@ -284,16 +322,19 @@ const DELIVERABLE_FILE_LABELS: Record<string, string> = {
   "action-plan-30-days": "行动",
   brief: "项目简报",
   theme: "投资主题",
+  enrichment: "公开信息补充",
+  "screening-memo": "筛选备忘录",
   "industry-due-diligence": "行业尽调",
   "business-due-diligence": "商业尽调",
   "background-check": "背景调查",
-  "compliance-check": "合规检查",
+  "compliance-check": "合规筛查",
   "financial-due-diligence": "财务尽调",
   returns: "回报测算",
-  "risk-matrix": "风险矩阵",
-  gaps: "信息缺口",
-  "dd-checklist": "尽调清单",
+  "risk-matrix": "投资风险",
+  gaps: "尽调请求",
+  "dd-checklist": "尽调就绪",
   "investment-analysis-report": "投资分析",
+  "source-register": "引用来源",
   "value-creation-plan": "增值方案",
   intake: "收购立项",
   screening: "标的筛选",

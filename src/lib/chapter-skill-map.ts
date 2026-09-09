@@ -6,32 +6,35 @@ type Spec = ChapterSkillSpecDto;
 
 const EMPTY: Spec = { primary: [], borrow: [] };
 
+const DUE: Spec = { primary: ["due-diligence"], borrow: [] };
+const DUE_INDUSTRY: Spec = {
+  primary: ["due-diligence"],
+  borrow: ["startup-competitors"],
+};
+
 const MATURE: Record<string, Spec> = {
-  "project-overview": { primary: ["project-intake"], borrow: [] },
-  "project-summary": {
-    primary: ["project-intake"],
-    borrow: ["classify-investment-theme"],
-  },
-  "industry-competition": {
-    primary: ["industry-due-diligence"],
-    borrow: ["startup-competitors"],
-  },
-  "business-technology": { primary: ["business-due-diligence"], borrow: [] },
-  "company-team": {
-    primary: ["background-check"],
-    borrow: ["compliance-check"],
-  },
-  "financial-diligence": { primary: ["financial-due-diligence"], borrow: [] },
-  "investment-structure-returns": {
-    primary: ["returns-analysis"],
-    borrow: ["financial-due-diligence"],
-  },
-  "investment-risks": { primary: ["risk-matrix"], borrow: [] },
-  "diligence-gaps": { primary: ["gap-tracking"], borrow: ["dd-checklist"] },
-  "investment-conclusion": {
-    primary: ["ic-memo"],
-    borrow: ["value-creation-plan"],
-  },
+  "project-overview": { primary: ["deal-screening"], borrow: [] },
+  "project-summary": { primary: ["deal-screening"], borrow: [] },
+  "industry-overview": DUE_INDUSTRY,
+  "industry-demand": DUE_INDUSTRY,
+  "industry-value-chain": DUE_INDUSTRY,
+  "industry-competition-structure": DUE_INDUSTRY,
+  "industry-outlook": DUE_INDUSTRY,
+  "business-overview": DUE,
+  "product-situation": DUE,
+  "technology-situation": DUE,
+  "commercial-model": DUE,
+  "core-competitiveness": DUE,
+  "company-team": DUE,
+  "company-background": DUE,
+  "financial-diligence": DUE,
+  "investment-structure-returns": DUE,
+  "assumption-validation": DUE,
+  "diligence-gaps": DUE,
+  "industry-competition": DUE_INDUSTRY,
+  "business-technology": DUE,
+  "investment-risks": DUE,
+  "investment-conclusion": DUE,
 };
 
 const ACQUIRE: Record<string, Spec> = {

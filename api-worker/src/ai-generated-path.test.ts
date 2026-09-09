@@ -4,11 +4,17 @@ import { pickCurrentDocuments } from "./document-versions";
 
 describe("ai-generated-path", () => {
   it("puts IC memo on the capitallens decision path", () => {
-    expect(aiGeneratedPathForIntent("ic_memo")).toEqual({
+    expect(aiGeneratedPathForIntent("due_diligence")).toEqual({
       pack: "capitallens",
       folder: "05-decision",
       filename: "investment-analysis-report.md",
       relativePath: "AI生成/capitallens/05-decision",
+    });
+    expect(aiGeneratedPathForIntent("deal_screening")).toEqual({
+      pack: "capitallens",
+      folder: "01-intake",
+      filename: "project-brief.md",
+      relativePath: "AI生成/capitallens/01-intake",
     });
   });
 

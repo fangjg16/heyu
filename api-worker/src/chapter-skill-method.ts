@@ -2,6 +2,7 @@ import type { AppDatabase } from "./app-database";
 import type { AnalysisKind } from "./analysis-kind";
 import { DEFAULT_ANALYSIS_KIND } from "./analysis-kind";
 import {
+  CHAPTER_SKILL_REF_FILES,
   SKILL_REFERENCE_FILES,
   skillsForChapter,
 } from "./chapter-skill-map";
@@ -86,7 +87,7 @@ export function condenseSkillMarkdown(raw: string): string {
   t = t.replace(/---KB-HANDOFF---[\s\S]*?---END-HANDOFF---/gu, "");
   t = t.replace(/^> \*\*v2\.\d[\s\S]*?(?=\n## |\n# |\n*$)/mu, "");
   t = t.replace(
-    /Read `?\.\.\/\.\.\/references\/[^`\s]+`?/giu,
+    /Read `?(?:\.\.\/)+references\/[^`\s]+`?/giu,
     "（说明书已由服务端附在本块中，不要再打开相对路径。）",
   );
 
@@ -126,25 +127,37 @@ function wrapMethodBlock(
             sectionId === "questions" ||
             sectionId === "assumptions-tracker"
           ? "待确认问题必须用 P1/P2/P3 三组 <details> 折叠卡片，组内 <ol><li>；禁止改成缺口登记大表。"
-          : sectionId === "business-technology" ||
+            : sectionId === "business-technology" ||
               sectionId === "business-worth-buying" ||
               sectionId === "business" ||
-              sectionId === "lean-business-model"
+              sectionId === "lean-business-model" ||
+              sectionId === "business-overview" ||
+              sectionId === "product-situation" ||
+              sectionId === "technology-situation" ||
+              sectionId === "commercial-model" ||
+              sectionId === "core-competitiveness"
             ? "写目标公司怎么赚钱（客户/定价/单位经济）；禁止 IRR/MOIC/投资人回报。模板里只有一张画布，禁止再叠一套九格。"
             : sectionId === "industry-competition" ||
                 sectionId === "market-analysis" ||
                 sectionId === "industry-trends" ||
-                sectionId === "industry"
+                sectionId === "industry" ||
+                sectionId === "industry-overview" ||
+                sectionId === "industry-demand" ||
+                sectionId === "industry-value-chain" ||
+                sectionId === "industry-competition-structure" ||
+                sectionId === "industry-outlook"
               ? "写市场切法、政策、与标的咬合、红黄旗；禁止对战卡和出价区间。"
               : sectionId === "projections" ||
                   sectionId === "revenue-model" ||
                   sectionId === "cost-structure" ||
                   sectionId === "financials"
                 ? "写跑道、收入与成本假设；禁止 IRR/MOIC/投资人三情景。"
-              : sectionId === "investment-conclusion" ||
+            : sectionId === "assumption-validation"
+            ? "核对公司声明与证据缺口；禁止写成投资结论或闸门建议。"
+            : sectionId === "investment-conclusion" ||
                   sectionId === "recommendation-conditions" ||
                   sectionId === "framework"
-                ? "写建议、论点、法律路径、增值杠杆与路线图；禁止 Top5 风险表和三情景 IRR 摘要。"
+                ? "写建议、关键论点和条件；禁止 Top5 风险表和三情景 IRR 摘要。"
                 : "";
   const lines = [
     "【分析方法 · 只用于填写模板中的「待补」】",
@@ -218,10 +231,31 @@ async function readSkillFile(
   return null;
 }
 
+async function loadSkillFileChunks(
+  db: AppDatabase | undefined,
+  skill: string,
+  files: readonly string[],
+  filename?: string,
+): Promise<string[]> {
+  const chunks: string[] = [];
+  for (const extra of files) {
+    const raw = await readSkillFile(db, skill, extra);
+    if (!raw?.trim()) continue;
+    if (filename && /output-specs\.md$/u.test(extra)) {
+      const spec = extractNamedMarkdownSection(raw, filename);
+      if (spec) chunks.push(spec);
+    } else {
+      chunks.push(condenseSkillMarkdown(raw));
+    }
+  }
+  return chunks;
+}
+
 async function loadSkillPartsForFile(
   skillNames: readonly string[],
   db: AppDatabase | undefined,
   filename?: string,
+  skillFiles?: readonly string[],
 ): Promise<Array<{ skill: string; text: string }>> {
   const names = [...skillNames];
   if (
@@ -233,17 +267,21 @@ async function loadSkillPartsForFile(
   const parts: Array<{ skill: string; text: string }> = [];
   for (const skill of names) {
     const chunks: string[] = [];
-    const main = await readSkillFile(db, skill, "SKILL.md");
-    if (main?.trim()) chunks.push(condenseSkillMarkdown(main));
-    for (const extra of SKILL_REFERENCE_FILES[skill] ?? []) {
-      const raw = await readSkillFile(db, skill, extra);
-      if (!raw?.trim()) continue;
-      if (filename && /output-specs\.md$/u.test(extra)) {
-        const spec = extractNamedMarkdownSection(raw, filename);
-        if (spec) chunks.push(spec);
-      } else {
-        chunks.push(condenseSkillMarkdown(raw));
-      }
+    if (skillFiles?.length) {
+      chunks.push(
+        ...(await loadSkillFileChunks(db, skill, skillFiles, filename)),
+      );
+    } else {
+      const main = await readSkillFile(db, skill, "SKILL.md");
+      if (main?.trim()) chunks.push(condenseSkillMarkdown(main));
+      chunks.push(
+        ...(await loadSkillFileChunks(
+          db,
+          skill,
+          SKILL_REFERENCE_FILES[skill] ?? [],
+          filename,
+        )),
+      );
     }
     const text = chunks.filter(Boolean).join("\n\n").trim();
     if (text) parts.push({ skill, text: clipMethod(text, MAX_FILE_SKILL_CHARS) });
@@ -251,19 +289,58 @@ async function loadSkillPartsForFile(
   return parts;
 }
 
+function parseSkillRef(spec: string): { skill: string; file: string } | null {
+  const i = spec.indexOf(":");
+  if (i < 1) return null;
+  const skill = spec.slice(0, i).trim();
+  const file = spec.slice(i + 1).trim();
+  if (!skill || !file) return null;
+  return { skill, file };
+}
+
 async function loadSkillParts(
   skillNames: readonly string[],
-  db?: AppDatabase,
+  db: AppDatabase | undefined,
+  kind?: AnalysisKind,
+  sectionId?: string,
 ): Promise<Array<{ skill: string; text: string }>> {
+  const targeted =
+    kind && sectionId ? CHAPTER_SKILL_REF_FILES[kind]?.[sectionId] : undefined;
+  const extrasBySkill = new Map<string, string[]>();
+  if (targeted?.length) {
+    for (const spec of targeted) {
+      const parsed = parseSkillRef(spec);
+      if (!parsed) continue;
+      const list = extrasBySkill.get(parsed.skill) ?? [];
+      list.push(parsed.file);
+      extrasBySkill.set(parsed.skill, list);
+    }
+  }
+
+  const ordered: string[] = [];
+  const seen = new Set<string>();
+  for (const name of [...skillNames, ...extrasBySkill.keys()]) {
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    ordered.push(name);
+  }
+
   const parts: Array<{ skill: string; text: string }> = [];
-  for (const skill of skillNames) {
+  for (const skill of ordered) {
+    const targetedFiles = extrasBySkill.get(skill);
     const chunks: string[] = [];
-    const main = await readSkillFile(db, skill, "SKILL.md");
-    if (main?.trim()) chunks.push(condenseSkillMarkdown(main));
-    for (const extra of SKILL_REFERENCE_FILES[skill] ?? []) {
-      const raw = await readSkillFile(db, skill, extra);
-      if (!raw?.trim()) continue;
-      chunks.push(condenseSkillMarkdown(raw));
+    if (targetedFiles?.length) {
+      chunks.push(...(await loadSkillFileChunks(db, skill, targetedFiles)));
+    } else {
+      const main = await readSkillFile(db, skill, "SKILL.md");
+      if (main?.trim()) chunks.push(condenseSkillMarkdown(main));
+      chunks.push(
+        ...(await loadSkillFileChunks(
+          db,
+          skill,
+          SKILL_REFERENCE_FILES[skill] ?? [],
+        )),
+      );
     }
     const text = chunks.filter(Boolean).join("\n\n").trim();
     if (text) parts.push({ skill, text: clipMethod(text) });
@@ -302,7 +379,10 @@ export async function buildChapterSkillMethodBlock(
 ): Promise<string> {
   const skills = skillsForChapter(sectionId, kind);
   if (skills.length === 0) return "";
-  return wrapMethodBlock(sectionId, await loadSkillParts(skills, db));
+  return wrapMethodBlock(
+    sectionId,
+    await loadSkillParts(skills, db, kind, sectionId),
+  );
 }
 
 /** 资料包 Markdown 总文件用的 skill 方法（输出 md，不是 HTML 模板） */
@@ -311,10 +391,11 @@ export async function buildFileSkillMethodBlock(
   skillNames: readonly string[],
   db?: AppDatabase,
   filename?: string,
+  skillFiles?: readonly string[],
 ): Promise<string> {
   if (skillNames.length === 0) return "";
   return wrapMarkdownFileMethodBlock(
     fileId,
-    await loadSkillPartsForFile(skillNames, db, filename),
+    await loadSkillPartsForFile(skillNames, db, filename, skillFiles),
   );
 }

@@ -183,13 +183,22 @@ export async function handleGenerateDeliverableDraft(
     [file.skill],
     env.DB,
     file.filename,
+    file.skillFiles,
   );
   const userPrompt = [
     `项目：${project.name}`,
     project.summary ? `简介：${project.summary}` : "",
     `项目形态：${kind}`,
     `请直接输出「${file.title}」的完整 Markdown 分析（对应 ${file.filename}）。`,
-    `结构可对照知识网络「${file.knSectionIds.join("、")}」，但不要在正文里提章节模板或路径。`,
+    file.knSectionIds.length
+      ? `结构可对照知识网络「${file.knSectionIds.join("、")}」，但不要在正文里提章节模板或路径。`
+      : "不要在正文里提章节模板或路径。",
+    file.filename === "industry-diligence.md"
+      ? "必须保留强制输出结构里的 ## 编号标题（含行业定义与坐标、行业逻辑与需求形成、发展历程与关键拐点、市场现状、规模与增长、渗透、驱动因素与约束、价值链与利润池、竞争结构与参与者、趋势、技术与监管）。"
+      : "",
+    file.filename === "business-diligence.md"
+      ? "必须保留强制输出结构里的 ## 编号标题。「产品与技术」下再写 ### 产品情况 与 ### 技术情况 两个小节。"
+      : "",
     "",
     "从第一个 # 或 ## 标题起写完整分析、表格和判断。缺证据写「待补」。",
     "不要写已写入、不要写路径、不要写下一层怎么用。你的回复就是这份文件。",

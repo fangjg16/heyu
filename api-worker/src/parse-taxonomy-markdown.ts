@@ -42,5 +42,5 @@ export function parseTaxonomyMarkdown(md: string): ParsedTaxonomy {
   return { version, themes };
 }
 
-export const CLASSIFY_THEME_SKILL = "classify-investment-theme";
+export const CLASSIFY_THEME_SKILL = "deal-screening";
 export const TAXONOMY_MD_PATH = "references/taxonomy.md";

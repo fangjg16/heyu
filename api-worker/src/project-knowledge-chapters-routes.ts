@@ -241,16 +241,40 @@ const GLOSSARY_ADD_LOCK =
 const SECTION_FORMAT_HINT: Record<string, string> = {
   "project-summary":
     "===CHAPTER=== 判断条 + 类型/辖区/阶段数字条 + 范围表 + 交易要点表。保留 class。证据列只写 [A-1]。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "industry-overview":
+    "===CHAPTER=== 判断条 + 行业定义/坐标 + 规模与增长 + 关键拐点。不要对战卡。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "industry-demand":
+    "===CHAPTER=== 判断条 + 需求形成 + 渗透与约束。不要对战卡。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "industry-value-chain":
+    "===CHAPTER=== 判断条 + 价值链与利润池。不要对战卡。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "industry-competition-structure":
+    "===CHAPTER=== 判断条 + 竞争结构与参与者表。不要对战卡。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "industry-outlook":
+    "===CHAPTER=== 判断条 + 趋势、技术与监管。不要对战卡。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "industry-competition":
     "===CHAPTER=== 判断条 + 总市场/可服务市场/可获得份额数字条（不要写 TAM/SAM/SOM 当主标题）+ 可比表 + 红黄旗。不要对战卡。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "business-overview":
+    "===CHAPTER=== 判断条 + 真实业务与边界 + 业务演进。禁止 IRR。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "product-situation":
+    "===CHAPTER=== 判断条 + 产品定义与功能。禁止 IRR。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "technology-situation":
+    "===CHAPTER=== 判断条 + 技术原理与研发。禁止 IRR。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "commercial-model":
+    "===CHAPTER=== 判断条 + 商业模式与交易闭环 + 单位经济。禁止 IRR。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "core-competitiveness":
+    "===CHAPTER=== 判断条 + 核心能力与竞争力归因。禁止 IRR。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "business-technology":
     "===CHAPTER=== 判断条 + 客户路径 + BMC 宫格 + 单位经济表。禁止 IRR/三情景。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "company-team":
     "===CHAPTER=== 判断条 + 控制链卡片 + 主体表 + 关键个人表 + 红黄旗。禁止 SVG。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "company-background":
+    "===CHAPTER=== 判断条 + 背景调查要点 + 主体/个人表 + 红黄旗。禁止 SVG。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "financial-diligence":
     "===CHAPTER=== 判断条 + 收入/毛利率/现金数字条 + 账实质量表。禁止三情景、禁止 IRR。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "investment-structure-returns":
     "===CHAPTER=== 判断条 + 估值大数字 + Down/Base/Up 三情景 + 结构敏感性表。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
+  "assumption-validation":
+    "===CHAPTER=== 判断条 + 声明审计表 + 矛盾登记。不要投资结论闸门灯。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "investment-risks":
     "===CHAPTER=== 判断条 + 4×4 热力图（保留 kn-heat-* 底色）+ 带徽章的风险登记表。禁止 SVG。保留 class。随后 ===SOURCES_ADD=== / ===GLOSSARY_ADD===。",
   "diligence-gaps":

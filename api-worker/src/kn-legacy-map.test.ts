@@ -31,17 +31,15 @@ describe("kn-legacy-map", () => {
   it("presents old draft items under new catalog ids", () => {
     const items = presentMatureDraftItems([
       {
-        sectionId: "framework",
-        html: "<p>闸门</p>",
+        sectionId: "industry",
+        html: "<p>行业</p>",
         status: "ok",
       },
     ]);
-    expect(items.some((i) => i.sectionId === "investment-conclusion")).toBe(
-      true,
-    );
+    expect(items.some((i) => i.sectionId === "industry-overview")).toBe(true);
     expect(
-      items.find((i) => i.sectionId === "investment-conclusion")?.html,
-    ).toContain("闸门");
+      items.find((i) => i.sectionId === "industry-overview")?.html,
+    ).toContain("行业");
   });
 
   it("publishes merged html onto the new section id", () => {

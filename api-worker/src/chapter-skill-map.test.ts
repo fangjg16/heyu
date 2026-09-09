@@ -90,23 +90,17 @@ describe("chapter-skill-map", () => {
     }
   });
 
-  it("maps diligence-gaps to gap-tracking plus dd-checklist", () => {
-    expect(CHAPTER_SKILL_MAP["diligence-gaps"]).toEqual([
-      "gap-tracking",
-      "dd-checklist",
-    ]);
+  it("maps diligence-gaps to due-diligence for mature", () => {
+    expect(CHAPTER_SKILL_MAP["diligence-gaps"]).toEqual(["due-diligence"]);
   });
 
-  it("maps company-team to background-check for mature", () => {
-    expect(skillsForChapter("company-team", "mature")).toEqual([
-      "background-check",
-      "compliance-check",
-    ]);
+  it("maps company-team to due-diligence for mature", () => {
+    expect(skillsForChapter("company-team", "mature")).toEqual(["due-diligence"]);
   });
 
-  it("uses business-due-diligence for mature business-technology, startup-design for early mvp", () => {
-    expect(skillsForChapter("business-technology", "mature")).toEqual([
-      "business-due-diligence",
+  it("uses due-diligence for mature business-overview, startup-design for early mvp", () => {
+    expect(skillsForChapter("business-overview", "mature")).toEqual([
+      "due-diligence",
     ]);
     expect(skillsForChapter("mvp-definition", "early")[0]).toBe("startup-design");
   });
@@ -128,7 +122,7 @@ describe("chapter-skill-map", () => {
 
   it("drops node-monitoring from overview", () => {
     expect(skillsForChapter("project-overview", "mature")).toEqual([
-      "project-intake",
+      "deal-screening",
     ]);
   });
 
@@ -229,29 +223,32 @@ describe("buildChapterSkillMethodBlock", () => {
   it("reads SKILL.md from the repo and wraps a fill-only lock", async () => {
     const block = await buildChapterSkillMethodBlock("diligence-gaps");
     expect(block).toContain("【分析方法 · 只用于填写模板中的「待补」】");
-    expect(block).toContain("dd-checklist");
+    expect(block).toContain("due-diligence");
     expect(block).toContain("禁止改表头或替换【章节 Markdown 模板】");
-    expect(block).toContain("Due Diligence Checklist");
+    expect(block).toContain("Diligence Request List");
   });
 
   it("returns empty when the chapter has no mapped skill", async () => {
     expect(await buildChapterSkillMethodBlock("sources")).toBe("");
   });
 
-  it("loads business-due-diligence for mature business-technology", async () => {
+  it("loads due-diligence workstream refs for mature business-overview", async () => {
     const business = await buildChapterSkillMethodBlock(
-      "business-technology",
+      "business-overview",
       undefined,
       "mature",
     );
     expect(business).toContain(
-      "本章 business-technology 对应 skill：business-due-diligence",
+      "本章 business-overview 对应 skill：due-diligence",
     );
-    expect(business).toContain("Business Due Diligence");
-    const conclusion = await buildChapterSkillMethodBlock(
-      "investment-conclusion",
+    expect(business).toContain("正式业务尽调");
+    const claims = await buildChapterSkillMethodBlock(
+      "assumption-validation",
+      undefined,
+      "mature",
     );
-    expect(conclusion).toContain("value-creation-plan");
+    expect(claims).toContain("due-diligence");
+    expect(claims).toContain("Claim Audit");
   });
 
   it("injects honesty protocol for early competitor-landscape via startup-design", async () => {

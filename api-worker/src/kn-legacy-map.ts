@@ -10,13 +10,11 @@ export const MATURE_LEGACY_SECTION_SOURCES: Readonly<
   Record<string, readonly string[]>
 > = {
   "project-summary": ["snapshot", "objectives"],
-  "industry-competition": ["industry", "benchmarks"],
-  "business-technology": ["business"],
+  "industry-overview": ["industry-competition", "industry", "benchmarks"],
+  "business-overview": ["business-technology", "business"],
   "company-team": ["ownership", "capabilities", "legal"],
   "investment-structure-returns": ["returns"],
-  "investment-risks": ["risks"],
   "diligence-gaps": ["questions", "diligence"],
-  "investment-conclusion": ["framework"],
 };
 
 export function composeLegacyChapterHtml(

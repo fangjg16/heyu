@@ -16,35 +16,35 @@ export type ChapterSkillSpec = {
 
 const EMPTY: ChapterSkillSpec = { primary: [], borrow: [] };
 
+const DUE: ChapterSkillSpec = { primary: ["due-diligence"], borrow: [] };
+const DUE_INDUSTRY: ChapterSkillSpec = {
+  primary: ["due-diligence"],
+  borrow: ["startup-competitors"],
+};
+
 const MATURE: Record<string, ChapterSkillSpec> = {
-  "project-overview": { primary: ["project-intake"], borrow: [] },
-  "project-summary": {
-    primary: ["project-intake"],
-    borrow: ["classify-investment-theme"],
-  },
-  "industry-competition": {
-    primary: ["industry-due-diligence"],
-    borrow: ["startup-competitors"],
-  },
-  "business-technology": { primary: ["business-due-diligence"], borrow: [] },
-  "company-team": {
-    primary: ["background-check"],
-    borrow: ["compliance-check"],
-  },
-  "financial-diligence": { primary: ["financial-due-diligence"], borrow: [] },
-  "investment-structure-returns": {
-    primary: ["returns-analysis"],
-    borrow: ["financial-due-diligence"],
-  },
-  "investment-risks": { primary: ["risk-matrix"], borrow: [] },
-  "diligence-gaps": {
-    primary: ["gap-tracking"],
-    borrow: ["dd-checklist"],
-  },
-  "investment-conclusion": {
-    primary: ["ic-memo"],
-    borrow: ["value-creation-plan"],
-  },
+  "project-overview": { primary: ["deal-screening"], borrow: [] },
+  "project-summary": { primary: ["deal-screening"], borrow: [] },
+  "industry-overview": DUE_INDUSTRY,
+  "industry-demand": DUE_INDUSTRY,
+  "industry-value-chain": DUE_INDUSTRY,
+  "industry-competition-structure": DUE_INDUSTRY,
+  "industry-outlook": DUE_INDUSTRY,
+  "business-overview": DUE,
+  "product-situation": DUE,
+  "technology-situation": DUE,
+  "commercial-model": DUE,
+  "core-competitiveness": DUE,
+  "company-team": DUE,
+  "company-background": DUE,
+  "financial-diligence": DUE,
+  "investment-structure-returns": DUE,
+  "assumption-validation": DUE,
+  "diligence-gaps": DUE,
+  "industry-competition": DUE_INDUSTRY,
+  "business-technology": DUE,
+  "investment-risks": DUE,
+  "investment-conclusion": DUE,
 };
 
 const ACQUIRE: Record<string, ChapterSkillSpec> = {
@@ -160,6 +160,8 @@ export const SKILL_REFERENCE_FILES: Readonly<
     "references/taxonomy.md",
     "references/decision-rules.md",
   ],
+  "deal-screening": ["references/honesty-protocol.md"],
+  "due-diligence": ["references/honesty-protocol.md"],
   "startup-design": [
     "references/honesty-protocol.md",
     "references/output-guidelines.md",
@@ -169,6 +171,92 @@ export const SKILL_REFERENCE_FILES: Readonly<
   "startup-competitors": ["references/honesty-protocol.md"],
   "startup-positioning": ["references/honesty-protocol.md"],
   "startup-pitch": ["references/honesty-protocol.md"],
+};
+
+/**
+ * 成熟投资章只喂对应说明书，避免把整份 due-diligence SKILL.md 灌进 9k 上限。
+ * 条目格式：`skillName:relative/path.md`
+ */
+export const CHAPTER_SKILL_REF_FILES: Readonly<
+  Partial<Record<AnalysisKind, Readonly<Record<string, readonly string[]>>>>
+> = {
+  mature: {
+    "project-overview": [
+      "deal-screening:references/project-intake.md",
+      "deal-screening:references/honesty-protocol.md",
+    ],
+    "project-summary": [
+      "deal-screening:references/project-intake.md",
+      "deal-screening:references/theme-classification.md",
+      "deal-screening:references/screening-memo.md",
+      "deal-screening:references/honesty-protocol.md",
+    ],
+    "industry-overview": [
+      "due-diligence:references/dd-industry.md",
+      "due-diligence:references/honesty-protocol.md",
+    ],
+    "industry-demand": [
+      "due-diligence:references/dd-industry.md",
+      "due-diligence:references/honesty-protocol.md",
+    ],
+    "industry-value-chain": [
+      "due-diligence:references/dd-industry.md",
+      "due-diligence:references/honesty-protocol.md",
+    ],
+    "industry-competition-structure": [
+      "due-diligence:references/dd-industry.md",
+      "due-diligence:references/honesty-protocol.md",
+    ],
+    "industry-outlook": [
+      "due-diligence:references/dd-industry.md",
+      "due-diligence:references/honesty-protocol.md",
+    ],
+    "business-overview": [
+      "due-diligence:references/dd-business.md",
+      "due-diligence:references/honesty-protocol.md",
+    ],
+    "product-situation": [
+      "due-diligence:references/dd-business.md",
+      "due-diligence:references/honesty-protocol.md",
+    ],
+    "technology-situation": [
+      "due-diligence:references/dd-business.md",
+      "due-diligence:references/honesty-protocol.md",
+    ],
+    "commercial-model": [
+      "due-diligence:references/dd-business.md",
+      "due-diligence:references/honesty-protocol.md",
+    ],
+    "core-competitiveness": [
+      "due-diligence:references/dd-business.md",
+      "due-diligence:references/honesty-protocol.md",
+    ],
+    "company-team": [
+      "due-diligence:references/dd-business.md",
+      "due-diligence:references/honesty-protocol.md",
+    ],
+    "company-background": [
+      "due-diligence:references/dd-background-check.md",
+      "due-diligence:references/honesty-protocol.md",
+    ],
+    "financial-diligence": [
+      "due-diligence:references/dd-financial.md",
+      "due-diligence:references/honesty-protocol.md",
+    ],
+    "investment-structure-returns": [
+      "due-diligence:references/returns-analysis.md",
+      "due-diligence:references/honesty-protocol.md",
+    ],
+    "assumption-validation": [
+      "due-diligence:references/dd-claim-audit.md",
+      "due-diligence:references/honesty-protocol.md",
+    ],
+    "diligence-gaps": [
+      "due-diligence:references/dd-checklist.md",
+      "due-diligence:references/dd-principles.md",
+      "due-diligence:references/honesty-protocol.md",
+    ],
+  },
 };
 
 export { ANALYSIS_KIND_LABELS };
