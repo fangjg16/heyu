@@ -233,9 +233,10 @@ describe("markdownToKnHtml", () => {
     expect(html).not.toContain("kn-dochead__byline");
     expect(html).not.toContain("jfo-ai-investment-platform");
     expect(html).toContain("kn-md-section");
-    expect(html).toContain("kn-md-h");
-    expect(html).toContain("kn-md-h__t");
+    expect(html).toContain("kn-md-sec");
     expect(html).toContain("竞争全景");
+    expect(html).not.toContain("kn-md-h__n");
+    expect(html).not.toContain("kn-md-h__t");
     expect(html).toContain("kn-md-lede");
     expect(html).toMatch(/公开产品|public product/u);
     expect(html).not.toContain("本节把握");
@@ -267,13 +268,13 @@ PwC 2024。
       /<section class="kn-md-section">[\s\S]*?<\/section>/u,
     )?.[0];
     expect(section).toBeTruthy();
-    expect(section).toContain("kn-md-h");
+    expect(section).toContain("kn-md-sec");
     expect(section).toContain("总览");
     expect(section).toContain("kn-md-subblock");
     expect(section).toContain('class="kn-md-sub"');
     expect(section).toContain("kn-md-sub__k");
     expect(section).toContain("家办直接投资");
-    expect(html.indexOf("kn-md-h")).toBeLessThan(html.indexOf("kn-md-sub"));
+    expect(html.indexOf("kn-md-sec")).toBeLessThan(html.indexOf("kn-md-sub"));
   });
 
   it("renders #### and 3.1 headings instead of leaving hashes", () => {
@@ -288,7 +289,9 @@ PwC 2024。
 床头被动监测。
 `);
     expect(html).not.toContain("####");
-    expect(html).toContain("kn-md-sub");
+    expect(html).not.toContain("3.1");
+    expect(html).not.toContain("3.2");
+    expect(html).toContain("kn-md-topic");
     expect(html).toContain("问题");
     expect(html).toContain("方案");
   });
@@ -300,9 +303,10 @@ PwC 2024。
 
 高压脑力上班族。
 `);
-    expect(html).toContain("kn-md-h");
+    expect(html).toContain("kn-md-sec");
     expect(html).toContain("核心痛点人群");
     expect(html).toContain("高压脑力上班族");
+    expect(html).not.toContain("一、");
   });
 
   it("treats hashed 一、 as a section, not a subblock", () => {
@@ -529,16 +533,37 @@ PwC 2024。
     expect(html).toContain("kn-hero--concern");
   });
 
-  it("writes 三、 and the title on one line", () => {
+  it("strips source-file chapter numbers from knowledge headings", () => {
+    const html = markdownToKnHtml(`# 行业尽调
+
+## 7.价值链与利润池
+
+链条正文。
+
+## 8. 竞争结构与参与者
+
+### 8.1 竞争格局判断
+
+判断正文。
+`);
+    expect(html).toContain("价值链与利润池");
+    expect(html).toContain("竞争结构与参与者");
+    expect(html).toContain("竞争格局判断");
+    expect(html).not.toContain("7.");
+    expect(html).not.toContain("8.1");
+    expect(html).not.toContain("kn-md-h__n");
+  });
+
+  it("strips 三、 from headings and keeps the title", () => {
     const html = markdownToKnHtml(`# 市场
 
 ### 三、行业与市场
 
 切分按场景。
 `);
-    expect(html).toContain("kn-md-h");
-    expect(html).toMatch(/kn-md-h__n">三、</);
     expect(html).toContain("行业与市场");
+    expect(html).not.toContain("三、");
+    expect(html).not.toContain("kn-md-h__n");
   });
 
   it("renders a flags table instead of leaking pipe separators", () => {

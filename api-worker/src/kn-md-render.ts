@@ -471,38 +471,28 @@ function coverDisplayTitle(title: string): string {
   return stripped || title;
 }
 
+/** 知识网络标题不显示资料包原序号（7. / 8.1 / 一、）；导航已由 tab 承担。 */
+function displayHeadingTitle(title: string): string {
+  const raw = String(title ?? "").trim();
+  const prefix =
+    /^(?:[0-9]+(?:\.[0-9]+)*[.)．、]?|[一二三四五六七八九十百]+[、.．])\s*/u.exec(
+      raw,
+    );
+  if (!prefix) return raw;
+  const rest = raw.slice(prefix[0].length).trim();
+  return rest || raw;
+}
+
 function headingInner(title: string): { cls: string; inner: string } {
-  const numbered = /^\d+\.\d+/u.test(title)
-    ? null
-    : /^(\d+)[.)、]\s*(\S.*)$/u.exec(title);
-  if (numbered) {
-    return {
-      cls: "kn-md-h",
-      inner: `<span class="kn-md-h__n">${escapeHtml(numbered[1]!)}.</span><span class="kn-md-h__t">${inline(localizeHeadingTitle(numbered[2]!))}</span>`,
-    };
-  }
-  const cn = /^([一二三四五六七八九十]+)、(\S.*)$/u.exec(title);
-  if (cn) {
-    return {
-      cls: "kn-md-h",
-      inner: `<span class="kn-md-h__n">${escapeHtml(cn[1]!)}、</span><span class="kn-md-h__t">${inline(localizeHeadingTitle(cn[2]!))}</span>`,
-    };
-  }
-  const code = /^([A-Za-z]\d{1,2})\s*[:：—–-]\s+(\S.*)$/u.exec(title);
+  const display = displayHeadingTitle(title);
+  const code = /^([A-Za-z]\d{1,2})\s*[:：—–-]\s+(\S.*)$/u.exec(display);
   if (code) {
     return {
       cls: "kn-md-sub",
       inner: `<span class="kn-md-sub__k">${escapeHtml(code[1]!.toUpperCase())}</span><span class="kn-md-sub__t">${inline(code[2]!)}</span>`,
     };
   }
-  const dec = /^(\d+\.\d+(?:\.\d+)?)\s+(\S.*)$/u.exec(title);
-  if (dec) {
-    return {
-      cls: "kn-md-sub",
-      inner: `<span class="kn-md-sub__k">${escapeHtml(dec[1]!)}</span><span class="kn-md-sub__t">${inline(dec[2]!)}</span>`,
-    };
-  }
-  return { cls: "", inner: inline(localizeHeadingTitle(title)) };
+  return { cls: "", inner: inline(localizeHeadingTitle(display)) };
 }
 
 function headingTagName(hashes: number, title: string): "h2" | "h3" | "h4" {
@@ -844,7 +834,7 @@ function meaningCardHtml(title: string, bodyLines: string[]): string {
   }
   const obsHtml = markdownToKnHtmlInner(obs.join("\n")).trim();
   const implHtml = markdownToKnHtmlInner(impl.join("\n")).trim();
-  return `<article class="kn-meaning"><h4 class="kn-meaning__title">${inline(title)}</h4>${obsHtml ? `<div class="kn-meaning__obs">${obsHtml}</div>` : ""}<div class="kn-meaning__so"><p class="kn-meaning__k">含义</p>${implHtml}</div></article>`;
+  return `<article class="kn-meaning"><h4 class="kn-meaning__title">${headingInner(title).inner}</h4>${obsHtml ? `<div class="kn-meaning__obs">${obsHtml}</div>` : ""}<div class="kn-meaning__so"><p class="kn-meaning__k">含义</p>${implHtml}</div></article>`;
 }
 
 function collectUntilHeadingRank(
@@ -1392,8 +1382,9 @@ function markdownToKnHtmlInner(src: string): string {
       let cls = parts.cls;
       if (!cls && asCover) cls = "kn-doc-title";
       else if (!cls && hashes === 1) cls = "kn-doc-title";
-      else if (!cls && hashes === 2 && !numbered) cls = "kn-md-sec";
-      else if (!cls && hashes === 3 && !numbered && !sub) cls = "kn-md-topic";
+      else if (!cls && numbered) cls = "kn-md-sec";
+      else if (!cls && hashes === 2) cls = "kn-md-sec";
+      else if (!cls && (sub || hashes >= 3)) cls = "kn-md-topic";
       const coverTag = asCover ? "h2" : tag;
       const open = cls ? `<${coverTag} class="${cls}">` : `<${coverTag}>`;
       if (asCover) {
@@ -1703,7 +1694,7 @@ function markdownToKnHtmlInner(src: string): string {
       out.push('<div class="kn-md-subblock">');
       inMdSub = true;
       const parts = headingInner(boldNum[1]!.trim());
-      out.push(`<h4 class="kn-md-sub">${parts.inner}</h4>`);
+      out.push(`<h4 class="${parts.cls || "kn-md-topic"}">${parts.inner}</h4>`);
       i += 1;
       continue;
     }
@@ -1715,7 +1706,7 @@ function markdownToKnHtmlInner(src: string): string {
       out.push('<section class="kn-md-section">');
       inMdSection = true;
       const parts = headingInner(trimmed);
-      out.push(`<h3 class="${parts.cls}">${parts.inner}</h3>`);
+      out.push(`<h3 class="${parts.cls || "kn-md-sec"}">${parts.inner}</h3>`);
       i += 1;
       continue;
     }
