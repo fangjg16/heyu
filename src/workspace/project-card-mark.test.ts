@@ -30,6 +30,12 @@ describe("projectCardMark", () => {
     expect(marks.get("b")).toBe("文旅");
   });
 
+  it("picks the disease name, not 驱动, from a long AI-led title", () => {
+    expect(
+      projectCardMark("AI驱动的帕金森病及特发性震颤精准诊疗闭环工程"),
+    ).toBe("帕金森");
+  });
+
   it("gives distinct marks for the project library cards", () => {
     const marks = projectCardMarksFor([
       { id: "1", name: "澳大利亚 Stone Island 收购开发" },

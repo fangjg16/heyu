@@ -1,5 +1,6 @@
 /**
- * 项目卡片水印：从标题里抽 2 个有辨识度的字/字母。
+ * 项目卡片水印：从标题里抽 2～3 个有辨识度的字/字母。
+ * 按「的/及」拆开套话前缀，专名（如帕金森病）优先于「驱动」「工程」。
  * 跳过国名套话，避开「澳大」这类截断谐音，并尽量不与同屏其他卡片重复。
  */
 
@@ -28,6 +29,23 @@ const GENERIC = new Set([
   "A.I.",
   "GPT",
   "LLM",
+  "驱动",
+  "赋能",
+  "打造",
+  "实现",
+  "基于",
+  "关于",
+  "围绕",
+  "闭环",
+  "工程",
+  "诊疗",
+  "精准",
+  "智能",
+  "数字",
+  "科技",
+  "产业",
+  "应用",
+  "更新",
 ]);
 
 /** 三字及以上地名，整段跳过，避免截成「澳大」「新加」 */
@@ -131,6 +149,38 @@ function usablePair(pair: string): boolean {
   return true;
 }
 
+/** 水印最多 3 个汉字：专名如「帕金森」整段留下，不要截成套话前缀。 */
+function usableMark(mark: string): boolean {
+  if (mark.length === 2) return usablePair(mark);
+  if (mark.length !== 3) return false;
+  if (mark[0] === mark[1]) return false;
+  if (GEO_SKIP.has(mark) || GEO_MARK_SKIP.has(mark)) return false;
+  if (GENERIC.has(mark)) return false;
+  return true;
+}
+
+const DISEASE_SUFFIX = /[病症炎癌瘤疾]$/u;
+
+function splitCjkPhrases(raw: string): string[] {
+  const parts = raw
+    .split(/以及|及其|[的之及与和或等]/u)
+    .map((p) => p.trim())
+    .filter((p) => p.length >= 2);
+  return parts.length > 0 ? parts : [raw];
+}
+
+function explodeTokens(tokens: string[]): string[] {
+  const out: string[] = [];
+  for (const t of tokens) {
+    if (isCjk(t) && t.length > 2) {
+      out.push(...splitCjkPhrases(t));
+    } else {
+      out.push(t);
+    }
+  }
+  return out;
+}
+
 function stripLeadingGeo(s: string): string {
   const geos = [...GEO_SKIP].sort((a, b) => b.length - a.length);
   let out = s;
@@ -169,19 +219,29 @@ function fromCjkToken(raw: string): string[] {
 
   const out: string[] = [];
   const push = (p: string) => {
-    if (usablePair(p) && !out.includes(p)) out.push(p);
+    if (usableMark(p) && !out.includes(p)) out.push(p);
   };
+
+  if (DISEASE_SUFFIX.test(tok) && tok.length >= 3) {
+    const core = tok.replace(DISEASE_SUFFIX, "");
+    if (core.length >= 2 && core.length <= 3) push(core);
+  }
+  if (tok.length === 3) push(tok);
+
   // 连写标题按 2 字对齐切：首对不可用则错一位，避免「人人贷」→「贷投」、「中澳文旅」→「中金」
   const primary = usablePair(tok.slice(0, 2)) ? 0 : 1;
   const secondary = primary === 0 ? 1 : 0;
   for (const offset of [primary, secondary]) {
     for (let i = offset; i + 2 <= tok.length; i += 2) {
-      push(tok.slice(i, i + 2));
+      const slice = tok.slice(i, i + 2);
+      if (usablePair(slice) && !out.includes(slice)) out.push(slice);
     }
   }
   if (tok.length === 3) {
-    push(tok.slice(-2));
-    push(`${tok[0]}${tok[tok.length - 1]}`);
+    const last2 = tok.slice(-2);
+    if (usablePair(last2) && !out.includes(last2)) out.push(last2);
+    const skip = `${tok[0]}${tok[tok.length - 1]}`;
+    if (usablePair(skip) && !out.includes(skip)) out.push(skip);
   }
   return out;
 }
@@ -204,7 +264,7 @@ function fromLatin(words: string[]): string[] {
 }
 
 function collectCandidates(name: string): string[] {
-  const tokens = tokenize(name);
+  const tokens = explodeTokens(tokenize(name));
   const meaningful = tokens.filter(
     (t) =>
       !GENERIC.has(t) &&
