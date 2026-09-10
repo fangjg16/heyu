@@ -7,12 +7,6 @@ import { IndustryCategoryFields, RequiredMark } from "@/components/workspace/Ind
 import { AnalysisKindFields } from "@/components/workspace/AnalysisKindFields";
 import { parseAnalysisKind, type AnalysisKind } from "@/lib/analysis-kind";
 import {
-  isCompletedPipelineStage,
-  parsePipelineStage,
-  pipelineStageOptionsForEdit,
-  type PipelineStage,
-} from "@/workspace/pipeline-stage";
-import {
   formatIndustryCategory,
   parseIndustryCategory,
   UNCATEGORIZED_LABEL,
@@ -77,9 +71,6 @@ export function ProjectEditModal({
   const industryTaxonomy = useIndustryTaxonomy();
   const canEditTaxonomyMd = isPlatformAdminUser(userId);
   const [phase, setPhase] = useState<ProjectPhase>(project.phase);
-  const [pipelineStage, setPipelineStage] = useState<PipelineStage | null>(
-    parsePipelineStage(project.pipelineStage),
-  );
   const [analysisKind, setAnalysisKind] = useState<AnalysisKind | "">(
     parseAnalysisKind(project.analysisKind) ?? "",
   );
@@ -102,7 +93,6 @@ export function ProjectEditModal({
         : null,
     );
     setPhase(project.phase);
-    setPipelineStage(parsePipelineStage(project.pipelineStage));
     setAnalysisKind(parseAnalysisKind(project.analysisKind) ?? "");
     setOpenness(normalizeOpenness(project.openness));
     setError(null);
@@ -120,14 +110,6 @@ export function ProjectEditModal({
       setError("请选择项目形态");
       return;
     }
-    if (
-      analysisKind === "mature" &&
-      phase === "已完成" &&
-      !isCompletedPipelineStage(pipelineStage)
-    ) {
-      setError("已完成须选择已投或不投");
-      return;
-    }
     setSaving(true);
     setError(null);
     void updateProjectViaApi(projectId, {
@@ -137,10 +119,6 @@ export function ProjectEditModal({
       phase,
       openness,
       analysisKind,
-      pipelineStage:
-        analysisKind === "mature"
-          ? pipelineStage ?? (phase === "已完成" ? null : "inbound")
-          : null,
       userId,
     })
       .then((updated) => {
@@ -217,69 +195,24 @@ export function ProjectEditModal({
             <span className="font-medium text-foreground">项目状态</span>
             <select
               value={phase}
-              onChange={(e) => {
-                const next = e.target.value as ProjectPhase;
-                setPhase(next);
-                if (analysisKind !== "mature") return;
-                if (next === "已完成") {
-                  if (!isCompletedPipelineStage(pipelineStage)) {
-                    setPipelineStage(null);
-                  }
-                } else if (next === "进行中") {
-                  if (isCompletedPipelineStage(pipelineStage)) {
-                    setPipelineStage("ic-review");
-                  } else if (!pipelineStage) {
-                    setPipelineStage("inbound");
-                  }
-                }
-              }}
+              onChange={(e) => setPhase(e.target.value as ProjectPhase)}
               className="mt-1.5 w-full rounded-lg border border-border/70 px-3 py-2 text-sm"
             >
-              {PHASE_OPTIONS.map((p) => (
+              {(analysisKind === "mature" && project.phase !== "已完成"
+                ? PHASE_OPTIONS.filter((p) => p !== "已完成")
+                : PHASE_OPTIONS
+              ).map((p) => (
                 <option key={p} value={p}>
                   {projectPhaseLabel(p)}
                 </option>
               ))}
             </select>
           </label>
-          {analysisKind === "mature" ? (
-            <label className="block text-sm">
-              <span className="font-medium text-foreground">投资阶段</span>
-              <select
-                value={pipelineStage ?? ""}
-                onChange={(e) =>
-                  setPipelineStage(parsePipelineStage(e.target.value))
-                }
-                className="mt-1.5 w-full rounded-lg border border-border/70 px-3 py-2 text-sm"
-              >
-                {phase === "已完成" && !pipelineStage ? (
-                  <option value="">请选择已投或不投</option>
-                ) : null}
-                {pipelineStageOptionsForEdit(phase).map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-                待筛选在首次生成章节草案后会自动进入筛选。已投默认从投委推进，编辑页也可直接改。
-              </p>
-            </label>
-          ) : null}
           <AnalysisKindFields
             value={analysisKind}
             onChange={(kind) => {
               setAnalysisKind(kind);
               if (kind === "early") setOpenness("invite");
-              if (kind === "mature") {
-                setPipelineStage((cur) => {
-                  if (cur) return cur;
-                  if (phase === "已完成") return null;
-                  return "inbound";
-                });
-              } else {
-                setPipelineStage(null);
-              }
             }}
             originalKind={parseAnalysisKind(project.analysisKind)}
           />

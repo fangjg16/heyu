@@ -288,11 +288,16 @@ export async function handleUpdateProject(
     return json({ project });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    const validation = /已投或不投|投资阶段|投委阶段/.test(msg);
-    return json(
-      { error: validation ? msg : `更新失败：${msg}` },
-      validation ? 400 : 500,
-    );
+    if (/已投或不投/.test(msg)) {
+      return json({ error: "请先标记已投或不投" }, 400);
+    }
+    if (/投资阶段/.test(msg)) {
+      return json({ error: "保存失败" }, 400);
+    }
+    if (/投委/.test(msg)) {
+      return json({ error: "请先推进到投委" }, 400);
+    }
+    return json({ error: `更新失败：${msg}` }, 500);
   }
 }
 

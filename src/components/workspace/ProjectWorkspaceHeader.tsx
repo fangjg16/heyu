@@ -252,7 +252,7 @@ export function ProjectWorkspaceHeader({
           setConfirmKind(null);
         })
         .catch((e) => {
-          setPipelineError(e instanceof Error ? e.message : "更新投资阶段失败");
+          setPipelineError(e instanceof Error ? e.message : "操作失败");
         })
         .finally(() => setPipelineBusy(false));
     }
@@ -288,8 +288,8 @@ export function ProjectWorkspaceHeader({
               {judgment.label}
             </span>
             {judgment.frozenNote ? (
-              <span className="text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
-                冻结于{judgment.frozenNote}
+              <span className="rounded-full bg-[rgba(78,66,57,0.08)] px-3 py-1 text-[12.5px] font-medium text-[#59625F]">
+                {judgment.frozenNote}
               </span>
             ) : null}
             <span className="rounded-md bg-[rgba(78,66,57,0.07)] px-2.5 py-0.5 text-xs text-[hsl(var(--warm-charcoal-muted))]">
@@ -299,7 +299,7 @@ export function ProjectWorkspaceHeader({
               <button
                 type="button"
                 onClick={onEditProject}
-                title="编辑项目名称、阶段、分类等"
+                title="编辑项目名称、分类等"
                 className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-[12.5px] font-medium text-[hsl(var(--warm-charcoal-muted))] hover:bg-[hsl(var(--wine)/0.08)] hover:text-[hsl(var(--wine))]"
               >
                 <Pencil className="h-3.5 w-3.5" strokeWidth={2} />

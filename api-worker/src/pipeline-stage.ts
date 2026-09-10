@@ -76,7 +76,7 @@ export function defaultPipelineStageForKind(
   return kind === "mature" ? "inbound" : null;
 }
 
-/** 顶栏短操作：人工推进 / 结束。inbound→筛选是自动的，这里不出。 */
+/** 顶栏短操作：人工推进 / 结束。inbound→筛选是首次生成自动的；尽调只能点「推进到尽调」。 */
 export function pipelineHeaderActions(
   phase: TopPhase,
   stage: PipelineStage | null,

@@ -76,7 +76,7 @@ export function defaultPipelineStageForKind(
   return kind === "mature" ? "inbound" : null;
 }
 
-/** 顶栏短操作：人工推进 / 结束。inbound→筛选是自动的，这里不出。 */
+/** 顶栏短操作：人工推进 / 结束。inbound→筛选是首次生成自动的；尽调只能点「推进到尽调」。 */
 export function pipelineHeaderActions(
   phase: TopPhase,
   stage: PipelineStage | null,
@@ -134,21 +134,6 @@ export function pipelineHeaderActions(
 }
 
 export type PipelineHeaderAction = ReturnType<typeof pipelineHeaderActions>[number];
-
-export function pipelineStageOptionsForEdit(
-  phase: TopPhase,
-): { value: PipelineStage; label: string }[] {
-  const completed = COMPLETED_PIPELINE_STAGES.map((value) => ({
-    value,
-    label: PIPELINE_STAGE_LABELS[value],
-  }));
-  if (phase === "已完成") return completed;
-  const inProgress = IN_PROGRESS_PIPELINE_STAGES.map((value) => ({
-    value,
-    label: PIPELINE_STAGE_LABELS[value],
-  }));
-  return [...inProgress, ...completed];
-}
 
 export function resolvePipelineForSave(input: {
   analysisKind: AnalysisKind | null;

@@ -119,6 +119,12 @@ describe("pipelineHeaderActions", () => {
     ).toEqual(["to-dd", "pass"]);
   });
 
+  it("does not auto-offer diligence from inbound", () => {
+    expect(pipelineHeaderActions("进行中", "inbound").map((a) => a.id)).not.toContain(
+      "to-dd",
+    );
+  });
+
   it("hides actions when paused", () => {
     expect(pipelineHeaderActions("已暂停", "deal-screening")).toEqual([]);
   });
