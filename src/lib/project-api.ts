@@ -1,4 +1,9 @@
+import { parsePipelineStage, type PipelineStage } from "@/workspace/pipeline-stage";
 import { normalizeProjectPhase } from "@/workspace/projects";
+import {
+  getMergedProjectById,
+  upsertApiProject,
+} from "@/workspace/project-registry";
 import { apiFetch } from "@/lib/api-auth";
 import { formatOpenQuestionForIssuer } from "@/lib/kn-citations";
 import { sectionLabel } from "@/lib/kn-catalog";
@@ -49,6 +54,7 @@ export type ApiProjectJson = {
   /** 0–100；列表接口返回 */
   researchMaturity?: number | null;
   analysisKind?: "early" | "mature" | "acquire" | null;
+  pipelineStage?: PipelineStage | string | null;
 };
 
 function normalizeApiOpenness(raw: unknown): "partial" | "invite" {
@@ -85,6 +91,7 @@ function mapApiProject(row: ApiProjectJson) {
       row.analysisKind === "acquire"
         ? row.analysisKind
         : null,
+    pipelineStage: parsePipelineStage(row.pipelineStage),
   };
 }
 
@@ -288,6 +295,7 @@ export async function updateProjectViaApi(
     phase?: string;
     openness?: "partial" | "invite";
     analysisKind?: "early" | "mature" | "acquire";
+    pipelineStage?: PipelineStage | null;
     userId: string;
   },
   chatEndpoint = AI_CHAT_ENDPOINT,
@@ -308,6 +316,7 @@ export async function updateProjectViaApi(
         phase: input.phase,
         openness: input.openness,
         analysisKind: input.analysisKind,
+        pipelineStage: input.pipelineStage,
         userId: input.userId,
       }),
     });
@@ -1279,6 +1288,7 @@ export type CreateChapterDraftRunResponse = {
   run: ChapterDraftRun;
   items: ChapterDraftItem[];
   sectionIds: string[];
+  pipelineStage?: PipelineStage | string | null;
 };
 
 export class ActiveDraftExistsError extends Error {
@@ -1344,6 +1354,13 @@ export async function createChapterDraftRun(
     );
   }
   if (!res.ok) throw new Error(data.error || `创建更新草案失败（${res.status}）`);
+  const stage = parsePipelineStage(data.pipelineStage);
+  if (stage) {
+    const existing = getMergedProjectById(projectId);
+    if (existing && existing.pipelineStage !== stage) {
+      upsertApiProject({ ...existing, pipelineStage: stage });
+    }
+  }
   return data;
 }
 

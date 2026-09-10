@@ -123,6 +123,7 @@ CREATE TABLE IF NOT EXISTS projects (
   name VARCHAR(512) NOT NULL COMMENT '项目名称',
   category VARCHAR(128) NOT NULL DEFAULT '未分类' COMMENT '项目分类',
   analysis_kind VARCHAR(16) NULL COMMENT 'early|mature|acquire；创建/编辑时选定',
+  pipeline_stage VARCHAR(32) NULL COMMENT 'mature: inbound|deal-screening|due-diligence|ic-review|invested|passed',
   phase VARCHAR(128) NOT NULL DEFAULT 'Active（资源筹备中）' COMMENT '项目阶段',
   summary LONGTEXT NOT NULL COMMENT '内部成员可见摘要',
   guest_summary LONGTEXT NOT NULL COMMENT '访客可见摘要',

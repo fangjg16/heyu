@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { deleteProjectViaApi } from "@/lib/project-api";
 import { ProjectEditModal } from "@/components/workspace/ProjectEditModal";
 import { projectPhaseLabel, type WorkspaceProject } from "@/workspace/projects";
+import { pipelineStageLabel, parsePipelineStage } from "@/workspace/pipeline-stage";
 import { displayIndustryCategory } from "@/workspace/industry-taxonomy";
 import type { ProjectDetailTier } from "@/workspace/project-details";
 import { ProjectMaterialsSection } from "@/components/workspace/ProjectMaterialsSection";
@@ -212,6 +213,18 @@ export function ProjectDetailDrawer({
                 </dt>
                 <dd className="text-sm font-medium text-foreground">{projectPhaseLabel(project.phase)}</dd>
               </div>
+              {project.analysisKind === "mature" ? (
+                <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
+                  <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                    投资阶段
+                  </dt>
+                  <dd className="text-sm font-medium text-foreground">
+                    {pipelineStageLabel(
+                      parsePipelineStage(project.pipelineStage) ?? "inbound",
+                    )}
+                  </dd>
+                </div>
+              ) : null}
               <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
                 <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                   分类

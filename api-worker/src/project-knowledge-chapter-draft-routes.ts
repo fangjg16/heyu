@@ -78,7 +78,7 @@ import {
 } from "./project-knowledge-chapter-revisions-db";
 import { filterProjectsForDirectory } from "./projects-auth";
 import { findActiveInterview } from "./startup-interview-db";
-import { getProjectById, listProjects } from "./projects-db";
+import { getProjectById, listProjects, advanceMatureInboundToScreening } from "./projects-db";
 import { notifyProjectAdminsAndCores } from "./project-role-notify";
 import {
   canListProjectFiles,
@@ -106,6 +106,20 @@ function json(data: unknown, status = 200): Response {
     status,
     headers: { "Content-Type": "application/json; charset=utf-8" },
   });
+}
+
+async function withPipelineStage<T extends Record<string, unknown>>(
+  env: Env,
+  projectId: string,
+  payload: T,
+): Promise<T & { pipelineStage: string | null }> {
+  try {
+    await advanceMatureInboundToScreening(env.DB, projectId);
+  } catch {
+    /* 生成不能被阶段写入挡住 */
+  }
+  const project = await getProjectById(env, projectId).catch(() => null);
+  return { ...payload, pipelineStage: project?.pipelineStage ?? null };
 }
 
 async function resolveDraftItemForEdit(
@@ -322,14 +336,16 @@ async function startRerenderFromFiles(
     const latest = await listDraftItems(env.DB, input.active.id);
     const latestRun =
       (await getDraftRun(env.DB, input.active.id)) ?? input.active;
-    return json({
-      ok: true,
-      reused: true,
-      rerenderFromFiles: true,
-      run: latestRun,
-      items: mapRunItems(latest),
-      sectionIds: knIds,
-    });
+    return json(
+      await withPipelineStage(env, input.projectId, {
+        ok: true,
+        reused: true,
+        rerenderFromFiles: true,
+        run: latestRun,
+        items: mapRunItems(latest),
+        sectionIds: knIds,
+      }),
+    );
   }
   const run = await createDraftRun(env.DB, {
     projectId: input.projectId,
@@ -339,14 +355,16 @@ async function startRerenderFromFiles(
   });
   kickDraftRunGeneration(env, ctx, input.projectId, run.id, input.userId);
   const items = await listDraftItems(env.DB, run.id);
-  return json({
-    ok: true,
-    reused: false,
-    rerenderFromFiles: true,
-    run,
-    items: mapRunItems(items),
-    sectionIds: knIds,
-  });
+  return json(
+    await withPipelineStage(env, input.projectId, {
+      ok: true,
+      reused: false,
+      rerenderFromFiles: true,
+      run,
+      items: mapRunItems(items),
+      sectionIds: knIds,
+    }),
+  );
 }
 
 async function requeueFailedDraftSections(
@@ -759,26 +777,30 @@ export async function handleCreateChapterDraftRun(
         });
         const latestRun = await refreshDraftRunProgress(env.DB, active.id);
         const latest = await listDraftItems(env.DB, active.id);
-        return json({
-          ok: true,
-          reused: true,
-          run: latestRun,
-          items: mapRunItems(latest),
-          sectionIds: [sectionId!],
-        });
+        return json(
+          await withPipelineStage(env, projectId, {
+            ok: true,
+            reused: true,
+            run: latestRun,
+            items: mapRunItems(latest),
+            sectionIds: [sectionId!],
+          }),
+        );
       }
       if (regen === "from-files") {
         if (active.status === "generating") {
           const knIds = knSectionsToRerenderFromFiles(analysisKind);
-          return json({
-            ok: true,
-            reused: true,
-            rerenderFromFiles: true,
-            alreadyGenerating: true,
-            run: active,
-            items: mapRunItems(items),
-            sectionIds: knIds.length > 0 ? knIds : knPrimaryIds(primaryIds),
-          });
+          return json(
+            await withPipelineStage(env, projectId, {
+              ok: true,
+              reused: true,
+              rerenderFromFiles: true,
+              alreadyGenerating: true,
+              run: active,
+              items: mapRunItems(items),
+              sectionIds: knIds.length > 0 ? knIds : knPrimaryIds(primaryIds),
+            }),
+          );
         }
         return startRerenderFromFiles(env, ctx, {
           projectId,
@@ -848,13 +870,15 @@ export async function handleCreateChapterDraftRun(
       const latestIds = latest
         .map((i) => i.sectionId)
         .filter((id) => !META_DRAFT_SECTION_IDS.has(id));
-      return json({
-        ok: true,
-        reused: true,
-        run: latestRun,
-        items: mapRunItems(latest),
-        sectionIds: latestIds.length > 0 ? latestIds : wantedIds,
-      });
+      return json(
+        await withPipelineStage(env, projectId, {
+          ok: true,
+          reused: true,
+          run: latestRun,
+          items: mapRunItems(latest),
+          sectionIds: latestIds.length > 0 ? latestIds : wantedIds,
+        }),
+      );
     }
 
     const activeLabel =
@@ -901,23 +925,27 @@ export async function handleCreateChapterDraftRun(
     });
     const ready = await refreshDraftRunProgress(env.DB, run.id);
     const items = await listDraftItems(env.DB, run.id);
-    return json({
-      ok: true,
-      reused: false,
-      run: ready,
-      items: mapRunItems(items),
-      sectionIds: wantedIds,
-    });
+    return json(
+      await withPipelineStage(env, projectId, {
+        ok: true,
+        reused: false,
+        run: ready,
+        items: mapRunItems(items),
+        sectionIds: wantedIds,
+      }),
+    );
   }
   kickDraftRunGeneration(env, ctx, projectId, run.id, userId);
   const items = await listDraftItems(env.DB, run.id);
-  return json({
-    ok: true,
-    reused: false,
-    run,
-    items: mapRunItems(items),
-    sectionIds: wantedIds,
-  });
+  return json(
+    await withPipelineStage(env, projectId, {
+      ok: true,
+      reused: false,
+      run,
+      items: mapRunItems(items),
+      sectionIds: wantedIds,
+    }),
+  );
 }
 
 /** GET /api/projects/:id/chapter-draft-runs/active — 进行中的草案（若有） */

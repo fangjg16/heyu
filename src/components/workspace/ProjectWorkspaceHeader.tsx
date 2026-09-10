@@ -11,13 +11,19 @@ import {
 import {
   ENABLE_LIVE_CHAT,
   fetchProjectPermissions,
+  updateProjectViaApi,
   type ProjectPermissionMember,
 } from "@/lib/project-api";
 import {
   canManageProjectPermissions,
   canUserManageProjectMetadata,
 } from "@/workspace/project-manage";
-import { judgmentFromPhase } from "@/workspace/project-judgment";
+import { judgmentFromPipeline } from "@/workspace/project-judgment";
+import {
+  pipelineHeaderActions,
+  type PipelineHeaderAction,
+} from "@/workspace/pipeline-stage";
+import { upsertApiProject } from "@/workspace/project-registry";
 import type { WorkspaceProject } from "@/workspace/projects";
 import {
   getProjectRole,
@@ -136,13 +142,25 @@ export function ProjectWorkspaceHeader({
   const navigate = useNavigate();
   const location = useLocation();
   const role = getProjectRole(userId, project.id, project.createdBy, project.analysisKind);
-  const judgment = judgmentFromPhase(project.phase);
+  const judgment = judgmentFromPipeline(
+    project.phase,
+    project.analysisKind,
+    project.pipelineStage,
+  );
   const canManage = canManageProjectPermissions(userId, project);
   const canEditProject =
     Boolean(onEditProject) && canUserManageProjectMetadata(userId, project);
+  const pipelineActions =
+    project.analysisKind === "mature" && canEditProject
+      ? pipelineHeaderActions(project.phase, project.pipelineStage ?? null)
+      : [];
   const [members, setMembers] = useState<ProjectPermissionMember[] | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
-  const [confirmKind, setConfirmKind] = useState<null | "overview">(null);
+  const [confirmKind, setConfirmKind] = useState<
+    null | "overview" | PipelineHeaderAction
+  >(null);
+  const [pipelineBusy, setPipelineBusy] = useState(false);
+  const [pipelineError, setPipelineError] = useState<string | null>(null);
   useBodyScrollLock(confirmKind !== null || membersOpen);
 
   useEffect(() => {
@@ -206,12 +224,37 @@ export function ProjectWorkspaceHeader({
           body: "将根据当前已发布的知识网络更新项目概览（草案，需审核后发布）。确定开始？",
           confirmLabel: "开始更新概览",
         }
-      : null;
+      : confirmKind && typeof confirmKind === "object"
+        ? {
+            title: confirmKind.confirmTitle,
+            body: confirmKind.confirmBody,
+            confirmLabel: confirmKind.label,
+          }
+        : null;
 
   const onConfirmStart = () => {
     if (confirmKind === "overview") {
       setConfirmKind(null);
       onUpdateOverview?.();
+      return;
+    }
+    if (confirmKind && typeof confirmKind === "object") {
+      const action = confirmKind;
+      setPipelineBusy(true);
+      setPipelineError(null);
+      void updateProjectViaApi(project.id, {
+        phase: action.phase,
+        pipelineStage: action.pipelineStage,
+        userId,
+      })
+        .then((updated) => {
+          upsertApiProject(updated);
+          setConfirmKind(null);
+        })
+        .catch((e) => {
+          setPipelineError(e instanceof Error ? e.message : "更新投资阶段失败");
+        })
+        .finally(() => setPipelineBusy(false));
     }
   };
 
@@ -244,6 +287,11 @@ export function ProjectWorkspaceHeader({
             >
               {judgment.label}
             </span>
+            {judgment.frozenNote ? (
+              <span className="text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
+                冻结于{judgment.frozenNote}
+              </span>
+            ) : null}
             <span className="rounded-md bg-[rgba(78,66,57,0.07)] px-2.5 py-0.5 text-xs text-[hsl(var(--warm-charcoal-muted))]">
               {roleLabelForProject(role as WorkspaceRole, project.analysisKind)}
             </span>
@@ -257,6 +305,29 @@ export function ProjectWorkspaceHeader({
                 <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
                 编辑项目
               </button>
+            ) : null}
+            {pipelineActions.map((action) => (
+              <button
+                key={action.id}
+                type="button"
+                disabled={pipelineBusy}
+                onClick={() => {
+                  setPipelineError(null);
+                  setConfirmKind(action);
+                }}
+                className={cn(
+                  "inline-flex h-8 items-center rounded-md px-2 text-[12.5px] font-medium",
+                  action.id === "pass"
+                    ? "text-[#A06358] hover:bg-[rgba(160,99,88,0.08)]"
+                    : "text-[hsl(var(--wine))] hover:bg-[hsl(var(--wine)/0.08)]",
+                  pipelineBusy && "cursor-not-allowed opacity-60",
+                )}
+              >
+                {action.label}
+              </button>
+            ))}
+            {pipelineError ? (
+              <span className="text-[12px] text-[#A06358]">{pipelineError}</span>
             ) : null}
           </div>
         </div>
@@ -426,21 +497,28 @@ export function ProjectWorkspaceHeader({
                   <p className="mt-2 text-[12.5px] leading-relaxed text-[#59625F]">
                     {confirmCopy.body}
                   </p>
+                  {pipelineError && confirmKind !== "overview" ? (
+                    <p className="mt-2 text-[12.5px] text-[#A06358]">
+                      {pipelineError}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex justify-end gap-2 px-5 py-3">
                   <button
                     type="button"
                     onClick={() => setConfirmKind(null)}
-                    className="rounded-full border border-[rgba(78,66,57,0.14)] px-4 py-2 text-xs font-semibold text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)]"
+                    disabled={pipelineBusy}
+                    className="rounded-full border border-[rgba(78,66,57,0.14)] px-4 py-2 text-xs font-semibold text-[#1F2423] hover:bg-[rgba(78,66,57,0.05)] disabled:opacity-60"
                   >
                     取消
                   </button>
                   <button
                     type="button"
                     onClick={onConfirmStart}
-                    className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))]"
+                    disabled={pipelineBusy}
+                    className="rounded-full bg-[hsl(var(--wine))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--wine-hover))] disabled:opacity-60"
                   >
-                    {confirmCopy.confirmLabel}
+                    {pipelineBusy ? "保存中…" : confirmCopy.confirmLabel}
                   </button>
                 </div>
               </div>

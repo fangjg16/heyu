@@ -1,3 +1,5 @@
+import type { PipelineStage } from "@/workspace/pipeline-stage";
+
 /** 项目状态 */
 export const PROJECT_PHASES = ["进行中", "已完成", "已归档", "已暂停"] as const;
 export type ProjectPhase = (typeof PROJECT_PHASES)[number];
@@ -25,6 +27,8 @@ export type WorkspaceProject = {
   researchMaturity?: number | null;
   /** early | mature | acquire；创建/编辑时选定，未选时界面按 mature 目录 */
   analysisKind?: "early" | "mature" | "acquire" | null;
+  /** 仅 mature：待筛选 / 筛选 / 尽调 / 投委 / 已投 / 不投 */
+  pipelineStage?: PipelineStage | null;
 };
 
 export const DEFAULT_PROJECT_PHASE: ProjectPhase = "进行中";

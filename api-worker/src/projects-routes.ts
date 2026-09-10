@@ -23,6 +23,7 @@ import { listResearchChapterHtmlForProjects } from "./project-knowledge-chapters
 import type { WorkspaceRole } from "./workspace-roles";
 import { decodePathProjectId, resolveProjectForManage } from "./projects-resolve";
 import { parseAnalysisKind } from "./analysis-kind";
+import { parsePipelineStage } from "./pipeline-stage";
 
 type Env = { DB: AppDatabase; FILES: AppObjectStorage };
 
@@ -231,6 +232,7 @@ export async function handleUpdateProject(
     phase?: string;
     openness?: string;
     analysisKind?: string;
+    pipelineStage?: string | null;
     userId?: string;
   };
   try {
@@ -278,12 +280,19 @@ export async function handleUpdateProject(
           ? normalizeProjectOpenness(body.openness)
           : undefined,
       analysisKind,
+      pipelineStage: Object.prototype.hasOwnProperty.call(body, "pipelineStage")
+        ? parsePipelineStage(body.pipelineStage)
+        : undefined,
     });
     if (!project) return json({ error: "项目不存在" }, 404);
     return json({ project });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return json({ error: `更新失败：${msg}` }, 500);
+    const validation = /已投或不投|投资阶段|投委阶段/.test(msg);
+    return json(
+      { error: validation ? msg : `更新失败：${msg}` },
+      validation ? 400 : 500,
+    );
   }
 }
 

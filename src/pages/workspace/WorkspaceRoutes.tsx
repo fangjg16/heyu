@@ -47,6 +47,7 @@ import { unwatchDraftRun, watchDraftRun } from "@/lib/draft-progress-watch";
 import {
   getMergedProjects,
   setApiProjects,
+  subscribeApiProjects,
   upsertApiProject,
 } from "@/workspace/project-registry";
 import { loadSessionUserId } from "@/workspace/session";
@@ -530,6 +531,13 @@ function ProjectWorkspaceLayout() {
       cancelled = true;
     };
   }, [projectId, userId]);
+
+  useEffect(() => {
+    return subscribeApiProjects(() => {
+      const found = getMergedProjects().find((p) => p.id === projectId);
+      if (found) setProject(found);
+    });
+  }, [projectId]);
 
   if (loading) {
     return (

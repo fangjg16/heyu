@@ -32,6 +32,10 @@ import {
 import { projectPhaseLabel, type WorkspaceProject } from "@/workspace/projects";
 import { projectCardMarksFor } from "@/workspace/project-card-mark";
 import { judgmentFromPhase } from "@/workspace/project-judgment";
+import {
+  parsePipelineStage,
+  pipelineStageLabel,
+} from "@/workspace/pipeline-stage";
 
 /** 原型硬编码色，总览页与 HTML 原型逐项对齐 */
 const C = {
@@ -79,6 +83,10 @@ function shortDisplayName(name: string | null | undefined): string {
 }
 
 function stageLabel(p: WorkspaceProject): string {
+  if (p.analysisKind === "mature") {
+    const stage = parsePipelineStage(p.pipelineStage) ?? "inbound";
+    return pipelineStageLabel(stage);
+  }
   return projectPhaseLabel(p.phase);
 }
 

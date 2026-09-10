@@ -31,6 +31,11 @@ import {
   type WorkspaceProject,
 } from "@/workspace/projects";
 import {
+  parsePipelineStage,
+  pipelineStageLabel,
+  type PipelineStage,
+} from "@/workspace/pipeline-stage";
+import {
   createJoinRequest,
   withdrawJoinRequest,
   createProjectViaApi,
@@ -110,6 +115,33 @@ const PHASE_BADGE_CLASS: Record<ProjectPhase, string> = {
   已归档:
     "border-[hsl(var(--sand))] bg-[hsl(var(--warm-charcoal)/0.06)] text-[hsl(var(--warm-charcoal-muted))]",
 };
+
+const PIPELINE_BADGE_CLASS: Record<PipelineStage, string> = {
+  inbound:
+    "border-[hsl(38_40%_78%)] bg-[hsl(38_55%_94%)] text-[hsl(32_50%_32%)]",
+  "deal-screening":
+    "border-[hsl(38_45%_70%)] bg-[hsl(38_50%_91%)] text-[hsl(32_52%_28%)]",
+  "due-diligence":
+    "border-[hsl(145_18%_78%)] bg-[hsl(145_22%_93%)] text-[hsl(145_24%_30%)]",
+  "ic-review":
+    "border-[hsl(var(--wine)/0.35)] bg-[hsl(var(--wine-muted)/0.55)] text-[hsl(var(--wine))]",
+  invested:
+    "border-[hsl(var(--wine-deep)/0.35)] bg-[hsl(var(--wine-muted)/0.55)] text-[hsl(var(--wine-deep))]",
+  passed:
+    "border-[hsl(var(--sand))] bg-[hsl(var(--warm-charcoal)/0.06)] text-[hsl(var(--warm-charcoal-muted))]",
+};
+
+function pipelineChipText(project: WorkspaceProject): string | null {
+  if (project.analysisKind !== "mature") return null;
+  const stage = parsePipelineStage(project.pipelineStage) ?? "inbound";
+  return pipelineStageLabel(stage);
+}
+
+function pipelineBadgeClass(project: WorkspaceProject): string | null {
+  if (project.analysisKind !== "mature") return null;
+  const stage = parsePipelineStage(project.pipelineStage) ?? "inbound";
+  return PIPELINE_BADGE_CLASS[stage];
+}
 
 function phaseChipText(phase: ProjectPhase | undefined): string {
   return projectPhaseLabel(phase);
@@ -203,6 +235,8 @@ function ProjectCard({
       : "请进入协作工作台查看待确认事项与可上传资料。");
   const owner = ownerDisplayName(project.createdBy);
   const cover = coverToneFor(project);
+  const pipelineLabel = pipelineChipText(project);
+  const pipelineClass = pipelineBadgeClass(project);
   const actionLabel = isIssuerRole(role)
     ? "进入协作"
     : isMember
@@ -295,6 +329,16 @@ function ProjectCard({
             >
               {phaseChipText(project.phase)}
             </span>
+            {pipelineLabel && pipelineClass ? (
+              <span
+                className={cn(
+                  "inline-flex shrink-0 items-center rounded-full border px-1.5 py-px text-[10px] font-medium leading-[16px] tracking-wide",
+                  pipelineClass,
+                )}
+              >
+                {pipelineLabel}
+              </span>
+            ) : null}
             <span
               className={cn(
                 "inline-flex shrink-0 items-center rounded-full border px-1.5 py-px text-[10px] font-medium leading-[16px] tracking-wide",

@@ -1,5 +1,11 @@
 import type { AppDatabase } from "./app-database";
 import { parseAnalysisKind, saveAnalysisKind } from "./analysis-kind";
+import {
+  defaultPipelineStageForKind,
+  parsePipelineStage,
+  resolvePipelineForSave,
+  type PipelineStage,
+} from "./pipeline-stage";
 
 export type ProjectPhase = "进行中" | "已完成" | "已归档" | "已暂停";
 
@@ -19,6 +25,7 @@ export type ProjectRow = {
   updated_at: string;
   deleted_at?: string | null;
   analysis_kind?: string | null;
+  pipeline_stage?: string | null;
 };
 
 export type ProjectJson = {
@@ -33,6 +40,7 @@ export type ProjectJson = {
   createdAt: string;
   updatedAt: string;
   analysisKind: "early" | "mature" | "acquire" | null;
+  pipelineStage: PipelineStage | null;
 };
 
 export function normalizeProjectOpenness(raw: unknown): ProjectOpenness {
@@ -68,9 +76,13 @@ export function rowToJson(row: ProjectRow): ProjectJson {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     analysisKind,
+    pipelineStage: parsePipelineStage(row.pipeline_stage),
   };
 }
 
+const PROJECT_SELECT_WITH_STAGE = `SELECT id, name, category, phase, summary, guest_summary, openness,
+            created_by, created_at, updated_at, deleted_at, analysis_kind, pipeline_stage
+     FROM projects`;
 const PROJECT_SELECT_WITH_KIND = `SELECT id, name, category, phase, summary, guest_summary, openness,
             created_by, created_at, updated_at, deleted_at, analysis_kind
      FROM projects`;
@@ -106,13 +118,30 @@ function isMissingAnalysisKindColumn(err: unknown): boolean {
   return isMissingColumn(err, "analysis_kind");
 }
 
+function isMissingPipelineStageColumn(err: unknown): boolean {
+  return isMissingColumn(err, "pipeline_stage");
+}
+
 export async function listProjects(env: { DB: AppDatabase }): Promise<ProjectJson[]> {
   try {
     const { results } = await env.DB.prepare(
-      `${PROJECT_SELECT_WITH_KIND}${notDeletedClause(true)} ORDER BY updated_at DESC`,
+      `${PROJECT_SELECT_WITH_STAGE}${notDeletedClause(true)} ORDER BY updated_at DESC`,
     ).all<ProjectRow>();
     return (results ?? []).map(rowToJson);
   } catch (e) {
+    if (isMissingPipelineStageColumn(e)) {
+      try {
+        const { results } = await env.DB.prepare(
+          `${PROJECT_SELECT_WITH_KIND}${notDeletedClause(true)} ORDER BY updated_at DESC`,
+        ).all<ProjectRow>();
+        return (results ?? []).map(rowToJson);
+      } catch (eKind) {
+        if (isMissingAnalysisKindColumn(eKind)) {
+          return listProjectsWithoutKind(env, eKind);
+        }
+        return listProjectsWithoutKind(env, eKind);
+      }
+    }
     if (isMissingAnalysisKindColumn(e)) {
       try {
         const { results } = await env.DB.prepare(
@@ -160,12 +189,27 @@ export async function getProjectById(
 ): Promise<ProjectJson | null> {
   try {
     const row = await env.DB.prepare(
-      `${PROJECT_SELECT_WITH_KIND} WHERE id = ? AND (deleted_at IS NULL OR deleted_at = '')`,
+      `${PROJECT_SELECT_WITH_STAGE} WHERE id = ? AND (deleted_at IS NULL OR deleted_at = '')`,
     )
       .bind(id)
       .first<ProjectRow>();
     return row ? rowToJson(row) : null;
   } catch (e) {
+    if (isMissingPipelineStageColumn(e)) {
+      try {
+        const row = await env.DB.prepare(
+          `${PROJECT_SELECT_WITH_KIND} WHERE id = ? AND (deleted_at IS NULL OR deleted_at = '')`,
+        )
+          .bind(id)
+          .first<ProjectRow>();
+        return row ? rowToJson(row) : null;
+      } catch (eKind) {
+        if (isMissingAnalysisKindColumn(eKind)) {
+          return getProjectByIdWithoutKind(env, id, eKind);
+        }
+        return getProjectByIdWithoutKind(env, id, eKind);
+      }
+    }
     if (isMissingAnalysisKindColumn(e)) {
       try {
         const row = await env.DB.prepare(
@@ -263,6 +307,7 @@ export async function createProject(
   if (kind) {
     await saveAnalysisKind(env.DB, id, kind);
   }
+  await savePipelineStage(env.DB, id, defaultPipelineStageForKind(kind));
   const created = await getProjectById(env, id);
   if (!created) throw new Error("项目创建后读取失败");
   return created;
@@ -300,6 +345,52 @@ export function normalizeProjectPhase(raw: string | undefined): ProjectPhase {
   return "进行中";
 }
 
+export async function savePipelineStage(
+  db: AppDatabase,
+  projectId: string,
+  stage: PipelineStage | null,
+): Promise<void> {
+  try {
+    await db
+      .prepare(
+        `UPDATE projects SET pipeline_stage = ?, updated_at = ? WHERE id = ?`,
+      )
+      .bind(stage, new Date().toISOString(), projectId)
+      .run();
+  } catch (e) {
+    if (isMissingPipelineStageColumn(e)) return;
+    throw e;
+  }
+}
+
+/** mature + inbound 时，首次生成章节草案推进到筛选。失败不抛。 */
+export async function advanceMatureInboundToScreening(
+  db: AppDatabase,
+  projectId: string,
+): Promise<PipelineStage | null> {
+  try {
+    await db
+      .prepare(
+        `UPDATE projects
+         SET pipeline_stage = 'deal-screening', updated_at = ?
+         WHERE id = ?
+           AND pipeline_stage = 'inbound'
+           AND analysis_kind = 'mature'`,
+      )
+      .bind(new Date().toISOString(), projectId)
+      .run();
+  } catch (e) {
+    if (isMissingPipelineStageColumn(e)) return null;
+    throw e;
+  }
+  const row = await db
+    .prepare(`SELECT pipeline_stage FROM projects WHERE id = ?`)
+    .bind(projectId)
+    .first<{ pipeline_stage: string | null }>()
+    .catch(() => null);
+  return parsePipelineStage(row?.pipeline_stage);
+}
+
 export async function updateProject(
   env: { DB: AppDatabase },
   id: string,
@@ -311,6 +402,7 @@ export async function updateProject(
     phase?: ProjectPhase;
     openness?: ProjectOpenness | string;
     analysisKind?: string | null;
+    pipelineStage?: PipelineStage | null;
   },
 ): Promise<ProjectJson | null> {
   const existing = await getProjectById(env, id);
@@ -322,11 +414,28 @@ export async function updateProject(
   const summary = (input.summary ?? existing.summary).trim();
   const guestSummary = summary;
   const category = ((input.category ?? existing.category).trim() || "未分类");
-  const phase = normalizeProjectPhase(input.phase ?? existing.phase);
   const openness =
     input.openness !== undefined
       ? normalizeProjectOpenness(input.openness)
       : existing.openness;
+
+  const nextKind =
+    input.analysisKind !== undefined
+      ? parseAnalysisKind(input.analysisKind)
+      : existing.analysisKind;
+  if (input.analysisKind !== undefined && !nextKind) {
+    throw new Error("项目形态无效");
+  }
+
+  const requestedPhase = normalizeProjectPhase(input.phase ?? existing.phase);
+  const resolved = resolvePipelineForSave({
+    analysisKind: nextKind,
+    phase: requestedPhase,
+    current: existing.pipelineStage,
+    requested: input.pipelineStage,
+    allowInvestedOverride: true,
+  });
+  const phase = resolved.phase;
 
   await env.DB.prepare(
     `UPDATE projects
@@ -346,11 +455,10 @@ export async function updateProject(
     )
     .run();
 
-  if (input.analysisKind !== undefined) {
-    const kind = parseAnalysisKind(input.analysisKind);
-    if (!kind) throw new Error("项目形态无效");
-    await saveAnalysisKind(env.DB, id, kind);
+  if (input.analysisKind !== undefined && nextKind) {
+    await saveAnalysisKind(env.DB, id, nextKind);
   }
+  await savePipelineStage(env.DB, id, resolved.pipelineStage);
 
   return getProjectById(env, id);
 }
