@@ -232,11 +232,6 @@ const ZEISS_ZOC_KN_GROUPS: readonly KnCatalogGroup[] = [
     label: "可能合作路径",
     sections: [{ id: "business-overview", label: "可能合作路径" }],
   },
-  {
-    id: "next-meeting",
-    label: "下次会谈",
-    sections: [{ id: "diligence-gaps", label: "下次会谈" }],
-  },
 ];
 
 const PROJECT_KN_OVERRIDES: Record<string, readonly KnCatalogGroup[]> = {
