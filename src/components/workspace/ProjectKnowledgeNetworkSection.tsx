@@ -67,10 +67,12 @@ import {
   showAllChaptersRerenderAction,
 } from "@/lib/analysis-ai-folder";
 import {
-  catalogGroupsForKind,
+  catalogGroupsForProject,
   questionsSectionIdForKind,
   researchSectionsForKind,
+  researchSectionsForProject,
   resolveSectionLocation,
+  usesCustomKnCatalog,
 } from "@/lib/kn-catalog";
 
 type KnowledgeView = "chapters" | "sources" | "glossary" | "versions";
@@ -199,11 +201,13 @@ export function ProjectKnowledgeNetworkSection({
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const analysisKind = resolveAnalysisKind(project?.analysisKind);
-  const chapterGroups = catalogGroupsForKind(analysisKind);
+  const customKn = usesCustomKnCatalog(projectId);
+  const chapterGroups = catalogGroupsForProject(projectId, analysisKind);
   const questionsSectionId = questionsSectionIdForKind(analysisKind);
   const initialLoc = resolveSectionLocation(
     searchParams.get("section"),
     analysisKind,
+    projectId,
   );
   const [view, setView] = useState<KnowledgeView>("chapters");
   const [groupId, setGroupId] = useState(
@@ -296,16 +300,16 @@ export function ProjectKnowledgeNetworkSection({
   const singleLevelCatalog = chapterGroups.every((g) => g.sections.length === 1);
 
   useEffect(() => {
-    const loc = resolveSectionLocation(searchParams.get("section"), analysisKind);
+    const loc = resolveSectionLocation(searchParams.get("section"), analysisKind, projectId);
     if (!loc) return;
     setView("chapters");
     setGroupId(loc.groupId);
     setSectionId(loc.sectionId);
-  }, [searchParams, analysisKind]);
+  }, [searchParams, analysisKind, projectId]);
 
   useEffect(() => {
     if (chapterGroups.some((g) => g.sections.some((s) => s.id === sectionId))) {
-      const loc = resolveSectionLocation(sectionId, analysisKind);
+      const loc = resolveSectionLocation(sectionId, analysisKind, projectId);
       if (loc) setGroupId(loc.groupId);
       return;
     }
@@ -313,7 +317,7 @@ export function ProjectKnowledgeNetworkSection({
     if (!first?.sections[0]) return;
     setGroupId(first.id);
     setSectionId(first.sections[0].id);
-  }, [analysisKind, chapterGroups, sectionId]);
+  }, [analysisKind, chapterGroups, sectionId, projectId]);
 
   useEffect(() => {
     const viewParam = searchParams.get("view");
@@ -969,7 +973,7 @@ export function ProjectKnowledgeNetworkSection({
 
   const goToQuestions = () => {
     setView("chapters");
-    const loc = resolveSectionLocation(questionsSectionId, analysisKind);
+    const loc = resolveSectionLocation(questionsSectionId, analysisKind, projectId);
     setGroupId(loc?.groupId ?? chapterGroups[0]!.id);
     setSectionId(questionsSectionId);
   };
@@ -1071,7 +1075,7 @@ export function ProjectKnowledgeNetworkSection({
         fetchProjectFiles(projectId, userId).catch(() => []),
       ]);
       const researchIds = new Set(
-        researchSectionsForKind(analysisKind).map((s) => s.id),
+        researchSectionsForProject(projectId, analysisKind).map((s) => s.id),
       );
       const published = live?.chapters
         ? live.chapters.filter((c) => researchIds.has(c.sectionId) && c.hasHtml)
@@ -1215,7 +1219,7 @@ export function ProjectKnowledgeNetworkSection({
             ) : null}
           </div>
         ) : null}
-        {canUpdateAllChapters || canUpdate ? (
+        {customKn ? null : canUpdateAllChapters || canUpdate ? (
           allChaptersBusy && onViewDraftProgress ? (
             <button
               type="button"
@@ -1402,7 +1406,9 @@ export function ProjectKnowledgeNetworkSection({
                 ) : (
                   <div className="flex min-h-[280px] items-center justify-center px-8 py-16">
                     <p className="text-center text-[13px] text-[#969E9A]">
-                      {canRetryFailed
+                      {customKn
+                        ? "本章尚无内容"
+                        : canRetryFailed
                         ? "本章上次生成失败，可点击右侧「重新生成本章」重试"
                         : "本章尚无内容，可点右侧「重新生成本章」"}
                     </p>
@@ -1413,6 +1419,7 @@ export function ProjectKnowledgeNetworkSection({
               <aside className="bg-[rgba(248,243,238,0.45)] px-[22px] py-6">
                 <div className="lg:sticky lg:top-4">
                   <div className="mb-[18px] border-b border-[rgba(78,66,57,0.1)] pb-[18px]">
+                    {customKn ? null : (
                     <button
                       type="button"
                       onClick={() => void onGenerate()}
@@ -1437,6 +1444,7 @@ export function ProjectKnowledgeNetworkSection({
                           ? "重新生成本章"
                           : "更新本章"}
                     </button>
+                    )}
                     {canUpdate && hasHtml ? (
                       <div className="mt-2 flex flex-col gap-1.5">
                         {!liveEditing ? (

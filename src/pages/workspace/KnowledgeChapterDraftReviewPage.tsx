@@ -50,13 +50,16 @@ import {
   canUpdateProjectKnowledgeNetwork,
 } from "@/workspace/project-manage";
 import { resolveAnalysisKind } from "@/lib/analysis-kind";
-import { researchSectionsForKind } from "@/lib/kn-catalog";
+import { researchSectionsForProject, usesCustomKnCatalog } from "@/lib/kn-catalog";
 import { getMergedProjects } from "@/workspace/project-registry";
 
 const OVERVIEW_CHAPTER = { id: "project-overview", label: "项目概览" };
 
-function reviewableChapters(kind: ReturnType<typeof resolveAnalysisKind>) {
-  return [OVERVIEW_CHAPTER, ...researchSectionsForKind(kind)];
+function reviewableChapters(
+  kind: ReturnType<typeof resolveAnalysisKind>,
+  projectId?: string | null,
+) {
+  return [OVERVIEW_CHAPTER, ...researchSectionsForProject(projectId, kind)];
 }
 
 type ChangeKind = "added" | "changed" | "unchanged" | "failed" | "pending" | "revising";
@@ -161,12 +164,12 @@ export default function KnowledgeChapterDraftReviewPage() {
 
   const analysisKind = resolveAnalysisKind(project?.analysisKind);
   const catalogChapters = useMemo(
-    () => reviewableChapters(analysisKind),
-    [analysisKind],
+    () => reviewableChapters(analysisKind, projectId),
+    [analysisKind, projectId],
   );
   const researchChapters = useMemo(
-    () => researchSectionsForKind(analysisKind),
-    [analysisKind],
+    () => researchSectionsForProject(projectId, analysisKind),
+    [analysisKind, projectId],
   );
 
   const [loading, setLoading] = useState(true);
@@ -357,7 +360,13 @@ export default function KnowledgeChapterDraftReviewPage() {
         const chaptersToShow =
           draft.run.scope === "section" && runSectionIds.length > 0
             ? catalogChapters.filter((c) => runSectionIds.includes(c.id))
-            : researchChapters;
+            : usesCustomKnCatalog(projectId)
+              ? catalogChapters.filter(
+                  (c) =>
+                    c.id !== "project-overview" ||
+                    runSectionIds.includes("project-overview"),
+                )
+              : researchChapters;
 
         const liveMap = new Map<string, string | null>();
         await Promise.all(
@@ -938,7 +947,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                       章节列表
                     </div>
                     <div className="flex items-center gap-1">
-                      {canUpdate && addableChapters.length > 0 ? (
+                      {canUpdate && addableChapters.length > 0 && !usesCustomKnCatalog(projectId) ? (
                         <label className="relative inline-flex items-center">
                           <select
                             className="h-7 max-w-[6.5rem] appearance-none rounded-md border border-[rgba(160,99,88,0.3)] bg-white pl-2 pr-6 text-[11px] font-medium text-[#A06358]"
@@ -1185,7 +1194,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                     <p className="mt-2 whitespace-pre-wrap text-[12.5px] text-[#59625F]">
                       {selected.error || "未知错误"}
                     </p>
-                    {canUpdate && runOpen ? (
+                    {canUpdate && runOpen && !usesCustomKnCatalog(projectId) ? (
                       <button
                         type="button"
                         onClick={() => void onRegenChapter()}
@@ -1620,7 +1629,7 @@ export default function KnowledgeChapterDraftReviewPage() {
                         ? `发布本章 · ${selected.label}`
                         : "发布本章"}
                   </button>
-                  {canUpdate && runOpen ? (
+                  {canUpdate && runOpen && !usesCustomKnCatalog(projectId) ? (
                     <button
                       type="button"
                       onClick={() => void onRegenChapter()}

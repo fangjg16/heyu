@@ -203,10 +203,71 @@ export function catalogGroupsForKind(
   return KN_CATALOG_BY_KIND[kind] ?? MATURE_GROUPS;
 }
 
+/** 蔡司 × 中山眼科中心：按调研稿大章分 tab，不套标准投资目录。 */
+export const ZEISS_ZOC_PROJECT_ID = "proj-9e8a43212004";
+
+const ZEISS_ZOC_KN_GROUPS: readonly KnCatalogGroup[] = [
+  {
+    id: "core-judgment",
+    label: "核心判断",
+    sections: [{ id: "project-summary", label: "核心判断" }],
+  },
+  {
+    id: "iol-industry",
+    label: "人工晶状体行业",
+    sections: [{ id: "industry-overview", label: "人工晶状体行业" }],
+  },
+  {
+    id: "zeiss",
+    label: "蔡司",
+    sections: [{ id: "company-team", label: "蔡司" }],
+  },
+  {
+    id: "zoc",
+    label: "中山眼科中心",
+    sections: [{ id: "company-background", label: "中山眼科中心" }],
+  },
+  {
+    id: "coop-path",
+    label: "可能合作路径",
+    sections: [{ id: "business-overview", label: "可能合作路径" }],
+  },
+  {
+    id: "next-meeting",
+    label: "下次会谈",
+    sections: [{ id: "diligence-gaps", label: "下次会谈" }],
+  },
+];
+
+const PROJECT_KN_OVERRIDES: Record<string, readonly KnCatalogGroup[]> = {
+  [ZEISS_ZOC_PROJECT_ID]: ZEISS_ZOC_KN_GROUPS,
+};
+
+export function usesCustomKnCatalog(
+  projectId: string | null | undefined,
+): boolean {
+  return Boolean(PROJECT_KN_OVERRIDES[(projectId ?? "").trim()]);
+}
+
+export function catalogGroupsForProject(
+  projectId: string | null | undefined,
+  kind: AnalysisKind = DEFAULT_ANALYSIS_KIND,
+): readonly KnCatalogGroup[] {
+  const hit = PROJECT_KN_OVERRIDES[(projectId ?? "").trim()];
+  return hit ?? catalogGroupsForKind(kind);
+}
+
 export function researchSectionsForKind(
   kind: AnalysisKind = DEFAULT_ANALYSIS_KIND,
 ): KnCatalogSection[] {
   return catalogGroupsForKind(kind).flatMap((g) => [...g.sections]);
+}
+
+export function researchSectionsForProject(
+  projectId: string | null | undefined,
+  kind: AnalysisKind = DEFAULT_ANALYSIS_KIND,
+): KnCatalogSection[] {
+  return catalogGroupsForProject(projectId, kind).flatMap((g) => [...g.sections]);
 }
 
 export function researchSectionIdsForKind(
@@ -301,6 +362,7 @@ const DELIVERABLE_FILE_LABELS: Record<string, string> = {
 export function sectionLabel(
   id: string,
   kind: AnalysisKind = DEFAULT_ANALYSIS_KIND,
+  projectId?: string | null,
 ): string {
   if (isDeliverableDraftId(id)) {
     const fileId = deliverableFileIdFromDraft(id);
@@ -310,6 +372,8 @@ export function sectionLabel(
   if (id === "sources") return "引用来源";
   if (id === "glossary") return "名词解释";
   if (id === "project-graph") return "项目关系图";
+  const custom = researchSectionsForProject(projectId, kind).find((s) => s.id === id);
+  if (custom && usesCustomKnCatalog(projectId)) return custom.label;
   const hit = researchSectionsForKind(kind).find((s) => s.id === id);
   if (hit) return hit.label;
   for (const k of ["mature", "acquire", "early"] as const) {
@@ -357,11 +421,12 @@ const MATURE_SECTION_ALIASES: Record<string, string> = {
 export function resolveSectionLocation(
   sectionRaw: string | null,
   kind: AnalysisKind = DEFAULT_ANALYSIS_KIND,
+  projectId?: string | null,
 ): { groupId: string; sectionId: string } | null {
   const raw = (sectionRaw ?? "").trim();
   if (!raw) return null;
   const sid = MATURE_SECTION_ALIASES[raw] ?? raw;
-  for (const g of catalogGroupsForKind(kind)) {
+  for (const g of catalogGroupsForProject(projectId, kind)) {
     if (g.sections.some((s) => s.id === sid)) {
       return { groupId: g.id, sectionId: sid };
     }
