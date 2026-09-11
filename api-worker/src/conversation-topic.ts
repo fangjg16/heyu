@@ -38,6 +38,42 @@ function topicFromKnownPrompt(raw: string): string | null {
   return hit?.label ?? null;
 }
 
+/** 指示代词、过短或无信息量的主题，不能进侧栏（与前端 src/lib/conversation-topic.ts 保持一致） */
+export function isWeakConversationTopic(raw: string): boolean {
+  const t = raw
+    .trim()
+    .replace(/[吧呀啊呢呗哦嗯了哈]+$/u, "")
+    .trim();
+  if (!t || t.length < 2) return true;
+  if (/^(这|那|该|此|它)(个|些|份|种|里|边)?$/u.test(t)) return true;
+  if (/^(材料|文件|附件|资料|看看|看下)$/u.test(t)) return true;
+  return false;
+}
+
+function topicFromOneSentence(sentence: string): string | null {
+  let plain = sentence.replace(/[#*_`[\]()【】]/gu, "").trim();
+  if (!plain) return null;
+
+  plain = stripRepeat(plain, WRAPPERS);
+  plain = plain.replace(/^(把)?(这个|该|本|此)?项目的/u, "").trim();
+  plain = plain.replace(/^(全面)?分析(一下|下|一?波)?/u, (_, full) =>
+    full ? "全面分析" : "",
+  );
+  plain = plain.replace(/(一下|下)(?=(这个|该|本|此)?项目|$)/u, "").trim();
+  plain = plain.replace(/(这个|该|本|此)?(项目|案子)(吧|呀|啊|呢|呗)?$/u, "").trim();
+  plain = plain.replace(/[吧呀啊呢呗哦嗯了]+$/u, "").trim();
+  plain = plain.replace(/(是什么|怎么样|如何|好不好|行不行|吗)$/u, "").trim();
+  plain = plain.replace(/[，、；,：:]+$/u, "").trim();
+
+  if (!plain || plain === "分析") return "项目分析";
+  if (isWeakConversationTopic(plain)) return null;
+  if (plain.length <= 12) return plain;
+  const cut = plain.slice(0, 12);
+  const punct = cut.search(/[，、；,\s]/u);
+  if (punct > 3) return cut.slice(0, punct).trim();
+  return `${cut}…`;
+}
+
 export function isFirstUserTurnInHistory(
   history: { role: string; content: string }[],
 ): boolean {
@@ -53,27 +89,17 @@ export function deriveConversationTopicHeuristic(raw: string): string {
 
   text = text.replace(/^请阅读刚上传[^。！？\n]*[。！？]?\s*/u, "");
   text = text.replace(/附件[：:][^\n]+/gu, "").trim();
-  const sentence = (text.split(/[。！？\n]/u)[0] ?? text).trim();
-  let plain = sentence.replace(/[#*_`[\]()【】]/gu, "").trim();
-  if (!plain) return "新对话";
+  const sentences = text
+    .split(/[。！？\n]/u)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (sentences.length === 0 && text) sentences.push(text);
 
-  plain = stripRepeat(plain, WRAPPERS);
-  plain = plain.replace(/^(把)?(这个|该|本|此)?项目的/u, "").trim();
-  plain = plain.replace(/^(全面)?分析(一下|下|一?波)?/u, (_, full) =>
-    full ? "全面分析" : "",
-  );
-  plain = plain.replace(/(一下|下)(?=(这个|该|本|此)?项目|$)/u, "").trim();
-  plain = plain.replace(/(这个|该|本|此)?(项目|案子)(吧|呀|啊|呢|呗)?$/u, "").trim();
-  plain = plain.replace(/[吧呀啊呢呗哦嗯了]+$/u, "").trim();
-  plain = plain.replace(/(是什么|怎么样|如何|好不好|行不行|吗)$/u, "").trim();
-  plain = plain.replace(/[，、；,：:]+$/u, "").trim();
-
-  if (!plain || plain === "分析") return "项目分析";
-  if (plain.length <= 12) return plain;
-  const cut = plain.slice(0, 12);
-  const punct = cut.search(/[，、；,\s]/u);
-  if (punct > 3) return cut.slice(0, punct).trim();
-  return `${cut}…`;
+  for (const s of sentences) {
+    const topic = topicFromOneSentence(s);
+    if (topic) return topic;
+  }
+  return "项目咨询";
 }
 
 function sanitizeLlmTopic(raw: string): string {
@@ -119,7 +145,7 @@ export async function generateConversationTopic(
           {
             role: "system",
             content:
-              "你是侧栏对话标题助手。根据用户首条提问，只输出一个高度概括的主题（2-8个字，名词性短语，例如「全面分析」「尽调清单」）。不要复述原句，去掉「帮我」「请」「这个项目」等口语。禁止标点、禁止解释、禁止引号。",
+              "你是侧栏对话标题助手。根据用户首条提问，只输出一个高度概括的主题（2-8个字，名词性短语，例如「全面分析」「尽调清单」）。不要复述原句，去掉「帮我」「请」「这个项目」等口语。禁止用「这」「这个」「材料」等指示代词当标题；概括不出就输出「项目咨询」。禁止标点、禁止解释、禁止引号。",
           },
           {
             role: "user",
@@ -134,7 +160,11 @@ export async function generateConversationTopic(
     };
     const answer = data.choices?.[0]?.message?.content?.trim() ?? "";
     const topic = sanitizeLlmTopic(answer);
-    if (topic.length >= 2 && !/^(帮我|请帮|请你|麻烦|能不能)/u.test(topic)) {
+    if (
+      topic.length >= 2 &&
+      !isWeakConversationTopic(topic) &&
+      !/^(帮我|请帮|请你|麻烦|能不能)/u.test(topic)
+    ) {
       return topic;
     }
     return heuristic;

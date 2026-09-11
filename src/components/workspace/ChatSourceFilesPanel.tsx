@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, ChevronRight, FileText, Folder, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Eye, FileText, Folder, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ProjectFileRecord } from "@/lib/project-api";
 import { isHiddenKeep, type FileTreeNode } from "@/lib/project-file-tree";
@@ -33,6 +33,7 @@ type ChatSourceFilesPanelProps = {
   materialsState?: { fromConversation?: string };
   onRememberReturn?: () => void;
   onPickFile: (file: ProjectFileRecord) => void;
+  onPreviewFile: (file: ProjectFileRecord) => void;
   onClose: () => void;
 };
 
@@ -43,6 +44,7 @@ function SourceTreeNodes({
   referencedIds,
   onToggle,
   onPickFile,
+  onPreviewFile,
 }: {
   nodes: FileTreeNode[];
   depth: number;
@@ -50,6 +52,7 @@ function SourceTreeNodes({
   referencedIds: Set<string>;
   onToggle: (path: string) => void;
   onPickFile: (file: ProjectFileRecord) => void;
+  onPreviewFile: (file: ProjectFileRecord) => void;
 }) {
   return (
     <ul className={cn("space-y-1", depth > 0 && "ml-3")}>
@@ -84,6 +87,7 @@ function SourceTreeNodes({
                   referencedIds={referencedIds}
                   onToggle={onToggle}
                   onPickFile={onPickFile}
+                  onPreviewFile={onPreviewFile}
                 />
               ) : null}
             </li>
@@ -91,7 +95,7 @@ function SourceTreeNodes({
         }
         const active = referencedIds.has(node.file.id);
         return (
-          <li key={node.id}>
+          <li key={node.id} className="flex items-center gap-0.5">
             <button
               type="button"
               draggable
@@ -107,7 +111,7 @@ function SourceTreeNodes({
               }}
               onClick={() => onPickFile(node.file)}
               className={cn(
-                "flex w-full cursor-grab items-center gap-1 rounded-lg py-1 pr-1.5 text-left text-[12px] leading-5 active:cursor-grabbing",
+                "flex min-w-0 flex-1 cursor-grab items-center gap-1 rounded-lg py-1 pr-1 text-left text-[12px] leading-5 active:cursor-grabbing",
                 active
                   ? "bg-[hsl(var(--wine-deep)/0.1)] font-medium text-[hsl(var(--wine-deep))]"
                   : "text-muted-foreground hover:bg-white/80 hover:text-foreground",
@@ -116,6 +120,15 @@ function SourceTreeNodes({
               <span className="inline-block h-3 w-3 shrink-0" aria-hidden />
               <FileText className="h-3 w-3 shrink-0 opacity-70" strokeWidth={1.8} />
               <span className="min-w-0 truncate">{node.name}</span>
+            </button>
+            <button
+              type="button"
+              title="查看文件"
+              aria-label={`查看 ${node.name}`}
+              onClick={() => onPreviewFile(node.file)}
+              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-white hover:text-[hsl(var(--wine-deep))]"
+            >
+              <Eye className="h-3 w-3" strokeWidth={1.8} />
             </button>
           </li>
         );
@@ -132,6 +145,7 @@ export function ChatSourceFilesPanel({
   materialsState,
   onRememberReturn,
   onPickFile,
+  onPreviewFile,
   onClose,
 }: ChatSourceFilesPanelProps) {
   const tree = useMemo(
@@ -180,10 +194,14 @@ export function ChatSourceFilesPanel({
               });
             }}
             onPickFile={onPickFile}
+            onPreviewFile={onPreviewFile}
           />
         )}
       </nav>
       <div className="shrink-0 border-t border-[rgba(78,66,57,0.1)] px-3 py-2.5">
+        <p className="mb-1.5 text-[11px] leading-4 text-muted-foreground">
+          点文件名引用到输入框，点眼睛查看
+        </p>
         <Link
           to={materialsHref}
           state={materialsState}

@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { ChatMarkdown } from "@/components/workspace/ChatMarkdown";
 import { ChatSourceFilesPanel, parseSourceFileDrag, SOURCE_FILE_DRAG_TYPE } from "@/components/workspace/ChatSourceFilesPanel";
+import { downloadFileBlob, FilePreviewModal } from "@/components/workspace/FilePreviewModal";
 import { TypingLoader } from "@/components/ui/loader";
 import {
   KnowledgeNetworkPreview,
@@ -79,6 +80,7 @@ import {
 import {
   deriveConversationTopicHeuristic,
   isSidebarTopicPreview,
+  isWeakConversationTopic,
   looksLikeRawUserRequest,
   topicFromFirstUserMessage,
 } from "@/lib/conversation-topic";
@@ -116,6 +118,8 @@ import {
   resolveConversationIdFromUrl,
 } from "@/workspace/chat-conversation-id";
 import { rememberChatReturnPath } from "@/workspace/chat-return";
+import { canDownloadProjectMaterials } from "@/workspace/project-manage";
+import { documentsInVersionFamily } from "@/lib/document-versions";
 import {
   assignAskConversationId,
   clearPendingAskChapter,
@@ -310,7 +314,8 @@ function applyConversationMetadataFromMessages(
     const keepExisting =
       isSidebarTopicPreview(c.preview) &&
       c.preview.trim().length <= 20 &&
-      !looksLikeRawUserRequest(c.preview);
+      !looksLikeRawUserRequest(c.preview) &&
+      !isWeakConversationTopic(c.preview);
     const preview = keepExisting ? c.preview : topicPreview;
     return {
       ...c,
@@ -388,7 +393,9 @@ function resolveConversationTopic(
     if (fromMsgs && fromMsgs !== "对话记录") return fromMsgs;
   }
   const preview = conversation?.preview?.trim() ?? "";
-  if (preview && isSidebarTopicPreview(preview)) return preview;
+  if (preview && isSidebarTopicPreview(preview) && !isWeakConversationTopic(preview)) {
+    return preview;
+  }
   return "新对话";
 }
 
@@ -915,7 +922,7 @@ function UserBubble({
   const displayTime = formatBubbleTimeLabel(time);
   return (
     <div className="flex w-full justify-end">
-      <div className="group flex w-full max-w-[85%] flex-col items-end">
+      <div className="group flex w-fit max-w-[min(32rem,85%)] min-w-0 flex-col items-end">
         <div className="flex max-w-full items-start gap-1.5">
           <MessageBubbleToolbar
             copyText={copyText}
@@ -924,7 +931,7 @@ function UserBubble({
           />
           <div
             className={cn(
-              "inline-block w-fit max-w-full rounded-2xl rounded-br-md px-4 py-2.5 text-[13px] font-medium leading-relaxed text-wine-deep-foreground break-words whitespace-pre-line",
+              "inline-block w-fit max-w-full rounded-2xl rounded-br-md px-4 py-2.5 text-[13px] font-medium leading-relaxed text-wine-deep-foreground break-words [overflow-wrap:break-word]",
               USER_MESSAGE_SHELL,
               "selection:bg-[hsl(var(--wine-muted))] selection:text-[hsl(var(--warm-charcoal))]",
             )}
@@ -979,12 +986,12 @@ function AiShell({
 }) {
   const displayTime = formatBubbleTimeLabel(time);
   return (
-    <div className="flex justify-start">
-      <div className="group inline-flex flex-col items-start">
-        <div className="flex items-start gap-1.5">
+    <div className="flex w-full justify-start">
+      <div className="group flex w-fit max-w-[min(42rem,100%)] min-w-0 flex-col items-start">
+        <div className="flex max-w-full items-start gap-1.5">
           <div
             className={cn(
-              "max-w-[92%] rounded-2xl rounded-bl-md border border-border/70 bg-white px-4 py-3 text-[13px] leading-relaxed text-foreground",
+              "min-w-0 max-w-full rounded-2xl rounded-bl-md border border-border/70 bg-white px-4 py-3 text-[13px] leading-relaxed text-foreground break-words [overflow-wrap:break-word]",
               "shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
               "selection:bg-[hsl(var(--wine-deep)/0.14)] selection:text-foreground",
             )}
@@ -1080,6 +1087,8 @@ export default function ConversationCenter() {
     [],
   );
   const [projectSourceFilesLoading, setProjectSourceFilesLoading] = useState(false);
+  const [previewSourceFile, setPreviewSourceFile] =
+    useState<ProjectFileRecord | null>(null);
   const [conversations, setConversations] = useState<SessionConversation[]>([]);
   const [showHistoryMenu, setShowHistoryMenu] = useState(false);
   const [conversationFileRecords, setConversationFileRecords] = useState<
@@ -2919,7 +2928,9 @@ export default function ConversationCenter() {
               setLiveCitationMap((prev) => ({ ...prev, ...meta.citationMap! }));
             }
             const topic = meta.conversationTopic?.trim();
-            if (topic) updateConversationPreview(topic);
+            if (topic && !isWeakConversationTopic(topic)) {
+              updateConversationPreview(topic);
+            }
           },
           onStatus: (label) => {
             updateLiveMessage(effectiveConversationId, assistantId, {
@@ -3058,7 +3069,9 @@ export default function ConversationCenter() {
         payload && typeof payload === "object" && "conversationTopic" in payload
           ? String((payload as { conversationTopic?: string }).conversationTopic ?? "").trim()
           : "";
-      if (topicFromApi) updateConversationPreview(topicFromApi);
+      if (topicFromApi && !isWeakConversationTopic(topicFromApi)) {
+        updateConversationPreview(topicFromApi);
+      }
 
       const isAsyncJob =
         payload &&
@@ -4097,12 +4110,43 @@ export default function ConversationCenter() {
               }
             }}
             onPickFile={addReferencedSourceFile}
+            onPreviewFile={setPreviewSourceFile}
             onClose={() => setSourcePanelOpen(false)}
           />
         </div>
       ) : null}
         </div>
       </div>
+      {previewSourceFile && projectId && userId ? (
+        <FilePreviewModal
+          projectId={projectId}
+          userId={userId}
+          file={previewSourceFile}
+          versionFiles={documentsInVersionFamily(
+            projectSourceFiles,
+            previewSourceFile,
+          )}
+          onClose={() => setPreviewSourceFile(null)}
+          onDownload={
+            project && canDownloadProjectMaterials(userId, project)
+              ? async () => {
+                  const { blob, filename } = await downloadFileBlob(
+                    projectId,
+                    previewSourceFile.id,
+                    userId,
+                    previewSourceFile.filename,
+                  );
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = filename || previewSourceFile.filename;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }
+              : undefined
+          }
+        />
+      ) : null}
     </WorkspaceShell>
   );
 }

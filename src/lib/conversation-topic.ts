@@ -28,18 +28,21 @@ function topicFromKnownPrompt(raw: string): string | null {
   return hit?.label ?? null;
 }
 
-/** 首条提问 → 侧栏/顶栏主题（抽主题，不复述口语原句） */
-export function deriveConversationTopicHeuristic(raw: string): string {
-  let text = raw.trim().replace(/\s+/gu, " ");
-  if (!text || FILE_ONLY.test(text)) return "文件与资料咨询";
-  const known = topicFromKnownPrompt(text);
-  if (known) return known;
+/** 指示代词、过短或无信息量的主题，不能进侧栏 */
+export function isWeakConversationTopic(raw: string): boolean {
+  const t = raw
+    .trim()
+    .replace(/[吧呀啊呢呗哦嗯了哈]+$/u, "")
+    .trim();
+  if (!t || t.length < 2) return true;
+  if (/^(这|那|该|此|它)(个|些|份|种|里|边)?$/u.test(t)) return true;
+  if (/^(材料|文件|附件|资料|看看|看下)$/u.test(t)) return true;
+  return false;
+}
 
-  text = text.replace(/^请阅读刚上传[^。！？\n]*[。！？]?\s*/u, "");
-  text = text.replace(/附件[：:][^\n]+/gu, "").trim();
-  const sentence = (text.split(/[。！？\n]/u)[0] ?? text).trim();
+function topicFromOneSentence(sentence: string): string | null {
   let plain = sentence.replace(/[#*_`[\]()【】]/gu, "").trim();
-  if (!plain) return "新对话";
+  if (!plain) return null;
 
   plain = stripRepeat(plain, WRAPPERS);
   plain = plain.replace(/^(把)?(这个|该|本|此)?项目的/u, "").trim();
@@ -53,11 +56,34 @@ export function deriveConversationTopicHeuristic(raw: string): string {
   plain = plain.replace(/[，、；,：:]+$/u, "").trim();
 
   if (!plain || plain === "分析") return "项目分析";
+  if (isWeakConversationTopic(plain)) return null;
   if (plain.length <= 12) return plain;
   const cut = plain.slice(0, 12);
   const punct = cut.search(/[，、；,\s]/u);
   if (punct > 3) return cut.slice(0, punct).trim();
   return `${cut}…`;
+}
+
+/** 首条提问 → 侧栏/顶栏主题（抽主题，不复述口语原句） */
+export function deriveConversationTopicHeuristic(raw: string): string {
+  let text = raw.trim().replace(/\s+/gu, " ");
+  if (!text || FILE_ONLY.test(text)) return "文件与资料咨询";
+  const known = topicFromKnownPrompt(text);
+  if (known) return known;
+
+  text = text.replace(/^请阅读刚上传[^。！？\n]*[。！？]?\s*/u, "");
+  text = text.replace(/附件[：:][^\n]+/gu, "").trim();
+  const sentences = text
+    .split(/[。！？\n]/u)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (sentences.length === 0 && text) sentences.push(text);
+
+  for (const s of sentences) {
+    const topic = topicFromOneSentence(s);
+    if (topic) return topic;
+  }
+  return "项目咨询";
 }
 
 const PLACEHOLDER_PREVIEWS = new Set([
