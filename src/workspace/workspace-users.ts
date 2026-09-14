@@ -1,5 +1,9 @@
 import type { WorkspaceRole, WorkspaceUser } from "./types";
-import { readAllCachedProjectRoles, readCachedProjectRole } from "./project-role-cache";
+import {
+  areMyProjectRolesReady,
+  readAllCachedProjectRoles,
+  readCachedProjectRole,
+} from "./project-role-cache";
 import { loadSessionUserProfile } from "./session";
 
 export type { WorkspaceUser };
@@ -181,10 +185,68 @@ export function canOpenWorkspaceChat(userId: string | null | undefined): boolean
   if (!uid) return false;
   if (isPlatformAdminUser(uid)) return true;
   if (isIssuerOnlyUser(uid)) return false;
+  if (!areMyProjectRolesReady()) return true;
   const roles = Object.values(readAllCachedProjectRoles());
+  if (roles.length === 0) return true;
   if (roles.some((r) => isInvestorRole(r))) return true;
-  if (roles.length > 0) return false;
   return false;
+}
+
+export type ChatStayDecision = "stay" | "wait" | "projects" | "collab";
+
+/**
+ * 对话页能不能留下。
+ * 角色表没到之前，不要把 Core 当成未加入踢去项目库。
+ */
+export function decideChatStay(input: {
+  userId: string;
+  projectId: string;
+  createdBy?: string | null;
+  analysisKind?: string | null;
+  projectFound: boolean;
+  rolesReady?: boolean;
+}): ChatStayDecision {
+  const userId = input.userId.trim();
+  if (!userId || !input.projectId.trim()) return "projects";
+  const rolesReady = input.rolesReady ?? areMyProjectRolesReady();
+  if (!input.projectFound) return rolesReady ? "projects" : "wait";
+
+  if (isPlatformAdminUser(userId)) return "stay";
+  if ((input.createdBy ?? "").trim() === userId) return "stay";
+
+  const cached = readCachedProjectRole(input.projectId);
+  if (cached == null && !rolesReady) return "wait";
+
+  const role = getProjectRole(
+    userId,
+    input.projectId,
+    input.createdBy,
+    input.analysisKind,
+  );
+  if (role === "guest") {
+    if (!rolesReady) return "wait";
+    if (cached == null && Object.keys(readAllCachedProjectRoles()).length === 0) {
+      return "stay";
+    }
+    return "projects";
+  }
+  if (role === "issuer" && input.analysisKind !== "early") return "collab";
+  return "stay";
+}
+
+/** 项目已打开时：未知或已加入都让进对话，不要先弹「无法进入」。 */
+export function canAttemptProjectChat(input: {
+  userId: string;
+  projectId: string;
+  createdBy?: string | null;
+  analysisKind?: string | null;
+}): boolean {
+  const decision = decideChatStay({
+    ...input,
+    projectFound: true,
+    rolesReady: areMyProjectRolesReady(),
+  });
+  return decision === "stay" || decision === "wait";
 }
 
 export function canEnterChat(

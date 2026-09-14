@@ -20,7 +20,7 @@ import {
 } from "@/workspace/project-manage";
 import { isCloudProject } from "@/workspace/project-registry";
 import {
-  canEnterChat,
+  canAttemptProjectChat,
   getProjectRole,
   roleLabelForProject,
 } from "@/workspace/workspace-users";
@@ -94,7 +94,12 @@ export function ProjectDetailDrawer({
   if (!project) return null;
 
   const role = getProjectRole(userId, project.id, project.createdBy, project.analysisKind);
-  const chatOk = canEnterChat(role, project.analysisKind);
+  const chatOk = canAttemptProjectChat({
+    userId,
+    projectId: project.id,
+    createdBy: project.createdBy,
+    analysisKind: project.analysisKind,
+  });
   const canManage = canUserManageProjectMetadata(userId, project);
   const canManagePerms = canManageProjectPermissions(userId, project);
   const canDownloadMaterials = canDownloadProjectMaterials(userId, project);

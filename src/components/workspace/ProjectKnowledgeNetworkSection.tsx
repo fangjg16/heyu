@@ -49,6 +49,7 @@ import {
 } from "@/lib/open-questions-parse";
 import { canPublishProjectKnowledgeNetwork, canUpdateProjectKnowledgeNetwork } from "@/workspace/project-manage";
 import {
+  canAttemptProjectChat,
   canEnterChat,
   getProjectRole,
 } from "@/workspace/workspace-users";
@@ -1048,8 +1049,14 @@ export function ProjectKnowledgeNetworkSection({
   };
 
   const onAskChapter = () => {
-    const role = getProjectRole(userId, projectId, project?.createdBy);
-    if (!canEnterChat(role)) {
+    if (
+      !canAttemptProjectChat({
+        userId,
+        projectId,
+        createdBy: project?.createdBy,
+        analysisKind: project?.analysisKind,
+      })
+    ) {
       setChatDeniedOpen(true);
       return;
     }

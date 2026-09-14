@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ENABLE_LIVE_CHAT, fetchMyProjectRoles } from "@/lib/project-api";
 import {
   clearMyProjectRoles,
+  markMyProjectRolesReady,
   setMyProjectRoles,
   subscribeProjectRoles,
 } from "@/workspace/project-role-cache";
@@ -31,7 +32,7 @@ export function useMyProjectRoles(userId: string | null): number {
           if (!cancelled) setMyProjectRoles(roles);
         })
         .catch(() => {
-          if (!cancelled) clearMyProjectRoles();
+          if (!cancelled) markMyProjectRolesReady();
         });
     };
 

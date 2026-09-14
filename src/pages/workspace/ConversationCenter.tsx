@@ -164,7 +164,9 @@ import {
   saveLastChatProjectId,
 } from "@/workspace/session";
 import { useMyProjectRoles } from "@/hooks/use-my-project-roles";
+import { areMyProjectRolesReady } from "@/workspace/project-role-cache";
 import {
+  decideChatStay,
   getProjectRole,
   getUserById,
 } from "@/workspace/workspace-users";
@@ -1185,7 +1187,7 @@ export default function ConversationCenter() {
     setUser(u);
   }, [navigate]);
 
-  useMyProjectRoles(userId); // 订阅角色缓存，管理端改权限后回前台会刷新
+  const rolesVersion = useMyProjectRoles(userId);
 
   useEffect(() => {
     return () => {
@@ -1275,33 +1277,35 @@ export default function ConversationCenter() {
   const projectRole = useMemo(() => {
     if (!userId || !projectId) return null;
     return getProjectRole(userId, projectId, project?.createdBy, project?.analysisKind);
-  }, [userId, projectId, project?.createdBy, apiProjectsTick]);
+  }, [userId, projectId, project?.createdBy, apiProjectsTick, rolesVersion]);
 
-  useEffect(() => {
-    if (!userId || !projectId || !projectLookupDone) return;
-    const p = getProjectById(projectId) ?? chatSessionProject;
-    if (!p) {
-      navigate("/app/projects", { replace: true });
-      return;
-    }
-    if (getProjectRole(userId, projectId, p.createdBy, p.analysisKind) === "guest") {
-      navigate("/app/projects", { replace: true });
-      return;
-    }
-    if (
-      getProjectRole(userId, projectId, p.createdBy, p.analysisKind) === "issuer" &&
-      p.analysisKind !== "early"
-    ) {
-      navigate(`/app/collab/${projectId}`, { replace: true });
-    }
+  const chatStay = useMemo(() => {
+    if (!userId || !projectId || !projectLookupDone) return "wait" as const;
+    return decideChatStay({
+      userId,
+      projectId,
+      createdBy: project?.createdBy,
+      analysisKind: project?.analysisKind,
+      projectFound: Boolean(project),
+      rolesReady: areMyProjectRolesReady(),
+    });
   }, [
     userId,
     projectId,
     projectLookupDone,
-    navigate,
-    apiProjectsTick,
-    chatSessionProject,
+    project,
+    rolesVersion,
   ]);
+
+  useEffect(() => {
+    if (chatStay === "projects") {
+      navigate("/app/projects", { replace: true });
+      return;
+    }
+    if (chatStay === "collab" && projectId) {
+      navigate(`/app/collab/${projectId}`, { replace: true });
+    }
+  }, [chatStay, navigate, projectId]);
 
   const effectiveConversationId = useMemo(() => {
     if (!projectId) return "";
@@ -1371,7 +1375,7 @@ export default function ConversationCenter() {
   ]);
 
   const isLiveAiMode =
-    ENABLE_LIVE_CHAT && Boolean(AI_CHAT_ENDPOINT) && projectRole !== "guest";
+    ENABLE_LIVE_CHAT && Boolean(AI_CHAT_ENDPOINT) && chatStay === "stay";
 
   const isCurrentConversationSending = Boolean(
     effectiveConversationId && sendingConversationId === effectiveConversationId,
@@ -3226,7 +3230,7 @@ export default function ConversationCenter() {
     }
   };
 
-  if (!user || !userId || !projectRole) {
+  if (!user || !userId || chatStay === "wait") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
         加载中…
@@ -3234,10 +3238,10 @@ export default function ConversationCenter() {
     );
   }
 
-  if (!projectId || projectRole === "guest") {
+  if (!projectId || chatStay === "projects" || chatStay === "collab") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
-        正在跳转项目总览…
+        正在跳转…
       </div>
     );
   }
@@ -3245,7 +3249,7 @@ export default function ConversationCenter() {
   if (!project) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
-        {projectLookupDone ? "正在跳转项目总览…" : "正在加载项目…"}
+        {projectLookupDone ? "正在跳转…" : "正在加载项目…"}
       </div>
     );
   }

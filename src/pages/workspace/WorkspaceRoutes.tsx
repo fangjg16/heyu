@@ -50,6 +50,7 @@ import {
   subscribeApiProjects,
   upsertApiProject,
 } from "@/workspace/project-registry";
+import { useMyProjectRoles } from "@/hooks/use-my-project-roles";
 import { loadSessionUserId } from "@/workspace/session";
 import {
   clearChatReturnPath,
@@ -62,7 +63,7 @@ import { formatChapterVersionLabel, formatOverviewVersionLabel } from "@/lib/cha
 import { resolveAnalysisKind } from "@/lib/analysis-kind";
 import { fullDraftSectionIds, isDeliverableDraftId, sectionLabel } from "@/lib/kn-catalog";
 import {
-  canEnterChat,
+  canAttemptProjectChat,
   getProjectRole,
 } from "@/workspace/workspace-users";
 import AdminPortal, {
@@ -95,6 +96,7 @@ import { resolveChatEntryPathAsync } from "@/workspace/chat-entry";
 function WorkspaceChatRedirect() {
   const navigate = useNavigate();
   const userId = loadSessionUserId();
+  const rolesVersion = useMyProjectRoles(userId);
   const [ready, setReady] = useState(false);
   const [empty, setEmpty] = useState(false);
 
@@ -133,7 +135,7 @@ function WorkspaceChatRedirect() {
     return () => {
       cancelled = true;
     };
-  }, [ready, userId, navigate]);
+  }, [ready, userId, navigate, rolesVersion]);
 
   if (empty) {
     return (
@@ -225,6 +227,7 @@ function ProjectWorkspaceLayout() {
   const { pathname, state: locationState } = useLocation();
   const navigate = useNavigate();
   const userId = loadSessionUserId() ?? "";
+  useMyProjectRoles(userId || null);
   const [project, setProject] = useState<WorkspaceProject | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -572,7 +575,12 @@ function ProjectWorkspaceLayout() {
   if (role === "issuer" && project.analysisKind !== "early") {
     return <Navigate to={`/app/collab/${project.id}`} replace />;
   }
-  const chatOk = canEnterChat(role, project.analysisKind);
+  const chatOk = canAttemptProjectChat({
+    userId,
+    projectId: project.id,
+    createdBy: project.createdBy,
+    analysisKind: project.analysisKind,
+  });
   const canUpdateOverview = canUpdateProjectKnowledgeNetwork(userId, project);
   const tab = pathname.includes("/knowledge")
     ? "knowledge"

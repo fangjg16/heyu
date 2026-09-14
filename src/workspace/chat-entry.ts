@@ -11,7 +11,12 @@ import {
 } from "@/workspace/project-registry";
 import { filterMemberProjectsForUser } from "@/workspace/guest-access";
 import { loadLastChatProjectId } from "@/workspace/session";
-import { getProjectRole } from "@/workspace/workspace-users";
+import {
+  areMyProjectRolesReady,
+  readAllCachedProjectRoles,
+  readCachedProjectRole,
+} from "@/workspace/project-role-cache";
+import { getProjectRole, isPlatformAdminUser } from "@/workspace/workspace-users";
 
 function pathForConversation(projectId: string, conversationId: string): string {
   return conversationRoutePath(projectId, conversationId);
@@ -26,6 +31,14 @@ function memberProjectsForUser(userId: string | null) {
 function isMemberOfProject(userId: string | null, projectId: string): boolean {
   if (!userId) return false;
   const project = getProjectById(projectId);
+  if (isPlatformAdminUser(userId)) return true;
+  if ((project?.createdBy ?? "").trim() === userId.trim()) return true;
+  if (!areMyProjectRolesReady()) return Boolean(projectId.trim());
+  const cached = readCachedProjectRole(projectId);
+  if (cached && cached !== "guest") return true;
+  if (Object.keys(readAllCachedProjectRoles()).length === 0) {
+    return Boolean(projectId.trim());
+  }
   return getProjectRole(userId, projectId, project?.createdBy) !== "guest";
 }
 
