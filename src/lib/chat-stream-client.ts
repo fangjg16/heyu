@@ -13,8 +13,6 @@ export type ChatStreamDone = {
   truncated?: boolean;
 };
 
-export const CHAT_STREAM_IDLE_TIMEOUT_NAME = "ChatStreamIdleTimeoutError";
-
 /** 消费 Worker SSE（event: meta | delta | done | error） */
 export async function consumeChatSse(
   response: Response,
@@ -25,7 +23,6 @@ export async function consumeChatSse(
     onDone: (payload: ChatStreamDone) => void;
     onError?: (message: string) => void;
   },
-  options?: { idleTimeoutMs?: number },
 ): Promise<void> {
   const ctype = response.headers.get("Content-Type") ?? "";
   if (!ctype.includes("text/event-stream")) {
@@ -59,26 +56,6 @@ export async function consumeChatSse(
   let buffer = "";
   let eventName = "message";
   let dataLines: string[] = [];
-  const idleMs = options?.idleTimeoutMs ?? 0;
-
-  const readNext = async (): Promise<ReadableStreamReadResult<Uint8Array>> => {
-    if (idleMs <= 0) return reader.read();
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      return await Promise.race([
-        reader.read(),
-        new Promise<never>((_, reject) => {
-          timer = setTimeout(() => {
-            const err = new Error("生成超时，请再发一次。");
-            err.name = CHAT_STREAM_IDLE_TIMEOUT_NAME;
-            reject(err);
-          }, idleMs);
-        }),
-      ]);
-    } finally {
-      if (timer) clearTimeout(timer);
-    }
-  };
 
   const flushEvent = () => {
     if (dataLines.length === 0) return;
@@ -114,50 +91,41 @@ export async function consumeChatSse(
     eventName = "message";
   };
 
-  try {
-    while (true) {
-      const { done, value } = await readNext();
-      if (done) {
-        buffer += dec.decode();
-        if (buffer) {
-          const line = buffer;
-          buffer = "";
-          if (line.startsWith(":")) {
-            /* keepalive */
-          } else if (line.startsWith("event:")) {
-            flushEvent();
-            eventName = line.slice(6).trim();
-          } else if (line.startsWith("data:")) {
-            dataLines.push(line.slice(5).trim());
-          }
-        }
-        break;
-      }
-      buffer += dec.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-
-      for (const line of lines) {
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      buffer += dec.decode();
+      if (buffer) {
+        const line = buffer;
+        buffer = "";
         if (line.startsWith(":")) {
-          continue;
-        }
-        if (line.startsWith("event:")) {
+          /* keepalive */
+        } else if (line.startsWith("event:")) {
           flushEvent();
           eventName = line.slice(6).trim();
         } else if (line.startsWith("data:")) {
           dataLines.push(line.slice(5).trim());
-        } else if (line.trim() === "") {
-          flushEvent();
         }
       }
+      break;
     }
-    flushEvent();
-  } catch (error) {
-    try {
-      await reader.cancel();
-    } catch {
-      /* 超时后关掉 reader */
+    buffer += dec.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (line.startsWith(":")) {
+        continue;
+      }
+      if (line.startsWith("event:")) {
+        flushEvent();
+        eventName = line.slice(6).trim();
+      } else if (line.startsWith("data:")) {
+        dataLines.push(line.slice(5).trim());
+      } else if (line.trim() === "") {
+        flushEvent();
+      }
     }
-    throw error;
   }
+  flushEvent();
 }

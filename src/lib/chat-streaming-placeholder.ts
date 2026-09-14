@@ -6,11 +6,6 @@ export const CHAT_STREAMING_PLACEHOLDER = "正在生成，请稍候…";
 /** 短答流中断或刷新后看到的说明，避免一直「思考中」。 */
 export const CHAT_STREAM_STALE_MESSAGE = "刚才这轮没有生成完，请再发一次。";
 
-export const CHAT_STREAM_TIMEOUT_MESSAGE = "生成超时，请再发一次。";
-
-/** 短答 SSE / 上游无增量时的空闲超时。 */
-export const CHAT_SHORT_STREAM_IDLE_MS = 90_000;
-
 export function isChatStreamingPlaceholder(content: string): boolean {
   const t = content.trim();
   return t === CHAT_STREAMING_PLACEHOLDER || t === "正在提交任务…";
