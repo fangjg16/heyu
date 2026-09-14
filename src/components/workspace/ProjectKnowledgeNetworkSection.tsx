@@ -51,7 +51,6 @@ import { canPublishProjectKnowledgeNetwork, canUpdateProjectKnowledgeNetwork } f
 import {
   canAttemptProjectChat,
   canEnterChat,
-  getProjectRole,
 } from "@/workspace/workspace-users";
 import { chatAskAboutChapterPath } from "@/workspace/chat-ask-source";
 import { projectPhaseLabel, type WorkspaceProject } from "@/workspace/projects";
