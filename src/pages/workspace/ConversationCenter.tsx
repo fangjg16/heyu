@@ -63,12 +63,21 @@ import {
   type KnowledgeNetworkChatEntryState,
 } from "@/lib/knowledge-network-prompts";
 import type { WorkspaceProject } from "@/workspace/projects";
-import { consumeChatSse } from "@/lib/chat-stream-client";
+import {
+  CHAT_STREAM_IDLE_TIMEOUT_NAME,
+  consumeChatSse,
+} from "@/lib/chat-stream-client";
 import {
   cancelAgentJobRemote,
   mergeAsyncAgentJobIntoConversation,
 } from "@/lib/chat-sync-api";
-import { overlayInFlightAssistantMessages } from "@/lib/chat-streaming-placeholder";
+import {
+  CHAT_SHORT_STREAM_IDLE_MS,
+  CHAT_STREAM_STALE_MESSAGE,
+  CHAT_STREAM_TIMEOUT_MESSAGE,
+  overlayInFlightAssistantMessages,
+  settleStaleShortChatMessages,
+} from "@/lib/chat-streaming-placeholder";
 import {
   buildProductizedJobProgressLabel,
   formatAgentJobFailureDisplay,
@@ -1468,6 +1477,18 @@ export default function ConversationCenter() {
     }, CHAT_PERSIST_DEBOUNCE_MS);
   }, [userId, chatSyncReady, runChatPersist]);
 
+  useEffect(() => {
+    if (!chatSyncReady) return;
+    let didSettle = false;
+    setLiveMessagesByConversation((prev) => {
+      const next = settleStaleShortChatMessages(prev, sendingConversationId);
+      if (next === prev) return prev;
+      didSettle = true;
+      return next;
+    });
+    if (didSettle) flushChatPersist();
+  }, [chatSyncReady, sendingConversationId, flushChatPersist]);
+
   const activeConversation = useMemo(() => {
     if (!effectiveConversationId || !projectId) return null;
     const found = conversations.find((item) => item.id === effectiveConversationId);
@@ -1569,8 +1590,9 @@ export default function ConversationCenter() {
         incomingMsgs: Record<string, LiveChatMessage[]>,
         writeCache: boolean,
       ) => {
+        const settledMsgs = settleStaleShortChatMessages(incomingMsgs);
         setLiveMessagesByConversation((prev) =>
-          mergeBootstrapMessages(prev, incomingMsgs),
+          mergeBootstrapMessages(prev, settledMsgs),
         );
         setConversations((prev) => {
           const merged = mergeBootstrapConversationList(prev, incomingConvs);
@@ -1578,9 +1600,9 @@ export default function ConversationCenter() {
             lastHydratedConversationCountRef.current,
             conversationHydrateCount(
               merged.filter((c) =>
-                shouldPersistConversation(c, incomingMsgs),
+                shouldPersistConversation(c, settledMsgs),
               ),
-              incomingMsgs,
+              settledMsgs,
             ),
           );
           if (writeCache) {
@@ -1596,7 +1618,7 @@ export default function ConversationCenter() {
                 conversations: merged,
                 messagesByConversation: mergeBootstrapMessages(
                   prevCache?.messagesByConversation ?? {},
-                  incomingMsgs,
+                  settledMsgs,
                 ),
               };
             }
@@ -2801,11 +2823,22 @@ export default function ConversationCenter() {
     setSendingConversationId(sendConversationId);
     const sendAbort = new AbortController();
     chatSendAbortRef.current = sendAbort;
+    let streamIdleTimer: number | null = null;
+    const armStreamIdleTimeout = (ms: number) => {
+      if (streamIdleTimer != null) window.clearTimeout(streamIdleTimer);
+      streamIdleTimer = window.setTimeout(() => {
+        streamIdleTimer = null;
+        if (!sendAbort.signal.aborted) sendAbort.abort("timeout");
+      }, ms);
+    };
     const useWorkerJson =
       RAGFLOW_MODE !== "native" &&
       RAGFLOW_MODE !== "openai";
     const expectStreamUi = useWorkerJson;
     const deepSkill = isDeepSkillMessage(apiMessage);
+    const streamIdleMs = deepSkill
+      ? CHAT_SHORT_STREAM_IDLE_MS * 2
+      : CHAT_SHORT_STREAM_IDLE_MS;
     if (expectStreamUi) {
       streamAssistantId = `assistant-${Date.now()}`;
       appendLiveMessage(sendConversationId, {
@@ -2898,6 +2931,7 @@ export default function ConversationCenter() {
       };
       if (token) headers.Authorization = `Bearer ${token}`;
       else if (RAGFLOW_API_KEY) headers.Authorization = `Bearer ${RAGFLOW_API_KEY}`;
+      armStreamIdleTimeout(streamIdleMs);
       const res = await fetch(AI_CHAT_ENDPOINT, {
         method: "POST",
         headers,
@@ -2925,7 +2959,9 @@ export default function ConversationCenter() {
         } | null = null;
         streamAccumulated = "";
 
-        await consumeChatSse(res, {
+        await consumeChatSse(
+          res,
+          {
           onMeta: (meta) => {
             if (meta.citationMap && Object.keys(meta.citationMap).length > 0) {
               mergedCitationMap = { ...mergedCitationMap, ...meta.citationMap };
@@ -2937,11 +2973,13 @@ export default function ConversationCenter() {
             }
           },
           onStatus: (label) => {
+            armStreamIdleTimeout(streamIdleMs);
             updateLiveMessage(effectiveConversationId, assistantId, {
               streamStatusLabel: productizeStreamStatusLabel(label),
             });
           },
           onDelta: (text) => {
+            armStreamIdleTimeout(streamIdleMs);
             streamAccumulated += text;
             setLiveMessagesByConversation((prev) => ({
               ...prev,
@@ -2960,7 +2998,9 @@ export default function ConversationCenter() {
           onError: (msg) => {
             throw new Error(msg);
           },
-        });
+          },
+          { idleTimeoutMs: streamIdleMs },
+        );
 
         const payload = streamPayload as Record<string, unknown> | null;
         if (
@@ -3014,6 +3054,9 @@ export default function ConversationCenter() {
             payload && typeof payload.answer === "string" ? payload.answer : "",
           streamed: streamAccumulated,
         });
+        if (!rawAnswer.trim()) {
+          rawAnswer = CHAT_STREAM_STALE_MESSAGE;
+        }
         if (payload?.truncated === true) {
           rawAnswer += STREAM_TRUNCATED_FOOTER;
           setLiveError("模型输出因上游超时提前结束，已保留上文内容。");
@@ -3176,15 +3219,31 @@ export default function ConversationCenter() {
         }
       }
     } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
+      const timedOut =
+        (error instanceof Error &&
+          error.name === "AbortError" &&
+          sendAbort.signal.reason === "timeout") ||
+        (error instanceof Error &&
+          error.name === CHAT_STREAM_IDLE_TIMEOUT_NAME);
+      if (
+        timedOut ||
+        (error instanceof Error && error.name === "AbortError")
+      ) {
         if (streamAssistantId) {
+          const trimmed = streamAccumulated.trim();
+          const content = trimmed
+            ? stripAssistantThinkTags(streamAccumulated, false)
+            : timedOut
+              ? CHAT_STREAM_TIMEOUT_MESSAGE
+              : "";
           updateLiveMessage(sendConversationId, streamAssistantId, {
-            content: stripAssistantThinkTags(streamAccumulated, false),
+            content,
             isStreaming: false,
             streamStatusLabel: undefined,
           });
-          if (streamAccumulated.trim()) flushChatPersist();
+          if (content.trim()) flushChatPersist();
         }
+        if (timedOut) setLiveError(CHAT_STREAM_TIMEOUT_MESSAGE);
         return;
       }
       const raw =
@@ -3223,6 +3282,7 @@ export default function ConversationCenter() {
         }
       }
     } finally {
+      if (streamIdleTimer != null) window.clearTimeout(streamIdleTimer);
       chatSendAbortRef.current = null;
       setSendingConversationId((cur) =>
         cur === sendConversationId ? null : cur,
