@@ -1,6 +1,6 @@
 ---
 name: due-diligence
-description: 财务投资人正式尽调与投委会材料。这不是 deal screening，技能内没有筛选模式。在已有筛选备忘录且团队决定 continue 之后，或用户明确要求做尽调、写尽调报告、估值、IRR、投资风险、投委会材料、背景调查、查实控人、UBO 时使用。开展业务尽调、身份/股权/关联方/负面记录深潜、财务/行业尽调与持续经营合规筛查、主张核验、估值与投资人回报、投资风险登记、九域投资分析报告。用于“做尽调”“写尽调报告”“估值”“IRR”“投资风险”“投委会材料”“资料清单”“主张核验”“背景调查”“查实控人”“UBO”“关联方”“负面记录”“background check”“KYC”。用户只点名背景调查时打开本技能并只跑 Phase 3B。用户说 deal screening、“帮我看看”“值不值得投资”“能不能投”但还没有筛选备忘录时，先走 deal-screening，不要在本技能里模拟筛选。 Works standalone when the user explicitly asks for diligence.
+description: 财务投资人正式尽调与投委会材料。这不是 deal screening，技能内没有筛选模式。在已有筛选备忘录且团队决定 continue 之后，或用户明确要求做尽调、写尽调报告、估值、IRR、投资风险、投委会材料、背景调查、查实控人、UBO 时使用。开展业务尽调、身份/股权/关联方/负面记录深潜、财务/行业尽调与持续经营合规筛查、主张核验、估值与投资人回报、投资风险登记、七章投资分析报告。用于“做尽调”“写尽调报告”“估值”“IRR”“投资风险”“投委会材料”“资料清单”“主张核验”“背景调查”“查实控人”“UBO”“关联方”“负面记录”“background check”“KYC”。用户只点名背景调查时打开本技能并只跑 Phase 3B。用户说 deal screening、“帮我看看”“值不值得投资”“能不能投”但还没有筛选备忘录时，先走 deal-screening，不要在本技能里模拟筛选。 Works standalone when the user explicitly asks for diligence.
 ---
 
 # Due Diligence
@@ -13,7 +13,7 @@ The default first skill for a new project is `deal-screening`. Use this skill wh
 
 > **Route table:** Read `references/skill-routing.md` before Phase 0.
 
-Diligence is one segment of that work (Phases 2–5): it verifies the material propositions the decision rests on. Underwriting returns, registering investment risk, and synthesizing the report consume diligence output; they do not produce new verified facts. Domain 9 of the report is the recommendation.
+Diligence is one segment of that work (Phases 2–5): it verifies the material propositions the decision rests on. Underwriting returns, registering investment risk, and synthesizing the report consume diligence output; they do not produce new verified facts. Section 1.1 of the report presents the recommendation.
 
 Three layers stay separate: science (definitions, evidence, calculations, falsifiable claims); judgment (business essence, core capability, how deep this decision justifies); responsibility (risk appetite and the final IC decision). AI assists; humans decide.
 
@@ -42,9 +42,13 @@ Read `references/project-structure.md` and `references/gate-rules.md` at the sta
 
 ### Language
 
+Before writing or revising any report or workpaper, read `references/report-writing.md`.
+
 Follow the Language rule in `references/shared/output-contracts.md`. Write workpapers and the investment analysis report in the user's language. If the user writes in Chinese, use Chinese for all diligence outputs — including titles, headings, subheadings, table headers, labels, and body. Skill-template headings in English are structural labels; translate them. Do not mix English headings with Chinese prose.
 
 ## Conclusion standard
+
+完成标准：完成与投资决定相关的核验、量化和交叉验证；未完成部分明确影响、责任人和处理条件。
 
 Every material conclusion must have all four:
 
@@ -217,7 +221,7 @@ Update PROGRESS.md. Mark Phase 5 complete.
 
 Underwrite investor cash flows, value, and price. Do not repeat historical accounting validation. Unknown cheque, price, or hold period are inputs to solve for, not reasons to skip the phase. Label `indicative` or `diligence-adjusted` honestly.
 
-This step prepares domain 6 of the investment analysis report. Domain 6 itself is written in Phase 8.
+This step prepares section 6.1 (估值回报) of the investment analysis report, written in Phase 8.
 
 ### Output
 
@@ -234,11 +238,11 @@ Update PROGRESS.md. Mark Phase 6 complete.
 
 Translate diligence and Phase 6 findings into an investment risk register: failure mode, evidence, economic transmission, probability/impact, mitigation, residual risk, owner, trigger, stop condition, and decision consequence. Include growth, durability, financial quality, people/governance, ownership/regulatory, transaction, and exit risks. Compliance findings belong here only insofar as they change continued operation, rights, value, or deal feasibility.
 
-This step prepares domain 7 of the investment analysis report. Do not write a standalone risk file; Phase 8 presents the register in domain 7.
+This step prepares section 6.3 (投资风险) of the investment analysis report. Do not write a standalone risk file; Phase 8 presents the register in section 6.3.
 
 ### Output
 
-No separate risk file. The register is written into domain 7 of `05-decision/investment-analysis-report.md` in Phase 8.
+No separate risk file. The register is written into section 6.3 of `05-decision/investment-analysis-report.md` in Phase 8.
 
 Update PROGRESS.md. Mark Phase 7 complete.
 
@@ -248,13 +252,13 @@ Update PROGRESS.md. Mark Phase 7 complete.
 
 > **References:** Read `references/dd-synthesis.md`.
 
-Write `05-decision/investment-analysis-report.md` using the nine investor domains and four appendices. This is the synthesis step — the analogue of Startup's research synthesis — not a substitute for the three workpapers. Present Phase 6 in domain 6 (`investment-structure-returns`) and Phase 7 in domain 7 (`investment-risks`); do not create second returns or risk narratives.
+Write `05-decision/investment-analysis-report.md` using the seven chapters, workpaper mapping, source index, and appendices in `references/dd-synthesis.md`. Lead each chapter with its conclusion. Present the recommendation in section 1.1, Phase 6 returns in section 6.1, decision-critical claims from Phase 4 in section 6.2, and the Phase 7 risk register in section 6.3. Chapter 7 separates target evidence requests from internal verification and judgment items. Preserve all material workpaper findings, contradictions, and gaps through the mapping; do not substitute the report for the workpapers or duplicate returns and risk narratives.
 
 Completing the report does not move the project to `ic-review`. Keep `pipelineStatus: due-diligence` until an analyst explicitly records `submit_for_ic` in `decisions[]`; only then may the state move to `ic-review`. Only a person may later set `invested` or `declined`.
 
-Domain 9 is the recommendation. Use one of: `Proceed`, `Proceed with conditions`, `Renegotiate`, `Defer`, or `Reject`. A conditional recommendation must name every condition. Do not hide conditions or treat an AI judgment as the final responsibility. If domain 6 is empty and the decision depends on value or cash-flow, run Phase 6 first.
+Section 1.1 is the recommendation. Use one of: `Proceed`, `Proceed with conditions`, `Renegotiate`, `Defer`, or `Reject`. A conditional recommendation must name every condition. Do not hide conditions or treat an AI judgment as the final responsibility. If section 6.1 is empty and the decision depends on value or cash-flow, run Phase 6 first.
 
-If the user supplied raw files and no workpapers, inventory sources, extract claims, distinguish project-party statements from verified facts, and populate every domain the evidence supports. Missing workpapers are not a reason to return an empty shell. Still apply `references/returns-analysis.md` and `references/risk-matrix.md` when filling domains 6 and 7.
+If the user supplied raw files and no workpapers, inventory sources, extract claims, distinguish project-party statements from verified facts, and populate every chapter the evidence supports. Missing workpapers are not a reason to return an empty shell. Still apply `references/returns-analysis.md` and `references/risk-matrix.md` when filling sections 6.1 and 6.3.
 
 Do not emit HTML or a separate knowledge-base file.
 
@@ -278,7 +282,7 @@ This skill helps the team reach a correct decision, not close a deal. Honesty is
 4. **Label report status honestly.** `working`, `indicative`, or `diligence-adjusted` by what the evidence supports. A finished document does not prove its claims.
 5. **Don't reverse-engineer the answer.** Underwrite returns from evidence; never solve backwards from a target IRR or an agreed price.
 6. **Disclose conflicts.** An unresolved contradiction is `unverified` with `conflictFlag: true`, not a silent choice of the convenient source.
-7. **Give a clear verdict and name every condition.** Hiding conditions to make domain 9 read cleanly is a serious failure.
+7. **Give a clear verdict and name every condition.** Hiding conditions to make section 1.1 read cleanly is a serious failure.
 8. **Identity matching is not character analysis.** When Phase 3B runs, follow `references/dd-background-check.md`. A name-only match is never a finding. Allegation, investigation, proceeding, judgment, regulatory finding, settlement, and conviction are different facts. Disclose search coverage; a clean report from a narrow search is misleading.
 
 Every workpaper and the investment analysis report end with a **Flags** section (Red / Yellow, or "No flags identified"). Flags are an early-warning surface, not a replacement for the Phase 7 risk register.
@@ -301,6 +305,6 @@ Read only what the current phase needs.
 | `dd-industry.md`             | Phase 3D         | External test of the business                                       |
 | `dd-legal.md`                | Phase 3E         | Going-concern legal/regulatory screen                               |
 | `dd-claim-audit.md`          | Phase 4          | Four-state atomic claims                                            |
-| `returns-analysis.md`        | Phase 6          | Investor cash flows, value, and price; presented as report domain 6 |
-| `risk-matrix.md`             | Phase 7          | Investment risk register; presented as report domain 7              |
-| `dd-synthesis.md`            | Phase 8          | Nine-domain outline, coverage floor, and Markdown template          |
+| `returns-analysis.md`        | Phase 6          | Investor cash flows, value, and price; presented in report section 6.1 |
+| `risk-matrix.md`             | Phase 7          | Investment risk register; presented in report section 6.3              |
+| `dd-synthesis.md`            | Phase 8          | Seven-chapter outline, workpaper mapping, and Markdown template          |

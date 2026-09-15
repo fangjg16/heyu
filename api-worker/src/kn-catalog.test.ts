@@ -65,32 +65,24 @@ describe("kn-catalog", () => {
     expect(fullDraftSectionIds("mature").at(-1)).toBe("project-overview");
   });
 
-  it("uses a mixed one-/two-level catalog for mature CapitalLens", () => {
+  it("uses seven top-level chapters for mature CapitalLens", () => {
     expect(researchSectionsForKind("mature").map((s) => s.id)).toEqual([
       "project-summary",
-      "industry-overview",
-      "industry-demand",
-      "industry-value-chain",
-      "industry-competition-structure",
-      "industry-outlook",
-      "business-overview",
-      "product-situation",
-      "technology-situation",
-      "commercial-model",
-      "core-competitiveness",
+      "industry-competition",
+      "business-technology",
       "company-team",
-      "company-background",
       "financial-diligence",
-      "investment-structure-returns",
-      "assumption-validation",
+      "risk-return",
       "diligence-gaps",
     ]);
     const mature = fullDraftSectionIds("mature");
     expect(mature.at(-1)).toBe("project-overview");
     expect(mature.at(-2)).toBe("diligence-gaps");
-    expect(mature).toContain("industry-overview");
+    expect(mature).toContain("industry-competition");
+    expect(mature).toContain("risk-return");
+    expect(mature).not.toContain("industry-overview");
     expect(mature).not.toContain("investment-conclusion");
-    expect(mature).not.toContain("industry-competition");
+    expect(mature).not.toContain("investment-risks");
   });
 
   it("labels deliverable draft items with the file title, not a path", () => {
@@ -98,6 +90,8 @@ describe("kn-catalog", () => {
     expect(sectionLabel(deliverableDraftId("readme"))).toBe("执行摘要");
     expect(sectionLabel(deliverableDraftId("source-register"))).toBe("引用来源");
     expect(sectionLabel("financial-diligence", "mature")).toBe("财务分析");
+    expect(sectionLabel("risk-return", "mature")).toBe("风险与回报");
+    expect(sectionLabel("industry-competition", "mature")).toBe("行业与竞争");
     expect(sectionLabel("investment-structure-returns", "mature")).toBe(
       "估值与回报",
     );

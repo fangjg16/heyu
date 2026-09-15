@@ -1,295 +1,398 @@
-# Investment Analysis Report Synthesis
+# 投资分析报告编写规范
 
-Use in Phase 8. The deliverable is one Markdown investment analysis report: `05-decision/investment-analysis-report.md`. It synthesizes intake, evidence, the three diligence workpapers, claim audit, Phase 6 returns, and the Phase 7 risk register into nine investor domains and four appendices. Domain 6 is the returns analysis; domain 7 is the risk register; domain 9 is the recommendation. It is not a document inventory, not an HTML knowledge base, and not a substitute for the workpapers.
+用于 Phase 8，输出 `05-decision/investment-analysis-report.md`。
+遵循 `../shared/output-contracts.md`，报告语言与用户一致；状态枚举、来源 ID 和文件路径保持原值。
 
-Workpapers remain independent source artifacts. This file is the outline, the coverage floor, and the writing protocol for that single report.
+本报告回答：是否建议投资，投资价值来自哪里，什么价格和条件可以接受，以及哪些风险或未决事项会改变建议。
 
-## Before writing
+## 一、写作要求
 
-1. Read `00-control/PROJECT_STATE.json` and `00-control/PROGRESS.md` when they exist.
-2. Read every available workpaper and evidence file before drafting: project brief, theme classification, screening memo, enrichment, source register, business/industry/financial diligence, claim audit, request list, and any prior report. Apply `returns-analysis.md` when assembling domain 6 and `risk-matrix.md` when assembling domain 7. The report should be able to retrace screening verdict, dimension scores, open questions, and the human decision that moved pipeline to diligence. Screening claims stay screening-grade until diligence re-tests them.
-3. Look for patterns that repeat across workstreams.
-4. Identify contradictions — keep both sides visible, cite sources, and do not pick the convenient version silently.
-5. Route each conclusion to one primary domain and cross-reference related domains.
-6. Do not invent missing coverage. When evidence is absent, state the exact evidence needed, why it matters, and what conclusion it unlocks.
+### 1. 结论先行
 
-## Mode selection
+按照以下七章撰写：
+1. 项目概况
+2. 行业与竞争
+3. 业务与技术
+4. 公司与团队
+5. 财务分析
+6. 风险与回报
+7. 待解决问题
 
-### Direct first-pass generation
+第 1 章以投资结论开篇。其余章节先写本章结论，再按论述顺序展开证据、分析和疑点。二级小节存在实质分析时，也先交代该节判断。
 
-Use when the user supplies decks, PDFs, spreadsheets, links, or prior analyses but no complete workpaper set.
+结论必须说明当前判断、关键依据、主要反证或限制，以及对投资决定的影响。证据不足时，说明哪些判断尚不能作出，不用内容介绍代替结论。
 
-1. Inventory every input and assign source IDs.
-2. Extract material claims, numbers, definitions, dates, entities, transaction terms, and contradictions.
-3. Mark each item as project-party statement, independent fact, analyst calculation, analyst inference, assumption, or unresolved gap.
-4. Populate every domain that the evidence supports. Missing workpapers are not a reason to return an empty shell.
-5. Add specific missing-evidence rows rather than leaving supported domains as generic stubs.
+### 2. 综合与追溯
 
-Direct generation may be `working` or `indicative`. It is not Diligence Readiness.
+- 写作前读取已有的 `00-control/PROJECT_STATE.json`、`00-control/PROGRESS.md`、项目简报、来源、各底稿、主张核验、请求清单、就绪检查及已有报告。有初筛记录时一并读取；没有初筛记录不阻止独立开展分析。
+- 以最新有效的底稿结论为基础，保留证据、矛盾和判断限制。原有主张不得仅因进入报告而升级核验状态。
+- 每项内容在最相关的位置展开，其他章节交叉引用。不直接拼接底稿全文，不用文件清单代替分析。
+- 重要事实保留来源 ID；关键主张保留主张 ID。来源 ID 应能在引用来源中追溯到原始材料。
+- 项目方陈述、已核验事实、分析计算、推断和预测假设分别标明。存在相互冲突的证据时，同时呈现，不静默选择其中一方。
+- 尚无完整底稿时，依据已有材料填充有证据支持的内容，明确核验限制，不能将报告完成视为核验完成。先盘点材料和来源、提取主张，再填充各章；材料不足时明确所需证据及其决策用途。
+- 编写第 6.1 节时遵循 `returns-analysis.md`，第 6.3 节遵循 `risk-matrix.md`；两节分别承接 Phase 6 和 Phase 7 的分析，不通过报告综合产生新的已核验事实。
+- 增量更新时先处理变化或失效的底稿及其依赖，仅更新受影响的分析和版本记录。不得静默覆盖已冻结决策。
 
-### Workpaper synthesis
+### 3. 章节与证据状态
 
-Use when business, industry, financial, or claim-audit workpapers already exist.
+保留七个一级章节。章节内容不足时，说明已有证据、缺口及其影响。
+内容状态可使用 `populated`、`partial`、`stub`、`invalidated`、`empty`；记录在各章结论后的状态行。
+内容状态不等于证据核验状态或投资决策就绪状态。
+报告整体使用与证据基础相符的工件状态，例如 `indicative`、`working` 或 `diligence-adjusted`；冻结或失效时按共享规则记录。
 
-1. Resolve changed claims and invalidated dependents.
-2. Preserve conclusion, evidence, contradiction, gap, and decision implication.
-3. Prefer workpaper conclusions over marketing language in source decks.
-4. Keep one authoritative statement when a fact appears in several domains; use concise cross-references instead of duplicate paragraphs.
+交付前检查内容覆盖、跨章节逻辑、来源追溯、结构和决策用途。每项重要缺口应有影响和下一步动作。
+图表用于解释机制或比较时，应有相应证据支持；无需为填充形式而添加图表。
 
-### Incremental refresh
+### 4. 投资建议与流程状态
 
-Update only affected sections, appendix rows, and the version ledger. Never silently overwrite a decision-frozen conclusion.
+第 1.1 节使用以下一项建议：`Proceed`、`Proceed with conditions`、`Renegotiate`、`Defer`、`Reject`。
+有条件建议必须列明具体条件。建议由后续章节的证据、回报分析和风险判断支持。报告中的 Agent 建议与人工决定分别记录。
 
-## Quality sequence
+报告完成不自动变更流程状态。保持 `pipelineStatus: due-diligence`，直到分析师明确在 `decisions[]` 记录 `submit_for_ic` 后，才移至 `ic-review`。只有人工决定才能将状态改为 `invested` 或 `declined`。
+本报告不替代 Diligence Readiness，也不替代 `03-diligence` 中的工作底稿。
 
-1. **Coverage** — evidence-supported parts of all nine domains are populated.
-2. **Logic** — business, financial, industry, ownership/compliance, returns, risk, and decision claims agree or disclose conflict.
-3. **Evidence** — material facts have inline source IDs and the source index contains each ID.
-4. **Structure** — follow the nine-domain template below; use tables where comparison, registers, or numbers matter.
-5. **Decision usefulness** — show implications, missing evidence, downside, conditions, and next action.
+## 二、底稿与报告的对应关系
 
-Keep presentation quality separate from readiness. A complete report may still conclude `not ready`.
+下列文件为项目运行时的工作底稿，不是本技能目录内的分析方法文件。
 
-## Nine domains
-
-The nine domains are top-level information boundaries, not nine generic prose boxes. Preserve useful granularity through subsections, tables, and one mechanism diagram where it helps.
-
-Each domain heading records one of: `populated`, `partial`, `stub`, `invalidated`, or `empty`. `populated` describes available content, not decision readiness.
-
-Every domain section includes:
-
-- status;
-- a concise analytical conclusion;
-- domain-specific subsections and tables;
-- precise evidence gaps when the source package cannot answer required questions.
-
-Material facts carry inline source IDs. Every cited ID must exist in the source appendix.
-
-| Key | Title | Boundary |
+| 报告位置 | 主要输入 | 提取与综合要求 |
 |---|---|---|
-| `project-summary` | 项目概况 | company, project, transaction stage, key numbers, proposal summary, investment logic |
-| `industry-competition` | 行业与竞争 | industry definition, demand, size, growth, value chain, structure, competitors, operating comparisons |
-| `business-technology` | 业务与技术 | products, technology, business model, customers, suppliers, delivery, revenue logic, core capability |
-| `company-team` | 公司与团队 | entity, ownership, history, subsidiaries, management, employees, governance and integrity evidence |
-| `financial-diligence` | 财务研究 | growth speed, quality and drivers, order-to-cash, margins, cash, working capital, debt, QoE and financial risks |
-| `investment-structure-returns` | 投资方案与收益预测 | investment structure, terms with economic effect, valuation, scenarios, IRR, MOIC, sensitivities and exits |
-| `investment-risks` | 投资风险 | growth and continued-operation risks, evidence, economic transmission, mitigation, owner and stop conditions |
-| `diligence-gaps` | 待解决问题 / 待提供资料 | claims, contradictions, requests, owner, priority, blocker and status |
-| `investment-conclusion` | 结论 | recommendation, conditions, counterarguments, IC readiness, human decisions and next action |
+| 1. 项目概况 | `01-intake/project-brief.md`、各底稿结论、交易资料、决策记录 | 综合投资建议、项目实质、交易范围和关键条件 |
+| 2. 行业与竞争 | `03-diligence/industry-diligence.md` | 底稿 2.1—2.5 与报告 2.1—2.5 同编号直接对应，保留标的判断、证据和反证 |
+| 3. 业务与技术 | `03-diligence/business-diligence.md` | 按业务、产品、技术、商业模式和核心竞争力组织 |
+| 4. 公司与团队 | 项目简报、业务底稿、`03-diligence/background-check.md`（如有） | 区分基本信息、经营能力与身份／治理核查 |
+| 5. 财务分析 | `03-diligence/financial-diligence.md` | 底稿 5.1—5.6 与报告 5.1—5.6 同编号直接对应，保留核验、调整及判断限制 |
+| 6.1 估值回报 | Phase 6 分析、`04-underwriting/valuation-and-returns.md`（如有） | 呈现交易经济、估值、投资人现金流、情景和敏感性 |
+| 6.2 主张核验 | `03-diligence/claim-audit.md`、相关底稿 | 提取能够改变投资逻辑、估值或回报的关键主张 |
+| 6.3 投资风险 | Phase 7 风险登记结果 | 呈现风险如何传导至价值、现金流或投资者权利 |
+| 7. 待解决问题 | `03-diligence/diligence-request-list.md`、主张核验、`03-diligence/diligence-readiness.md` | 提取未关闭事项、阻断条件和待作出的判断 |
+| 引用来源 | `02-evidence/source-register.md` | 呈现本报告实际引用的来源及独立性、时点和局限 |
 
-Appendices:
+估值工作模型和深度背景调查底稿按实际工作需要生成，不能将这些文件不存在直接视为分析缺失。背景深查应触发却未完成时，如实披露缺口；不得写成无异常。
 
-- `source-index`: source register and authoring-party independence.
-- `glossary`: terms required for a non-specialist IC reader.
-- `data-dictionary`: formulas, model assumptions, transformations, sample scope, and data lineage.
-- `version-ledger`: evidence version, workpaper version, decision freezes, invalidations, and changes.
+### 内容标识与呈现位置
 
-## Coverage by domain
+以下标识用于内容追溯，不作为额外一级章节；改变呈现位置不删除其分析要求。
 
-### 1. `project-summary` - 项目概况
+| 内容标识 | 报告位置 |
+|---|---|
+| `project-summary` | 1 |
+| `investment-conclusion` | 1.1 |
+| `industry-competition` | 2 |
+| `business-technology` | 3 |
+| `company-team` | 4 |
+| `financial-diligence` | 5 |
+| `investment-structure-returns` | 6.1 |
+| `investment-risks` | 6.3 |
+| `diligence-gaps` | 7 |
 
-Cover company/project identity, jurisdiction, stage, counterparties, what is being financed or acquired, actual business in one sentence, current proposal or ask, headline operating/financial figures, investment logic, key contradiction, current decision posture, and the single most important gate.
+来源索引、术语、计算口径与版本记录分别承接 `source-index`、`glossary`、`data-dictionary`、`version-ledger`；按模板安排附录，有内容时不得丢弃。
 
-Recommended sub-sections: key facts, target/asset perimeter, proposal, investment highlights, and headline caveat.
+## 三、报告模板
 
-### 2. `industry-competition` - 行业与竞争
-
-Cover industry definition and logic, demand, market size and scope, development history, current state, trends, policy background, value chain, competitive structure, named participants and substitutes, operating comparables, evidence limitations, and implications for this target.
-
-Operating/strategic comparisons belong here. Valuation multiples and precedent transaction value implications belong in `investment-structure-returns`.
-
-### 3. `business-technology` - 业务与技术
-
-Answer what the company really sells, to whom, in what form, through which process, and why it can earn and scale.
-
-Cover product system and definition, use cases, technology principle and core indicators, R&D/IP evidence, marketing/procurement/production/R&D/profit models, customer and supplier structure, delivery and order-to-cash mechanism, pricing, costs, unit economics, operating KPIs, bottlenecks, core capability, business reality versus distant plan, and unverified assumptions.
-
-Use one useful mechanism visual in Markdown — Mermaid journey, process flow, revenue tree, value chain, flywheel, or ecosystem map — then verify it with tables. A diagram alone is not diligence.
-
-### 4. `company-team` - 公司与团队
-
-Cover legal entity and business history, ownership/UBO, financing history, subsidiaries and associated entities, organization, core management and key people, team evidence and counter-evidence, employee composition/turnover where material, important external resources, related parties, rights ownership/transferability, and integrity/background findings.
-
-Do not turn biographies or management self-description into verified judgments. State the source and observable facts behind team conclusions.
-
-### 5. `financial-diligence` - 财务研究
-
-Cover growth and its drivers, order-delivery-revenue-collection reconciliation, revenue mix/quality/concentration/cut-off, gross margin and cost classification, normalized earnings, operating expense, working capital, cash conversion, debt and debt-like items, capex, tax, related parties, internal controls, forecast bridge, data limitations, and financial risks.
-
-If audited or source data is unavailable, show the available figures as project-party claims and create a specific reconciliation plan. Do not replace the section with “待财务尽调”.
-
-### 6. `investment-structure-returns` - 投资方案与收益预测
-
-This domain presents the Phase 6 analysis. Read `returns-analysis.md`. Cover transaction structure, investment amount/range, price/valuation, ownership, sources and uses, economically material terms, valuation methods and valuation/transaction comparables, investor cash-flow logic, assumptions, base/upside/downside, IRR/MOIC/payback or explicitly “not measurable”, sensitivities, break-even or maximum acceptable price, exit/repayment, funding constraints, and missing inputs that prevent underwriting.
-
-Unknown price or investment amount is not a reason to omit the section. Solve for ranges or show what cannot yet be measured. Do not repeat historical accounting validation here.
-
-### 7. `investment-risks` - 投资风险
-
-This domain presents the Phase 7 register. Read `risk-matrix.md`. Use a risk-register table. Each material row states a concrete failure mode, category, probability/impact rationale, evidence, affected cash-flow/value driver, mitigation, residual risk, owner/controller, trigger, stop condition, and decision consequence.
-
-Cover growth and continued-operation risks, including material ownership, regulatory, people, financial, business-model, transaction, and exit issues. Separate red flags and kill/pause conditions. Do not treat this domain as a second compliance chapter.
-
-### 8. `diligence-gaps` - 待解决问题 / 待提供资料
-
-Use prioritized evidence groups, normally P0/P1/P2. Each item includes the exact claim/question, current evidence or contradiction, requested proof/sample, owner/source, urgency, blocking status, why it matters, affected artifact/decision, and closure criterion.
-
-Do not use vague phrases such as “补充财务资料”. Specify periods, entities, fields, samples, and reconciliation expected.
-
-### 9. `investment-conclusion` - 结论
-
-State recommendation and exact decision requested, one-sentence reason, 3-5 theses tied to evidence, strongest counterarguments, preconditions, price/structure/rights conditions, pause/kill triggers, feasible options and trade-offs, value-creation hypotheses, IC readiness, accepted human exceptions, and next actions with owner and timing.
-
-Use one of: `Proceed`, `Proceed with conditions`, `Renegotiate`, `Defer`, or `Reject`. A conditional recommendation must name each condition.
-
-### Appendices
-
-- `source-index`: source ID, type, title, authoring party, date/period, independence, excerpt/limitation, and affected domains.
-- `glossary`: only terms needed by a non-specialist decision maker.
-- `data-dictionary`: formulas, definitions, sample scope, cleaning/reconciliation, model assumptions, and caveats.
-- `version-ledger`: version, timestamp, parent, evidence/model versions, status, and decision-relevant changes.
-
-## Output template
-
-Render the report in the user's language per `references/shared/output-contracts.md`. The English headings below are structural labels, not copy-paste text. Translate all titles, headings, subheadings, table headers, and labels into the user's language; keep status enums, source IDs, and file paths unchanged.
+表格遵循 `../report-writing.md`：保留模板字段，长解释可按事项编号置于表下。
 
 ```markdown
-# Investment Analysis Report: {project}
-*Skill: due-diligence | Generated: {date} | Status: indicative | working | diligence-adjusted | decision-frozen | invalidated*
+# 投资分析报告：{项目名称}
 
-## Header
-- **Project / perspective:**
-- **Decision question:**
-- **Inputs used:**
-- **Evidence cutoff:**
-- **Conclusion (one paragraph):**
+- 报告日期：
+- 信息截止日期：
+- 分析视角：财务投资人
+- 工件状态：
+- 决策问题：
+- 分析范围与输入材料：
 
 ## 1. 项目概况
-**Status:** populated | partial | stub | invalidated | empty
 
-**Summary:** {analytical conclusion}
+### 1.1 投资结论
 
-### Key facts
-### Target / asset perimeter
-### Proposal
-### Investment highlights
-### Headline caveat
+**投资建议：** {Proceed / Proceed with conditions / Renegotiate / Defer / Reject}
 
-**Missing:** {exact evidence needed, or 无}
+**核心判断：** {一段话说明建议及决定性理由。}
+
+**内容状态：** {populated / partial / stub / invalidated / empty}
+
+- 主要投资逻辑：
+- 最强反对理由：
+- 可接受的关键价格与交易条件：
+- 尚未满足的前提或阻断事项：
+- 本次需要团队作出的决定：
+
+投资建议综合第 2—7 章形成，不引入正文没有支持的新判断。价格、回报和风险仅在此摘要，详细分析见第 6 章。
+
+### 1.2 项目摘要
+
+- 一句话经济实质：
+- 投资标的及资产／业务边界：
+- 核心产品、客户与收入来源：
+- 发展阶段：
+- 关键经营与财务数据：
+
+仅保留理解投资机会必需的信息。主体历史及团队详情放在第 4 章。
+
+### 1.3 交易概况
+
+- 融资／收购目的：
+- 拟投资主体、工具与金额：
+- 拟取得的权益：
+- 资金用途：
+- 当前交易进度与已知条件：
+
+未确定的内容明确标注，不代替交易对手填入假设条件。
 
 ## 2. 行业与竞争
-**Status:**
-**Summary:**
 
-### Industry definition and logic
-### Demand, size, and growth
-### Value chain and structure
-### Competitors and substitutes
-### Operating comparables
-### Implications for this target
+**本章结论：** {行业吸引力、市场机会、标的竞争位置及其对投资判断的影响。}
 
-**Missing:**
+**内容状态：**
+
+### 2.1 行业概况
+
+来源：行业底稿 2.1「行业概况」。
+
+按“行业定义与边界 → 当前规模与增长 → 解释当前格局所必需的发展历程”展开。说明市场口径、时间范围、估算方法和不确定性，区分整体市场与标的实际可服务市场。
+
+### 2.2 市场需求
+
+来源：行业底稿 2.2「市场需求」。
+
+分析需求如何形成、谁付费、预算从何而来、采用与渗透情况、增长驱动及约束。
+
+### 2.3 产业链
+
+来源：行业底稿 2.3「产业链」。
+
+分析价值链、利润池、议价权、关键依赖，以及标的所在环节能够取得和保留什么价值。
+
+### 2.4 竞争结构
+
+来源：行业底稿 2.4「竞争结构」。
+
+分析竞争格局、主要参与者、替代方案和进入壁垒。以一致口径比较标的与竞争者，解释标的相对位置。
+
+### 2.5 发展趋势
+
+来源：行业底稿 2.5「发展趋势」。
+
+分析需求、技术、成本、商业模式及监管变化，说明其对标的收入、利润、竞争力和持续经营的影响。
+
+行业底稿与本章按相同编号直接对应。保留各节中的标的判断、关键主张与反证；未解决问题汇总至第 7 章，不重复拼接其他编号章节。
 
 ## 3. 业务与技术
-**Status:**
-**Summary:**
 
-### What the company sells, to whom, and how it is delivered
-### Product, technology, and IP
-### Commercial model, customers, and suppliers
-### Unit economics and operating KPIs
-### Core capability vs. plan
-### Mechanism
-{One Mermaid diagram if it clarifies the business; tables must still verify it.}
+**本章结论：** {业务是否成立、核心能力是否得到证实、增长是否可持续，以及主要约束。}
 
-**Missing:**
+**内容状态：**
+
+### 3.1 业务概览
+
+来源：业务底稿第 2、3 节。
+
+说明真实业务、收入来源、客户和交付形式，区分核心、非核心、探索中、远期规划和已停止业务。
+
+### 3.2 产品情况
+
+来源：业务底稿第 4 节的产品内容。
+
+说明产品体系、功能、应用场景、成熟度、客户使用证据、性能与成本表现。
+
+### 3.3 技术情况
+
+来源：业务底稿第 4 节的技术内容。
+
+说明技术原理、核心指标、研发能力、知识产权、外部依赖、可替代性及技术路线风险。不以技术为核心的业务，应据实说明技术的作用和边界。
+
+### 3.4 商业模式
+
+来源：业务底稿第 5、6 节的业务运营内容。
+
+说明获客、采购、生产、研发、交付、服务和盈利方式，以及客户、供应商、渠道、定价、单位经济和资本需求。
+
+### 3.5 核心竞争力
+
+来源：业务底稿第 7 节，并结合行业比较和主张测试。
+
+说明能力如何形成、客户为何认可、证据是什么、复制成本多高、能够维持多久，以及在什么条件下失效。
+
+区分已证明能力、待证能力和被反证主张。业务底稿第 8、9 节的反证与跨流勾稽融入对应分析。
 
 ## 4. 公司与团队
-**Status:**
-**Summary:**
 
-### Entity, ownership, and history
-### Management, employees, and governance
-### Related parties, rights, and integrity findings
+**本章结论：** {主体及控制关系是否清楚、团队能否执行经营计划、治理或诚信问题是否影响投资。}
 
-**Missing:**
+**内容状态：**
 
-## 5. 财务研究
-**Status:**
-**Summary:**
+### 4.1 公司基本信息
 
-### Growth and drivers
-### Order-to-cash and revenue quality
-### Margins, cash, working capital, and debt
-### Forecast bridge and financial risks
+来源：项目简报、业务底稿及可核验的主体资料。
 
-**Missing:**
+包括法人、设立与发展历史、股权和融资历史、主要子公司、业务与资产归属。
 
-## 6. 投资方案与收益预测
-**Status:**
-**Summary:**
+### 4.2 团队与治理
 
-### Structure, price, and economically material terms
-### Valuation and comparables
-### Investor cash flows, scenarios, and sensitivities
-### Exit / repayment and what cannot yet be measured
+来源：业务底稿第 6 节及相关核验材料。
 
-**Missing:**
+包括核心人员、实际职责、相关执行记录、组织结构、员工和关键岗位、激励机制、决策机制及关键人依赖。
 
-## 7. 投资风险
-**Status:**
-**Summary:**
+### 4.3 背景调查
 
-| Risk | Category | Evidence | Transmission | Mitigation | Residual | Owner | Trigger / stop | Decision consequence |
-|---|---|---|---|---|---|---|---|---|
+来源：背景调查底稿；未开展深度调查时，使用业务底稿中的基础核查记录说明已完成范围和限制。
 
-### Red flags and kill / pause conditions
+包括身份、控制权与受益所有人、关联关系、履历一致性、重大负面记录及披露完整性。
 
-**Missing:**
+说明发现如何影响治理、交易可行性或投资者权利。不能把未开展深度调查表述为“全面核查无异常”。
 
-## 8. 待解决问题 / 待提供资料
-**Status:**
-**Summary:**
+## 5. 财务分析
 
-### P0
-### P1
-### P2
+**本章结论：** {数字可依赖程度、增长与盈利质量、现金和融资需求，以及预测可支持程度。}
 
-| Claim / question | Current evidence | Request | Owner | Priority | Blocker | Closure criterion |
+**内容状态：**
+
+### 5.1 财务概况
+
+来源：财务底稿 5.1「财务概况」。
+
+说明主体、合并范围、期间、币种、指标定义、材料完整性和实际值／预测值。
+
+### 5.2 收入与增长
+
+来源：财务底稿 5.2「收入与增长」。
+
+分析订单至回款、增长速度、增长来源、客户结构、收入确认、非经常性收入和异常交易。
+
+### 5.3 成本与盈利
+
+来源：财务底稿 5.3「成本与盈利」。
+
+分析毛利、费用、成本归集、正常化调整，以及账面利润与可持续盈利能力的差异。
+
+### 5.4 现金与资金需求
+
+来源：财务底稿 5.4「现金与资金需求」。
+
+分析现金转换、营运资金、资本开支、最低现金、资金缺口及流动性约束。
+
+### 5.5 债务与内控
+
+来源：财务底稿 5.5「债务与内控」。
+
+说明相关敞口、核查发现及其对持续经营、交易价格和投资者权利的影响。
+
+### 5.6 财务预测
+
+来源：财务底稿 5.6「财务预测」，保留其中的业务和行业证据。
+
+区分管理层预测、尽调调整和投资分析采用值。说明调整依据及尚不能支持的假设。
+
+无历史收入或仅有粗略预测时，重点呈现现金投入、支出、预算、单位成本、里程碑资金需求和预测假设核查，不虚构历史指标。
+
+财务底稿与本章按相同编号直接对应。保留各节的计算口径、调整依据、跨流勾稽与反证；未解决问题汇总至第 7 章。
+
+## 6. 风险与回报
+
+**本章结论：** {在什么价格与条件下回报可接受、最关键的收益依赖是什么，以及下行风险是否可承担。}
+
+**内容状态：**
+
+### 6.1 估值回报
+
+按照回报分析方法形成分析，包括：
+- 投资金额、工具、价格、权益及经济性条款；
+- 估值方法、可比依据及适用限制；
+- 投资人现金流、后续融资和稀释；
+- 基准、上行、下行情景；
+- IRR、MOIC 或其他适用回报指标；
+- 敏感性、可接受价格或盈亏平衡条件；
+- 退出／偿付路径及约束。
+
+模型文件存在时提取关键结果，报告仍应独立可读。无法测算时明确缺失输入和影响，不编造结果。
+
+### 6.2 主张核验
+
+来源：主张核验底稿和相关领域底稿。
+
+选取足以改变投资逻辑、估值或回报的关键主张。完整主张记录保留在底稿，报告不逐项复制全部记录。
+
+| 主张 ID | 关键主张／假设 | 支持与反对证据 | 核验状态及限制 | 对估值、回报或建议的影响 |
+|---|---|---|---|---|
+|  |  |  |  |  |
+
+主张状态沿用 `supported`、`contradicted`、`unverified`、`not_verifiable`。未解决的证据冲突保留 `conflictFlag`。
+
+对未来销量、价格、退出倍数等预测假设，说明取值依据、适用范围和情景检验。依据得到支持，不代表未来结果已经被证明。
+
+各领域已核验的事实仍在对应章节展开；本节集中解释投资结论最依赖哪些条件。
+
+### 6.3 投资风险
+
+呈现 Phase 7 的风险登记结果。每项重大风险说明：
+- 具体失效情形及证据；
+- 概率与影响的判断依据；
+- 如何影响现金流、价值、交易可行性或投资者权利；
+- 对应情景或敏感性；
+- 缓释措施和剩余风险；
+- 责任人、监测指标、暂停或放弃条件；
+- 对价格、条款或投资建议的影响。
+
+使用风险登记表；字段较多时可分为关联的分析表和应对表，按风险 ID 对应，保留全部实质信息。
+
+关键主张未获支持可能形成风险；已确认的事实也可能构成风险。不能用主张状态表替代风险分析。
+
+## 7. 待解决问题
+
+**本章结论：** {哪些未决事项阻断当前决定、哪些可以附条件推进，以及需要谁完成什么工作。}
+
+**内容状态：**
+
+### 7.1 对方待答
+
+来源：资料请求清单中尚未关闭的对方事项。
+
+| 请求 ID | 问题／待验证主张 | 所需证据及范围 | 对方责任人 | 优先级／期限 | 关闭标准 | 决策影响 |
 |---|---|---|---|---|---|---|
+|  |  |  |  |  |  |  |
 
-**Missing:**
+### 7.2 内部待办
 
-## 9. 结论
-**Status:**
-**Summary:**
+来源：未完成核查、主张冲突、就绪检查及投资判断缺口。
 
-**Recommendation:** Proceed | Proceed with conditions | Renegotiate | Defer | Reject
+| 事项 ID | 待回答问题 | 当前依据与缺口 | 核查方法／判断标准 | 内部责任人及依赖 | 完成标准 | 决策影响 |
+|---|---|---|---|---|---|---|
+|  |  |  |  |  |  |  |
 
-### Why
-### Theses
-### Counterarguments
-### Conditions and stop triggers
-### IC readiness and next actions
+区分取证完成与判断完成。收到材料不等于问题关闭，人工接受例外也不等于主张获证实。
 
-## Appendix A. Source index
-| ID | Type | Title | Authoring party | Date / period | Independence | Limitation | Domains |
-|---|---|---|---|---|---|---|---|
+优先级通常使用 P0／P1／P2，并标明事项属于：当前决定前必须解决、可列为交易前提条件、可在后续持续跟踪。
+涉及投资前提的事项必须与第 1.1 节一致。已关闭事项保留在底稿，不占用未决问题正文。
 
-## Appendix B. Glossary
+## 引用来源
 
-## Appendix C. Data dictionary
+来源：来源登记表。
 
-## Appendix D. Version ledger
-| Version | Time | Parent | Evidence / model versions | Status | Change |
-|---|---|---|---|---|---|
+| 来源 ID | 标题／材料 | 原始发布主体 | 日期／期间 | 独立性 | 支持事项 | 局限 |
+|---|---|---|---|---|---|---|
+|  |  |  |  |  |  |  |
+
+引用来源覆盖正文实际使用的全部来源，不能只列底稿文件名而无法追溯原始证据。
+
+## 附录：术语与计算口径
+
+按实际需要保留术语解释、公式、样本范围、模型假设和数据转换口径。
+
+## 附录：版本与决策记录
+
+记录证据截止、底稿及模型版本、重大修改、失效结论、人工决定和已接受的例外。
+
+## 红黄旗摘要
+
+- 红旗：
+- 黄旗：
+- 对应风险编号及判断限制：
+
+未识别到红黄旗时，说明支持该表述的核查范围。
 ```
 
-Omit empty appendix bodies only when there is genuinely nothing to record. Do not omit a numbered domain. If a domain has no evidence, keep the heading, mark `empty` or `stub`, and state the missing evidence.
+## 四、交付边界
 
-## Boundary
-
-- Do not emit HTML, `kb-data-v3.json`, or a separate knowledge-base file.
-- Do not treat this report as Diligence Readiness.
-- Do not replace `03-diligence/*.md` workpapers.
-- Do not fabricate social proof, audited numbers, or resolved claims.
+输出 Markdown 报告，保留独立工作底稿及来源追溯。不输出 HTML、`kb-data-v3.json` 或单独知识库文件。
+不将未核验主张写成事实，不将管理层预测写成实际经营成果，不将报告生成等同于人工投资决定。

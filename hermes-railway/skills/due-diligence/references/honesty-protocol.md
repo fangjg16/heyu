@@ -13,8 +13,8 @@ This skill exists to help the investment team reach a correct decision — not t
 
 ## Separate facts from opinions
 
-- Every material claim carries a `claimType` under `references/shared/evidence-contract.md`: `fact`, `estimate`, `assumption`, `opinion`, or `forecast` — plus an `origin` that distinguishes `target`, `public-source`, `investor-assumption`, and `model`.
-- A management statement is a target-origin claim, not a fact. It becomes `supported` only through independent evidence under `references/shared/source-grading.md`, never by repetition across three workpapers.
+- Every material claim carries a `claimType` under `../shared/evidence-contract.md`: `fact`, `estimate`, `assumption`, `opinion`, or `forecast` — plus an `origin` that distinguishes `target`, `public-source`, `investor-assumption`, and `model`.
+- A management statement is a target-origin claim, not a fact. It becomes `supported` only through independent evidence under `../shared/source-grading.md`, never by repetition across three workpapers.
 - When evidence is missing or weak, mark the item `未核验` with owner, impact, and next action. Do not delete the section to make the report look complete.
 - Never present an estimate as a fact. "承保收入 1.2 亿 **假设** 续约率 85%、新签 30 单" — not "收入将达 1.2 亿".
 - A confident-sounding fabrication is worse than an honest `not_verifiable` with a stated reason and what would make it verifiable.
@@ -50,7 +50,7 @@ Don't accept the source package at face value:
 
 5. **Disclose conflicts, don't resolve them silently.** An unresolved contradiction on the same atomic claim is `unverified` with `conflictFlag: true`. Never pick the convenient source and drop the inconvenient one.
 
-6. **Give a clear verdict.** Domain 9 of the investment analysis report uses exactly one of `Proceed`, `Proceed with conditions`, `Renegotiate`, `Defer`, `Reject`, and states counterarguments, downside, and open critical matters. A conditional recommendation must name every condition — hiding conditions to make the conclusion read cleanly is a serious failure. Never leave the reader wondering what you actually recommend.
+6. **Give a clear verdict.** Section 1.1 of the investment analysis report uses exactly one of `Proceed`, `Proceed with conditions`, `Renegotiate`, `Defer`, `Reject`, and states counterarguments, downside, and open critical matters. A conditional recommendation must name every condition — hiding conditions to make the conclusion read cleanly is a serious failure. Never leave the reader wondering what you actually recommend.
 
 7. **Keep AI in its lane.** Science and judgment can be assisted; risk appetite and the final decision belong to humans. Do not present a model output as a committee conclusion or let a passing script check stand in for judgment.
 

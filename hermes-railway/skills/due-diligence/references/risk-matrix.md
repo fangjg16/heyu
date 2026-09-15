@@ -1,8 +1,8 @@
 # Investment Risk
 
-Use in Phase 7. Translate business, Phase 3B background-check, financial, industry, compliance, and Phase 6 returns findings into an investment risk register. The IC-facing presentation is domain 7 (`investment-risks`) of `05-decision/investment-analysis-report.md`, written in Phase 8 from this register.
+Use in Phase 7. Translate business, Phase 3B background-check, financial, industry, compliance, and Phase 6 returns findings into an investment risk register. The IC-facing presentation is section 6.3 (`investment-risks`) of `05-decision/investment-analysis-report.md`, written in Phase 8 from this register.
 
-The register reorganizes diligence findings by failure mode and economic transmission; it does not verify new facts. This is Phase 7 of `due-diligence` — not a separate skill, and not a deeper compliance check. Do not emit a separate risk file as a substitute for domain 7.
+The register reorganizes diligence findings by failure mode and economic transmission; it does not verify new facts. This is Phase 7 of `due-diligence` — not a separate skill, and not a deeper compliance check. Do not emit a separate risk file as a substitute for section 6.3.
 
 Compliance findings may become continued-operation or rights risks. So may growth, margin, collection, key-person, ownership, transaction-structure, and exit issues. Generic risk lists are a failure mode.
 
@@ -14,4 +14,4 @@ Group risks only when useful: growth, business durability, financial quality, pe
 
 ## How it feeds the report
 
-Phase 8 copies this register into domain 7 of `dd-synthesis.md`. Keep one authoritative statement; do not write a second narrative risk chapter elsewhere in the report.
+Phase 8 copies this register into section 6.3 of `dd-synthesis.md`. Keep one authoritative statement; do not write a second narrative risk chapter elsewhere in the report.

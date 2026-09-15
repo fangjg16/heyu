@@ -153,13 +153,13 @@ Do not label a workpaper `diligence-adjusted` if a material section is missing, 
 Run:
 
 ```bash
-python3 ../../scripts/validate_project.py PROJECT --formal-diligence
+python3 ../scripts/validate_project.py PROJECT --formal-diligence
 ```
 
 When preparing Diligence Readiness:
 
 ```bash
-python3 ../../scripts/validate_project.py PROJECT --formal-diligence --diligence-readiness
+python3 ../scripts/validate_project.py PROJECT --formal-diligence --diligence-readiness
 ```
 
 The script only checks structure, status, and some freshness fields. Evidence truth, judgment quality, sampling adequacy, and material exceptions remain the investment team's responsibility.

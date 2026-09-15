@@ -12,10 +12,12 @@ Identity, control, affiliation, or adverse-record signals that survive a name ch
 
 Ask whether demand is real, whether the window is open, and whether regulation is an immediate hard stop.
 
-Search for: category size and growth with definitions; capital and M&A temperature; technology or channel inflections; precedent public failures; licences or rules in the stated geography.
+Search for: industry boundaries, size, growth and stage; value-chain participants, payment flows and the target’s position; capital and M&A temperature; technology or channel inflections; precedent public failures; licences or rules in the stated geography.
 
 Write:
 
+- industry: definition, scale, growth, stage and source scope
+- value chain: who supplies whom, who pays whom, value capture and key dependencies
 - demand: who pays, from which budget, how often
 - timing: opening, open, overheating, already passed, or not yet formed
 - regulation: visible blocker, watch item, or none found, with coverage limits
@@ -24,7 +26,7 @@ Write:
 
 A hot narrative is not `meets` on timing. A structurally closed or unformed window can support `misses` later.
 
-Do not build a full TAM/SAM/SOM triangle or an industry workpaper.
+Do not build a full TAM/SAM/SOM triangle, quantify a complete profit pool, or create a separate industry workpaper.
 
 ## Wave 2 — Competitive alternatives and position
 
@@ -82,6 +84,8 @@ After the four waves, write a short roll-up:
 - implications for each scoring dimension
 
 Conflicts stay visible. Do not pick the convenient side.
+
+Keep the four-wave notes in this file; do not add a second industry narrative. When writing the memo, use its five industry sections: overview, demand, value chain, competition, and trends. Industry-wide evidence belongs in chapter 2; target-specific commercial execution belongs in chapter 3.
 
 ## Reserved sections
 

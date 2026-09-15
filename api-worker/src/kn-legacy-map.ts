@@ -9,11 +9,32 @@ import { sectionLabel } from "./kn-catalog";
 export const MATURE_LEGACY_SECTION_SOURCES: Readonly<
   Record<string, readonly string[]>
 > = {
-  "project-summary": ["snapshot", "objectives"],
-  "industry-overview": ["industry-competition", "industry", "benchmarks"],
-  "business-overview": ["business-technology", "business"],
-  "company-team": ["ownership", "capabilities", "legal"],
-  "investment-structure-returns": ["returns"],
+  "project-summary": ["snapshot", "objectives", "investment-conclusion"],
+  "industry-competition": [
+    "industry-overview",
+    "industry-demand",
+    "industry-value-chain",
+    "industry-competition-structure",
+    "industry-outlook",
+    "industry",
+    "benchmarks",
+  ],
+  "business-technology": [
+    "business-overview",
+    "product-situation",
+    "technology-situation",
+    "commercial-model",
+    "core-competitiveness",
+    "business",
+  ],
+  "company-team": ["company-background", "ownership", "capabilities", "legal"],
+  "risk-return": [
+    "investment-structure-returns",
+    "assumption-validation",
+    "investment-risks",
+    "returns",
+    "risks",
+  ],
   "diligence-gaps": ["questions", "diligence"],
 };
 

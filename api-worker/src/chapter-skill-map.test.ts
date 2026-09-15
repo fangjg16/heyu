@@ -5,7 +5,7 @@ import {
   ensureAnalysisKind,
 } from "./analysis-kind";
 import { filterTemplateByKind } from "./kn-template-kind";
-import { CHAPTER_SKILL_MAP, skillsForChapter } from "./chapter-skill-map";
+import { skillsForChapter } from "./chapter-skill-map";
 import { researchSectionsForKind } from "./kn-catalog";
 import {
   buildChapterSkillMethodBlock,
@@ -89,23 +89,30 @@ describe("chapter-skill-map", () => {
     }
   });
 
-  it("maps diligence-gaps to due-diligence for mature", () => {
-    expect(CHAPTER_SKILL_MAP["diligence-gaps"]).toEqual(["due-diligence"]);
+  it("maps diligence-gaps to due-diligence first for mature", () => {
+    expect(skillsForChapter("diligence-gaps", "mature")[0]).toBe("due-diligence");
+    expect(skillsForChapter("diligence-gaps", "mature")).toContain(
+      "deal-screening",
+    );
   });
 
-  it("maps company-team to due-diligence for mature", () => {
-    expect(skillsForChapter("company-team", "mature")).toEqual(["due-diligence"]);
+  it("maps company-team to due-diligence first for mature", () => {
+    expect(skillsForChapter("company-team", "mature")[0]).toBe("due-diligence");
+    expect(skillsForChapter("company-team", "mature")).toContain("deal-screening");
   });
 
   it("uses due-diligence for mature business-overview, startup-design for early mvp", () => {
-    expect(skillsForChapter("business-overview", "mature")).toEqual([
+    expect(skillsForChapter("business-overview", "mature")[0]).toBe(
       "due-diligence",
-    ]);
+    );
     expect(skillsForChapter("mvp-definition", "early")[0]).toBe("startup-design");
   });
 
   it("puts competitor skills on early competitor-landscape as primary", () => {
     expect(skillsForChapter("competitor-landscape", "early")).toContain(
+      "startup-competitors",
+    );
+    expect(skillsForChapter("industry-competition", "mature")).toContain(
       "startup-competitors",
     );
     expect(skillsForChapter("industry-competition", "mature")).not.toContain(
@@ -120,6 +127,7 @@ describe("chapter-skill-map", () => {
   it("drops node-monitoring from overview", () => {
     expect(skillsForChapter("project-overview", "mature")).toEqual([
       "deal-screening",
+      "due-diligence",
     ]);
   });
 

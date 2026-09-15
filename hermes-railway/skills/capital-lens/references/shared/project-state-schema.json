@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Heyu Opportunistic Investment Project State",
+  "type": "object",
+  "required": ["contractVersion", "projectId", "plugin", "perspective", "workstreams", "gates", "artifacts", "lastUpdated"],
+  "properties": {
+    "contractVersion": {"const": "1.0.0"},
+    "projectId": {"type": "string", "minLength": 1},
+    "underlyingProjectId": {"type": "string", "minLength": 1},
+    "analysisId": {"type": "string", "minLength": 1},
+    "plugin": {"enum": ["startup", "capitallens"]},
+    "perspective": {"enum": ["founder-operator", "financial-investor"]},
+    "decisionQuestion": {"type": "string"},
+    "pipelineStatus": {
+      "type": "string",
+      "enum": ["inbound", "deal-screening", "due-diligence", "ic-review", "invested", "declined"]
+    },
+    "knowns": {"type": "array", "items": {"type": "string"}},
+    "unknowns": {"type": "array", "items": {"type": "string"}},
+    "workstreams": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": {"enum": ["not_started", "in_progress", "completed", "partial", "deferred", "blocked", "not_passed", "invalidated", "requires_rerun", "ready"]},
+          "updatedAt": {"type": "string"},
+          "reason": {"type": "string"},
+          "dependsOn": {"type": "array", "items": {"type": "string"}}
+        },
+        "additionalProperties": false
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": {"enum": ["not_started", "in_progress", "passed", "conditional", "not_passed", "deferred"]},
+          "conditions": {"type": "array", "items": {"type": "string"}},
+          "acceptedExceptions": {"type": "array", "items": {"type": "string"}}
+        },
+        "additionalProperties": false
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sourceId", "title", "sourceTier", "independenceGroup"],
+        "properties": {
+          "sourceId": {"type": "string", "minLength": 1},
+          "title": {"type": "string", "minLength": 1},
+          "sourceTier": {"enum": ["primary", "professional-independent", "reputable-secondary", "informal", "internal-analysis"]},
+          "independenceGroup": {"type": "string", "minLength": 1},
+          "pathOrUrl": {"type": "string"},
+          "publishedDate": {"type": ["string", "null"]},
+          "retrievedDate": {"type": ["string", "null"]}
+        },
+        "additionalProperties": true
+      }
+    },
+    "claims": {"type": "array", "items": {"type": "object"}},
+    "evidenceRequests": {"type": "array", "items": {"type": "object"}},
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["decisionId", "action", "decisionMakerType", "decidedAt", "rationale"],
+        "properties": {
+          "decisionId": {"type": "string", "minLength": 1},
+          "action": {"enum": ["continue", "screeningSkipped", "submit_for_ic", "invest", "decline", "other"]},
+          "decisionMakerType": {"enum": ["analyst", "human"]},
+          "decidedAt": {"type": "string", "minLength": 1},
+          "rationale": {"type": "string", "minLength": 1}
+        },
+        "additionalProperties": true
+      }
+    },
+    "nextActions": {"type": "array", "items": {"type": "object"}},
+    "artifacts": {"type": "array", "items": {"type": "object"}},
+    "lastUpdated": {"type": "string", "minLength": 1}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"plugin": {"const": "startup"}}, "required": ["plugin"]},
+      "then": {
+        "properties": {"perspective": {"const": "founder-operator"}},
+        "not": {"required": ["pipelineStatus"]}
+      }
+    },
+    {
+      "if": {"properties": {"plugin": {"const": "capitallens"}}, "required": ["plugin"]},
+      "then": {
+        "properties": {"perspective": {"const": "financial-investor"}},
+        "required": ["pipelineStatus"]
+      }
+    }
+  ],
+  "additionalProperties": false
+}

@@ -11,8 +11,8 @@ This skill exists to help the team decide whether to spend diligence time — no
 
 ## Separate facts from claims
 
-- The user’s paragraph and the target deck are claims. They become facts only with independent sources under `references/shared/source-grading.md`.
-- Use the four-state claim record in `references/shared/evidence-contract.md` when a statement will travel into diligence.
+- The user’s paragraph and the target deck are claims. They become facts only with independent sources under `../shared/source-grading.md`.
+- Use the four-state claim record in `../shared/evidence-contract.md` when a statement will travel into diligence.
 - Unevaluated plus an open question beats a confident `meets`.
 - An estimate is an estimate. Do not present it as a current run-rate.
 

@@ -87,7 +87,18 @@ const EARLY: readonly DeliverableFile[] = [
 
 const HONESTY = "references/honesty-protocol.md";
 
+const MATURE_SEVEN = [
+  "project-summary",
+  "industry-competition",
+  "business-technology",
+  "company-team",
+  "financial-diligence",
+  "risk-return",
+  "diligence-gaps",
+] as const;
+
 const INDUSTRY_KN = [
+  "industry-competition",
   "industry-overview",
   "industry-demand",
   "industry-value-chain",
@@ -96,6 +107,7 @@ const INDUSTRY_KN = [
 ] as const;
 
 const BUSINESS_KN = [
+  "business-technology",
   "business-overview",
   "product-situation",
   "technology-situation",
@@ -108,18 +120,18 @@ const MATURE: readonly DeliverableFile[] = [
   f("brief", "capitallens", "01-intake", "project-brief.md", "项目简报", "deal-screening", [], 1, ["references/project-intake.md", HONESTY], [{ folder: "00-intake", filename: "brief.md" }]),
   f("theme", "capitallens", "01-intake", "theme-classification.md", "投资主题", "deal-screening", [], 1, ["references/theme-classification.md", "references/taxonomy.md", "references/decision-rules.md", HONESTY], [{ folder: "00-intake", filename: "theme.md" }]),
   f("enrichment", "capitallens", "02-screening", "enrichment.md", "公开信息补充", "deal-screening", [], 1, ["references/enrichment.md", "references/research-principles.md", HONESTY]),
-  f("screening-memo", "capitallens", "02-screening", "screening-memo.md", "筛选备忘录", "deal-screening", [], 1, ["references/screening-memo.md", "references/scoring.md", "references/open-questions.md", HONESTY]),
+  f("screening-memo", "capitallens", "02-screening", "screening-memo.md", "筛选备忘录", "deal-screening", MATURE_SEVEN, 1, ["references/screening-memo.md", "references/scoring.md", "references/open-questions.md", HONESTY]),
   f("industry-due-diligence", "capitallens", "03-diligence", "industry-diligence.md", "行业尽调", "due-diligence", INDUSTRY_KN, 2, ["references/dd-industry.md", HONESTY], [{ folder: "01-industry", filename: "industry-due-diligence.md" }]),
   f("business-due-diligence", "capitallens", "03-diligence", "business-diligence.md", "商业尽调", "due-diligence", BUSINESS_KN, 3, ["references/dd-business.md", HONESTY], [{ folder: "02-business", filename: "business-due-diligence.md" }]),
-  f("background-check", "capitallens", "03-diligence", "background-check.md", "背景调查", "due-diligence", ["company-background"], 4, ["references/dd-background-check.md", HONESTY], [{ folder: "04-company", filename: "background-check.md" }]),
+  f("background-check", "capitallens", "03-diligence", "background-check.md", "背景调查", "due-diligence", ["company-team", "company-background"], 4, ["references/dd-background-check.md", HONESTY], [{ folder: "04-company", filename: "background-check.md" }]),
   f("compliance-check", "capitallens", "03-diligence", "legal-screening.md", "合规筛查", "due-diligence", [], 4, ["references/dd-legal.md", HONESTY], [{ folder: "04-company", filename: "compliance-check.md" }]),
   f("financial-due-diligence", "capitallens", "03-diligence", "financial-diligence.md", "财务尽调", "due-diligence", ["financial-diligence"], 5, ["references/dd-financial.md", HONESTY], [{ folder: "03-financials", filename: "financial-due-diligence.md" }]),
-  f("returns", "capitallens", "04-underwriting", "valuation-and-returns.md", "回报测算", "due-diligence", ["investment-structure-returns"], 6, ["references/returns-analysis.md", HONESTY], [{ folder: "05-decision", filename: "returns.md" }]),
-  f("risk-matrix", "capitallens", "05-decision", "investment-risks.md", "投资风险", "due-diligence", [], 7, ["references/risk-matrix.md", HONESTY], [{ folder: "05-decision", filename: "risk-matrix.md" }]),
+  f("returns", "capitallens", "04-underwriting", "valuation-and-returns.md", "回报测算", "due-diligence", ["risk-return", "investment-structure-returns"], 6, ["references/returns-analysis.md", HONESTY], [{ folder: "05-decision", filename: "returns.md" }]),
+  f("risk-matrix", "capitallens", "05-decision", "investment-risks.md", "投资风险", "due-diligence", ["risk-return"], 7, ["references/risk-matrix.md", HONESTY], [{ folder: "05-decision", filename: "risk-matrix.md" }]),
   f("gaps", "capitallens", "03-diligence", "diligence-request-list.md", "尽调请求", "due-diligence", ["diligence-gaps"], 8, ["references/dd-checklist.md", "references/dd-principles.md", HONESTY], [{ folder: "05-decision", filename: "gaps.md" }]),
   f("dd-checklist", "capitallens", "03-diligence", "diligence-readiness.md", "尽调就绪", "due-diligence", [], 8, ["references/dd-principles.md", "references/dd-checklist.md", HONESTY], [{ folder: "05-decision", filename: "dd-checklist.md" }]),
-  f("claim-audit", "capitallens", "03-diligence", "claim-audit.md", "声明审计", "due-diligence", ["assumption-validation"], 8, ["references/dd-claim-audit.md", HONESTY]),
-  f("investment-analysis-report", "capitallens", "05-decision", "investment-analysis-report.md", "投资分析", "due-diligence", [], 9, ["references/dd-synthesis.md", HONESTY]),
+  f("claim-audit", "capitallens", "03-diligence", "claim-audit.md", "声明审计", "due-diligence", ["risk-return", "assumption-validation"], 8, ["references/dd-claim-audit.md", HONESTY]),
+  f("investment-analysis-report", "capitallens", "05-decision", "investment-analysis-report.md", "投资分析", "due-diligence", MATURE_SEVEN, 9, ["references/dd-synthesis.md", HONESTY]),
   f("source-register", "capitallens", "02-evidence", "source-register.md", "引用来源", "due-diligence", [], 9, ["references/shared/source-grading.md", "references/shared/evidence-contract.md", HONESTY]),
 ];
 
@@ -127,6 +139,24 @@ const MATURE: readonly DeliverableFile[] = [
 export const MATURE_KN_HEADING_SLICES: Readonly<
   Record<string, Readonly<Record<string, readonly string[]>>>
 > = {
+  "screening-memo": {
+    "project-summary": ["项目概览", "初筛结论"],
+    "industry-competition": ["行业与竞争"],
+    "business-technology": ["业务与技术"],
+    "company-team": ["公司与团队"],
+    "financial-diligence": ["财务分析"],
+    "risk-return": ["风险与回报"],
+    "diligence-gaps": ["待解决问题"],
+  },
+  "investment-analysis-report": {
+    "project-summary": ["项目概况", "投资结论"],
+    "industry-competition": ["行业与竞争"],
+    "business-technology": ["业务与技术"],
+    "company-team": ["公司与团队"],
+    "financial-diligence": ["财务分析"],
+    "risk-return": ["风险与回报"],
+    "diligence-gaps": ["待解决问题"],
+  },
   "industry-due-diligence": {
     "industry-overview": [
       "行业定义与坐标",

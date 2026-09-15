@@ -369,6 +369,7 @@ const SECTION_QUESTION_KEYWORDS: Record<string, string[]> = {
   "investment-structure-returns": ["回报", "IRR", "结构", "收益", "估值"],
   "assumption-validation": ["声明", "假设", "主张", "审计"],
   "investment-risks": ["风险", "缓释", "矩阵", "威胁"],
+  "risk-return": ["估值", "回报", "风险", "主张", "核验"],
   "diligence-gaps": [],
   "investment-conclusion": ["决策", "结论", "建议", "推荐"],
   "exec-verdict": ["结论", "闸门", "建议"],

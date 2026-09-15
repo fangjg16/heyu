@@ -1,8 +1,8 @@
 # Claim Audit
 
-Use in Phase 4. Read this file and `references/shared/evidence-contract.md` before auditing. Update `03-diligence/claim-audit.md` and the structured claims in `PROJECT_STATE.json`. Do not write a fourth general diligence report.
+Use in Phase 4. Read this file and `../shared/evidence-contract.md` before auditing. Update `03-diligence/claim-audit.md` and the structured claims in `PROJECT_STATE.json`. Do not write a fourth general diligence report.
 
-Audit only material claims: claims that can change value, risk, transaction feasibility, or recommendation. The exact vocabulary and field definitions are governed by `references/shared/evidence-contract.md`.
+Audit only material claims: claims that can change value, risk, transaction feasibility, or recommendation. The exact vocabulary and field definitions are governed by `../shared/evidence-contract.md`.
 
 ## Atomic claims
 

@@ -92,15 +92,32 @@ describe("deliverable-catalog", () => {
       deliverablesForKnSection("early", "lean-business-model").map((d) => d.id),
     ).toEqual(["lean-canvas", "business-model"]);
     expect(draftGenerateItemIds("mature", "section", "project-summary")).toEqual(
-      ["project-summary"],
+      [
+        deliverableDraftId("screening-memo"),
+        deliverableDraftId("investment-analysis-report"),
+        "project-summary",
+      ],
     );
     expect(draftGenerateItemIds("mature", "section", "company-team")).toEqual([
+      deliverableDraftId("screening-memo"),
       deliverableDraftId("business-due-diligence"),
+      deliverableDraftId("background-check"),
+      deliverableDraftId("investment-analysis-report"),
       "company-team",
     ]);
     expect(
       draftGenerateItemIds("mature", "section", "company-background"),
     ).toEqual([deliverableDraftId("background-check"), "company-background"]);
+    expect(
+      draftGenerateItemIds("mature", "section", "risk-return"),
+    ).toEqual([
+      deliverableDraftId("screening-memo"),
+      deliverableDraftId("returns"),
+      deliverableDraftId("risk-matrix"),
+      deliverableDraftId("claim-audit"),
+      deliverableDraftId("investment-analysis-report"),
+      "risk-return",
+    ]);
     expect(
       headingSlicesForDeliverable(
         deliverablesForKind("mature").find((d) => d.id === "industry-due-diligence")!,
@@ -111,6 +128,18 @@ describe("deliverable-catalog", () => {
       "市场现状、规模与增长",
       "发展历程与关键拐点",
     ]);
+    expect(
+      headingSlicesForDeliverable(
+        deliverablesForKind("mature").find((d) => d.id === "industry-due-diligence")!,
+        "industry-competition",
+      ),
+    ).toBeNull();
+    expect(
+      headingSlicesForDeliverable(
+        deliverablesForKind("mature").find((d) => d.id === "screening-memo")!,
+        "industry-competition",
+      ),
+    ).toEqual(["行业与竞争"]);
     expect(deliverablesForKnSection("mature", "sources")).toEqual([]);
     expect(deliverablesForKind("mature").some((d) => d.id === "source-register")).toBe(
       true,

@@ -15,7 +15,7 @@ Stop only after at least three query variations, or when the gap is explicit.
 
 ## Source quality
 
-Map findings onto `references/shared/source-grading.md`. In narrative notes you may also use:
+Map findings onto `../shared/source-grading.md`. In narrative notes you may also use:
 
 | Screening note | Typical sources |
 |---|---|

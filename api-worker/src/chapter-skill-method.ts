@@ -121,44 +121,47 @@ function wrapMethodBlock(
     sectionId === "project-overview"
       ? "综合成熟度只填右上角那一个数或状态词；禁止输出 Factor A/B 分卡、十一段完整度表。"
       : sectionId === "project-summary" || sectionId === "snapshot"
-        ? "只填项目范围与交易要点；禁止输出 Factor A/B 分卡、十一段完整度表或综合成熟度表。"
-            : sectionId === "diligence-gaps" ||
-            sectionId === "open-items-exceptions" ||
-            sectionId === "questions" ||
-            sectionId === "assumptions-tracker"
-          ? "待确认问题必须用 P1/P2/P3 三组 <details> 折叠卡片，组内 <ol><li>；禁止改成缺口登记大表。"
+        ? "1.1 先写结论：筛选阶段用 Exciting / Promising / Watch / Pass；尽调或投委用 Proceed / Proceed with conditions / Renegotiate / Defer / Reject。这是 Agent 建议，禁止改项目流水线状态。随后写项目摘要与交易概况。禁止 Factor A/B 分卡和十一段完整度表。"
+        : sectionId === "diligence-gaps"
+          ? "待解决问题分 7.1 问被投方、7.2 内部核验与判断；用 <details> 折叠 + <ol><li>；禁止改成缺口登记大表。"
+          : sectionId === "open-items-exceptions" ||
+              sectionId === "questions" ||
+              sectionId === "assumptions-tracker"
+            ? "待确认问题必须用 P1/P2/P3 三组 <details> 折叠卡片，组内 <ol><li>；禁止改成缺口登记大表。"
             : sectionId === "business-technology" ||
-              sectionId === "business-worth-buying" ||
-              sectionId === "business" ||
-              sectionId === "lean-business-model" ||
-              sectionId === "business-overview" ||
-              sectionId === "product-situation" ||
-              sectionId === "technology-situation" ||
-              sectionId === "commercial-model" ||
-              sectionId === "core-competitiveness"
-            ? "写目标公司怎么赚钱（客户/定价/单位经济）；禁止 IRR/MOIC/投资人回报。模板里只有一张画布，禁止再叠一套九格。"
-            : sectionId === "industry-competition" ||
-                sectionId === "market-analysis" ||
-                sectionId === "industry-trends" ||
-                sectionId === "industry" ||
-                sectionId === "industry-overview" ||
-                sectionId === "industry-demand" ||
-                sectionId === "industry-value-chain" ||
-                sectionId === "industry-competition-structure" ||
-                sectionId === "industry-outlook"
-              ? "写市场切法、政策、与标的咬合、红黄旗；禁止对战卡和出价区间。"
-              : sectionId === "projections" ||
-                  sectionId === "revenue-model" ||
-                  sectionId === "cost-structure" ||
-                  sectionId === "financials"
-                ? "写跑道、收入与成本假设；禁止 IRR/MOIC/投资人三情景。"
-            : sectionId === "assumption-validation"
-            ? "核对公司声明与证据缺口；禁止写成投资结论或闸门建议。"
-            : sectionId === "investment-conclusion" ||
-                  sectionId === "recommendation-conditions" ||
-                  sectionId === "framework"
-                ? "写建议、关键论点和条件；禁止 Top5 风险表和三情景 IRR 摘要。"
-                : "";
+                sectionId === "business-worth-buying" ||
+                sectionId === "business" ||
+                sectionId === "lean-business-model" ||
+                sectionId === "business-overview" ||
+                sectionId === "product-situation" ||
+                sectionId === "technology-situation" ||
+                sectionId === "commercial-model" ||
+                sectionId === "core-competitiveness"
+              ? "写目标公司怎么赚钱（客户/定价/单位经济）；禁止 IRR/MOIC/投资人回报。模板里只有一张画布，禁止再叠一套九格。"
+              : sectionId === "industry-competition" ||
+                  sectionId === "market-analysis" ||
+                  sectionId === "industry-trends" ||
+                  sectionId === "industry" ||
+                  sectionId === "industry-overview" ||
+                  sectionId === "industry-demand" ||
+                  sectionId === "industry-value-chain" ||
+                  sectionId === "industry-competition-structure" ||
+                  sectionId === "industry-outlook"
+                ? "写市场切法、政策、与标的咬合、红黄旗；禁止对战卡和出价区间。"
+                : sectionId === "projections" ||
+                    sectionId === "revenue-model" ||
+                    sectionId === "cost-structure" ||
+                    sectionId === "financials"
+                  ? "写跑道、收入与成本假设；禁止 IRR/MOIC/投资人三情景。"
+                  : sectionId === "assumption-validation"
+                    ? "核对公司声明与证据缺口；禁止写成投资结论或闸门建议。"
+                    : sectionId === "risk-return"
+                      ? "同页写 6.1 估值回报、6.2 主张核验、6.3 投资风险。筛选阶段估值可标 indicative 或待补，禁止把 Agent 建议写成已投/不投。"
+                      : sectionId === "investment-conclusion" ||
+                          sectionId === "recommendation-conditions" ||
+                          sectionId === "framework"
+                        ? "写建议、关键论点和条件；禁止 Top5 风险表和三情景 IRR 摘要。"
+                        : "";
   const lines = [
     "【分析方法 · 只用于填写模板中的「待补」】",
     `本章 ${sectionId} 对应 skill：${parts.map((p) => p.skill).join("、")}。`,

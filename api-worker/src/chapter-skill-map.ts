@@ -16,15 +16,28 @@ export type ChapterSkillSpec = {
 
 const EMPTY: ChapterSkillSpec = { primary: [], borrow: [] };
 
-const DUE: ChapterSkillSpec = { primary: ["due-diligence"], borrow: [] };
+const SCREEN: ChapterSkillSpec = {
+  primary: ["deal-screening"],
+  borrow: ["due-diligence"],
+};
+const DUE: ChapterSkillSpec = {
+  primary: ["due-diligence"],
+  borrow: ["deal-screening"],
+};
 const DUE_INDUSTRY: ChapterSkillSpec = {
   primary: ["due-diligence"],
-  borrow: ["startup-competitors"],
+  borrow: ["deal-screening", "startup-competitors"],
 };
 
 const MATURE: Record<string, ChapterSkillSpec> = {
-  "project-overview": { primary: ["deal-screening"], borrow: [] },
-  "project-summary": { primary: ["deal-screening"], borrow: [] },
+  "project-overview": SCREEN,
+  "project-summary": SCREEN,
+  "industry-competition": DUE_INDUSTRY,
+  "business-technology": DUE,
+  "company-team": DUE,
+  "financial-diligence": DUE,
+  "risk-return": DUE,
+  "diligence-gaps": DUE,
   "industry-overview": DUE_INDUSTRY,
   "industry-demand": DUE_INDUSTRY,
   "industry-value-chain": DUE_INDUSTRY,
@@ -35,16 +48,11 @@ const MATURE: Record<string, ChapterSkillSpec> = {
   "technology-situation": DUE,
   "commercial-model": DUE,
   "core-competitiveness": DUE,
-  "company-team": DUE,
   "company-background": DUE,
-  "financial-diligence": DUE,
   "investment-structure-returns": DUE,
   "assumption-validation": DUE,
-  "diligence-gaps": DUE,
-  "industry-competition": DUE_INDUSTRY,
-  "business-technology": DUE,
   "investment-risks": DUE,
-  "investment-conclusion": DUE,
+  "investment-conclusion": SCREEN,
 };
 
 const EARLY: Record<string, ChapterSkillSpec> = {
@@ -116,8 +124,14 @@ export const SKILL_REFERENCE_FILES: Readonly<
     "references/taxonomy.md",
     "references/decision-rules.md",
   ],
-  "deal-screening": ["references/honesty-protocol.md"],
-  "due-diligence": ["references/honesty-protocol.md"],
+  "deal-screening": [
+    "references/honesty-protocol.md",
+    "references/report-writing.md",
+  ],
+  "due-diligence": [
+    "references/honesty-protocol.md",
+    "references/report-writing.md",
+  ],
   "startup-design": [
     "references/honesty-protocol.md",
     "references/output-guidelines.md",
@@ -140,12 +154,49 @@ export const CHAPTER_SKILL_REF_FILES: Readonly<
     "project-overview": [
       "deal-screening:references/project-intake.md",
       "deal-screening:references/honesty-protocol.md",
+      "deal-screening:references/report-writing.md",
     ],
     "project-summary": [
-      "deal-screening:references/project-intake.md",
-      "deal-screening:references/theme-classification.md",
       "deal-screening:references/screening-memo.md",
+      "deal-screening:references/project-intake.md",
       "deal-screening:references/honesty-protocol.md",
+      "deal-screening:references/report-writing.md",
+    ],
+    "industry-competition": [
+      "deal-screening:references/enrichment.md",
+      "due-diligence:references/dd-industry.md",
+      "due-diligence:references/honesty-protocol.md",
+      "due-diligence:references/report-writing.md",
+    ],
+    "business-technology": [
+      "deal-screening:references/enrichment.md",
+      "due-diligence:references/dd-business.md",
+      "due-diligence:references/honesty-protocol.md",
+      "due-diligence:references/report-writing.md",
+    ],
+    "company-team": [
+      "due-diligence:references/dd-business.md",
+      "due-diligence:references/dd-background-check.md",
+      "due-diligence:references/honesty-protocol.md",
+      "due-diligence:references/report-writing.md",
+    ],
+    "financial-diligence": [
+      "due-diligence:references/dd-financial.md",
+      "due-diligence:references/honesty-protocol.md",
+      "due-diligence:references/report-writing.md",
+    ],
+    "risk-return": [
+      "due-diligence:references/returns-analysis.md",
+      "due-diligence:references/dd-claim-audit.md",
+      "due-diligence:references/risk-matrix.md",
+      "due-diligence:references/honesty-protocol.md",
+      "due-diligence:references/report-writing.md",
+    ],
+    "diligence-gaps": [
+      "deal-screening:references/open-questions.md",
+      "due-diligence:references/dd-checklist.md",
+      "due-diligence:references/dd-principles.md",
+      "due-diligence:references/honesty-protocol.md",
     ],
     "industry-overview": [
       "due-diligence:references/dd-industry.md",
@@ -187,16 +238,8 @@ export const CHAPTER_SKILL_REF_FILES: Readonly<
       "due-diligence:references/dd-business.md",
       "due-diligence:references/honesty-protocol.md",
     ],
-    "company-team": [
-      "due-diligence:references/dd-business.md",
-      "due-diligence:references/honesty-protocol.md",
-    ],
     "company-background": [
       "due-diligence:references/dd-background-check.md",
-      "due-diligence:references/honesty-protocol.md",
-    ],
-    "financial-diligence": [
-      "due-diligence:references/dd-financial.md",
       "due-diligence:references/honesty-protocol.md",
     ],
     "investment-structure-returns": [
@@ -207,10 +250,13 @@ export const CHAPTER_SKILL_REF_FILES: Readonly<
       "due-diligence:references/dd-claim-audit.md",
       "due-diligence:references/honesty-protocol.md",
     ],
-    "diligence-gaps": [
-      "due-diligence:references/dd-checklist.md",
-      "due-diligence:references/dd-principles.md",
+    "investment-risks": [
+      "due-diligence:references/risk-matrix.md",
       "due-diligence:references/honesty-protocol.md",
+    ],
+    "investment-conclusion": [
+      "deal-screening:references/screening-memo.md",
+      "deal-screening:references/honesty-protocol.md",
     ],
   },
 };

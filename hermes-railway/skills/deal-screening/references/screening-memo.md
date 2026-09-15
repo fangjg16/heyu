@@ -1,126 +1,329 @@
-# Screening Memo
+# 项目初筛备忘录编写规范
 
-Use in Phase 6. Write `02-screening/screening-memo.md`. Follow `references/shared/output-contracts.md`. Default artifact status: `indicative` or `working`. Write the memo in the user's language: title, headings, table headers, labels, and body must match. Translate remaining English labels in this template (dimension names, Verdict, Suggested next step) when the user writes in another language.
+用于 Phase 6，输出 `02-screening/screening-memo.md`。
+遵循 `../shared/output-contracts.md`。
+工件状态使用 `indicative` 或 `working`。
+报告语言与用户一致；状态枚举、来源 ID 和文件路径保持原值。
 
-## Verdict
+## 报告目的与写作要求
 
-Roll the three dimensions into one label. This is not a yes/no and not a mandate-fit call.
+本备忘录回答：现在是否值得投入资源开展正式尽调？
 
-| Verdict | Meaning | Typical suggested next step |
+按照以下结构撰写：
+1. 项目概览
+2. 行业与竞争
+3. 业务与技术
+4. 公司与团队
+5. 财务分析
+6. 风险与回报
+7. 待解决问题
+
+### 结论先行
+
+每章先给出本章结论，再按论述顺序展开支持判断的事实、分析和疑点。
+第 1 章以第 1.1 节的初筛结论开篇，其他章节以“本章结论”开篇。
+
+结论应说明当前可以作出什么判断、最关键的依据是什么，以及哪项不确定性可能改变判断。
+证据不足时，明确说明尚不能判断的事项及原因。
+不要用章节内容介绍代替结论，例如“本章分析公司的财务情况”。
+
+### 证据与表达
+
+- 区分项目方陈述、公开事实、分析计算、推断、假设和未解决的矛盾。
+- 重要事实及数字注明来源 ID；来源 ID 必须在来源附录中可追溯。
+- 财务数字注明期间、币种、单位，以及实际值或预测值。
+- 缺少资料时保留章节，呈现已有信息、具体缺口和判断限制，不生成无依据的内容。
+- 同一事项在最相关的章节展开，其他章节引用，避免重复。
+- 四轮公开研究均须完成并注明覆盖及缺口；行业需求与渠道结构归入第 2 章，项目自身的商业化与渠道执行证据归入第 3 章。
+- 只深化能够改变初筛结论的问题；不将本轮可完成的公开检索全部推迟为待办事项。
+- 不开展正式估值、IRR 测算、完整财务核验或深度背景调查。
+- 不设置“可比项目”“网络关系”的未评估占位章节；行业内竞争对手和替代方案的比较仍属于第 2 章。
+
+## 评分与总体评级
+
+遵循 `scoring.md`，在第 1.1 节集中呈现总体评级和三维评分，不另设评分摘要节。
+
+三项评分维度为市场时机、竞争地位、团队／创始人质量。
+每项使用 `meets`、`partially_meets` 或 `misses`；缺少必要事实时标记“未评估”。
+每项保留结论、证据来源和理由；`misses` 必须说明具体原因，未评估必须说明缺少什么事实及为何不能推断。
+不新增评分维度，不按家办偏好或 mandate fit 打分，不采用加权平均。
+
+| 总体评级 | 含义 | 通常建议 |
 |---|---|---|
-| `Exciting` | Core dimensions are mostly `meets`, none are `misses`; remaining questions are unlikely to reverse the view on their own | `continue_diligence` |
-| `Promising` | The story holds; `meets` and `partially_meets` coexist; no single `misses` that should stop work now | `continue_diligence`, or `request_information` on the blocking questions |
-| `Watch` | Formal diligence is not justified now: window not here, too early, position unclear, business still unreadable, or a key dimension unevaluated | `request_information`, or wait for a named catalyst; pipeline stays `deal-screening` |
-| `Pass` | Available evidence supports not spending diligence time now: at least one blocking `misses`, or a public hard stop | suggest the team set pipeline to `declined` |
+| `Exciting` | 核心维度大多达到标准，无 `misses`；剩余问题不太可能单独推翻当前判断 | `continue_diligence` |
+| `Promising` | 基本逻辑成立，存在支持证据和保留意见，无足以阻止继续推进的 `misses` | `continue_diligence`，或先对阻断性问题 `request_information` |
+| `Watch` | 当前尚不足以支持正式尽调，例如时机未到、定位不清、业务无法解释或关键维度未评估 | `request_information`，或等待明确催化因素；流程保持 `deal-screening` |
+| `Pass` | 已有证据支持本阶段不再投入尽调资源，例如决定性的负面事实或硬性阻断 | `pass`，建议团队决定是否本阶段放弃 |
 
-Rollup rules:
+适用规则：
+1. 能单独改变“是否现在尽调”的 `misses` 使总体评级不得高于 `Watch`；有证据支持的诚信问题、身份问题或公开硬性阻断可支持 `Pass`。负面评分不能被其他维度的好表现平均抵消。
+2. 若仍无法说明谁付钱、为什么付钱、现金如何进入公司，总体评级不得高于 `Watch`。
+3. 关键维度未评估且没有支持放弃的负面证据时，使用 `Watch` 并列出问题。缺失信息不等于 `misses`，也不自动构成 `Pass`。
+4. `Pass` 必须给出有证据支持的放弃理由；`Watch` 必须说明需要补充什么或等待什么；`Exciting` / `Promising` 必须说明继续推进后首先验证什么。
+5. 总体评级与下一步建议分别填写。下一步建议使用 `continue_diligence`、`request_information` 或 `pass`。
 
-1. Not a weighted average. A `misses` that alone changes “diligence now?” caps the verdict at `Watch`. Integrity, unresolved identity, or a public hard stop may cap the suggestion at `Pass`.
-2. Key dimensions unevaluated and no `misses` cannot produce `Pass`. The honest outlet is `Watch` plus open questions.
-3. `Pass` needs a rejection reason. `Watch` needs what to ask or what to wait for. `Exciting` / `Promising` need the first tests diligence should run.
-4. Verdict and suggested next step are inputs. Suggested next step is one of `continue_diligence`, `request_information`, `pass`.
+Phase 6 起草时，团队决定栏保持为空，`pipelineStatus` 保持 `deal-screening`。
+Agent 建议不自动形成团队决定。
 
-Do not fill the team-decision block. Do not set `pipelineStatus` to `declined` or `due-diligence`.
+## 报告模板
 
-## Template
+表格遵循 `../report-writing.md`：保留模板字段，长解释可按事项编号置于表下。
 
 ```markdown
-# 筛选备忘录：{项目名称}
+# 项目初筛备忘录：{项目名称}
 
-- 项目与视角：{name} / financial-investor
-- 工作流与状态：deal-screening / working
-- 工件状态：indicative
-- 日期与输入：{date}；{sources}
+- 分析视角：财务投资人
+- 工作阶段：deal-screening
+- 工件状态：{indicative 或 working}
+- 报告日期：
+- 信息截止日期：
+- 输入材料：
 - 决策问题：现在是否值得启动正式尽调？
-- pipelineStatus：deal-screening
+- 流程状态：deal-screening
 
-## 1. 项目身份与经济实质
+## 1. 项目概览
 
-{一句话。缺失写“输入未说明”。}
+### 1.1 初筛结论
 
-## 2. 赛道
+**核心判断：** {直接说明是否值得现在继续推进，以及主要理由。}
 
-- 主分类：{一级} → {二级}
-- 匹配类型 / 置信度：
-- taxonomy_version：
+- 总体评级：{Exciting / Promising / Watch / Pass}
+- 下一步建议：{continue_diligence / request_information / pass}
+- 关键支持理由：
+- 主要保留意见：
+- 改变当前判断的关键条件：
 
-## 3. 公开补充要点
+| 维度 | 评分 | 关键依据与来源 ID | 保留意见／缺失事实 |
+|---|---|---|---|
+| 市场时机 |  |  |  |
+| 竞争地位 |  |  |  |
+| 团队／创始人质量 |  |  |  |
 
-- 市场与 timing：
+### 1.2 项目基本情况
+
+- 项目／公司身份：
+- 一句话经济实质：{谁付钱、买什么、如何形成收入}
+- 核心产品或服务：
+- 目标客户与应用场景：
+- 发展阶段与已披露进展：
+- 融资或交易诉求：{未知则写未披露}
+- 投资主题：{一级分类 → 二级分类}
+- 分类匹配类型／置信度：
+- 分类版本：{taxonomy_version}
+
+## 2. 行业与竞争
+
+**本章结论：** {行业机会与项目位置是否值得现在继续核查；关键依据、时机判断及主要限制。}
+
+### 2.1 行业概况
+
+{行业定义与边界、当前规模与增长、发展阶段及关键拐点；明确项目所属市场。引用口径清楚的公开数据，说明来源与适用范围。}
+
+### 2.2 市场需求
+
+{使用者、决策者与付款者，预算、采购、采用与渗透机制，需求驱动及约束；寻找痛点、付费意愿和预算形成的证据。}
+
+### 2.3 产业链
+
+{上下游、价值与资金流向、主要利润环节、议价权、关键依赖；说明项目处于哪里、向谁收钱、依赖谁，以及价值获取障碍。}
+
+### 2.4 竞争结构
+
+{主要参与者、客户实际使用的替代方案、竞争维度与进入壁垒；比较项目的相对位置及待验证差异。}
+
+| 对手／替代方案 | 客户与解决方式 | 项目的相对优势或劣势 | 证据及局限 |
+|---|---|---|---|
+|  |  |  |  |
+
+### 2.5 发展趋势
+
+{需求、技术、成本、渠道、商业模式及监管变化，受益与受损因素；判断机会窗口已经打开、正在形成、尚未出现还是已经错过，并说明催化因素或阻断条件。}
+
+各节按“结论 → 证据与分析 → 对项目的含义 → 反证与限制”展开。规模和利润分配可定性判断，不要求完整市场测算或利润池量化；资料缺失不自动构成负面评分。
+本章分析行业共性和项目相对位置，项目自身的产品、客户、订单与渠道执行证据放在第 3 章。待解决问题汇总至第 7 章。
+
+## 3. 业务与技术
+
+**本章结论：** {业务是否清楚、核心能力是否有支撑、商业化走到了哪一步，以及主要障碍。}
+
+### 3.1 业务概览
+
+{卖什么、卖给谁、如何定价、交付和收款；区分已开展业务、试验业务与远期规划。}
+
+### 3.2 核心能力
+
+{优势如何实现、已有何种性能／成本／交付证据、依赖哪些关键资源，以及优势维持的条件。}
+
+不以技术为核心的项目，分析实际核心能力，例如采购、运营、渠道或交易组织能力。
+
+### 3.3 商业化进展
+
+{客户、试点、合同、订单、付费、交付和复购情况。明确区分意向、试用、订单、收入与回款。}
+
+### 3.4 渠道拓展
+
+{如何获得客户、销售及交付周期、渠道依赖、业务扩张需要满足的条件和主要瓶颈。}
+
+### 3.5 关键疑点
+
+{尚未证实的产品、技术或商业化主张，以及材料中的矛盾。}
+
+## 4. 公司与团队
+
+**本章结论：** {主体信息是否清楚、团队是否具备执行关键任务的能力，以及主要缺口。}
+
+### 4.1 公司概况
+
+{可获取的主体信息、发展历史、融资历史及已披露股权信息。}
+
+### 4.2 核心团队
+
+| 人员／岗位 | 披露的经历与职责 | 可查证的相关记录 | 缺口或矛盾 |
+|---|---|---|---|
+|  |  |  |  |
+
+### 4.3 团队匹配
+
+{团队经历如何支持当前业务计划；关键岗位是否缺失，执行是否依赖特定个人或外部资源。}
+
+### 4.4 核查线索
+
+{有来源支持的身份、控制权、关联方或负面记录线索。仅姓名相同不能形成负面结论。}
+
+## 5. 财务分析
+
+**本章结论：** {现有财务信息能够支持什么判断；若只有项目方测算，说明测算是否自洽、最依赖什么假设，以及哪些结论仍缺少依据。}
+
+### 5.1 数据口径
+
+说明现有材料属于：
+- 实际经营数据；
+- 项目方预测或粗略测算；
+- 两者混合；
+- 尚无可分析的财务信息。
+
+混合材料应明确分开实际值与预测值。没有历史数据时，不要求填充历史财务指标表。
+
+### 5.2 数据与测算
+
+按材料实际提供的内容整理，注明“收入”“毛利”“净利润”“现金流”等指标的具体含义；含义不清时标记待澄清。
+
+| 指标／测算项目 | 期间 | 数值与单位 | 实际／预测 | 口径与来源 ID |
+|---|---|---|---|---|
+|  |  |  |  |  |
+
+### 5.3 关键假设
+
+如存在实际数据，分析其反映的经营规模、增长、盈利或现金情况及明显矛盾。
+
+如仅有预测，拆解项目方“能赚多少钱”的计算路径：
+- 收入由多少客户、销量、单价和购买频次形成；
+- 获客、交付、人员及其他成本是否计入；
+- 产能、渠道及团队是否支持预测规模；
+- 收入形成前需要投入多少资金；
+- 收入、利润与现金回收时间是否被混淆。
+
+| 关键假设 | 项目方取值／说法 | 支持依据 | 合理性疑点 | 对测算结果的影响 |
+|---|---|---|---|---|
+|  |  |  |  |  |
+
+可以依据已披露输入做简单算术复核，但必须标注公式和假设，不自行补造缺失参数。
+
+### 5.4 分析局限
+
+{指出最需要澄清的指标、假设或资金需求，以及缺口是否影响现在继续推进。}
+
+财务测算自洽不代表预测能够实现，项目方预测不能作为已经发生的经营成果。
+
+## 6. 风险与回报
+
+**本章结论：** {潜在回报逻辑是否值得进一步研究、最可能使其失效的因素是什么，以及当前能否判断风险回报关系。}
+
+### 6.1 回报来源
+
+{定性说明业务进展如何可能转化为投资人收益，例如分红、股权价值提升后的转让或约定偿付。}
+
+说明实现这些收益所需的条件。区分公司可能赚钱与投资人能够取得回报。
+
+已披露价格、估值或退出设想可注明来源后引用。未知投资价格、权益或退出条件时，明确哪些风险回报判断尚不能作出。
+
+### 6.2 风险信号
+
+| 编号 | 疑点／风险 | 证据或矛盾 | 如何影响业务或投资人收益 | 对初筛决定的影响 |
+|---|---|---|---|---|
+| R-01 |  |  |  |  |
+
+区分已发现的负面事实与尚待验证的假设。不因资料缺失直接认定红旗。
+
+### 6.3 推进条件
+
+{哪些问题需要先澄清、哪些风险值得继续核查，以及什么事实会使当前判断发生变化。}
+
+## 7. 待解决问题
+
+**本章结论：** {当前最影响决策的未决事项是什么，哪些需要对方提供事实，哪些需要内部完成核查或判断。}
+
+### 7.1 对方待答
+
+按“不清楚”和“不合理”两类组织。某类没有问题时明确说明。
+
+| 编号 | 类型 | 需要对方回答的问题 | 为什么现在问 | 所需证据／充分回答标准 | 未回答的影响 |
+|---|---|---|---|---|---|
+| Q-01 | 不清楚／不合理 |  |  |  |  |
+
+问题应具体且能够改变评分或推进决定。公开检索可以解决的问题，应先完成检索。
+
+本节可整理为对外问题清单；内部评级、评分及判断不随之对外提供。报告生成不自动发送任何外部消息。
+
+### 7.2 内部待办
+
+列出我们仍需独立核查、分析或作出判断的问题，不重复罗列对方应提交的材料。
+
+| 编号 | 内部需要回答的问题 | 当前判断与缺口 | 核查／判断方式 | 依赖的对方回答 | 完成标准及决策影响 |
+|---|---|---|---|---|---|
+| I-01 |  |  |  | Q-编号或无 |  |
+
+区分事实核查与投资判断：
+- 事实核查：通过什么独立来源或验证方法确认；
+- 投资判断：使用什么标准判断是否值得继续推进。
+
+说明下一步应做什么核查、等待什么信息或里程碑，以及何时重新判断。
+需要团队选择的事项，明确给出待决定的问题和 Agent 建议，保留人工决定。
+
+## 附录：来源与研究覆盖
+
+| 来源 ID | 标题／材料 | 发布主体 | 日期／期间 | 来源性质及独立性 | 支持事项与局限 |
+|---|---|---|---|---|---|
+| SRC-01 |  |  |  |  |  |
+
+- 市场与时机：
 - 竞争与位置：
 - 客户与需求：
 - 渠道与进入：
-- 与材料一致 / 冲突：
+- 检索限制：
 
-## 4. 分维评分
+## 团队决定（人工填写）
 
-| 维度 | 结论 | 证据（source ID） | 理由 |
-|---|---|---|---|
-| Market timing | meets / partially_meets / misses / 未评 |  |  |
-| Competitive positioning | meets / partially_meets / misses / 未评 |  |  |
-| Team / founder quality | meets / partially_meets / misses / 未评 |  |  |
-
-## 5. 总体叙事
-
-- 什么成立：
-- 什么存疑：
-- 什么不合理：
-
-## 6. Agent 建议
-
-- Verdict：Exciting / Promising / Watch / Pass
-- Suggested next step：continue_diligence / request_information / pass
-- 若 Pass，拒绝原因：
-- 若进入尽调，优先测试：
-
-## 7. 开放问题（给被投方）
-
-### 不清楚
-
-1. 问什么：
-   - 为什么现在问：
-   - 怎样才算答上：
-   - 不答的后果：
-
-### 不合理
-
-1. 问什么：
-   - 为什么现在问：
-   - 怎样才算答上：
-   - 不答的后果：
-
-## 8. 可比项目
-
-未评估（本轮不做）。
-
-## 9. 网络关系
-
-未评估（本轮不做）。
-
-## 10. 来源
-
-- SRC-…
-
-## 11. Flags
-
-- Red：
-- Yellow：
-- 或：No flags identified
-
-## 12. 团队决定（人工填写）
-
-- 决定：continue / 追问或观察 / 本阶段放弃
+- 决定：
 - 理由：
-- 记录人 / 日期：
-- pipelineStatus 更新为：
+- 记录人／日期：
+- 流程状态更新为：
+
+## 红黄旗摘要
+
+- 红旗：{引用第 6 章编号，或说明未识别到}
+- 黄旗：{引用第 6 章编号，或说明未识别到}
+- 支持上述表述的检索范围及限制：
 ```
 
-## Phase 7
+## 团队审阅与状态更新
 
-When a person records a decision, fill section 12, append to `decisions[]`, and update `pipelineStatus`:
+Phase 7 获得明确人工决定后，填写“团队决定”栏，将决定追加到 `PROJECT_STATE.json` 的 `decisions[]`，并更新 `pipelineStatus`：
 
 - `continue` → `due-diligence`
-- 追问或观察 → remain `deal-screening`
+- 追问或等待催化因素 → 保持 `deal-screening`
 - 本阶段放弃 → `declined`
 
-The team may override the agent. Write the human reason. Only a recorded `continue` (or an explicit skip of screening requested by the user inside `due-diligence`) starts formal diligence workpapers.
+团队可以覆盖 Agent 建议，须记录人工理由。
+只有记录了人工 `continue`，或用户明确要求跳过初筛，才按对应流程启动正式尽调。
+保留项目概览、分类、四轮研究、来源、三维评分、两类未决事项和人工决定，供后续工作承接。

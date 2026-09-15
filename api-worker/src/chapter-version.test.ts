@@ -91,6 +91,8 @@ describe("chapter-version", () => {
     expect(isResearchChapterId("exec-summary")).toBe(true);
     expect(isResearchChapterId("exec-verdict")).toBe(true);
     expect(isResearchChapterId("industry-overview")).toBe(true);
+    expect(isResearchChapterId("risk-return")).toBe(true);
+    expect(isResearchChapterId("industry-competition")).toBe(true);
     expect(isResearchChapterId("assumption-validation")).toBe(true);
     expect(isResearchChapterId("glossary")).toBe(false);
     expect(isResearchChapterId("project-overview")).toBe(false);

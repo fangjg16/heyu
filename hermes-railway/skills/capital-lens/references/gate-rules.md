@@ -22,6 +22,6 @@ Before `passed` or `conditional`, also require:
 - the three-way cross-validation matrix is current and material contradictions are resolved or explicitly conditioned;
 - no material dependency is newer than the workpaper that relies on it;
 - each `部分核验` or `未核验` item has an owner, decision impact, and downstream treatment;
-- `scripts/validate_project.py PROJECT --formal-diligence --diligence-readiness` passes when run from the `due-diligence` skill directory. Script success is necessary but not sufficient for the human gate decision.
+- `../scripts/validate_project.py PROJECT --formal-diligence --diligence-readiness` passes when run from the `due-diligence` skill directory. Script success is necessary but not sufficient for the human gate decision.
 
 Status: `passed`, `conditional`, `not_passed`, or `deferred`.

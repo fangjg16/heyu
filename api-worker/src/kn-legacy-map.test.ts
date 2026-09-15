@@ -36,9 +36,9 @@ describe("kn-legacy-map", () => {
         status: "ok",
       },
     ]);
-    expect(items.some((i) => i.sectionId === "industry-overview")).toBe(true);
+    expect(items.some((i) => i.sectionId === "industry-competition")).toBe(true);
     expect(
-      items.find((i) => i.sectionId === "industry-overview")?.html,
+      items.find((i) => i.sectionId === "industry-competition")?.html,
     ).toContain("行业");
   });
 

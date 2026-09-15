@@ -26,6 +26,7 @@ const FILES = [
   { rel: "mature/business-technology.md", sort: 40, base: chaptersRoot },
   { rel: "mature/company-team.md", sort: 50, base: chaptersRoot },
   { rel: "mature/financial-diligence.md", sort: 60, base: chaptersRoot },
+  { rel: "mature/risk-return.md", sort: 65, base: chaptersRoot },
   { rel: "mature/investment-structure-returns.md", sort: 70, base: chaptersRoot },
   { rel: "mature/investment-risks.md", sort: 80, base: chaptersRoot },
   { rel: "mature/diligence-gaps.md", sort: 90, base: chaptersRoot },

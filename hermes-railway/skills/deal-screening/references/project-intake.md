@@ -20,4 +20,4 @@ Set `plugin` to `capitallens`, `perspective` to `financial-investor`, and `pipel
 
 Create only the two control files and `01-intake/project-brief.md` in this phase. Assign claim IDs when a material statement will be scored or asked about later.
 
-The brief follows `references/shared/output-contracts.md`. Status: `indicative` or `working`.
+The brief follows `../shared/output-contracts.md`. Status: `indicative` or `working`.

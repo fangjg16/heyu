@@ -37,6 +37,8 @@ Set `pipelineStatus` to `deal-screening` when this skill starts. Diligence Readi
 
 ### Language
 
+Before writing or revising any report or workpaper, read `references/report-writing.md`.
+
 Follow the Language rule in `references/shared/output-contracts.md`. Write workpapers in the user's language. If the user writes in Chinese, use Chinese for all screening outputs — including titles, headings, subheadings, table headers, labels, and body. Do not copy English template headings into a Chinese memo.
 
 ---
@@ -146,11 +148,11 @@ Update PROGRESS.md. Mark Phase 4 complete.
 
 Draft questions for the target (via the introducer if needed). Cover what is unclear and what is unreasonable. Each question states what to ask, why it matters now, what an adequate answer looks like, and what happens if it stays unanswered.
 
-Public facts this skill could have searched for do not belong here.
+Keep target-facing questions in memo section 7.1. Separately record internal verification and judgment questions in section 7.2, including method, dependencies on target answers, completion criteria, and decision consequence. Do not substitute a generic task list for questions the team still needs to answer. Public facts this skill could have searched for must be researched before drafting the memo, not deferred into either list.
 
 ### Output
 
-Open questions are written into the screening memo in Phase 6. No separate questions file.
+Target-facing questions and internal verification / judgment items are written into sections 7.1 and 7.2 of the screening memo in Phase 6. No separate questions file.
 
 Update PROGRESS.md. Mark Phase 5 complete.
 
@@ -162,7 +164,11 @@ Update PROGRESS.md. Mark Phase 5 complete.
 
 Write `02-screening/screening-memo.md`. Roll dimension scores into one of `Exciting`, `Promising`, `Watch`, or `Pass`, with a suggested next step: `continue_diligence`, `request_information`, or `pass`.
 
-Leave the team-decision block empty. Do not write `pipelineStatus` as `declined` or `due-diligence`. Leave comparable-deal and network sections as not assessed.
+Follow the seven-section structure in `references/screening-memo.md`. Lead every chapter with its conclusion and integrate the three-dimension scorecard into section 1.1. Financial analysis may contain actual figures, rough target projections, both, or no usable data; distinguish them and assess disclosed assumptions without inventing historical metrics. Keep return analysis qualitative; do not perform valuation or IRR analysis. Do not create unassessed comparable-deal or network placeholder sections.
+
+Leave the team-decision block empty. Do not write `pipelineStatus` as `declined` or `due-diligence`.
+
+完成标准：已有证据足以形成初步判断，或者能明确指出阻断判断的关键缺口。
 
 Label the memo `indicative` or `working`.
 
@@ -234,5 +240,5 @@ Read only what the current phase needs.
 | `research-principles.md` | Phase 3 | Search quality, dating, gaps |
 | `enrichment.md` | Phase 3 | Four waves of public research |
 | `scoring.md` | Phase 4 | Criteria and `meets` / `partially_meets` / `misses` |
-| `open-questions.md` | Phase 5 | Questions for the target |
+| `open-questions.md` | Phase 5 | Target questions and internal verification / judgment items |
 | `screening-memo.md` | Phase 6 | Memo structure, verdict rollup, team block |

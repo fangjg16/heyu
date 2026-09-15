@@ -6,15 +6,28 @@ type Spec = ChapterSkillSpecDto;
 
 const EMPTY: Spec = { primary: [], borrow: [] };
 
-const DUE: Spec = { primary: ["due-diligence"], borrow: [] };
+const SCREEN: Spec = {
+  primary: ["deal-screening"],
+  borrow: ["due-diligence"],
+};
+const DUE: Spec = {
+  primary: ["due-diligence"],
+  borrow: ["deal-screening"],
+};
 const DUE_INDUSTRY: Spec = {
   primary: ["due-diligence"],
-  borrow: ["startup-competitors"],
+  borrow: ["deal-screening", "startup-competitors"],
 };
 
 const MATURE: Record<string, Spec> = {
-  "project-overview": { primary: ["deal-screening"], borrow: [] },
-  "project-summary": { primary: ["deal-screening"], borrow: [] },
+  "project-overview": SCREEN,
+  "project-summary": SCREEN,
+  "industry-competition": DUE_INDUSTRY,
+  "business-technology": DUE,
+  "company-team": DUE,
+  "financial-diligence": DUE,
+  "risk-return": DUE,
+  "diligence-gaps": DUE,
   "industry-overview": DUE_INDUSTRY,
   "industry-demand": DUE_INDUSTRY,
   "industry-value-chain": DUE_INDUSTRY,
@@ -25,16 +38,11 @@ const MATURE: Record<string, Spec> = {
   "technology-situation": DUE,
   "commercial-model": DUE,
   "core-competitiveness": DUE,
-  "company-team": DUE,
   "company-background": DUE,
-  "financial-diligence": DUE,
   "investment-structure-returns": DUE,
   "assumption-validation": DUE,
-  "diligence-gaps": DUE,
-  "industry-competition": DUE_INDUSTRY,
-  "business-technology": DUE,
   "investment-risks": DUE,
-  "investment-conclusion": DUE,
+  "investment-conclusion": SCREEN,
 };
 
 const EARLY: Record<string, Spec> = {
