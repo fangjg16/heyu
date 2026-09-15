@@ -521,27 +521,36 @@ function markdownHasBody(md: string): boolean {
   );
 }
 
-function evidenceKind(title: string): "strong" | "weak" | null {
-  const t = title.replace(/\*+/gu, "").replace(/^\d+[.)、]\s*/u, "").trim();
+function headingKey(title: string): string {
+  return displayHeadingTitle(title.replace(/\*+/gu, ""));
+}
+
+function evidenceKind(
+  title: string,
+): "strongest" | "weakest" | "pro" | "con" | null {
+  const t = headingKey(title);
+  if (/strongest evidence|最强证据|最有力证据/iu.test(t)) return "strongest";
+  if (/weakest links?|最弱环节|最弱链接|最弱证据/iu.test(t)) return "weakest";
   if (
-    /strongest evidence|最强证据|最有力证据|正方(?:意见)?|支持投资(?:的论点)?|看多|bull(?:\s*case)?|^pros?$/iu.test(
-      t,
-    )
+    /^(?:正方(?:意见)?|支持投资(?:的论点)?|看多|bull(?:\s*case)?|pros?)$/iu.test(t)
   ) {
-    return "strong";
+    return "pro";
   }
   if (
-    /weakest links?|最弱环节|最弱链接|最弱证据|反方(?:意见)?|反对投资(?:的论点)?|看空|bear(?:\s*case)?|^cons?$/iu.test(
-      t,
-    )
+    /^(?:反方(?:意见)?|反对投资(?:的论点)?|看空|bear(?:\s*case)?|cons?)$/iu.test(t)
   ) {
-    return "weak";
+    return "con";
   }
   return null;
 }
 
-function headingKey(title: string): string {
-  return title.replace(/^\d+[.)、]\s*/u, "").trim();
+function pairMate(
+  kind: "strongest" | "weakest" | "pro" | "con",
+): "strongest" | "weakest" | "pro" | "con" {
+  if (kind === "strongest") return "weakest";
+  if (kind === "weakest") return "strongest";
+  if (kind === "pro") return "con";
+  return "pro";
 }
 
 function isRecommendHeading(title: string): boolean {
@@ -709,13 +718,17 @@ function specialDecisionHtml(
     if (peeked && looksLikeStatusValue(value)) {
       if (isRecommendHeading(title)) {
         return {
-          html: verdictCardHtml(title, value, knVerdictTone(value) ?? "neutral"),
+          html: verdictCardHtml(
+            displayHeadingTitle(title),
+            value,
+            knVerdictTone(value) ?? "neutral",
+          ),
           next: peeked.next,
         };
       }
       return {
         html: readinessCardHtml(
-          title,
+          displayHeadingTitle(title),
           value,
           knReadinessTone(value) ?? "neutral",
         ),
@@ -727,7 +740,7 @@ function specialDecisionHtml(
     const peeked = takeFollowingParagraph(lines, start);
     if (peeked) {
       return {
-        html: `<aside class="kn-lede-card"><p class="kn-lede-card__label">${escapeHtml(title)}</p><div class="kn-lede-card__body"><p>${inline(peeked.text)}</p></div></aside>`,
+        html: `<aside class="kn-lede-card"><p class="kn-lede-card__label">${escapeHtml(displayHeadingTitle(title))}</p><div class="kn-lede-card__body"><p>${inline(peeked.text)}</p></div></aside>`,
         next: peeked.next,
       };
     }
@@ -737,7 +750,7 @@ function specialDecisionHtml(
     const inner = markdownToKnHtmlInner(body.join("\n")).trim();
     if (inner) {
       return {
-        html: `<aside class="kn-callout kn-callout--terms"><p class="kn-callout__label">${escapeHtml(title)}</p>${inner}</aside>`,
+        html: `<aside class="kn-callout kn-callout--terms"><p class="kn-callout__label">${escapeHtml(displayHeadingTitle(title))}</p>${inner}</aside>`,
         next,
       };
     }
@@ -747,7 +760,8 @@ function specialDecisionHtml(
 
 function evidenceCol(title: string, kind: "go" | "stop", body: string): string {
   const inner = markdownToKnHtmlInner(body).trim() || "<p>待补</p>";
-  return `<div class="kn-split__col kn-split__col--${kind}"><div class="kn-split__title">${escapeHtml(localizeKnText(title))}</div>${inner}</div>`;
+  const shown = localizeKnText(displayHeadingTitle(title));
+  return `<div class="kn-split__col kn-split__col--${kind}"><div class="kn-split__title">${escapeHtml(shown)}</div>${inner}</div>`;
 }
 
 function taggedLine(
@@ -787,30 +801,21 @@ function consumeEvidencePair(
   lines: string[],
   startAfterTitle: number,
   firstTitle: string,
-  firstKind: "strong" | "weak",
-): { html: string; next: number } {
+  firstKind: "strongest" | "weakest" | "pro" | "con",
+): { html: string; next: number } | null {
+  if (firstKind !== "strongest" && firstKind !== "pro") return null;
   const first = collectUntilBoundary(lines, startAfterTitle);
   let i = first.next;
-  let strongTitle = firstKind === "strong" ? firstTitle : "最强证据";
-  let weakTitle = firstKind === "weak" ? firstTitle : "最弱环节";
-  let strongBody = firstKind === "strong" ? first.body : [];
-  let weakBody = firstKind === "weak" ? first.body : [];
-  if (firstKind === "strong") {
-    const peek = (lines[i] ?? "").trim();
-    const nextH = /^(#{1,6})\s+(.+)$/u.exec(peek);
-    const nextBold = /^\*\*([^*]+)\*\*$/u.exec(peek);
-    const nextTitle = (nextH?.[2] ?? nextBold?.[1] ?? "").trim();
-    if (nextTitle && evidenceKind(nextTitle) === "weak") {
-      weakTitle = nextTitle;
-      i += 1;
-      const weak = collectUntilBoundary(lines, i);
-      weakBody = weak.body;
-      i = weak.next;
-    }
-  }
+  const peek = (lines[i] ?? "").trim();
+  const nextH = /^(#{1,6})\s+(.+)$/u.exec(peek);
+  const nextBold = /^\*\*([^*]+)\*\*$/u.exec(peek);
+  const nextTitle = (nextH?.[2] ?? nextBold?.[1] ?? "").trim();
+  if (!nextTitle || evidenceKind(nextTitle) !== pairMate(firstKind)) return null;
+  i += 1;
+  const second = collectUntilBoundary(lines, i);
   return {
-    html: `<div class="kn-split">${evidenceCol(strongTitle, "go", strongBody.join("\n"))}${evidenceCol(weakTitle, "stop", weakBody.join("\n"))}</div>`,
-    next: i,
+    html: `<div class="kn-split">${evidenceCol(firstTitle, "go", first.body.join("\n"))}${evidenceCol(nextTitle, "stop", second.body.join("\n"))}</div>`,
+    next: second.next,
   };
 }
 
@@ -1360,6 +1365,9 @@ function listItemHtml(raw: string): string {
   if (isPendingExact(t.replace(/^[-*•]\s+/u, ""))) {
     return `<li><span class="kn-pending">${inline(t)}</span></li>`;
   }
+  if (isSourceNoteLine(t.replace(/^[-*•]\s+/u, ""))) {
+    return `<li class="kn-source-note">${inline(t)}</li>`;
+  }
   return `<li>${inline(t)}</li>`;
 }
 
@@ -1402,9 +1410,10 @@ function markdownToKnHtmlInner(src: string): string {
     const tag = listKind;
     const items = listItems.map(listItemHtml).filter(Boolean);
     const tasky = items.some((h) => h.includes("kn-task"));
-    out.push(
-      `<${tag}${tasky ? ' class="kn-tasks"' : ""}>${items.join("")}</${tag}>`,
-    );
+    const sourcy =
+      items.length > 0 && items.every((h) => h.includes("kn-source-note"));
+    const cls = tasky ? ' class="kn-tasks"' : sourcy ? ' class="kn-source-list"' : "";
+    out.push(`<${tag}${cls}>${items.join("")}</${tag}>`);
     listKind = null;
     listItems = [];
   };
@@ -1448,12 +1457,13 @@ function markdownToKnHtmlInner(src: string): string {
       const hashes = h[1]!.length;
       const ev = evidenceKind(title);
       if (ev) {
-        closeMdSection();
-        i += 1;
-        const pair = consumeEvidencePair(lines, i, title, ev);
-        out.push(pair.html);
-        i = pair.next;
-        continue;
+        const pair = consumeEvidencePair(lines, i + 1, title, ev);
+        if (pair) {
+          closeMdSection();
+          out.push(pair.html);
+          i = pair.next;
+          continue;
+        }
       }
       if (isGateHeading(title)) {
         closeMdSection();
@@ -1665,19 +1675,20 @@ function markdownToKnHtmlInner(src: string): string {
 
     const boldOnly = /^\*\*([^*]+)\*\*$/u.exec(trimmed);
     if (boldOnly && evidenceKind(boldOnly[1]!)) {
-      flushPara();
-      flushList();
-      closeMdSection();
-      i += 1;
       const pair = consumeEvidencePair(
         lines,
-        i,
+        i + 1,
         boldOnly[1]!.trim(),
         evidenceKind(boldOnly[1]!)!,
       );
-      out.push(pair.html);
-      i = pair.next;
-      continue;
+      if (pair) {
+        flushPara();
+        flushList();
+        closeMdSection();
+        out.push(pair.html);
+        i = pair.next;
+        continue;
+      }
     }
     if (boldOnly) {
       const decision = specialDecisionHtml(boldOnly[1]!.trim(), lines, i + 1);

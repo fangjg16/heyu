@@ -3,6 +3,7 @@ import {
   enhanceKnChapterHtml,
   isKnPendingText,
   isKnSourceNote,
+  knDisplayHeadingTitle,
   knReadinessTone,
   knVerdictTone,
   looksLikeStatusValue,
@@ -34,6 +35,11 @@ describe("knowledge-network display patterns", () => {
     expect(looksLikeStatusValue("Defer（暂缓）")).toBe(true);
     expect(looksLikeStatusValue("理由：")).toBe(false);
     expect(looksLikeStatusValue("注册周期长且不确定性高")).toBe(false);
+  });
+
+  it("strips outline numbers from visible titles", () => {
+    expect(knDisplayHeadingTitle("11. 一句话业务")).toBe("一句话业务");
+    expect(knDisplayHeadingTitle("9.3 反方意见")).toBe("反方意见");
   });
 });
 

@@ -6,19 +6,22 @@ const PENDING_EXACT = /^(?:待补|待补充|尚未开展|暂缺|N\/?A|n\/?a|—|
 const ONE_LINER_HEAD = /一句话/;
 
 const RECOMMEND_HEAD =
-  /^(?:\d+[.)、]\s*)?(?:建议|投资建议|总体评级|筛选建议|尽调建议|Recommendation|Invest(?:ment)?\s*recommendation)$/iu;
+  /^(?:建议|投资建议|总体评级|筛选建议|尽调建议|Recommendation|Invest(?:ment)?\s*recommendation)$/iu;
 
 const READINESS_HEAD =
-  /^(?:\d+[.)、]\s*)?(?:IC\s*就绪度|就绪度|投委就绪度|IC\s*readiness|Readiness)$/iu;
+  /^(?:IC\s*就绪度|就绪度|投委就绪度|IC\s*readiness|Readiness)$/iu;
 
 const PREREQ_HEAD =
-  /^(?:\d+[.)、]\s*)?(?:前提条件|Preconditions?|Conditions?\s+precedent)$/iu;
+  /^(?:前提条件|Preconditions?|Conditions?\s+precedent)$/iu;
 
 const PRO_HEAD =
-  /^(?:\d+[.)、]\s*)?(?:正方(?:意见)?|支持投资(?:的论点)?|看多|Bull(?:\s*case)?|Pros?)$/iu;
+  /^(?:正方(?:意见)?|支持投资(?:的论点)?|看多|Bull(?:\s*case)?|Pros?)$/iu;
 
 const CON_HEAD =
-  /^(?:\d+[.)、]\s*)?(?:反方(?:意见)?|反对投资(?:的论点)?|看空|Bear(?:\s*case)?|Cons?)$/iu;
+  /^(?:反方(?:意见)?|反对投资(?:的论点)?|看空|Bear(?:\s*case)?|Cons?)$/iu;
+
+const STRONGEST_HEAD =
+  /^(?:最强证据|最有力证据|Strongest evidence)$/iu;
 
 export type KnTone = "go" | "caution" | "stop" | "neutral";
 
@@ -26,6 +29,17 @@ export function knPlain(text: string): string {
   return String(text ?? "")
     .replace(/\s+/gu, " ")
     .trim();
+}
+
+/** 导航已由章节 tab 承担，标题上的 11. / 9.3 / 一、 不应再出现。 */
+export function knDisplayHeadingTitle(title: string): string {
+  const raw = knPlain(title);
+  const prefix =
+    /^(?:[0-9]+(?:\.[0-9]+)*[.)．、]?|[一二三四五六七八九十百]+[、.．])\s*/u.exec(
+      raw,
+    );
+  if (!prefix) return raw;
+  return raw.slice(prefix[0].length).trim() || raw;
 }
 
 export function isKnSourceNote(text: string): boolean {
@@ -88,6 +102,19 @@ function headingText(el: Element): string {
   return knPlain(el.textContent ?? "");
 }
 
+function headingLabel(el: Element): string {
+  const named = el.querySelector(":scope > .kn-md-h__t, :scope > .kn-md-sub__t");
+  if (named) return knDisplayHeadingTitle(headingText(named));
+  const clone = el.cloneNode(true) as Element;
+  for (const n of clone.querySelectorAll(".kn-md-h__n, .kn-md-sub__k")) {
+    n.remove();
+  }
+  for (const tag of clone.querySelectorAll(".kn-md-tag")) {
+    if (/^\d+(?:\.\d+)*$/u.test(knPlain(tag.textContent ?? ""))) tag.remove();
+  }
+  return knDisplayHeadingTitle(knPlain(clone.textContent ?? ""));
+}
+
 function isHeading(el: Element | null): el is HTMLElement {
   return Boolean(el && /^H[1-6]$/u.test(el.tagName));
 }
@@ -103,10 +130,10 @@ function nextElement(el: Element): Element | null {
 
 function isBlockLabel(el: Element, re: RegExp): boolean {
   if (alreadyEnhanced(el)) return false;
-  if (isHeading(el)) return re.test(headingText(el));
+  const text = headingLabel(el);
+  if (isHeading(el)) return re.test(text);
   if (!/^(P|DIV)$/u.test(el.tagName)) return false;
   if (el.querySelector("ul,ol,table,p,div")) return false;
-  const text = headingText(el);
   if (text.length > 40 || !re.test(text)) return false;
   return Boolean(el.querySelector(":scope > strong, :scope > b, :scope > em"));
 }
@@ -146,7 +173,7 @@ function wrapPendingIn(el: Element, doc: Document): void {
 }
 
 function markSourceNotes(root: Element): void {
-  for (const el of [...root.querySelectorAll("p,div,small,figcaption")]) {
+  for (const el of [...root.querySelectorAll("p,div,small,figcaption,li")]) {
     if (el.querySelector("p,div,table,ul,ol,section")) continue;
     if (el.classList.contains("kn-source-note")) continue;
     if (el.closest(".kn-md-sources, .kn-source-note, .kn-callout, .kn-lede-card")) {
@@ -154,6 +181,10 @@ function markSourceNotes(root: Element): void {
     }
     if (!isKnSourceNote(el.textContent ?? "")) continue;
     el.classList.add("kn-source-note");
+    const list = el.parentElement;
+    if (list && /^(UL|OL)$/u.test(list.tagName)) {
+      list.classList.add("kn-source-list");
+    }
   }
 }
 
@@ -172,7 +203,7 @@ function wrapOneLiners(root: Element, doc: Document): void {
     card.className = "kn-lede-card";
     const label = doc.createElement("p");
     label.className = "kn-lede-card__label";
-    label.textContent = headingText(h);
+    label.textContent = headingLabel(h) || "一句话业务";
     const copy = doc.createElement("div");
     copy.className = "kn-lede-card__body";
     copy.innerHTML = (body as HTMLElement).innerHTML;
@@ -273,8 +304,8 @@ function wrapStatusCards(
     const tone = toneOf(value) ?? "neutral";
     const card =
       kind === "readiness"
-        ? makeReadinessCard(doc, headingText(h), value, tone)
-        : makeVerdictCard(doc, headingText(h), value, tone);
+        ? makeReadinessCard(doc, headingLabel(h), value, tone)
+        : makeVerdictCard(doc, headingLabel(h), value, tone);
     h.replaceWith(card);
     body.remove();
   }
@@ -304,7 +335,7 @@ function wrapPrereqs(root: Element, doc: Document): void {
     aside.className = "kn-callout kn-callout--terms";
     const label = doc.createElement("p");
     label.className = "kn-callout__label";
-    label.textContent = headingText(h);
+    label.textContent = headingLabel(h);
     aside.append(label);
     h.replaceWith(aside);
     for (const k of kids) aside.append(k);
@@ -351,10 +382,10 @@ function wrapSiblingSplit(
   split.className = "kn-split";
   const go = doc.createElement("div");
   go.className = "kn-split__col kn-split__col--go";
-  fillCol(go, headingText(proH) || "正方", proKids, proH);
+  fillCol(go, headingLabel(proH) || "正方", proKids, proH);
   const stop = doc.createElement("div");
   stop.className = "kn-split__col kn-split__col--stop";
-  fillCol(stop, headingText(conH) || "反方", conKids, conH);
+  fillCol(stop, headingLabel(conH) || "反方", conKids, conH);
   split.append(go, stop);
   parent.insertBefore(split, proH);
   proH.remove();
@@ -372,10 +403,10 @@ function wrapBlockSplit(
   split.className = "kn-split";
   const go = doc.createElement("div");
   go.className = "kn-split__col kn-split__col--go";
-  fillCol(go, headingText(proH) || "正方", [...proBlock.childNodes], proH);
+  fillCol(go, headingLabel(proH) || "正方", [...proBlock.childNodes], proH);
   const stop = doc.createElement("div");
   stop.className = "kn-split__col kn-split__col--stop";
-  fillCol(stop, headingText(conH) || "反方", [...conBlock.childNodes], conH);
+  fillCol(stop, headingLabel(conH) || "反方", [...conBlock.childNodes], conH);
   split.append(go, stop);
   proBlock.replaceWith(split);
   conBlock.remove();
@@ -383,17 +414,120 @@ function wrapBlockSplit(
   conH.remove();
 }
 
+function colTitleText(col: Element): string {
+  return knPlain(col.querySelector(":scope > .kn-split__title")?.textContent ?? "");
+}
+
+function unwrapSplit(split: Element, doc: Document): void {
+  const parent = split.parentElement;
+  if (!parent) return;
+  const frag = doc.createDocumentFragment();
+  for (const col of [...split.querySelectorAll(":scope > .kn-split__col")]) {
+    const title = colTitleText(col);
+    if (title) {
+      const h = doc.createElement("h3");
+      h.textContent = title;
+      frag.append(h);
+    }
+    for (const child of [...col.childNodes]) {
+      if (
+        child.nodeType === 1 &&
+        (child as Element).classList.contains("kn-split__title")
+      ) {
+        continue;
+      }
+      frag.append(child);
+    }
+  }
+  parent.insertBefore(frag, split);
+  split.remove();
+}
+
+function shouldUnwrapSplit(split: Element): boolean {
+  const go = split.querySelector(":scope > .kn-split__col--go");
+  const stop = split.querySelector(":scope > .kn-split__col--stop");
+  if (!go || !stop) return false;
+  const goT = knDisplayHeadingTitle(colTitleText(go));
+  const stopT = knDisplayHeadingTitle(colTitleText(stop));
+  if (STRONGEST_HEAD.test(goT) && CON_HEAD.test(stopT)) return true;
+  const nested = [...stop.querySelectorAll("h2,h3,h4")].map((h) =>
+    headingLabel(h),
+  );
+  return nested.some((t) => PRO_HEAD.test(t)) && nested.some((t) => CON_HEAD.test(t));
+}
+
+function unwrapMismatchedSplits(root: Element, doc: Document): void {
+  for (const split of [...root.querySelectorAll(".kn-split")]) {
+    if (shouldUnwrapSplit(split)) unwrapSplit(split, doc);
+  }
+}
+
+function stripNumbersFromEnhancedLabels(root: Element): void {
+  for (const card of root.querySelectorAll(".kn-lede-card")) {
+    for (const tag of [...card.children]) {
+      if (
+        tag.classList.contains("kn-md-tag") &&
+        /^\d+(?:\.\d+)*$/u.test(knPlain(tag.textContent ?? ""))
+      ) {
+        tag.remove();
+      }
+    }
+  }
+  for (const el of root.querySelectorAll(
+    ".kn-lede-card__label, .kn-split__title, .kn-verdict__kicker, .kn-readiness__kicker, .kn-callout--terms > .kn-callout__label",
+  )) {
+    for (const n of el.querySelectorAll(".kn-md-h__n, .kn-md-sub__k")) n.remove();
+    for (const tag of el.querySelectorAll(".kn-md-tag")) {
+      if (/^\d+(?:\.\d+)*$/u.test(knPlain(tag.textContent ?? ""))) tag.remove();
+    }
+    if (el.querySelector("a,code")) continue;
+    const cleaned = knDisplayHeadingTitle(knPlain(el.textContent ?? ""));
+    if (cleaned && cleaned !== knPlain(el.textContent ?? "")) {
+      el.textContent = cleaned;
+    }
+  }
+}
+
+function stripVisibleHeadingNumbers(root: Element): void {
+  for (const h of [...root.querySelectorAll("h2,h3,h4")]) {
+    for (const n of h.querySelectorAll(".kn-md-h__n, .kn-md-sub__k")) {
+      if (/^\d+(?:\.\d+)*$/u.test(knPlain(n.textContent ?? ""))) n.remove();
+    }
+    for (const tag of h.querySelectorAll(".kn-md-tag")) {
+      if (/^\d+(?:\.\d+)*$/u.test(knPlain(tag.textContent ?? ""))) tag.remove();
+    }
+    if (h.querySelector("a,code,span,em,strong")) continue;
+    const cleaned = knDisplayHeadingTitle(headingText(h));
+    if (cleaned && cleaned !== headingText(h)) h.textContent = cleaned;
+  }
+}
+
+function dropRedundantDebateHeads(root: Element): void {
+  for (const h of [...root.querySelectorAll("h2,h3,h4")]) {
+    if (!h.isConnected) continue;
+    if (!CON_HEAD.test(headingLabel(h)) && !PRO_HEAD.test(headingLabel(h))) {
+      continue;
+    }
+    const nxt = nextElement(h);
+    if (nxt?.classList.contains("kn-split")) h.remove();
+  }
+}
+
 function wrapSplits(root: Element, doc: Document): void {
   for (const h of [...root.querySelectorAll("h2,h3,h4")]) {
     if (!h.isConnected) continue;
-    if (!PRO_HEAD.test(headingText(h))) continue;
+    if (!PRO_HEAD.test(headingLabel(h))) continue;
     if (h.closest(".kn-split")) continue;
     const parent = h.parentElement;
     if (!parent) continue;
 
     let con: Element | null = nextElement(h);
     while (con && !isHeading(con)) con = nextElement(con);
-    if (con && CON_HEAD.test(headingText(con)) && con.parentElement === parent) {
+    if (
+      con &&
+      CON_HEAD.test(headingLabel(con)) &&
+      con.parentElement === parent
+    ) {
       wrapSiblingSplit(doc, parent, h, con);
       continue;
     }
@@ -407,7 +541,7 @@ function wrapSplits(root: Element, doc: Document): void {
     const nextBlock = nextElement(block);
     if (!nextBlock) continue;
     const conH = nextBlock.querySelector(":scope > h2, :scope > h3, :scope > h4");
-    if (!conH || !CON_HEAD.test(headingText(conH))) continue;
+    if (!conH || !CON_HEAD.test(headingLabel(conH))) continue;
     wrapBlockSplit(doc, block, nextBlock, h, conH);
   }
 }
@@ -453,12 +587,16 @@ function aliasLegacy(root: Element): void {
 
 export function enhanceKnChapterRoot(root: Element, doc: Document): void {
   aliasLegacy(root);
+  unwrapMismatchedSplits(root, doc);
+  stripVisibleHeadingNumbers(root);
+  stripNumbersFromEnhancedLabels(root);
   markSourceNotes(root);
   wrapOneLiners(root, doc);
   wrapStatusCards(root, doc, RECOMMEND_HEAD, "verdict", knVerdictTone);
   wrapStatusCards(root, doc, READINESS_HEAD, "readiness", knReadinessTone);
   wrapPrereqs(root, doc);
   wrapSplits(root, doc);
+  dropRedundantDebateHeads(root);
   wrapPendingIn(root, doc);
 }
 

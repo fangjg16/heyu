@@ -1034,7 +1034,7 @@ Not Ready（未就绪）
   it("lifts a one-line business summary and source footnote", () => {
     const html = markdownToKnHtml(`# 项目身份
 
-### 一句话业务
+### 11. 一句话业务
 
 北京精冕科技以多模态诊断系统构建诊疗闭环。
 
@@ -1042,9 +1042,51 @@ Not Ready（未就绪）
 `);
     expect(html).toContain("kn-lede-card");
     expect(html).toContain("kn-lede-card__label");
+    expect(html).toContain("一句话业务");
+    expect(html).not.toMatch(/kn-lede-card__label">\s*11/);
     expect(html).toContain("多模态诊断系统");
     expect(html).toContain("kn-source-note");
     expect(html).toContain("project-brief.md");
+  });
+
+  it("keeps 资料 tags on source footnotes in lists", () => {
+    const html = markdownToKnHtml(`# 需求
+
+- 本章依据项目资料 精冕科技-让稳定触手可及v3.4.pdf [Data]
+`);
+    expect(html).toContain("kn-source-note");
+    expect(html).toContain("kn-md-tag--data");
+    expect(html).toContain("精冕科技-让稳定触手可及v3.4.pdf");
+    expect(html).toContain("资料");
+  });
+
+  it("pairs 支持投资的论点 with 反方意见, not 最强证据", () => {
+    const html = markdownToKnHtml(`# 结论
+
+### 最强证据
+
+- 内部工作流已经存在
+
+### 9.3 反方意见
+
+**支持投资的论点**
+
+- 患者基数大
+
+**反方意见**
+
+- 注册周期不确定
+`);
+    expect(html).toContain("内部工作流已经存在");
+    expect(html).toContain("kn-split");
+    expect(html).toContain("支持投资的论点");
+    expect(html).toContain("反方意见");
+    expect(html).toContain("患者基数大");
+    expect(html).toContain("注册周期不确定");
+    expect(html).not.toMatch(
+      /kn-split__col--go[\s\S]*最强证据[\s\S]*kn-split__col--stop[\s\S]*支持投资的论点/,
+    );
+    expect(html).not.toContain("9.3");
   });
 
   it("pairs 正方 and 反方 as a split and chips 待补", () => {
