@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { extractMarkdownHeadingSlices } from "./kn-md-headings";
+import {
+  extractMarkdownHeadingSlices,
+  extractNumberedMarkdownChapter,
+} from "./kn-md-headings";
 
 const INDUSTRY = `# 行业尽调
 
@@ -96,5 +99,45 @@ describe("extractMarkdownHeadingSlices", () => {
 
   it("returns empty when none of the titles exist", () => {
     expect(extractMarkdownHeadingSlices(INDUSTRY, ["不存在的标题"])).toBe("");
+  });
+
+  it("treats 项目概况 and 项目概览 as the same heading", () => {
+    const memo = `# 筛选备忘录
+
+## 1. 项目概况
+
+结论正文。
+
+## 2. 行业与竞争
+
+行业正文。
+`;
+    expect(extractMarkdownHeadingSlices(memo, ["项目概览"])).toContain(
+      "结论正文",
+    );
+    expect(extractMarkdownHeadingSlices(memo, ["项目概览"])).not.toContain(
+      "行业正文",
+    );
+  });
+
+  it("falls back to numbered chapter 1 without matching 1.1", () => {
+    const memo = `# 筛选备忘录
+
+## 1. 项目基本情况
+
+章一正文。
+
+### 1.1 初筛结论
+
+小节正文。
+
+## 2. 行业与竞争
+
+行业正文。
+`;
+    const ch1 = extractNumberedMarkdownChapter(memo, 1);
+    expect(ch1).toContain("章一正文");
+    expect(ch1).toContain("小节正文");
+    expect(ch1).not.toContain("行业正文");
   });
 });

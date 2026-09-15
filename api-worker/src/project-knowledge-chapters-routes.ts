@@ -30,6 +30,7 @@ import {
   knSectionRendersFromFiles,
   renderKnSectionFromDeliverables,
 } from "./chapter-from-deliverables";
+import { EMPTY_CHAPTER_HTML } from "./kn-md-render";
 import { filterTemplateByKind } from "./kn-template-kind";
 import {
   countPopulatedProjectKnowledgeChapters,
@@ -673,60 +674,62 @@ export async function handleGenerateProjectKnowledgeChapter(
       storedKind,
       sectionId,
     );
-    if (isDraft && draftRunId) {
-      await upsertDraftItem(env.DB, {
-        runId: draftRunId,
+    if (html.trim() && html.trim() !== EMPTY_CHAPTER_HTML) {
+      if (isDraft && draftRunId) {
+        await upsertDraftItem(env.DB, {
+          runId: draftRunId,
+          sectionId,
+          status: "ok",
+          html,
+          error: null,
+          llmBackend: "render",
+        });
+        try {
+          await withKnDraftMetaLock(env.DB, draftRunId, async () => {
+            await appendDraftGlossaryFromChapter(
+              env.DB,
+              draftRunId!,
+              sectionId,
+              html,
+            );
+          });
+        } catch {
+          /* 研究章已写入；名词解释抽取失败不阻断 */
+        }
+        const run = await refreshDraftRunProgress(env.DB, draftRunId);
+        return json({
+          ok: true,
+          target: "draft",
+          rendered: true,
+          projectId,
+          runId: draftRunId,
+          sectionId,
+          html,
+          run,
+        });
+      }
+      await upsertProjectKnowledgeChapterHtml(env.DB, {
+        projectId,
         sectionId,
-        status: "ok",
         html,
-        error: null,
+        source: "generate",
         llmBackend: "render",
+        updatedBy: userId,
       });
       try {
-        await withKnDraftMetaLock(env.DB, draftRunId, async () => {
-          await appendDraftGlossaryFromChapter(
-            env.DB,
-            draftRunId!,
-            sectionId,
-            html,
-          );
-        });
+        await syncProjectGlossaryFromPublishedChapters(env.DB, projectId, userId);
       } catch {
         /* 研究章已写入；名词解释抽取失败不阻断 */
       }
-      const run = await refreshDraftRunProgress(env.DB, draftRunId);
       return json({
         ok: true,
-        target: "draft",
+        target: "live",
         rendered: true,
         projectId,
-        runId: draftRunId,
         sectionId,
         html,
-        run,
       });
     }
-    await upsertProjectKnowledgeChapterHtml(env.DB, {
-      projectId,
-      sectionId,
-      html,
-      source: "generate",
-      llmBackend: "render",
-      updatedBy: userId,
-    });
-    try {
-      await syncProjectGlossaryFromPublishedChapters(env.DB, projectId, userId);
-    } catch {
-      /* 研究章已写入；名词解释抽取失败不阻断 */
-    }
-    return json({
-      ok: true,
-      target: "live",
-      rendered: true,
-      projectId,
-      sectionId,
-      html,
-    });
   }
 
   let template =

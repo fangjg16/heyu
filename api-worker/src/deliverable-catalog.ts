@@ -140,7 +140,13 @@ export const MATURE_KN_HEADING_SLICES: Readonly<
   Record<string, Readonly<Record<string, readonly string[]>>>
 > = {
   "screening-memo": {
-    "project-summary": ["项目概览", "初筛结论"],
+    "project-summary": [
+      "项目概览",
+      "项目概况",
+      "初筛结论",
+      "投资结论",
+      "项目基本情况",
+    ],
     "industry-competition": ["行业与竞争"],
     "business-technology": ["业务与技术"],
     "company-team": ["公司与团队"],
@@ -149,7 +155,13 @@ export const MATURE_KN_HEADING_SLICES: Readonly<
     "diligence-gaps": ["待解决问题"],
   },
   "investment-analysis-report": {
-    "project-summary": ["项目概况", "投资结论"],
+    "project-summary": [
+      "项目概况",
+      "项目概览",
+      "投资结论",
+      "初筛结论",
+      "项目基本情况",
+    ],
     "industry-competition": ["行业与竞争"],
     "business-technology": ["业务与技术"],
     "company-team": ["公司与团队"],

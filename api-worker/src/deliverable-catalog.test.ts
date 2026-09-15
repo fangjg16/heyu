@@ -140,6 +140,18 @@ describe("deliverable-catalog", () => {
         "industry-competition",
       ),
     ).toEqual(["行业与竞争"]);
+    expect(
+      headingSlicesForDeliverable(
+        deliverablesForKind("mature").find((d) => d.id === "screening-memo")!,
+        "project-summary",
+      ),
+    ).toEqual([
+      "项目概览",
+      "项目概况",
+      "初筛结论",
+      "投资结论",
+      "项目基本情况",
+    ]);
     expect(deliverablesForKnSection("mature", "sources")).toEqual([]);
     expect(deliverablesForKind("mature").some((d) => d.id === "source-register")).toBe(
       true,

@@ -8,7 +8,10 @@ import {
   headingSlicesForDeliverable,
   type DeliverableFile,
 } from "./deliverable-catalog";
-import { extractMarkdownHeadingSlices } from "./kn-md-headings";
+import {
+  extractMarkdownHeadingSlices,
+  extractNumberedMarkdownChapter,
+} from "./kn-md-headings";
 import { renderDeliverableChapterHtml } from "./kn-md-render";
 import type { AnalysisKind } from "./analysis-kind";
 
@@ -52,10 +55,15 @@ export async function renderKnSectionFromDeliverables(
   for (const file of files) {
     const raw = await readDeliverableMarkdown(env, projectId, file);
     const slices = headingSlicesForDeliverable(file, sectionId);
-    const markdown =
-      slices?.length && raw.trim()
-        ? extractMarkdownHeadingSlices(raw, slices)
-        : raw;
+    let markdown = raw;
+    if (slices?.length && raw.trim()) {
+      const cut = extractMarkdownHeadingSlices(raw, slices);
+      markdown = cut.trim()
+        ? cut
+        : sectionId === "project-summary"
+          ? extractNumberedMarkdownChapter(raw, 1)
+          : "";
+    }
     loaded.push({ title: file.title, markdown, id: file.id });
   }
   return renderDeliverableChapterHtml(loaded);
