@@ -1,6 +1,7 @@
 /**
  * 将本地 skills 目录灌入 MySQL（hermes_skills / hermes_skill_files）
  * 用法：cd api-worker && npm run seed:hermes-skills
+ * 可选：--if-empty（库非空则跳过）、--prune（删掉仓库里没有的 skill）
  * 环境：MYSQL_*（或 .dev.vars）；可选 HERMES_SKILLS_SOURCE
  */
 import fs from "node:fs";
@@ -181,14 +182,28 @@ async function main() {
       imported += 1;
       console.log(`  + ${name} (${files.length} files)`);
     }
+
+    let pruned = 0;
+    if (process.argv.includes("--prune") && names.length > 0) {
+      const [rows] = await conn.query("SELECT name FROM hermes_skills");
+      const keep = new Set(names);
+      for (const row of rows ?? []) {
+        const name = String(row?.name ?? "").trim();
+        if (!name || keep.has(name)) continue;
+        await conn.execute(`DELETE FROM hermes_skills WHERE name = ?`, [name]);
+        pruned += 1;
+        console.log(`  - ${name}`);
+      }
+    }
+
+    console.log(
+      `[seed-hermes-skills] imported ${imported}/${names.length}` +
+        (pruned ? `；pruned ${pruned}` : "") +
+        `。Admin 可点「同步到 MySQL」。宿主机=${os.hostname()}`,
+    );
   } finally {
     await conn.end();
   }
-
-  console.log(
-    `[seed-hermes-skills] imported ${imported}/${names.length}. ` +
-      `Admin 可点「同步全部到卷」，或 POST /api/admin/skills/sync。宿主机=${os.hostname()}`,
-  );
 }
 
 main().catch((e) => {

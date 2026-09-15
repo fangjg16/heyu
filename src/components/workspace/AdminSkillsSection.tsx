@@ -171,6 +171,7 @@ export function AdminSkillsSection() {
     try {
       const result = await syncAllAdminSkills();
       setHint(result.hint || `已同步 ${result.copied}/${result.total}`);
+      if (!result.ok && result.hint) setWarn(result.hint);
       if (result.errors.length > 0) {
         setWarn(
           result.errors.map((x) => `${x.name}: ${x.error}`).join("；"),
@@ -403,6 +404,7 @@ export function AdminSkillsSection() {
   };
 
   const skills: AdminSkillRow[] = list?.skills ?? [];
+  const volumeReadOnly = list?.volumeWritable === false;
   const skillsByPack = SKILL_PACKS.map((pack) => ({
     ...pack,
     skills: skills.filter((s) => skillPackForName(s.name) === pack.id),
@@ -466,6 +468,7 @@ export function AdminSkillsSection() {
           <button
             type="button"
             disabled={loading || importing}
+            title="用仓库/磁盘上的 Skill 覆盖数据库；仓库里已删除的会从库中去掉"
             onClick={() => setImportConfirm(true)}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-white px-3 py-1.5 text-[11px] font-semibold text-foreground hover:bg-muted/40",
@@ -489,11 +492,17 @@ export function AdminSkillsSection() {
           </button>
           <button
             type="button"
-            disabled={syncing || loading}
+            disabled={syncing || loading || volumeReadOnly}
+            title={
+              volumeReadOnly
+                ? "Skill 目录只读（跟 git），不能把库写回磁盘。请改点「同步到 MySQL」。"
+                : "把数据库写回 Hermes 磁盘。ECS 只读挂载时请不要点。"
+            }
             onClick={() => setSyncConfirm(true)}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--wine-deep)/0.32)] bg-[hsl(var(--wine-deep)/0.06)] px-3 py-1.5 text-[11px] font-semibold text-[hsl(var(--wine-deep))] transition-colors hover:bg-[hsl(var(--wine-deep)/0.1)]",
-              (syncing || loading) && "pointer-events-none opacity-50",
+              (syncing || loading || volumeReadOnly) &&
+                "pointer-events-none opacity-50",
             )}
           >
             {syncing ? (
@@ -510,6 +519,7 @@ export function AdminSkillsSection() {
         <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">
           共 {skills.length} 个 Skill
           {list.bridgeConfigured ? "" : " · 保存后无法写入运行卷"}
+          {volumeReadOnly ? " · 目录只读，请用「同步到 MySQL」" : ""}
         </p>
       ) : null}
 
@@ -579,8 +589,8 @@ export function AdminSkillsSection() {
                     同步到 MySQL
                   </h3>
                   <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
-                    将本地/文件卷上的 skill 整目录写入 MySQL，并覆盖同名
-                    skill。确定继续？
+                    用仓库/磁盘上的 Skill 覆盖 MySQL。仓库里已经没有的（例如已拿掉的收购
+                    skill）会从库中删除。确定继续？
                   </p>
                 </div>
                 <div className="flex justify-end gap-2 px-5 py-3">
@@ -634,8 +644,9 @@ export function AdminSkillsSection() {
                     从 MySQL 同步
                   </h3>
                   <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
-                    将把 MySQL 中全部 skill
-                    整树覆盖写入本地/文件卷，可能覆盖卷上现有文件。确定继续？
+                    把 MySQL 中的 Skill
+                    写回磁盘。现网 ECS 把 skill 目录只读挂在
+                    git 上，这一步会失败，请改用「同步到 MySQL」。确定继续？
                   </p>
                 </div>
                 <div className="flex justify-end gap-2 px-5 py-3">

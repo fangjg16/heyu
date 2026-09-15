@@ -117,12 +117,21 @@ export function listSkills(envPick) {
     };
   });
 
+  let writable = false;
+  try {
+    fs.accessSync(source, fs.constants.W_OK);
+    writable = true;
+  } catch {
+    writable = false;
+  }
+
   return {
     sourceDir: source,
     installedDir: installedRoot,
     sourceExists: fs.existsSync(source),
     installedExists: fs.existsSync(installedRoot),
     volumeMode,
+    writable,
     skills,
   };
 }

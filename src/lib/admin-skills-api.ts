@@ -40,6 +40,8 @@ export type AdminSkillsList = {
   hermesRestartConfigured: boolean;
   volumeDir: string | null;
   volumeWarning: string | null;
+  /** false：ECS git 只读挂载，不能点「从 MySQL 同步」 */
+  volumeWritable: boolean | null;
   skills: AdminSkillRow[];
   chapterSkillMap: ChapterSkillMapDto | null;
 };
@@ -87,6 +89,7 @@ export async function fetchAdminSkills(): Promise<AdminSkillsList> {
     hermesRestartConfigured?: boolean;
     volumeDir?: string | null;
     volumeWarning?: string | null;
+    volumeWritable?: boolean | null;
     chapterSkillMap?: ChapterSkillMapDto | null;
   };
   const rawMap = data.chapterSkillMap;
@@ -115,6 +118,8 @@ export async function fetchAdminSkills(): Promise<AdminSkillsList> {
     hermesRestartConfigured: Boolean(data.hermesRestartConfigured),
     volumeDir: data.volumeDir ?? null,
     volumeWarning: data.volumeWarning ?? null,
+    volumeWritable:
+      typeof data.volumeWritable === "boolean" ? data.volumeWritable : null,
     chapterSkillMap,
     skills: (data.skills ?? []).map((s) => {
       const intent =
@@ -181,6 +186,7 @@ export async function importSkillsFromVolume(): Promise<{
   ok: boolean;
   imported: number;
   total: number;
+  pruned: string[];
   hint: string | null;
   errors: Array<{ name: string; error: string }>;
 }> {
@@ -192,6 +198,7 @@ export async function importSkillsFromVolume(): Promise<{
     ok?: boolean;
     imported?: number;
     total?: number;
+    pruned?: string[];
     hint?: string | null;
     errors?: Array<{ name: string; error: string }>;
   };
@@ -199,6 +206,7 @@ export async function importSkillsFromVolume(): Promise<{
     ok: Boolean(data.ok),
     imported: Number(data.imported ?? 0),
     total: Number(data.total ?? 0),
+    pruned: Array.isArray(data.pruned) ? data.pruned.map(String) : [],
     hint: data.hint ?? null,
     errors: Array.isArray(data.errors) ? data.errors : [],
   };

@@ -35,6 +35,11 @@ import {
 } from "./skills-volume-sync";
 import { serializeChapterSkillMap } from "./chapter-skill-map";
 import { recordOperationLog } from "./operation-logs-db";
+import {
+  isReadOnlyVolumeError,
+  READ_ONLY_VOLUME_HINT,
+  skillNamesMissingFromVolume,
+} from "./skills-prune";
 
 type Env = {
   DB: AppDatabase;
@@ -112,9 +117,11 @@ export async function handleAdminListSkills(
 
     let volumeDir: string | null = null;
     let volumeWarning: string | null = null;
+    let volumeWritable: boolean | null = null;
     const vol = await listVolumeSkills(env);
     if (vol.ok) {
       volumeDir = vol.sourceDir;
+      volumeWritable = vol.writable;
       for (const vs of vol.skills) {
         const existing = byName.get(vs.name);
         if (existing) {
@@ -155,6 +162,7 @@ export async function handleAdminListSkills(
       hermesRestartConfigured: hermesRestartConfigured(env),
       volumeDir,
       volumeWarning,
+      volumeWritable,
       skills,
       chapterSkillMap: serializeChapterSkillMap(),
     });
@@ -197,12 +205,35 @@ export async function handleAdminSyncSkills(
   if (denied) return denied;
 
   const rows = await listSkillsFromDb(env.DB);
+  const vol = await listVolumeSkills(env);
+  if (vol.ok && vol.writable === false) {
+    return json({
+      ok: false,
+      copied: 0,
+      total: rows.length,
+      errors: [],
+      hint: READ_ONLY_VOLUME_HINT,
+    });
+  }
+
   let okCount = 0;
   const errors: Array<{ name: string; error: string }> = [];
   for (const row of rows) {
     const push = await pushSkillToVolume(env, row.name);
     if (push.ok) okCount += 1;
-    else errors.push({ name: row.name, error: push.warning ?? "失败" });
+    else {
+      const msg = push.warning ?? "失败";
+      if (isReadOnlyVolumeError(msg)) {
+        return json({
+          ok: false,
+          copied: okCount,
+          total: rows.length,
+          errors: [],
+          hint: READ_ONLY_VOLUME_HINT,
+        });
+      }
+      errors.push({ name: row.name, error: msg });
+    }
   }
   return json({
     ok: errors.length === 0,
@@ -568,12 +599,29 @@ export async function handleAdminImportFromVolume(
     }
   }
 
+  const pruned: string[] = [];
+  if (listed.names.length > 0) {
+    const dbRows = await listSkillsFromDb(env.DB);
+    for (const name of skillNamesMissingFromVolume(
+      dbRows.map((r) => r.name),
+      listed.names,
+    )) {
+      const removed = await deleteSkillFromDb(env.DB, name);
+      if (removed) pruned.push(name);
+    }
+  }
+
+  const pruneHint =
+    pruned.length > 0
+      ? `已从库删除仓库里没有的 ${pruned.length} 个：${pruned.join("、")}。`
+      : "";
   return json({
     ok: errors.length === 0,
     imported,
     total: listed.names.length,
+    pruned,
     errors,
-    hint: `已从卷导入 ${imported} 个 skill 到 MySQL（同名覆盖）。`,
+    hint: `已从卷导入 ${imported} 个 skill 到 MySQL（同名覆盖）。${pruneHint}`.trim(),
   });
 }
 

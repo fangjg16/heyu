@@ -1,4 +1,5 @@
 import type { AppDatabase } from "./app-database";
+import { isReadOnlyVolumeError } from "./skills-prune";
 import { listSkillFiles, setSkillSyncResult } from "./skills-db";
 
 type BridgeEnv = {
@@ -110,8 +111,10 @@ export async function deleteSkillFromVolume(
     },
   );
   if (!result.ok) {
-    // 卷上本就不存在时视为成功
-    if (result.status === 404) return { ok: true };
+    // 卷上本就不存在、或 ECS git 只读挂载无法 rmdir：库侧删除仍然有效
+    if (result.status === 404 || isReadOnlyVolumeError(result.error)) {
+      return { ok: true };
+    }
     return { ok: false, warning: result.error };
   }
   return { ok: true };
@@ -157,7 +160,12 @@ export type VolumeSkillSummary = {
 export async function listVolumeSkills(
   env: BridgeEnv,
 ): Promise<
-  | { ok: true; skills: VolumeSkillSummary[]; sourceDir: string | null }
+  | {
+      ok: true;
+      skills: VolumeSkillSummary[];
+      sourceDir: string | null;
+      writable: boolean | null;
+    }
   | { ok: false; error: string }
 > {
   const result = await callSkillsBridge(env, "/v1/skills");
@@ -184,6 +192,8 @@ export async function listVolumeSkills(
     skills,
     sourceDir:
       typeof result.data.sourceDir === "string" ? result.data.sourceDir : null,
+    writable:
+      typeof result.data.writable === "boolean" ? result.data.writable : null,
   };
 }
 
