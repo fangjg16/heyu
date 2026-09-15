@@ -13,6 +13,7 @@ import {
 import { fetchAdminSkills } from "@/lib/admin-skills-api";
 import { AdminChapterSkillMap } from "@/components/workspace/AdminChapterSkillMap";
 import { FALLBACK_CHAPTER_SKILL_MAP } from "@/lib/chapter-skill-map";
+import { stripAuthoringHintsFromHtml } from "@/lib/strip-authoring-hints";
 
 type GroupBlock = {
   groupId: string;
@@ -543,7 +544,9 @@ export function AdminKnTemplatesSection() {
                         {previewHtml ? (
                           <div
                             className={PREVIEW_PANE}
-                            dangerouslySetInnerHTML={{ __html: previewHtml }}
+                            dangerouslySetInnerHTML={{
+                              __html: stripAuthoringHintsFromHtml(previewHtml),
+                            }}
                           />
                         ) : (
                           <p className="text-[12.5px] text-[#969E9A]">

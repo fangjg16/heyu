@@ -522,9 +522,226 @@ function markdownHasBody(md: string): boolean {
 }
 
 function evidenceKind(title: string): "strong" | "weak" | null {
-  const t = title.replace(/\*+/gu, "").trim();
-  if (/strongest evidence|最强证据|最有力证据/iu.test(t)) return "strong";
-  if (/weakest links?|最弱环节|最弱链接|最弱证据/iu.test(t)) return "weak";
+  const t = title.replace(/\*+/gu, "").replace(/^\d+[.)、]\s*/u, "").trim();
+  if (
+    /strongest evidence|最强证据|最有力证据|正方(?:意见)?|支持投资(?:的论点)?|看多|bull(?:\s*case)?|^pros?$/iu.test(
+      t,
+    )
+  ) {
+    return "strong";
+  }
+  if (
+    /weakest links?|最弱环节|最弱链接|最弱证据|反方(?:意见)?|反对投资(?:的论点)?|看空|bear(?:\s*case)?|^cons?$/iu.test(
+      t,
+    )
+  ) {
+    return "weak";
+  }
+  return null;
+}
+
+function headingKey(title: string): string {
+  return title.replace(/^\d+[.)、]\s*/u, "").trim();
+}
+
+function isRecommendHeading(title: string): boolean {
+  return /^(?:建议|投资建议|总体评级|筛选建议|尽调建议|Recommendation|Invest(?:ment)?\s*recommendation)$/iu.test(
+    headingKey(title),
+  );
+}
+
+function isReadinessHeading(title: string): boolean {
+  return /^(?:IC\s*就绪度|就绪度|投委就绪度|IC\s*readiness|Readiness)$/iu.test(
+    headingKey(title),
+  );
+}
+
+function isOneLinerHeading(title: string): boolean {
+  return /一句话/u.test(title);
+}
+
+function isPrereqHeading(title: string): boolean {
+  return /^(?:前提条件|Preconditions?|Conditions?\s+precedent)$/iu.test(
+    headingKey(title),
+  );
+}
+
+function isSourceNoteLine(text: string): boolean {
+  const t = text.replace(/\*+/gu, "").replace(/\s+/gu, " ").trim();
+  if (t.length > 220) return false;
+  if (/^(?:本章依据|资料来源|依据文件|依据资料|来源[:：]|Sources?\s*[:：])/u.test(t)) {
+    return true;
+  }
+  return /(?:^|\s)[\w.-]+\.md(?:[、,，\s]|$)/u.test(t) && /依据|资料/u.test(t);
+}
+
+function isPendingExact(text: string): boolean {
+  const t = text
+    .replace(/\*+/gu, "")
+    .replace(/\s+/gu, " ")
+    .trim()
+    .replace(/[。.．]+$/u, "");
+  return (
+    /^(?:待补|待补充|尚未开展|暂缺|N\/?A|n\/?a|—|–|-)$/u.test(t) ||
+    /^(?:待补|待补充)(?:[:：].{0,40})?$/u.test(t)
+  );
+}
+
+function knVerdictTone(text: string): "go" | "caution" | "stop" | null {
+  const t = text.replace(/\*+/gu, "").replace(/\s+/gu, " ").trim();
+  if (!t || t.length > 80) return null;
+  if (/not\s*ready|未就绪|不具备/iu.test(t)) return "stop";
+  if (/\b(pass|reject|declined)\b|不投|否决|不买|放弃/iu.test(t)) return "stop";
+  if (/\bdefer\b|暂缓|搁置|\bwatch\b|观察/iu.test(t)) return "caution";
+  if (/有条件|条件推进|renegotiate|conditional/iu.test(t)) return "caution";
+  if (
+    /\b(exciting|promising|proceed)\b|通过|推进|买入|强烈建议/iu.test(t) &&
+    !/不/u.test(t)
+  ) {
+    return "go";
+  }
+  if (/\bready\b|已就绪|就绪/iu.test(t)) return "go";
+  return null;
+}
+
+function knReadinessTone(text: string): "go" | "caution" | "stop" | null {
+  const t = text.replace(/\*+/gu, "").replace(/\s+/gu, " ").trim();
+  if (!t || t.length > 80) return null;
+  if (/not\s*ready|未就绪|不具备/iu.test(t)) return "stop";
+  if (/conditional|有条件/iu.test(t)) return "caution";
+  if (/\bready\b|已就绪|就绪/iu.test(t)) return "go";
+  return knVerdictTone(t);
+}
+
+function looksLikeStatusValue(text: string): boolean {
+  const t = text.replace(/\*+/gu, "").replace(/\s+/gu, " ").trim();
+  if (!t || t.length > 80) return false;
+  if (knVerdictTone(t) || knReadinessTone(t)) return true;
+  if (
+    /^(?:Exciting|Promising|Watch|Pass|Proceed|Reject|Defer|Ready|Not Ready|Conditional)\b/iu.test(
+      t,
+    )
+  ) {
+    return true;
+  }
+  return /[（(][^）)]{1,12}[）)]$/.test(t) && t.length <= 40;
+}
+
+function splitStatusLine(text: string): { en: string; zh: string } {
+  const t = text.replace(/\*+/gu, "").replace(/\s+/gu, " ").trim();
+  const m = /^(.{1,40}?)[（(]([^）)]{1,20})[）)]$/.exec(t);
+  if (m) return { en: m[1]!.trim(), zh: m[2]!.trim() };
+  return { en: t, zh: "" };
+}
+
+function skipBlankLines(lines: string[], start: number): number {
+  let i = start;
+  while (i < lines.length && !(lines[i] ?? "").trim()) i += 1;
+  return i;
+}
+
+function takeFollowingParagraph(
+  lines: string[],
+  start: number,
+): { text: string; next: number } | null {
+  let i = skipBlankLines(lines, start);
+  if (i >= lines.length) return null;
+  const first = (lines[i] ?? "").trim();
+  if (
+    !first ||
+    /^(#{1,6})\s+/u.test(first) ||
+    first.startsWith("|") ||
+    /^[-*•]\s+/u.test(first) ||
+    /^\d+[.)]\s+/u.test(first)
+  ) {
+    return null;
+  }
+  const parts: string[] = [];
+  while (i < lines.length) {
+    const t = (lines[i] ?? "").trim();
+    if (!t) break;
+    if (
+      /^(#{1,6})\s+/u.test(t) ||
+      t.startsWith("|") ||
+      /^[-*•]\s+/u.test(t) ||
+      /^\d+[.)]\s+/u.test(t) ||
+      /^---+$/u.test(t)
+    ) {
+      break;
+    }
+    parts.push(t);
+    i += 1;
+  }
+  if (parts.length === 0) return null;
+  return { text: parts.join(" "), next: i };
+}
+
+function statusValueHtml(kind: "verdict" | "readiness", value: string): string {
+  const { en, zh } = splitStatusLine(value);
+  return `<p class="kn-${kind}__value">${escapeHtml(en)}${
+    zh ? `<span class="kn-${kind}__zh">${escapeHtml(zh)}</span>` : ""
+  }</p>`;
+}
+
+function verdictCardHtml(kicker: string, value: string, tone: string): string {
+  return `<aside class="kn-verdict kn-verdict--${tone}"><p class="kn-verdict__kicker">${escapeHtml(kicker)}</p>${statusValueHtml("verdict", value)}</aside>`;
+}
+
+function readinessCardHtml(kicker: string, value: string, tone: string): string {
+  const t = value.replace(/\*+/gu, "").replace(/\s+/gu, " ").trim();
+  const notReady = /not\s*ready|未就绪|不具备/iu.test(t) || tone === "stop";
+  const conditional =
+    (/conditional|有条件/iu.test(t) || tone === "caution") && !notReady;
+  const ready = !notReady && !conditional && tone === "go";
+  const opt = (label: string, state: string, on: boolean) =>
+    `<div class="kn-gate__opt${on ? " is-on" : ""}" data-state="${state}">${label}</div>`;
+  return `<aside class="kn-readiness kn-readiness--${tone}"><p class="kn-readiness__kicker">${escapeHtml(kicker)}</p><div class="kn-gate kn-gate--readiness">${opt("Ready", "buy", ready)}${opt("Conditional", "conditional", conditional)}${opt("Not Ready", "pass", notReady)}</div>${statusValueHtml("readiness", value)}</aside>`;
+}
+
+function specialDecisionHtml(
+  title: string,
+  lines: string[],
+  start: number,
+): { html: string; next: number } | null {
+  if (isRecommendHeading(title) || isReadinessHeading(title)) {
+    const peeked = takeFollowingParagraph(lines, start);
+    const value = peeked?.text.replace(/^\*\*|\*\*$/gu, "").trim() ?? "";
+    if (peeked && looksLikeStatusValue(value)) {
+      if (isRecommendHeading(title)) {
+        return {
+          html: verdictCardHtml(title, value, knVerdictTone(value) ?? "neutral"),
+          next: peeked.next,
+        };
+      }
+      return {
+        html: readinessCardHtml(
+          title,
+          value,
+          knReadinessTone(value) ?? "neutral",
+        ),
+        next: peeked.next,
+      };
+    }
+  }
+  if (isOneLinerHeading(title)) {
+    const peeked = takeFollowingParagraph(lines, start);
+    if (peeked) {
+      return {
+        html: `<aside class="kn-lede-card"><p class="kn-lede-card__label">${escapeHtml(title)}</p><div class="kn-lede-card__body"><p>${inline(peeked.text)}</p></div></aside>`,
+        next: peeked.next,
+      };
+    }
+  }
+  if (isPrereqHeading(title)) {
+    const { body, next } = collectUntilNextHeading(lines, start);
+    const inner = markdownToKnHtmlInner(body.join("\n")).trim();
+    if (inner) {
+      return {
+        html: `<aside class="kn-callout kn-callout--terms"><p class="kn-callout__label">${escapeHtml(title)}</p>${inner}</aside>`,
+        next,
+      };
+    }
+  }
   return null;
 }
 
@@ -1140,6 +1357,9 @@ function listItemHtml(raw: string): string {
   if (owned && isTaskOwner(owned[1]!)) {
     return `<li class="kn-task"><span class="kn-task__who">${inline(owned[1]!.replace(/[:：]\s*$/u, ""))}</span><span class="kn-task__do">${inline(owned[2]!)}</span></li>`;
   }
+  if (isPendingExact(t.replace(/^[-*•]\s+/u, ""))) {
+    return `<li><span class="kn-pending">${inline(t)}</span></li>`;
+  }
   return `<li>${inline(t)}</li>`;
 }
 
@@ -1162,7 +1382,15 @@ function markdownToKnHtmlInner(src: string): string {
 
   const flushPara = () => {
     if (para.length === 0) return;
-    out.push(`<p>${inline(para.join(" "))}</p>`);
+    const text = para.join(" ");
+    const plain = text.replace(/\*+/gu, "").replace(/\s+/gu, " ").trim();
+    if (isSourceNoteLine(plain)) {
+      out.push(`<p class="kn-source-note">${inline(text)}</p>`);
+    } else if (isPendingExact(plain)) {
+      out.push(`<p><span class="kn-pending">${inline(text)}</span></p>`);
+    } else {
+      out.push(`<p>${inline(text)}</p>`);
+    }
     para = [];
   };
   const flushList = () => {
@@ -1313,6 +1541,13 @@ function markdownToKnHtmlInner(src: string): string {
         );
         continue;
       }
+      const decision = specialDecisionHtml(title, lines, i + 1);
+      if (decision) {
+        closeMdSection();
+        out.push(decision.html);
+        i = decision.next;
+        continue;
+      }
       const numbered = hashes >= 2 && isNumberedSectionTitle(title);
       const sub = !numbered && (isSubHeadingTitle(title) || hashes >= 4);
       const topicItem = !numbered && hashes >= 3;
@@ -1443,6 +1678,17 @@ function markdownToKnHtmlInner(src: string): string {
       out.push(pair.html);
       i = pair.next;
       continue;
+    }
+    if (boldOnly) {
+      const decision = specialDecisionHtml(boldOnly[1]!.trim(), lines, i + 1);
+      if (decision) {
+        flushPara();
+        flushList();
+        closeMdSection();
+        out.push(decision.html);
+        i = decision.next;
+        continue;
+      }
     }
     if (boldOnly && looksLikeItemTitle(boldOnly[1]!)) {
       const peeked = collectUntilItemBoundary(lines, i + 1);

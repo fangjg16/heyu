@@ -1736,7 +1736,9 @@ export function ProjectKnowledgeNetworkSection({
                 {overviewBrowseHtml?.trim() ? (
                   <div
                     className="kn-project-overview-html [&_#project-graph-slot]:hidden"
-                    dangerouslySetInnerHTML={{ __html: overviewBrowseHtml }}
+                    dangerouslySetInnerHTML={{
+                      __html: stripAuthoringHintsFromHtml(overviewBrowseHtml),
+                    }}
                   />
                 ) : (
                   <p className="text-[13px] text-[#969E9A]">该概览版本无内容</p>
@@ -1819,7 +1821,9 @@ export function ProjectKnowledgeNetworkSection({
             ) : browsingHtml?.trim() ? (
               <div
                 className="kn-chapter-html"
-                dangerouslySetInnerHTML={{ __html: browsingHtml }}
+                dangerouslySetInnerHTML={{
+                  __html: stripAuthoringHintsFromHtml(browsingHtml),
+                }}
               />
             ) : (
               <p className="text-[13px] text-[#969E9A]">该版本没有此章节</p>

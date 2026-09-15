@@ -1,3 +1,5 @@
+import { enhanceKnChapterRoot } from "./enhance-kn-chapter-html";
+
 /** 生成模板里写给模型的制作说明，不应出现在用户看到的章节里。 */
 const HINT_RE =
   /禁止改成\s*SVG|禁止\s*SVG|仅写入与本项目直接相关|不要写\s*IRR|禁止编造\s*IRR|不要再画一张九宫格|不要三个核验计数|格内填风险编号|生成后由页面挂载|不要和行业章重复|只写\s*3[–—-]?\s*5\s*个关键对手|格内用\s*强\s*\/\s*够|标签用\s*\[Data\]|但仍须保留本节|可改成流程增值图|不要写对战卡|按已发生事项、待核验节点/u;
@@ -82,6 +84,7 @@ export function stripAuthoringHintsFromHtml(html: string): string {
       el.remove();
     }
   }
+  enhanceKnChapterRoot(root, doc);
   return root.innerHTML.replace(PAREN_HINT_RE, "");
 }
 

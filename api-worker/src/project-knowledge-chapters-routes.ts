@@ -230,11 +230,12 @@ const GENERATE_SYSTEM = `你是投研知识网络章节撰写助手。根据「�
 4. 名词解释只收**本项目/被投业务资料里出现的术语**（产品名、行业黑话、法规缩写、主体简称、项目特有口径，如 GRS、rPTA、AHPRA、BPC-157、FTO、Addepar）。禁止收录合域分析流/模板用语（Plan、Gate、baseline、Tracker、Untested、Testing、Validated、Invalidated、Skill、Jessica/Jensen、Hermes、TAM/SAM/SOM、GTM、MVP、闸门灯、章节栏目名等）。常识词（公司、投资、市场、股权、利润等）禁止加入。第三列写该术语在本项目业务中的含义，不要写分析章节名。
 5. 凡表格「证据/来源」列：单元格内**只输出**引用标记如 [A-1]，禁止「项目协作方整理」「项目方整理」「BP称」等说明文字；多个引用用空格分隔。
 6. 表格表头须可单行完整显示（勿把长表头拆成多行文字）。
-7. 若模板已含 class 或内联 style：必须保留这些 class 与 style，只替换「待补」内容。禁止拆掉 kn-callout、kn-gate、kn-stats 等 class。
+7. 若模板已含 class 或内联 style：必须保留这些 class 与 style，只替换「待补」内容。禁止拆掉 kn-callout、kn-gate、kn-stats、kn-verdict、kn-readiness、kn-lede-card、kn-split、kn-pending、kn-source-note 等 class。
 8. 事实必须来自【资料目录】【本章深读】【相关段落补充】。目录里有、深读/补充未覆盖的细节写「待补」，禁止编造，禁止把未深读文件当成已读全文。资料「说明」只解释这份材料是什么、拿来干什么；数字和结论以正文为准，说明与正文冲突时信正文。
 9. 标记外禁止任何说明文字。章节内图表用 HTML <table>（含热力图格子），禁止 SVG。关系图禁止输出 SVG/HTML，只输出 JSON。
 10. 附件文件名或摘录里反复出现的对标主体、产品名、公司名必须写入对应章节（尤其对标分析），禁止只列通用海外模型而漏国内点名对象。
 12. 若资料中有「AI生成」目录下与本章对应的 Markdown 总文件，以该文件为正文来源填模板；附件仅作核对。禁止把 Markdown 原文当 HTML 贴出。
+13. 关键判断不要写成普通标题+段落：投资建议/总体评级用 kn-verdict（go/caution/stop）；IC 就绪度用 kn-readiness + kn-gate；一句话业务用 kn-lede-card；正反方用 kn-split；资料依据脚注用 kn-source-note；空缺「待补」用 kn-pending。禁止把「理由」塞进 verdict 卡片。
 ${GENERATE_SYSTEM_SKILL_LOCK}`;
 
 const GLOSSARY_ADD_LOCK =

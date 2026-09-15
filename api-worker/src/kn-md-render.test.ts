@@ -992,4 +992,89 @@ describe("renderDeliverableChapterHtml", () => {
     expect(html).toContain("评分：4/10");
     expect(html.match(/结论可靠度/g) ?? []).toHaveLength(0);
   });
+
+  it("renders a screening memo recommendation as a verdict card, not a swallowed section", () => {
+    const html = markdownToKnHtml(`# 筛选备忘录
+
+### 建议
+
+Defer（暂缓）
+
+理由：
+
+1. 注册周期长
+`);
+    expect(html).toContain("kn-verdict kn-verdict--caution");
+    expect(html).toContain("kn-verdict__kicker");
+    expect(html).toContain("Defer");
+    expect(html).toContain("暂缓");
+    expect(html).toContain("注册周期长");
+    expect(html).not.toContain('class="kn-md-topic">建议');
+  });
+
+  it("renders IC readiness as a gate, not a plain heading", () => {
+    const html = markdownToKnHtml(`# 筛选备忘录
+
+### IC 就绪度
+
+Not Ready（未就绪）
+
+原因：
+
+- 临床证据不足
+`);
+    expect(html).toContain("kn-readiness kn-readiness--stop");
+    expect(html).toContain('data-state="pass"');
+    expect(html).toContain("is-on");
+    expect(html).toContain("Not Ready");
+    expect(html).toContain("未就绪");
+    expect(html).toContain("临床证据不足");
+  });
+
+  it("lifts a one-line business summary and source footnote", () => {
+    const html = markdownToKnHtml(`# 项目身份
+
+### 一句话业务
+
+北京精冕科技以多模态诊断系统构建诊疗闭环。
+
+本章依据项目资料 project-brief.md、theme-classification.md
+`);
+    expect(html).toContain("kn-lede-card");
+    expect(html).toContain("kn-lede-card__label");
+    expect(html).toContain("多模态诊断系统");
+    expect(html).toContain("kn-source-note");
+    expect(html).toContain("project-brief.md");
+  });
+
+  it("pairs 正方 and 反方 as a split and chips 待补", () => {
+    const html = markdownToKnHtml(`# 结论
+
+### 正方意见
+
+- 患者基数大
+
+### 反方意见
+
+- 待补
+`);
+    expect(html).toContain("kn-split");
+    expect(html).toContain("kn-split__col--go");
+    expect(html).toContain("kn-split__col--stop");
+    expect(html).toContain("患者基数大");
+    expect(html).toContain("kn-pending");
+  });
+
+  it("wraps 前提条件 as a terms callout", () => {
+    const html = markdownToKnHtml(`# 结论
+
+### 前提条件
+
+若仍希望推进，需满足：
+
+1. 专利权属清晰
+`);
+    expect(html).toContain("kn-callout--terms");
+    expect(html).toContain("专利权属清晰");
+  });
 });

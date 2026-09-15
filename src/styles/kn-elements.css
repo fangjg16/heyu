@@ -233,6 +233,228 @@
   color: hsl(var(--warm-charcoal));
 }
 
+.kn-callout--terms {
+  border-left-color: hsl(38 48% 46%);
+  background: hsl(38 55% 96%);
+}
+
+.kn-callout--terms .kn-callout__label {
+  color: hsl(28 42% 28%);
+}
+
+.kn-callout.info,
+.kn-chapter-html .callout.info,
+.kn-project-overview-html .callout.info {
+  border-left-color: hsl(210 38% 46%);
+  background: hsl(210 40% 96%);
+}
+
+.kn-callout.missing,
+.kn-chapter-html .callout.missing,
+.kn-project-overview-html .callout.missing {
+  border-left-color: hsl(32 48% 46%);
+  background: hsl(38 55% 96%);
+}
+
+.kn-callout.warning,
+.kn-chapter-html .callout.warning,
+.kn-project-overview-html .callout.warning {
+  border-left-color: hsl(var(--wine));
+  background: hsl(var(--wine-muted) / 0.7);
+}
+
+.kn-callout.success,
+.kn-chapter-html .callout.success,
+.kn-project-overview-html .callout.success {
+  border-left-color: hsl(var(--sage));
+  background: hsl(145 28% 96%);
+}
+
+.kn-verdict,
+.kn-readiness {
+  margin: 1.35rem 0 1.85rem;
+  padding: 1.2rem 1.4rem 1.3rem 1.5rem;
+  border-radius: 14px;
+  border: 1px solid hsl(var(--border));
+  border-left-width: 5px;
+  background: hsl(var(--paper));
+}
+
+.kn-verdict__kicker,
+.kn-readiness__kicker {
+  margin: 0 0 0.4rem;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: hsl(var(--ink-soft));
+}
+
+.kn-verdict__value {
+  margin: 0;
+  font-family: "Noto Serif SC", serif;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: hsl(var(--warm-charcoal));
+}
+
+.kn-verdict__zh,
+.kn-readiness__zh {
+  margin-left: 0.5em;
+  font-size: 0.48em;
+  font-weight: 650;
+  letter-spacing: 0;
+  color: hsl(var(--ink-soft));
+}
+
+.kn-verdict--go,
+.kn-readiness--go {
+  border-left-color: hsl(var(--sage));
+  background: hsl(145 28% 97%);
+}
+
+.kn-verdict--go .kn-verdict__value,
+.kn-readiness--go .kn-readiness__value {
+  color: hsl(var(--sage));
+}
+
+.kn-verdict--caution,
+.kn-readiness--caution {
+  border-left-color: hsl(38 48% 46%);
+  background: hsl(38 55% 96%);
+}
+
+.kn-verdict--caution .kn-verdict__value,
+.kn-readiness--caution .kn-readiness__value {
+  color: hsl(28 42% 28%);
+}
+
+.kn-verdict--stop,
+.kn-readiness--stop {
+  border-left-color: hsl(var(--wine));
+  background: hsl(var(--wine-muted) / 0.7);
+}
+
+.kn-verdict--stop .kn-verdict__value,
+.kn-readiness--stop .kn-readiness__value {
+  color: hsl(var(--wine));
+}
+
+.kn-readiness .kn-gate {
+  margin: 0.15rem 0 0.7rem;
+}
+
+.kn-gate--readiness .kn-gate__opt {
+  padding: 0.7rem 0.45rem;
+  font-size: 14px;
+}
+
+.kn-readiness__value {
+  margin: 0;
+  font-family: "Noto Serif SC", serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  color: hsl(var(--warm-charcoal));
+}
+
+.kn-lede-card {
+  margin: 1.15rem 0 1.85rem;
+  padding: 1.15rem 1.4rem 1.25rem;
+  border-radius: 0 12px 12px 0;
+  border-left: 3px solid hsl(var(--wine));
+  background: hsl(var(--linen) / 0.7);
+}
+
+.kn-lede-card__label {
+  margin: 0 0 0.45rem;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: hsl(var(--wine));
+}
+
+.kn-lede-card__body,
+.kn-lede-card__body p {
+  margin: 0;
+  font-family: "Noto Serif SC", serif;
+  font-size: 18.5px;
+  font-weight: 650;
+  line-height: 1.55;
+  letter-spacing: -0.015em;
+  color: hsl(var(--warm-charcoal));
+}
+
+.kn-source-note {
+  margin: 0.25rem 0 1.2rem;
+  font-size: 12px;
+  line-height: 1.55;
+  color: hsl(var(--ink-soft));
+  font-style: italic;
+}
+
+.kn-chapter-html p.kn-source-note,
+.kn-project-overview-html p.kn-source-note {
+  margin: 0.25rem 0 1.2rem;
+  font-size: 12px;
+  line-height: 1.55;
+  color: hsl(var(--ink-soft));
+}
+
+.kn-chapter-html .kn-verdict__kicker,
+.kn-project-overview-html .kn-verdict__kicker,
+.kn-chapter-html .kn-readiness__kicker,
+.kn-project-overview-html .kn-readiness__kicker {
+  margin: 0 0 0.4rem;
+  color: hsl(var(--ink-soft));
+}
+
+.kn-chapter-html .kn-verdict__value,
+.kn-project-overview-html .kn-verdict__value,
+.kn-chapter-html .kn-readiness__value,
+.kn-project-overview-html .kn-readiness__value {
+  margin: 0;
+}
+
+.kn-chapter-html .kn-lede-card__label,
+.kn-project-overview-html .kn-lede-card__label {
+  margin: 0 0 0.45rem;
+  color: hsl(var(--wine));
+}
+
+.kn-chapter-html .kn-lede-card__body p,
+.kn-project-overview-html .kn-lede-card__body p {
+  margin: 0;
+  color: hsl(var(--warm-charcoal));
+}
+
+.kn-chapter-html .kn-callout--terms ul,
+.kn-chapter-html .kn-callout--terms ol,
+.kn-project-overview-html .kn-callout--terms ul,
+.kn-project-overview-html .kn-callout--terms ol {
+  margin: 0.45rem 0 0;
+}
+
+.kn-chapter-html .valuation-box,
+.kn-project-overview-html .valuation-box {
+  margin: 0.85rem 0 1.35rem;
+  padding: 0.95rem 0 1.1rem;
+  border-top: 2px solid hsl(var(--wine));
+}
+
+.kn-chapter-html .valuation-box .big,
+.kn-project-overview-html .valuation-box .big {
+  font-family: "Noto Serif SC", serif;
+  font-size: 2.1rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: hsl(var(--wine));
+}
+
 /* 数字条 */
 .kn-stats {
   display: grid;
@@ -474,6 +696,10 @@
   font-family: "Noto Serif SC", serif;
   font-size: 15px;
   color: hsl(var(--wine));
+}
+
+.kn-split__col--go .kn-split__title {
+  color: hsl(145 28% 28%);
 }
 
 .kn-split__col ul {
@@ -2229,9 +2455,23 @@
 }
 
 .kn-pending {
+  display: inline-block;
+  padding: 0.05em 0.55em 0.12em;
+  border: 1px dashed hsl(34 16% 78%);
+  border-radius: 999px;
+  background: hsl(var(--linen));
   color: hsl(var(--ink-soft));
-  font-style: inherit;
-  letter-spacing: 0.04em;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  line-height: 1.5;
+  vertical-align: baseline;
+}
+
+.kn-table-wrap .kn-pending,
+.kn-stat__value .kn-pending {
+  font-size: 11px;
 }
 
 .kn-md-kicker {
@@ -2837,6 +3077,15 @@
   .kn-hero {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .kn-verdict__value {
+    font-size: 26px;
+  }
+
+  .kn-lede-card__body,
+  .kn-lede-card__body p {
+    font-size: 16.5px;
   }
 
   .kn-hero__note {
