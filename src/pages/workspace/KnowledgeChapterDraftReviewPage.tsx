@@ -51,7 +51,8 @@ import {
 } from "@/workspace/project-manage";
 import { resolveAnalysisKind } from "@/lib/analysis-kind";
 import { researchSectionsForProject, usesCustomKnCatalog } from "@/lib/kn-catalog";
-import { getMergedProjects } from "@/workspace/project-registry";
+import { useResolvedWorkspaceProject } from "@/hooks/use-resolved-workspace-project";
+import { rememberProjectName } from "@/workspace/project-registry";
 
 const OVERVIEW_CHAPTER = { id: "project-overview", label: "项目概览" };
 
@@ -72,6 +73,7 @@ type ReviewRow = {
   liveHtml: string | null;
   error: string | null;
   reviseNote: string | null;
+  updatedAt?: string | null;
 };
 
 type ConfirmMode =
@@ -145,6 +147,58 @@ function formatWaitClock(ms: number): string {
   return `${s}秒`;
 }
 
+function parseIsoMs(iso?: string | null): number | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  return Number.isFinite(t) ? t : null;
+}
+
+function draftWaitStorageKey(runId: string, sectionId: string): string {
+  return `heyu.draftWait:${runId}:${sectionId}`;
+}
+
+function readStoredWaitStart(runId: string, sectionId: string): number | null {
+  try {
+    const raw = sessionStorage.getItem(draftWaitStorageKey(runId, sectionId));
+    const n = raw ? Number(raw) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredWaitStart(
+  runId: string,
+  sectionId: string,
+  ms: number,
+): void {
+  try {
+    sessionStorage.setItem(draftWaitStorageKey(runId, sectionId), String(ms));
+  } catch {
+    /* ignore quota */
+  }
+}
+
+function clearStoredWaitStart(runId: string, sectionId: string): void {
+  try {
+    sessionStorage.removeItem(draftWaitStorageKey(runId, sectionId));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 用本章服务端开始时间计时；刷新/离开再进接上，不要从 0 重算。 */
+function readDraftWaitStartedAt(opts: {
+  runId: string;
+  sectionId: string;
+  updatedAt?: string | null;
+}): number | null {
+  return (
+    parseIsoMs(opts.updatedAt) ??
+    readStoredWaitStart(opts.runId, opts.sectionId)
+  );
+}
+
 function isPublishableKind(kind: ChangeKind): boolean {
   return kind === "added" || kind === "changed";
 }
@@ -153,7 +207,7 @@ export default function KnowledgeChapterDraftReviewPage() {
   const { projectId = "", runId = "" } = useParams();
   const navigate = useNavigate();
   const userId = loadSessionUserId() ?? "";
-  const project = getMergedProjects().find((p) => p.id === projectId);
+  const project = useResolvedWorkspaceProject(projectId);
   // 审核页在布局外独立路由，刷新时 apiProjects 可能尚未灌入，勿对 undefined 解引用
   const projectRef = {
     id: projectId,
@@ -180,6 +234,7 @@ export default function KnowledgeChapterDraftReviewPage() {
   const [overviewKnVersion, setOverviewKnVersion] = useState(0);
   const [baseVersion, setBaseVersion] = useState(1);
   const [runStatus, setRunStatus] = useState<string>("");
+  const [runCreatedAt, setRunCreatedAt] = useState<string | null>(null);
   const [rows, setRows] = useState<ReviewRow[]>([]);
   const [selectedId, setSelectedId] = useState<string>(
     researchChapters[0]!.id,
@@ -197,7 +252,6 @@ export default function KnowledgeChapterDraftReviewPage() {
     total: number;
     lastLabel?: string;
   } | null>(null);
-  const [regenStartedAt, setRegenStartedAt] = useState<number | null>(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [hasGraphDraft, setHasGraphDraft] = useState(false);
   const [graphDraftRaw, setGraphDraftRaw] = useState<string | null>(null);
@@ -327,11 +381,13 @@ export default function KnowledgeChapterDraftReviewPage() {
       }
       try {
         const draft = await fetchChapterDraftRun(projectId, runId, userId);
+        if (draft.projectName) rememberProjectName(projectId, draft.projectName);
         setCurrentVersion(draft.currentVersion);
         setOverviewVersion(draft.overviewVersion ?? 0);
         setOverviewKnVersion(draft.overviewKnVersion ?? 0);
         setBaseVersion(draft.run.baseVersion);
         setRunStatus(draft.run.status);
+        setRunCreatedAt(draft.run.createdAt || null);
         setRunProgress({
           done: Number(draft.run.progressDone) || 0,
           total: Number(draft.run.progressTotal) || 0,
@@ -399,6 +455,7 @@ export default function KnowledgeChapterDraftReviewPage() {
             liveHtml,
             error: item?.error ?? null,
             reviseNote: item?.reviseNote ?? null,
+            updatedAt: item?.updatedAt ?? null,
           };
         });
         setRows(nextRows);
@@ -421,6 +478,7 @@ export default function KnowledgeChapterDraftReviewPage() {
 
         if (!opts?.keepSelection) {
           const firstChanged =
+            nextRows.find((r) => r.kind === "pending") ??
             nextRows.find((r) => r.kind === "revising") ??
             nextRows.find((r) => r.kind === "changed" || r.kind === "added") ??
             nextRows.find((r) => r.kind === "failed") ??
@@ -454,11 +512,19 @@ export default function KnowledgeChapterDraftReviewPage() {
     hasRevising || hasPending || runGenerating || Boolean(chapterBusy);
   const reviseBusy =
     reviseSubmitting || selected?.kind === "revising";
-  const regenElapsedMs =
-    regenStartedAt != null ? Math.max(0, nowTick - regenStartedAt) : 0;
   const selectedGenerating =
     Boolean(selected) &&
     (chapterBusy === selected?.id || selected?.kind === "pending");
+  const regenStartedAt =
+    selectedGenerating && selected
+      ? readDraftWaitStartedAt({
+          runId,
+          sectionId: selected.id,
+          updatedAt: selected.updatedAt || runCreatedAt,
+        })
+      : null;
+  const regenElapsedMs =
+    regenStartedAt != null ? Math.max(0, nowTick - regenStartedAt) : 0;
 
   useEffect(() => {
     if (!shouldPollDraft) return;
@@ -470,17 +536,32 @@ export default function KnowledgeChapterDraftReviewPage() {
 
   useEffect(() => {
     if (!shouldPollDraft) return;
+    setNowTick(Date.now());
     const timer = window.setInterval(() => setNowTick(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, [shouldPollDraft]);
 
   useEffect(() => {
-    if (selectedGenerating) {
-      setRegenStartedAt((prev) => prev ?? Date.now());
+    if (!selectedGenerating || !selected || !runId) {
+      if (selected?.id && runId && !chapterBusy) {
+        clearStoredWaitStart(runId, selected.id);
+      }
       return;
     }
-    if (!chapterBusy) setRegenStartedAt(null);
-  }, [selectedGenerating, chapterBusy]);
+    const start = readDraftWaitStartedAt({
+      runId,
+      sectionId: selected.id,
+      updatedAt: selected.updatedAt || runCreatedAt,
+    });
+    if (start != null) writeStoredWaitStart(runId, selected.id, start);
+  }, [
+    selectedGenerating,
+    chapterBusy,
+    runId,
+    selected?.id,
+    selected?.updatedAt,
+    runCreatedAt,
+  ]);
 
   useEffect(() => {
     if (selected?.kind === "revising" && selected.error?.trim()) {
@@ -851,10 +932,12 @@ export default function KnowledgeChapterDraftReviewPage() {
     const label = selected.label;
     const sectionId = selected.id;
     setChapterBusy(sectionId);
-    setRegenStartedAt(Date.now());
+    const startedIso = new Date().toISOString();
     setRows((prev) =>
       prev.map((r) =>
-        r.id === sectionId ? { ...r, kind: "pending" as const } : r,
+        r.id === sectionId
+          ? { ...r, kind: "pending" as const, updatedAt: startedIso }
+          : r,
       ),
     );
     setError(null);
@@ -872,7 +955,6 @@ export default function KnowledgeChapterDraftReviewPage() {
       setError(e instanceof Error ? e.message : "重新生成本章失败");
     } finally {
       setChapterBusy(null);
-      setRegenStartedAt(null);
     }
   };
 

@@ -11,7 +11,7 @@ import { Bell, Loader2, LogOut, Search, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logoutRemote } from "@/lib/api-auth";
 import { signOutClerkBrowser } from "@/lib/clerk-enabled";
-import { getMergedProjects } from "@/workspace/project-registry";
+import { useResolvedWorkspaceProject } from "@/hooks/use-resolved-workspace-project";
 import { clearSession, loadSessionUserId } from "@/workspace/session";
 import { getUserById, subscribeUserCache } from "@/workspace/workspace-users";
 import { useJoinReviews } from "@/hooks/use-join-reviews";
@@ -20,13 +20,26 @@ import { ProfileDialog } from "@/components/workspace/ProfileDialog";
 import { topBarUploadLabel, useUploadQueue } from "@/workspace/upload-queue";
 import { workspaceBreadcrumbs } from "@/workspace/workspace-breadcrumbs";
 
+function projectIdFromPath(
+  pathname: string,
+  paramId?: string,
+): string | undefined {
+  if (paramId) return paramId;
+  const m = pathname.match(/\/projects\/([^/]+)/);
+  const id = m?.[1]?.trim();
+  if (!id || id === "knowledge") return undefined;
+  try {
+    return decodeURIComponent(id);
+  } catch {
+    return id;
+  }
+}
+
 function useBreadcrumbs() {
   const { pathname } = useLocation();
   const params = useParams();
-  const projectId = params.projectId;
-  const project = projectId
-    ? getMergedProjects().find((p) => p.id === projectId)
-    : undefined;
+  const projectId = projectIdFromPath(pathname, params.projectId);
+  const project = useResolvedWorkspaceProject(projectId);
   return workspaceBreadcrumbs({
     pathname,
     projectId,

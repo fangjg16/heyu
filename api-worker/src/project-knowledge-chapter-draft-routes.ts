@@ -610,7 +610,7 @@ export async function handleListMyChapterDraftRuns(
     items.push({
       runId: run.id,
       projectId: run.projectId,
-      projectName: nameById.get(run.projectId) ?? run.projectId,
+      projectName: nameById.get(run.projectId) || "",
       scope: run.scope,
       status: run.status,
       progressDone: run.progressDone,
@@ -1073,6 +1073,7 @@ export async function handleGetChapterDraftRun(
   return json({
     ok: true,
     projectId,
+    projectName: project.name,
     currentVersion: bundle.version,
     overviewVersion: bundle.overviewVersion,
     overviewKnVersion: bundle.overviewKnVersion,

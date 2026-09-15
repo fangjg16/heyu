@@ -1465,6 +1465,7 @@ export async function listAdminOperationLogs(
 export type GetChapterDraftRunResponse = {
   ok: true;
   projectId: string;
+  projectName?: string;
   currentVersion: number;
   overviewVersion?: number;
   overviewKnVersion?: number;

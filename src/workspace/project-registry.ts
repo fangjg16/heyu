@@ -24,6 +24,28 @@ export function upsertApiProject(project: WorkspaceProject): void {
   notifyApiProjectListeners();
 }
 
+/** 只补名称，不覆盖已有项目的其它字段。 */
+export function rememberProjectName(projectId: string, name: string): void {
+  const trimmed = name.trim();
+  if (!projectId || !trimmed) return;
+  if (trimmed === projectId) return;
+  if (/^proj-[a-z0-9]+$/i.test(trimmed)) return;
+  const existing = getMergedProjectById(projectId);
+  if (existing?.name === trimmed) return;
+  if (existing) {
+    upsertApiProject({ ...existing, name: trimmed });
+    return;
+  }
+  upsertApiProject({
+    id: projectId,
+    name: trimmed,
+    category: "未分类",
+    phase: "进行中",
+    summary: "",
+    guestSummary: "",
+  });
+}
+
 export function removeApiProject(projectId: string): void {
   apiProjects = apiProjects.filter((p) => p.id !== projectId);
   notifyApiProjectListeners();
