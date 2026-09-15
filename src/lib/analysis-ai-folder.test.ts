@@ -59,7 +59,7 @@ describe("hasAnalysisDeliverableFiles", () => {
   });
 
   it("treats unknown size as present if the file is not a folder marker", () => {
-    const folder = analysisAiFolderPhysical("acquire");
+    const folder = analysisAiFolderPhysical("mature");
     const files = [
       file({
         id: "legacy",
@@ -67,7 +67,7 @@ describe("hasAnalysisDeliverableFiles", () => {
         relativePath: folder,
       }),
     ];
-    expect(hasAnalysisDeliverableFiles(files, "acquire")).toBe(true);
+    expect(hasAnalysisDeliverableFiles(files, "mature")).toBe(true);
   });
 });
 

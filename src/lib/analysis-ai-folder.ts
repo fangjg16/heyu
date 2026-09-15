@@ -12,7 +12,6 @@ const PACK_BY_KIND: Record<
 > = {
   early: "startup",
   mature: "capitallens",
-  acquire: "buy-to-build",
 };
 
 function packLabel(kind: AnalysisKind): string {

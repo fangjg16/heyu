@@ -37,43 +37,6 @@ const MATURE: Record<string, Spec> = {
   "investment-conclusion": DUE,
 };
 
-const ACQUIRE: Record<string, Spec> = {
-  "project-overview": { primary: ["acquisition-intake"], borrow: [] },
-  "exec-verdict": { primary: ["acquisition-gate"], borrow: [] },
-  "decision-object": {
-    primary: ["acquisition-intake"],
-    borrow: ["target-screening"],
-  },
-  "business-worth-buying": {
-    primary: ["acquisition-due-diligence"],
-    borrow: ["business-due-diligence"],
-  },
-  "price-financing-downside": {
-    primary: ["acquisition-economics"],
-    borrow: ["financial-due-diligence"],
-  },
-  "buyer-fit-takeover": {
-    primary: ["buyer-fit-transition"],
-    borrow: ["background-check"],
-  },
-  "acquisition-risk-register": {
-    primary: ["risk-matrix"],
-    borrow: ["acquisition-due-diligence"],
-  },
-  "open-items-exceptions": {
-    primary: ["gap-tracking"],
-    borrow: ["dd-checklist"],
-  },
-  "counterarguments-invalidation": {
-    primary: ["dd-claim-audit"],
-    borrow: ["acquisition-due-diligence"],
-  },
-  "recommendation-conditions": {
-    primary: ["acquisition-gate"],
-    borrow: ["value-creation-plan"],
-  },
-};
-
 const EARLY: Record<string, Spec> = {
   "project-overview": { primary: ["startup-design"], borrow: ["project-intake"] },
   "exec-summary": { primary: ["startup-design"], borrow: [] },
@@ -123,31 +86,27 @@ const EARLY: Record<string, Spec> = {
 const BY_KIND: Record<string, Record<string, Spec>> = {
   early: EARLY,
   mature: MATURE,
-  acquire: ACQUIRE,
 };
 
 const OVERVIEW = { id: "project-overview", label: "项目概览" };
 
 function sectionsForKind(kind: string): { id: string; label: string }[] {
-  return [OVERVIEW, ...researchSectionsForKind(kind as "early" | "mature" | "acquire")];
+  return [OVERVIEW, ...researchSectionsForKind(kind as "early" | "mature")];
 }
 
 export const FALLBACK_CHAPTER_SKILL_MAP: ChapterSkillMapDto = {
   kinds: [
     { id: "early", label: "创业" },
     { id: "mature", label: "投资" },
-    { id: "acquire", label: "收购经营" },
   ],
   sections: [
     OVERVIEW,
     ...researchSectionsForKind("early"),
     ...researchSectionsForKind("mature"),
-    ...researchSectionsForKind("acquire"),
   ].filter((s, i, arr) => arr.findIndex((x) => x.id === s.id) === i),
   sectionsByKind: {
     early: sectionsForKind("early"),
     mature: sectionsForKind("mature"),
-    acquire: sectionsForKind("acquire"),
   },
   cells: Object.fromEntries(
     Object.entries(BY_KIND).map(([kind, table]) => [

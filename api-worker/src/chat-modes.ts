@@ -76,28 +76,12 @@ const INTENT_RULES: IntentRule[] = [
     re: /财务尽调|财务尽职|financial[-\s]?due[-\s]?diligence|\bfinancial\s*dd\b|\bfdd\b/iu,
   },
   {
-    intent: "acquisition_due_diligence",
-    re: /收购尽调|并购尽调|收购尽职|acquisition[-\s]?due[-\s]?diligence/iu,
+    intent: "due_diligence",
+    re: /正式尽调|尽调报告|投资分析报告|diligence\s*readiness|收购尽调|并购尽调|收购尽职|acquisition[-\s]?due[-\s]?diligence|收购闸门|并购闸门|买不买|是否收购|该不该买|acquisition\s*gate|收购经济性|并购经济性|收购划不划算|acquisition\s*economics|接手适配|买方适配|老板依赖|买后接手|buyer[-\s]?fit/iu,
   },
   {
-    intent: "acquisition_gate",
-    re: /收购闸门|并购闸门|买不买|是否收购|该不该买|acquisition\s*gate/iu,
-  },
-  {
-    intent: "acquisition_economics",
-    re: /收购经济性|并购经济性|收购划不划算|acquisition\s*economics/iu,
-  },
-  {
-    intent: "target_screening",
-    re: /标的筛选|目标筛选|筛标的|target\s*screening/iu,
-  },
-  {
-    intent: "buyer_fit_transition",
-    re: /接手适配|买方适配|老板依赖|买后接手|buyer[-\s]?fit/iu,
-  },
-  {
-    intent: "acquisition_intake",
-    re: /收购入驻|并购入驻|收购立项|并购立项|acquisition\s*intake/iu,
+    intent: "deal_screening",
+    re: /deal[-\s]?screening|项目筛选|机会筛选|初筛|值不值得投资|值不值得尽调|能不能投|筛一下这个|入口筛选|标的筛选|目标筛选|筛标的|target\s*screening|收购入驻|并购入驻|收购立项|并购立项|acquisition\s*intake/iu,
   },
   {
     intent: "startup_pitch",
@@ -114,14 +98,6 @@ const INTENT_RULES: IntentRule[] = [
   {
     intent: "startup_design",
     re: /创业设计|早期项目设计|startup\s*design|早期验证/iu,
-  },
-  {
-    intent: "deal_screening",
-    re: /deal[-\s]?screening|项目筛选|机会筛选|初筛|值不值得投资|值不值得尽调|能不能投|筛一下这个|入口筛选/iu,
-  },
-  {
-    intent: "due_diligence",
-    re: /正式尽调|尽调报告|投资分析报告|diligence\s*readiness/iu,
   },
   {
     intent: "classify_investment_theme",
@@ -176,54 +152,62 @@ export function genericIntakeIntent(
   kind: AnalysisKind | null | undefined,
 ): SkillIntent {
   if (kind === "early") return "startup_design";
-  if (kind === "acquire") return "acquisition_intake";
   return "project_intake";
+}
+
+const RETIRED_ACQUIRE_INTENTS: Partial<Record<SkillIntent, SkillIntent>> = {
+  acquisition_due_diligence: "due_diligence",
+  acquisition_intake: "deal_screening",
+  target_screening: "deal_screening",
+  acquisition_economics: "due_diligence",
+  acquisition_gate: "due_diligence",
+  buyer_fit_transition: "due_diligence",
+};
+
+export function normalizeRetiredAcquireIntent(intent: string): string {
+  const key = (intent ?? "").trim() as SkillIntent;
+  return RETIRED_ACQUIRE_INTENTS[key] ?? intent;
 }
 
 function remapIntentForKind(
   intent: SkillIntent,
   kind: AnalysisKind | null | undefined,
 ): SkillIntent {
-  if (!kind || intent === "standard" || intent === "knowledge_network") {
-    return intent;
+  const normalized = RETIRED_ACQUIRE_INTENTS[intent] ?? intent;
+  if (!kind || normalized === "standard" || normalized === "knowledge_network") {
+    return normalized;
   }
   if (kind === "early") {
-    if (intent === "project_intake") return "startup_design";
-    if (intent === "industry_due_diligence") return "startup_competitors";
-    if (intent === "ic_memo") return "startup_pitch";
-    if (intent === "deal_screening" || intent === "due_diligence") {
+    if (normalized === "project_intake") return "startup_design";
+    if (normalized === "industry_due_diligence") return "startup_competitors";
+    if (normalized === "ic_memo") return "startup_pitch";
+    if (normalized === "deal_screening" || normalized === "due_diligence") {
       return "startup_design";
     }
-  }
-  if (kind === "acquire") {
-    if (intent === "project_intake") return "acquisition_intake";
-    if (intent === "business_due_diligence") return "acquisition_due_diligence";
-    if (intent === "ic_memo") return "acquisition_gate";
-    if (intent === "deal_screening") return "target_screening";
-    if (intent === "due_diligence") return "acquisition_due_diligence";
+    return normalized;
   }
   if (kind === "mature") {
-    if (intent === "project_intake" || intent === "classify_investment_theme") {
+    if (normalized === "project_intake" || normalized === "classify_investment_theme") {
       return "deal_screening";
     }
     if (
-      intent === "business_due_diligence" ||
-      intent === "industry_due_diligence" ||
-      intent === "financial_due_diligence" ||
-      intent === "background_check" ||
-      intent === "compliance_check" ||
-      intent === "returns_analysis" ||
-      intent === "risk_matrix" ||
-      intent === "ic_memo" ||
-      intent === "dd_checklist" ||
-      intent === "dd_claim_audit" ||
-      intent === "gap_tracking" ||
-      intent === "value_creation_plan"
+      normalized === "business_due_diligence" ||
+      normalized === "industry_due_diligence" ||
+      normalized === "financial_due_diligence" ||
+      normalized === "background_check" ||
+      normalized === "compliance_check" ||
+      normalized === "returns_analysis" ||
+      normalized === "risk_matrix" ||
+      normalized === "ic_memo" ||
+      normalized === "dd_checklist" ||
+      normalized === "dd_claim_audit" ||
+      normalized === "gap_tracking" ||
+      normalized === "value_creation_plan"
     ) {
       return "due_diligence";
     }
   }
-  return intent;
+  return normalized;
 }
 
 export function detectSkillIntent(
@@ -234,18 +218,20 @@ export function detectSkillIntent(
   const slash = parseSlashSkill(m);
   if (slash) {
     const forced = skillNameToIntent(slash.skill);
-    if (forced && forced !== "knowledge_network") return forced;
+    if (forced && forced !== "knowledge_network") {
+      return remapIntentForKind(forced, kind);
+    }
   }
   const text = slash?.rest || m;
   if (isKnowledgeNetworkDeliveryIntent(text) || isKnowledgeNetworkDeliveryIntent(m)) {
     return "knowledge_network";
   }
-  if (kind === "early" || kind === "acquire") {
+  if (kind === "early") {
     const file = matchChatDeliverable(kind, text) ?? matchChatDeliverable(kind, m);
     if (file) {
       const mapped = skillIntentForDeliverable(file);
       if (mapped && mapped !== "standard") {
-        return mapped as SkillIntent;
+        return remapIntentForKind(mapped as SkillIntent, kind);
       }
     }
   }

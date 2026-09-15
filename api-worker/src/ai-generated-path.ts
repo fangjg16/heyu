@@ -82,10 +82,23 @@ const INTENT_FOLDER: Record<string, { folder: string; filename: string }> = {
 
 export const AI_GENERATED_ROOT = "AI生成";
 
+const RETIRED_ACQUIRE_INTENTS: Record<string, string> = {
+  acquisition_due_diligence: "due_diligence",
+  acquisition_intake: "deal_screening",
+  target_screening: "deal_screening",
+  acquisition_economics: "due_diligence",
+  acquisition_gate: "due_diligence",
+  buyer_fit_transition: "due_diligence",
+};
+
+function normalizeRetiredAcquireIntent(intent: string): string {
+  return RETIRED_ACQUIRE_INTENTS[intent] ?? intent;
+}
+
 export function aiGeneratedPathForIntent(
   intent: string,
 ): AiGeneratedPath | null {
-  const key = (intent ?? "").trim();
+  const key = normalizeRetiredAcquireIntent((intent ?? "").trim());
   if (!key || key === "standard" || key === "knowledge_network") return null;
   const spec = INTENT_FOLDER[key];
   const skill =

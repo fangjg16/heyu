@@ -16,7 +16,7 @@ import { skillPackForName } from "./skill-packs";
 
 describe("deliverable-catalog", () => {
   it("keeps unique file ids and paths within each kind", () => {
-    for (const kind of ["early", "mature", "acquire"] as const) {
+    for (const kind of ["early", "mature"] as const) {
       const files = deliverablesForKind(kind);
       const ids = files.map((d) => d.id);
       const paths = files.map((d) => `${d.pack}/${d.folder}/${d.filename}`);
@@ -25,12 +25,6 @@ describe("deliverable-catalog", () => {
       expect(files.every((d) => d.filename.endsWith(".md"))).toBe(true);
       for (const d of files) {
         const pack = skillPackForName(d.skill);
-        if (
-          kind === "acquire" &&
-          ["risk-matrix", "gap-tracking", "dd-claim-audit"].includes(d.skill)
-        ) {
-          continue;
-        }
         expect(pack).not.toBe("platform");
       }
     }
@@ -66,7 +60,7 @@ describe("deliverable-catalog", () => {
   });
 
   it("puts file items before knowledge chapters, and overview last, on a full run", () => {
-    for (const kind of ["early", "mature", "acquire"] as const) {
+    for (const kind of ["early", "mature"] as const) {
       const ids = draftGenerateItemIds(kind, "full");
       const files = deliverablesForKind(kind).map((d) =>
         deliverableDraftId(d.id),

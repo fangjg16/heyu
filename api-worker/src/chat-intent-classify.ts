@@ -106,7 +106,7 @@ export function buildChatIntentClassifyPrompt(
     .map((f) => `- ${f.id} | ${f.title}`)
     .join("\n");
   const kindLabel =
-    kind === "early" ? "创业" : kind === "acquire" ? "收购" : "投研";
+    kind === "early" ? "创业" : "投研";
   return [
     `项目类型：${kindLabel}。`,
     "判断用户这句话是不是要生成下面某一份资料。",

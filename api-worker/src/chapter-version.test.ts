@@ -86,7 +86,7 @@ describe("chapter-version", () => {
     expect(isOverviewOnlyPublish(["snapshot", "project-overview"])).toBe(false);
   });
 
-  it("counts early and acquire chapters as research, not only mature ids", () => {
+  it("counts early chapters and leftover acquire ids as research, not only mature ids", () => {
     expect(isResearchChapterId("market-analysis")).toBe(true);
     expect(isResearchChapterId("exec-summary")).toBe(true);
     expect(isResearchChapterId("exec-verdict")).toBe(true);

@@ -58,8 +58,8 @@ describe("due-diligence chat intents", () => {
 
   it("remaps generic analysis by project kind", () => {
     expect(detectSkillIntent("帮我做个尽调", "early")).toBe("startup_design");
-    expect(detectSkillIntent("帮我做个尽调", "acquire")).toBe(
-      "acquisition_intake",
+    expect(detectSkillIntent("帮我做个尽调", "mature")).toBe(
+      "deal_screening",
     );
     expect(detectSkillIntent("看下这个项目", "mature")).toBe("deal_screening");
     expect(detectSkillIntent("做一份商业尽调", "mature")).toBe(
@@ -82,7 +82,7 @@ describe("due-diligence chat intents", () => {
   it("forces skill by slash directory name", () => {
     expect(detectSkillIntent("/startup-design 随便聊聊")).toBe("startup_design");
     expect(detectSkillIntent("/acquisition-gate 买不买")).toBe(
-      "acquisition_gate",
+      "due_diligence",
     );
   });
 
@@ -90,7 +90,7 @@ describe("due-diligence chat intents", () => {
     expect(detectSkillIntent("做一份合规分析")).toBe("compliance_check");
     expect(detectSkillIntent("帮我看竞品分析")).toBe("startup_competitors");
     expect(detectSkillIntent("这个项目收购立项怎么写")).toBe(
-      "acquisition_intake",
+      "deal_screening",
     );
     expect(detectSkillIntent("这属于什么赛道")).toBe(
       "classify_investment_theme",

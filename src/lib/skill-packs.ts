@@ -5,7 +5,6 @@
 export const SKILL_PACKS = [
   { id: "startup", label: "创业" },
   { id: "capitallens", label: "财务投资" },
-  { id: "buy-to-build", label: "收购" },
   { id: "platform", label: "平台共用" },
 ] as const;
 
@@ -24,19 +23,9 @@ const CAPITALENS = [
   "due-diligence",
 ] as const;
 
-const BUY_TO_BUILD = [
-  "acquisition-intake",
-  "target-screening",
-  "acquisition-due-diligence",
-  "acquisition-economics",
-  "buyer-fit-transition",
-  "acquisition-gate",
-] as const;
-
 const PACK_SKILLS: Record<Exclude<SkillPackId, "platform">, readonly string[]> = {
   startup: STARTUP,
   capitallens: CAPITALENS,
-  "buy-to-build": BUY_TO_BUILD,
 };
 
 const PACK_BY_SKILL = new Map<string, SkillPackId>();

@@ -435,7 +435,7 @@ export function AdminSkillsSection() {
               Skills 管理
             </h2>
             <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-              按创业 / 财务投资 / 收购 / 平台共用展开我们写的 Skill。点 Skill
+              按创业 / 财务投资 / 平台共用展开我们写的 Skill。点 Skill
               或里面的文件即可编辑。
             </p>
           </div>

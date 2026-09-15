@@ -11,14 +11,14 @@
 
 import type { AnalysisKind } from "@/lib/analysis-kind";
 import { DEFAULT_ANALYSIS_KIND } from "@/lib/analysis-kind";
-import { researchSectionIdsForKind } from "@/lib/kn-catalog";
+import { LEGACY_ACQUIRE_GROUPS, researchSectionIdsForKind } from "@/lib/kn-catalog";
 
 export const RESEARCH_CHAPTER_IDS = researchSectionIdsForKind("mature");
 
 const ALL_RESEARCH_CHAPTER_IDS = new Set([
   ...researchSectionIdsForKind("mature"),
-  ...researchSectionIdsForKind("acquire"),
   ...researchSectionIdsForKind("early"),
+  ...LEGACY_ACQUIRE_GROUPS.flatMap((g) => g.sections.map((s) => s.id)),
 ]);
 
 export type ChapterVersionBump = "major" | "minor" | "patch";

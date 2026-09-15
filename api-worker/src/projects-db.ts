@@ -39,7 +39,7 @@ export type ProjectJson = {
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
-  analysisKind: "early" | "mature" | "acquire" | null;
+  analysisKind: "early" | "mature" | null;
   pipelineStage: PipelineStage | null;
 };
 
@@ -57,13 +57,7 @@ function nowIso(): string {
 }
 
 export function rowToJson(row: ProjectRow): ProjectJson {
-  const kindRaw = String(row.analysis_kind ?? "")
-    .trim()
-    .toLowerCase();
-  const analysisKind =
-    kindRaw === "early" || kindRaw === "mature" || kindRaw === "acquire"
-      ? kindRaw
-      : null;
+  const analysisKind = parseAnalysisKind(row.analysis_kind);
   return {
     id: row.id,
     name: row.name,

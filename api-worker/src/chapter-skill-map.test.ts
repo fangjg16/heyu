@@ -17,15 +17,15 @@ describe("analysis-kind", () => {
   it("parses aliases", () => {
     expect(parseAnalysisKind("early")).toBe("early");
     expect(parseAnalysisKind("idea")).toBe("early");
-    expect(parseAnalysisKind("acquire")).toBe("acquire");
-    expect(parseAnalysisKind("buy-to-build")).toBe("acquire");
+    expect(parseAnalysisKind("acquire")).toBe("mature");
+    expect(parseAnalysisKind("buy-to-build")).toBe("mature");
     expect(parseAnalysisKind("mature")).toBe("mature");
     expect(parseAnalysisKind("nope")).toBeNull();
   });
 
   it("reads the first token from a model answer", () => {
     expect(parseAnalysisKindFromModel("early\n因为还没收入")).toBe("early");
-    expect(parseAnalysisKindFromModel("`acquire`")).toBe("acquire");
+    expect(parseAnalysisKindFromModel("`acquire`")).toBe("mature");
     expect(parseAnalysisKindFromModel("乱七八糟")).toBe("mature");
   });
 
@@ -74,13 +74,12 @@ tail`;
     expect(filterTemplateByKind(md, "early")).not.toContain("kn:begin");
     expect(filterTemplateByKind(md, "mature")).toContain("BMC");
     expect(filterTemplateByKind(md, "mature")).not.toContain("LEAN");
-    expect(filterTemplateByKind(md, "acquire")).toContain("BMC");
   });
 });
 
 describe("chapter-skill-map", () => {
   it("covers every catalog chapter for its own analysis kind", () => {
-    for (const kind of ["early", "mature", "acquire"] as const) {
+    for (const kind of ["early", "mature"] as const) {
       expect(skillsForChapter("project-overview", kind).length).toBeGreaterThan(
         0,
       );
@@ -114,10 +113,8 @@ describe("chapter-skill-map", () => {
     );
   });
 
-  it("uses acquisition-gate for acquire exec-verdict", () => {
-    expect(skillsForChapter("exec-verdict", "acquire")[0]).toBe(
-      "acquisition-gate",
-    );
+  it("does not keep a separate acquire chapter skill table", () => {
+    expect(skillsForChapter("exec-verdict", "mature")).toEqual([]);
   });
 
   it("drops node-monitoring from overview", () => {

@@ -50,13 +50,6 @@ const EARLY_ALIASES: AliasRule[] = [
   { id: "confidence-dashboard", re: /结论可靠度/iu },
 ];
 
-const ACQUIRE_ALIASES: AliasRule[] = [
-  {
-    id: "acquisition-risk-matrix",
-    re: /风险清单|风险分析|风险评估|风险矩阵|收购风险/iu,
-  },
-];
-
 const EARLY_INTENT_FILE: Record<string, string> = {
   risk_matrix: "risk-analysis",
   industry_due_diligence: "competitor-landscape",
@@ -73,26 +66,20 @@ const EARLY_INTENT_FILE: Record<string, string> = {
   compliance_check: "research-gate",
 };
 
-const ACQUIRE_INTENT_FILE: Record<string, string> = {
-  risk_matrix: "acquisition-risk-matrix",
-};
-
 function aliasesForKind(kind: AnalysisKind): AliasRule[] {
   if (kind === "early") return EARLY_ALIASES;
-  if (kind === "acquire") return ACQUIRE_ALIASES;
   return [];
 }
 
 function intentFileMap(kind: AnalysisKind): Record<string, string> {
   if (kind === "early") return EARLY_INTENT_FILE;
-  if (kind === "acquire") return ACQUIRE_INTENT_FILE;
   return {};
 }
 
 export function deliverableByAnyId(id: string): DeliverableFile | undefined {
   const key = (id ?? "").trim();
   if (!key) return undefined;
-  for (const kind of ["early", "mature", "acquire"] as const) {
+  for (const kind of ["early", "mature"] as const) {
     const file = deliverableById(kind, key);
     if (file) return file;
   }
@@ -155,13 +142,28 @@ export function skillIntentForDeliverable(file: DeliverableFile): string {
 }
 
 /** Hermes 主 skill：创业点名目录文件时用该文件的 skill，不要用投研 risk-matrix。 */
+const RETIRED_ACQUIRE_INTENTS: Record<string, string> = {
+  acquisition_due_diligence: "due_diligence",
+  acquisition_intake: "deal_screening",
+  target_screening: "deal_screening",
+  acquisition_economics: "due_diligence",
+  acquisition_gate: "due_diligence",
+  buyer_fit_transition: "due_diligence",
+};
+
+function normalizeRetiredAcquireIntent(intent: string): string {
+  const key = (intent ?? "").trim();
+  return RETIRED_ACQUIRE_INTENTS[key] ?? intent;
+}
+
 export function hermesSkillForChatIntent(
   intent: string,
   kind?: AnalysisKind | null,
 ): string {
-  const file = deliverableForChatIntent(intent, kind);
+  const normalized = normalizeRetiredAcquireIntent(intent);
+  const file = deliverableForChatIntent(normalized, kind);
   if (file) return file.skill;
-  const key = (intent ?? "").trim();
+  const key = (normalized ?? "").trim();
   if (key === "standard") return "project-intake";
   if (key === "skill_verify") return "jfo-skill-verify";
   if (key === "knowledge_network") return "opportunistic-investments-hermes";

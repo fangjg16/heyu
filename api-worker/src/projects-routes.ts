@@ -152,7 +152,7 @@ export async function handleCreateProject(
   const analysisKind = parseAnalysisKind(body.analysisKind);
   if (!analysisKind) {
     return json(
-      { error: "请选择项目形态：投资、创业或收购经营" },
+      { error: "请选择项目形态：投资或创业" },
       400,
     );
   }
@@ -265,7 +265,7 @@ export async function handleUpdateProject(
       : parseAnalysisKind(analysisKindRaw);
   if (analysisKindRaw !== undefined && !analysisKind) {
     return json(
-      { error: "请选择项目形态：投资、创业或收购经营" },
+      { error: "请选择项目形态：投资或创业" },
       400,
     );
   }

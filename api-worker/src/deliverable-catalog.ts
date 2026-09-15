@@ -162,22 +162,9 @@ export function headingSlicesForDeliverable(
   return titles?.length ? titles : null;
 }
 
-const ACQUIRE: readonly DeliverableFile[] = [
-  f("intake", "buy-to-build", "00-intake", "intake.md", "收购立项", "acquisition-intake", ["decision-object"], 1),
-  f("screening", "buy-to-build", "01-screening", "screening.md", "标的筛选", "target-screening", ["decision-object"], 1),
-  f("acquisition-due-diligence", "buy-to-build", "02-diligence", "acquisition-due-diligence.md", "收购尽调", "acquisition-due-diligence", ["business-worth-buying"], 2),
-  f("acquisition-economics", "buy-to-build", "03-economics", "acquisition-economics.md", "收购经济性", "acquisition-economics", ["price-financing-downside"], 3),
-  f("buyer-fit", "buy-to-build", "04-fit", "buyer-fit.md", "买方适配", "buyer-fit-transition", ["buyer-fit-takeover"], 4),
-  f("acquisition-risk-matrix", "buy-to-build", "05-risk", "risk-matrix.md", "收购风险", "risk-matrix", ["acquisition-risk-register"], 5),
-  f("acquisition-gaps", "buy-to-build", "05-risk", "gaps.md", "未决事项", "gap-tracking", ["open-items-exceptions"], 6),
-  f("claim-audit", "buy-to-build", "05-risk", "claim-audit.md", "声明审计", "dd-claim-audit", ["counterarguments-invalidation"], 6),
-  f("acquisition-decision", "buy-to-build", "06-decision", "acquisition-decision.md", "收购闸门", "acquisition-gate", ["exec-verdict", "recommendation-conditions"], 7),
-];
-
 const BY_KIND: Record<AnalysisKind, readonly DeliverableFile[]> = {
   early: EARLY,
   mature: MATURE,
-  acquire: ACQUIRE,
 };
 
 export function deliverablesForKind(

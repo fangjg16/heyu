@@ -5,7 +5,7 @@ import type { AnalysisKind } from "./analysis-kind";
  *   <!-- kn:begin early -->
  *   ...
  *   <!-- kn:end -->
- * 也可写 <!-- kn:begin mature,acquire -->
+ * 也可写 <!-- kn:begin mature,early -->；历史模板里的 acquire 块不再生成。
  * 生成前由服务端剥掉不匹配块，模型只看到适用骨架。
  */
 const KIND_BLOCK_RE =

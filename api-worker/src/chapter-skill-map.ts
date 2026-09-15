@@ -47,43 +47,6 @@ const MATURE: Record<string, ChapterSkillSpec> = {
   "investment-conclusion": DUE,
 };
 
-const ACQUIRE: Record<string, ChapterSkillSpec> = {
-  "project-overview": { primary: ["acquisition-intake"], borrow: [] },
-  "exec-verdict": { primary: ["acquisition-gate"], borrow: [] },
-  "decision-object": {
-    primary: ["acquisition-intake"],
-    borrow: ["target-screening"],
-  },
-  "business-worth-buying": {
-    primary: ["acquisition-due-diligence"],
-    borrow: ["business-due-diligence"],
-  },
-  "price-financing-downside": {
-    primary: ["acquisition-economics"],
-    borrow: ["financial-due-diligence"],
-  },
-  "buyer-fit-takeover": {
-    primary: ["buyer-fit-transition"],
-    borrow: ["background-check"],
-  },
-  "acquisition-risk-register": {
-    primary: ["risk-matrix"],
-    borrow: ["acquisition-due-diligence"],
-  },
-  "open-items-exceptions": {
-    primary: ["gap-tracking"],
-    borrow: ["dd-checklist"],
-  },
-  "counterarguments-invalidation": {
-    primary: ["dd-claim-audit"],
-    borrow: ["acquisition-due-diligence"],
-  },
-  "recommendation-conditions": {
-    primary: ["acquisition-gate"],
-    borrow: ["value-creation-plan"],
-  },
-};
-
 const EARLY: Record<string, ChapterSkillSpec> = {
   "project-overview": { primary: ["startup-design"], borrow: ["project-intake"] },
   "exec-summary": { primary: ["startup-design"], borrow: [] },
@@ -137,7 +100,6 @@ export const CHAPTER_SKILL_BY_KIND: Readonly<
   Record<AnalysisKind, Readonly<Record<string, ChapterSkillSpec>>>
 > = {
   mature: MATURE,
-  acquire: ACQUIRE,
   early: EARLY,
 };
 
@@ -150,12 +112,6 @@ export const SKILL_REFERENCE_FILES: Readonly<
   "financial-due-diligence": ["references/financial-due-diligence.md"],
   "compliance-check": ["references/compliance-check.md"],
   "ic-memo": ["references/ic-memo.md"],
-  "acquisition-intake": ["references/acquisition-thesis.md"],
-  "acquisition-due-diligence": ["references/acquisition-diligence.md"],
-  "acquisition-economics": ["references/acquisition-economics.md"],
-  "acquisition-gate": ["references/acquisition-gate.md"],
-  "buyer-fit-transition": ["references/buyer-fit-transition.md"],
-  "target-screening": ["references/target-screening.md"],
   "classify-investment-theme": [
     "references/taxonomy.md",
     "references/decision-rules.md",
@@ -269,7 +225,7 @@ export function serializeChapterSkillMap(): {
   sectionsByKind: Record<string, { id: string; label: string }[]>;
   cells: Record<string, Record<string, ChapterSkillSpec>>;
 } {
-  const kinds = (["early", "mature", "acquire"] as const).map((id) => ({
+  const kinds = (["early", "mature"] as const).map((id) => ({
     id,
     label: ANALYSIS_KIND_LABELS[id],
   }));
@@ -277,7 +233,7 @@ export function serializeChapterSkillMap(): {
   const sectionsByKind: Record<string, { id: string; label: string }[]> = {};
   const union = new Map<string, { id: string; label: string }>();
   union.set(OVERVIEW_SECTION.id, OVERVIEW_SECTION);
-  for (const kind of ["early", "mature", "acquire"] as const) {
+  for (const kind of ["early", "mature"] as const) {
     const sections = [OVERVIEW_SECTION, ...researchSectionsForKind(kind)];
     sectionsByKind[kind] = sections;
     cells[kind] = {};

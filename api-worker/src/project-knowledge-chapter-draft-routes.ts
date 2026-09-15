@@ -90,7 +90,7 @@ type Env = { DB: AppDatabase; FILES: AppObjectStorage } & LlmClientEnv;
 
 /** 全部更新：先资料包 Markdown，再研究章，最后项目概览 */
 export function fullUpdateSectionIds(
-  kind: "early" | "mature" | "acquire" = DEFAULT_ANALYSIS_KIND,
+  kind: "early" | "mature" = DEFAULT_ANALYSIS_KIND,
 ): string[] {
   return draftGenerateItemIds(kind, "full");
 }

@@ -1,13 +1,13 @@
 /**
  * 项目形态由创建/编辑时选定，生成章节时只读取、不改写。
  * early = 创业（用户访谈；不设项目协作）
- * acquire = 买下来过手经营
  * mature = 运转中经营体上的投资 / 尽调
+ * 历史库里的 acquire / buy-to-build 按 mature 读。
  */
 import type { AppDatabase } from "./app-database";
 import { callLlm, type LlmClientEnv } from "./llm-client";
 
-export const ANALYSIS_KINDS = ["early", "mature", "acquire"] as const;
+export const ANALYSIS_KINDS = ["early", "mature"] as const;
 export type AnalysisKind = (typeof ANALYSIS_KINDS)[number];
 
 export const DEFAULT_ANALYSIS_KIND: AnalysisKind = "mature";
@@ -15,7 +15,6 @@ export const DEFAULT_ANALYSIS_KIND: AnalysisKind = "mature";
 export const ANALYSIS_KIND_LABELS: Readonly<Record<AnalysisKind, string>> = {
   early: "创业",
   mature: "投资",
-  acquire: "收购经营",
 };
 
 export const ANALYSIS_KIND_DESCRIPTIONS: Readonly<
@@ -23,7 +22,6 @@ export const ANALYSIS_KIND_DESCRIPTIONS: Readonly<
 > = {
   early: "从零验证产品与市场，可做用户访谈。不设项目协作。",
   mature: "对已在运转的经营体做尽调与投资研究。",
-  acquire: "交易目的是买下来过手经营（控股收购、接手）。",
 };
 
 export const ANALYSIS_KIND_OPTIONS: readonly {
@@ -41,21 +39,21 @@ export const ANALYSIS_KIND_OPTIONS: readonly {
     label: ANALYSIS_KIND_LABELS.early,
     description: ANALYSIS_KIND_DESCRIPTIONS.early,
   },
-  {
-    id: "acquire",
-    label: ANALYSIS_KIND_LABELS.acquire,
-    description: ANALYSIS_KIND_DESCRIPTIONS.acquire,
-  },
 ];
 
 export function parseAnalysisKind(raw: unknown): AnalysisKind | null {
   const v = String(raw ?? "")
     .trim()
     .toLowerCase();
-  if (v === "early" || v === "mature" || v === "acquire") return v;
+  if (v === "early" || v === "mature") return v;
   if (v === "startup" || v === "idea" || v === "seed") return "early";
-  if (v === "buy-to-build" || v === "acquisition" || v === "eta") {
-    return "acquire";
+  if (
+    v === "acquire" ||
+    v === "buy-to-build" ||
+    v === "acquisition" ||
+    v === "eta"
+  ) {
+    return "mature";
   }
   if (v === "capitallens" || v === "investment") return "mature";
   return null;
@@ -112,9 +110,8 @@ export async function saveAnalysisKind(
 
 const CLASSIFY_SYSTEM = `你判断家办投资项目的形态。只输出一个英文词，不要解释。
 early = 创业/极早期/idea，或已有公司但客户、交付、财务仍主要靠叙事，PMF 未钉住。
-acquire = 交易目的是买下来过手经营（控股收购、接手、买下来自己开）。
 mature = 已经在运转的经营体上的投资（少数股权、成长期但仍有稳定交付/财务可核对）。尽调标的一律 mature，不因名字含 AI/剧本/创业而改判。
-有公司名字不等于 mature。买股权不等于 acquire。`;
+有公司名字不等于 mature。买股权、控股、接手经营都按 mature，不要输出 acquire。`;
 
 /** 仅供排查；生成路径不得调用，以免覆盖用户选定的形态。 */
 export async function inferAnalysisKindFromDigest(
@@ -124,7 +121,7 @@ export async function inferAnalysisKindFromDigest(
   const excerpt = String(digest ?? "").trim().slice(0, 8000);
   const user = excerpt
     ? `根据下列项目资料判断形态：\n${excerpt}`
-    : "资料很少。若看不出收购或早期迹象，输出 mature。";
+    : "资料很少。若看不出早期迹象，输出 mature。";
   try {
     const { answer } = await callLlm(env, [
       { role: "system", content: CLASSIFY_SYSTEM },

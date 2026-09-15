@@ -1,4 +1,4 @@
-export const ANALYSIS_KINDS = ["early", "mature", "acquire"] as const;
+export const ANALYSIS_KINDS = ["early", "mature"] as const;
 export type AnalysisKind = (typeof ANALYSIS_KINDS)[number];
 
 export const DEFAULT_ANALYSIS_KIND: AnalysisKind = "mature";
@@ -6,16 +6,14 @@ export const DEFAULT_ANALYSIS_KIND: AnalysisKind = "mature";
 export const ANALYSIS_KIND_LABELS: Record<AnalysisKind, string> = {
   early: "创业",
   mature: "投资",
-  acquire: "收购经营",
 };
 
 export const ANALYSIS_KIND_DESCRIPTIONS: Record<AnalysisKind, string> = {
   early: "从零验证产品与市场，可做用户访谈。不设项目协作。",
   mature: "对已在运转的经营体做尽调与投资研究。",
-  acquire: "交易目的是买下来过手经营（控股收购、接手）。",
 };
 
-/** 表单展示顺序：家办默认先看投资。新建/编辑不再提供收购经营。 */
+/** 表单展示顺序：家办默认先看投资。 */
 export const ANALYSIS_KIND_OPTIONS: {
   id: AnalysisKind;
   label: string;
@@ -31,31 +29,28 @@ export const ANALYSIS_KIND_OPTIONS: {
     label: ANALYSIS_KIND_LABELS.early,
     description: ANALYSIS_KIND_DESCRIPTIONS.early,
   },
-  {
-    id: "acquire",
-    label: ANALYSIS_KIND_LABELS.acquire,
-    description: ANALYSIS_KIND_DESCRIPTIONS.acquire,
-  },
 ];
 
-/** 创建/编辑可选形态；已有收购项目编辑时仍显示该项。 */
+/** 创建/编辑可选形态。历史库里的收购经营按投资读。 */
 export function analysisKindFormOptions(
-  current?: AnalysisKind | "" | null,
+  _current?: AnalysisKind | "" | null,
 ): typeof ANALYSIS_KIND_OPTIONS {
-  return ANALYSIS_KIND_OPTIONS.filter(
-    (option) =>
-      option.id !== "acquire" || current === "acquire",
-  );
+  return ANALYSIS_KIND_OPTIONS;
 }
 
 export function parseAnalysisKind(raw: unknown): AnalysisKind | null {
   const v = String(raw ?? "")
     .trim()
     .toLowerCase();
-  if (v === "early" || v === "mature" || v === "acquire") return v;
+  if (v === "early" || v === "mature") return v;
   if (v === "startup" || v === "idea" || v === "seed") return "early";
-  if (v === "buy-to-build" || v === "acquisition" || v === "eta") {
-    return "acquire";
+  if (
+    v === "acquire" ||
+    v === "buy-to-build" ||
+    v === "acquisition" ||
+    v === "eta"
+  ) {
+    return "mature";
   }
   if (v === "capitallens" || v === "investment") return "mature";
   return null;

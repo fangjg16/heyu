@@ -1,5 +1,6 @@
 import { parsePipelineStage, type PipelineStage } from "@/workspace/pipeline-stage";
 import { normalizeProjectPhase } from "@/workspace/projects";
+import { parseAnalysisKind } from "@/lib/analysis-kind";
 import {
   getMergedProjectById,
   upsertApiProject,
@@ -53,7 +54,7 @@ export type ApiProjectJson = {
   updatedAt?: string;
   /** 0–100；列表接口返回 */
   researchMaturity?: number | null;
-  analysisKind?: "early" | "mature" | "acquire" | null;
+  analysisKind?: "early" | "mature" | null;
   pipelineStage?: PipelineStage | string | null;
 };
 
@@ -85,12 +86,7 @@ function mapApiProject(row: ApiProjectJson) {
     createdAt: row.createdAt ?? null,
     updatedAt: row.updatedAt ?? null,
     researchMaturity: normalizeResearchMaturity(row.researchMaturity),
-    analysisKind:
-      row.analysisKind === "early" ||
-      row.analysisKind === "mature" ||
-      row.analysisKind === "acquire"
-        ? row.analysisKind
-        : null,
+    analysisKind: parseAnalysisKind(row.analysisKind),
     pipelineStage: parsePipelineStage(row.pipelineStage),
   };
 }
@@ -252,7 +248,7 @@ export async function createProjectViaApi(
     detail?: string;
     category?: string;
     openness?: "partial" | "invite";
-    analysisKind: "early" | "mature" | "acquire";
+    analysisKind: "early" | "mature";
     userId?: string;
     participants?: { userId: string; role: "admin" | "core" | "low" | "issuer" }[];
   },
@@ -294,7 +290,7 @@ export async function updateProjectViaApi(
     category?: string;
     phase?: string;
     openness?: "partial" | "invite";
-    analysisKind?: "early" | "mature" | "acquire";
+    analysisKind?: "early" | "mature";
     pipelineStage?: PipelineStage | null;
     userId: string;
   },

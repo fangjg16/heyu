@@ -1,4 +1,4 @@
-/** CapitalLens / mature 投资流水线。early、acquire 不使用。 */
+/** CapitalLens / mature 投资流水线。early 不使用。 */
 
 export const PIPELINE_STAGES = [
   "inbound",
@@ -30,7 +30,7 @@ export const PIPELINE_STAGE_LABELS: Readonly<Record<PipelineStage, string>> = {
 };
 
 type TopPhase = "进行中" | "已完成" | "已归档" | "已暂停";
-type AnalysisKind = "early" | "mature" | "acquire";
+type AnalysisKind = "early" | "mature";
 
 export function parsePipelineStage(raw: unknown): PipelineStage | null {
   const v = String(raw ?? "")

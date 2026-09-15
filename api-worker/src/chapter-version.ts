@@ -9,7 +9,7 @@
  * 展示时省略为 0 的 patch：1.0.0 → 1.0，1.1.1 保持 1.1.1。
  */
 
-import { researchSectionIdsForKind } from "./kn-catalog";
+import { LEGACY_ACQUIRE_GROUPS, researchSectionIdsForKind } from "./kn-catalog";
 import type { AnalysisKind } from "./analysis-kind";
 import { DEFAULT_ANALYSIS_KIND } from "./analysis-kind";
 
@@ -17,8 +17,8 @@ export const RESEARCH_CHAPTER_IDS = researchSectionIdsForKind("mature");
 
 const ALL_RESEARCH_CHAPTER_IDS = new Set([
   ...researchSectionIdsForKind("mature"),
-  ...researchSectionIdsForKind("acquire"),
   ...researchSectionIdsForKind("early"),
+  ...LEGACY_ACQUIRE_GROUPS.flatMap((g) => g.sections.map((s) => s.id)),
 ]);
 
 export type ChapterVersionBump = "major" | "minor" | "patch";

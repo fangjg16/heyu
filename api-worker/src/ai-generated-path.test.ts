@@ -18,10 +18,13 @@ describe("ai-generated-path", () => {
     });
   });
 
-  it("puts acquisition gate on buy-to-build decision path", () => {
-    expect(aiGeneratedPathForIntent("acquisition_gate")?.filename).toBe(
-      "acquisition-decision.md",
-    );
+  it("maps retired acquisition intents onto capitallens paths", () => {
+    expect(aiGeneratedPathForIntent("acquisition_gate")).toEqual({
+      pack: "capitallens",
+      folder: "05-decision",
+      filename: "investment-analysis-report.md",
+      relativePath: "AI生成/capitallens/05-decision",
+    });
   });
 
   it("skips knowledge_network", () => {

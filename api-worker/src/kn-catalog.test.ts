@@ -12,7 +12,7 @@ describe("kn-catalog", () => {
     expect(researchSectionsForKind("mature").map((s) => s.id)).toContain(
       "project-summary",
     );
-    expect(researchSectionsForKind("acquire").map((s) => s.id)).toContain(
+    expect(researchSectionsForKind("mature").map((s) => s.id)).not.toContain(
       "exec-verdict",
     );
     expect(researchSectionsForKind("early").map((s) => s.id)).toEqual([
@@ -49,7 +49,6 @@ describe("kn-catalog", () => {
 
   it("maps pending-question section by kind", () => {
     expect(questionsSectionIdForKind("mature")).toBe("diligence-gaps");
-    expect(questionsSectionIdForKind("acquire")).toBe("open-items-exceptions");
     expect(questionsSectionIdForKind("early")).toBe("assumptions-tracker");
   });
 
@@ -64,7 +63,6 @@ describe("kn-catalog", () => {
     expect(early.at(-2)).toBe("project-scorecard");
     expect(early).not.toContain("founder-interview");
     expect(fullDraftSectionIds("mature").at(-1)).toBe("project-overview");
-    expect(fullDraftSectionIds("acquire").at(-1)).toBe("project-overview");
   });
 
   it("uses a mixed one-/two-level catalog for mature CapitalLens", () => {

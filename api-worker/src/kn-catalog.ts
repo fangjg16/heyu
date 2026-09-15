@@ -73,7 +73,7 @@ const MATURE_GROUPS: readonly KnCatalogGroup[] = [
   },
 ];
 
-const ACQUIRE_GROUPS: readonly KnCatalogGroup[] = [
+export const LEGACY_ACQUIRE_GROUPS: readonly KnCatalogGroup[] = [
   {
     id: "verdict",
     label: "闸门结论",
@@ -171,7 +171,6 @@ export const KN_CATALOG_BY_KIND: Readonly<
   Record<AnalysisKind, readonly KnCatalogGroup[]>
 > = {
   mature: MATURE_GROUPS,
-  acquire: ACQUIRE_GROUPS,
   early: EARLY_GROUPS,
 };
 
@@ -201,6 +200,15 @@ export const LEGACY_RESEARCH_SECTION_IDS = [
   "business-technology",
   "investment-risks",
   "investment-conclusion",
+  "exec-verdict",
+  "decision-object",
+  "business-worth-buying",
+  "price-financing-downside",
+  "buyer-fit-takeover",
+  "acquisition-risk-register",
+  "open-items-exceptions",
+  "counterarguments-invalidation",
+  "recommendation-conditions",
 ] as const;
 
 export const META_SECTION_IDS = [
@@ -244,7 +252,7 @@ export function fullDraftSectionIds(
 
 export function allCurrentResearchSectionIds(): string[] {
   const ids = new Set<string>();
-  for (const kind of ["mature", "acquire", "early"] as const) {
+  for (const kind of ["mature", "early"] as const) {
     for (const id of researchSectionIdsForKind(kind)) ids.add(id);
   }
   return [...ids];
@@ -273,7 +281,6 @@ export function isKnownSectionId(id: string): boolean {
 export function questionsSectionIdForKind(
   kind: AnalysisKind = DEFAULT_ANALYSIS_KIND,
 ): string {
-  if (kind === "acquire") return "open-items-exceptions";
   if (kind === "early") return "assumptions-tracker";
   return "diligence-gaps";
 }
@@ -361,10 +368,14 @@ export function sectionLabel(
   if (id === "project-graph") return "项目关系图";
   const hit = researchSectionsForKind(kind).find((s) => s.id === id);
   if (hit) return hit.label;
-  for (const k of ["mature", "acquire", "early"] as const) {
+  for (const k of ["mature", "early"] as const) {
     const other = researchSectionsForKind(k).find((s) => s.id === id);
     if (other) return other.label;
   }
+  const acquireHit = LEGACY_ACQUIRE_GROUPS.flatMap((g) => [...g.sections]).find(
+    (s) => s.id === id,
+  );
+  if (acquireHit) return acquireHit.label;
   const legacy: Record<string, string> = {
     snapshot: "项目快照",
     objectives: "标的概况",
