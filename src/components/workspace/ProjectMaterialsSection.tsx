@@ -1740,8 +1740,7 @@ export function ProjectMaterialsSection({
             </div>
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.78)] shadow-[0_10px_30px_rgba(102,80,60,0.07)]">
-              <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-5 py-3 [scrollbar-gutter:stable]">
-              <div className="flex items-center gap-3">
+              <div className="flex shrink-0 items-center gap-3 border-b border-[rgba(78,66,57,0.08)] py-2 pl-4 pr-3">
                 <div className="min-w-0 flex-1 overflow-hidden">
                   {detail.trail.length > 0 ? (
                     <div className="flex items-center gap-1.5 overflow-hidden text-[12px] text-[hsl(var(--warm-charcoal-muted))]">
@@ -1919,9 +1918,9 @@ export function ProjectMaterialsSection({
                   ) : null}
                 </div>
               </div>
-
+              <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-5 py-3 [scrollbar-gutter:stable]">
               {!detail.isFile && folderFiles.length > 0 ? (
-                <div className="mt-4">
+                <div>
                   <div className="mb-1 flex items-center gap-3 px-0.5 text-[11px] text-[hsl(var(--warm-charcoal-muted))]">
                     <span className="min-w-0 flex-1">文件</span>
                     {canManage && folderShareFiles.length > 0 ? (
@@ -1982,7 +1981,7 @@ export function ProjectMaterialsSection({
               ) : null}
 
               {detail.isFile ? (
-                <div className="mt-5 text-[14px] leading-[1.85] text-[hsl(var(--warm-charcoal))]">
+                <div className="text-[14px] leading-[1.85] text-[hsl(var(--warm-charcoal))]">
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <span
                       className="inline-flex h-6 shrink-0 items-center rounded-md px-2 text-[11.5px] font-medium"
