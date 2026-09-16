@@ -1005,7 +1005,7 @@ function ProjectWorkspaceLayout() {
           </div>
         ) : null}
 
-        {tab === "knowledge" &&
+        {(tab === "knowledge" || tab === "overview") &&
         (allChaptersNotice ||
           (resumeRunId &&
             allChaptersProgress?.phase === "done" &&
