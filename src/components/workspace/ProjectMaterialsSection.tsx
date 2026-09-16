@@ -32,6 +32,7 @@ import {
   Folder,
   FolderPlus,
   Loader2,
+  MessageSquare,
   Pencil,
   RefreshCw,
   Search,
@@ -1783,6 +1784,18 @@ export function ProjectMaterialsSection({
                     <div className="flex h-8 shrink-0 overflow-hidden rounded-lg border border-[rgba(160,99,88,0.28)]">
                       <IconToolButton
                         grouped
+                        label="在对话中追问"
+                        onClick={() =>
+                          openChatAskAboutFile(projectId, {
+                            id: detail.file!.id,
+                            filename: detail.file!.filename,
+                          })
+                        }
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" strokeWidth={1.8} />
+                      </IconToolButton>
+                      <IconToolButton
+                        grouped
                         label="预览"
                         disabled={!detail.canPreview}
                         onClick={() => openPreview(detail.file!.id)}
@@ -1903,20 +1916,6 @@ export function ProjectMaterialsSection({
                         triggerFolderPicker(selection.kind === "folder" ? selection.path : "")
                       }
                     />
-                  ) : null}
-                  {detail.isFile && detail.file ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        openChatAskAboutFile(projectId, {
-                          id: detail.file!.id,
-                          filename: detail.file!.filename,
-                        })
-                      }
-                      className="h-8 rounded-lg bg-[hsl(var(--wine))] px-3 text-[13px] font-medium text-white hover:bg-[hsl(var(--wine-hover))]"
-                    >
-                      在对话中追问
-                    </button>
                   ) : null}
                 </div>
               </div>

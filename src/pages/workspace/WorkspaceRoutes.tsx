@@ -1011,8 +1011,8 @@ function ProjectWorkspaceLayout() {
           !draftDialogOpen) ||
         (persistedActiveRunId && !draftDialogOpen) ? (
           <div className="mx-auto w-full max-w-[1600px] shrink-0 px-8 pt-3 md:px-10">
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[rgba(94,155,117,0.28)] bg-[rgba(94,155,117,0.08)] px-3.5 py-1.5 text-[12.5px] text-[#2F6B4F]">
-              <p>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl border border-[rgba(94,155,117,0.28)] bg-[rgba(94,155,117,0.08)] py-1.5 pl-3.5 pr-1.5 text-[12.5px] text-[#2F6B4F]">
+              <p className="min-w-0 flex-1">
                 {allChaptersNotice ??
                   (persistedActiveRunId
                     ? "本项目有未完成的章节更新草案，可继续审核或发布剩余章节。"
@@ -1022,7 +1022,7 @@ function ProjectWorkspaceLayout() {
                 <button
                   type="button"
                   onClick={goDraftReview}
-                  className="shrink-0 font-semibold text-[#A06358] underline-offset-2 hover:underline"
+                  className="inline-flex h-7 shrink-0 items-center rounded-lg px-2.5 text-[12.5px] font-semibold text-[#A06358] hover:bg-[rgba(160,99,88,0.08)]"
                 >
                   继续审核草案
                 </button>

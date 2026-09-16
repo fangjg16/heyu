@@ -270,7 +270,7 @@ export function ProjectWorkspaceHeader({
   const backLabel = chatReturnPath ? "← 返回对话" : "← 返回项目列表";
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] shrink-0 px-8 pt-6 md:px-10">
+    <div className="mx-auto w-full max-w-[1600px] shrink-0 px-8 pt-5 md:px-10">
       <button
         type="button"
         onClick={goBack}
@@ -278,11 +278,12 @@ export function ProjectWorkspaceHeader({
       >
         {backLabel}
       </button>
-      <div className="flex items-center gap-x-3 overflow-x-auto">
-        <h1 className="min-w-0 shrink font-display text-[32px] font-semibold leading-snug tracking-wide text-[hsl(var(--warm-charcoal))]">
-          {project.name}
-        </h1>
-        <div className="flex shrink-0 flex-nowrap items-center gap-2">
+      <div className="flex items-start gap-x-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="font-display text-[22px] font-semibold leading-snug tracking-tight text-[hsl(var(--warm-charcoal))]">
+            {project.name}
+          </h1>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
             <span
               className="rounded-full px-2.5 py-0.5 text-[12px] font-medium"
               style={{ background: judgment.bg, color: judgment.fg }}
@@ -331,9 +332,9 @@ export function ProjectWorkspaceHeader({
             {pipelineError ? (
               <span className="text-[12px] text-[#A06358]">{pipelineError}</span>
             ) : null}
+          </div>
         </div>
-        <div className="min-w-2 flex-1" />
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3 pt-0.5">
           {avatarChips.length > 0 ? (
             canManage ? (
               <button
@@ -392,7 +393,7 @@ export function ProjectWorkspaceHeader({
           <button
             type="button"
             onClick={onChat}
-            className="inline-flex h-9 items-center gap-1.5 rounded-[11px] bg-[hsl(var(--wine))] px-3.5 text-[13px] font-medium text-white hover:bg-[hsl(var(--wine-hover))]"
+            className="inline-flex h-8 items-center gap-1.5 rounded-[10px] bg-[hsl(var(--wine))] px-3.5 text-[13px] font-medium text-white hover:bg-[hsl(var(--wine-hover))]"
           >
             <MessageSquare className="h-3.5 w-3.5" strokeWidth={2} />
             进入对话
@@ -443,7 +444,7 @@ export function ProjectWorkspaceHeader({
               to={t.to}
               state={location.state}
               className={cn(
-                "mb-[-1px] inline-flex h-[38px] items-end px-3.5 pb-2 text-[15px] leading-none transition-colors",
+                "mb-[-1px] inline-flex h-[38px] items-end px-3.5 pb-2 text-[15px] leading-none transition-colors first:pl-0",
                 tab === t.id
                   ? "border-b-2 border-[hsl(var(--wine))] font-semibold text-[hsl(var(--wine))]"
                   : "border-b-2 border-transparent font-normal text-[hsl(var(--warm-charcoal-muted))] hover:text-[hsl(var(--warm-charcoal))]",
@@ -464,7 +465,7 @@ export function ProjectWorkspaceHeader({
               allChaptersBusy ||
               !onUpdateOverview
             }
-            className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[rgba(78,66,57,0.18)] bg-transparent px-3.5 text-[13px] font-medium text-[#59625F] transition-colors hover:border-[hsl(var(--wine)/0.3)] hover:bg-[hsl(var(--wine-muted))] hover:text-[hsl(var(--wine))] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-8 items-center gap-1.5 rounded-[10px] border border-[rgba(78,66,57,0.18)] bg-transparent px-3 text-[13px] font-medium text-[#59625F] transition-colors hover:border-[hsl(var(--wine)/0.3)] hover:bg-[hsl(var(--wine-muted))] hover:text-[hsl(var(--wine))] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <RefreshCw
               className={cn("h-3.5 w-3.5", overviewBusy && "animate-spin")}
