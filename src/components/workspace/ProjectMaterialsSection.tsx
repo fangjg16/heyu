@@ -1537,7 +1537,7 @@ export function ProjectMaterialsSection({
 
   return (
     <section
-      className="mt-1 flex h-full min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden"
+      className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden"
       aria-labelledby="project-materials-heading"
       onDragOver={(e) => {
         if (!canManage || !useLive) return;
@@ -1568,8 +1568,8 @@ export function ProjectMaterialsSection({
         源文件
       </h3>
 
-          <div className="mb-4 flex shrink-0 flex-wrap items-center gap-2.5">
-            <label className="flex h-[38px] w-[260px] max-w-full items-center gap-2 rounded-[10px] border border-[rgba(78,66,57,0.14)] bg-[rgba(255,252,248,0.8)] px-3.5 text-[13px] text-[hsl(var(--warm-charcoal-muted))]">
+          <div className="mb-2 flex shrink-0 flex-wrap items-center gap-2">
+            <label className="flex h-9 w-[260px] max-w-full items-center gap-2 rounded-[10px] border border-[rgba(78,66,57,0.14)] bg-[rgba(255,252,248,0.8)] px-3.5 text-[13px] text-[hsl(var(--warm-charcoal-muted))]">
               <Search className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
               <input
                 value={query}
@@ -1581,7 +1581,7 @@ export function ProjectMaterialsSection({
             <select
               value={kindFilter}
               onChange={(e) => setKindFilter(e.target.value as FileKindFilter)}
-              className="h-[38px] rounded-[10px] border border-[rgba(78,66,57,0.14)] bg-[rgba(255,252,248,0.6)] px-3 text-[12.5px] text-[hsl(var(--warm-charcoal-muted))] outline-none"
+              className="h-9 rounded-[10px] border border-[rgba(78,66,57,0.14)] bg-[rgba(255,252,248,0.6)] px-3 text-[12.5px] text-[hsl(var(--warm-charcoal-muted))] outline-none"
             >
               <option value="all">全部类型</option>
               <option value="pdf">PDF</option>
@@ -1591,7 +1591,7 @@ export function ProjectMaterialsSection({
             <select
               value={parseFilter}
               onChange={(e) => setParseFilter(e.target.value as ParseFilter)}
-              className="h-[38px] rounded-[10px] border border-[rgba(78,66,57,0.14)] bg-[rgba(255,252,248,0.6)] px-3 text-[12.5px] text-[hsl(var(--warm-charcoal-muted))] outline-none"
+              className="h-9 rounded-[10px] border border-[rgba(78,66,57,0.14)] bg-[rgba(255,252,248,0.6)] px-3 text-[12.5px] text-[hsl(var(--warm-charcoal-muted))] outline-none"
             >
               <option value="all">解析状态</option>
               <option value="parsed">已解析</option>
@@ -1635,15 +1635,15 @@ export function ProjectMaterialsSection({
             </p>
           ) : null}
 
-          <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col gap-[18px] overflow-hidden lg:flex-row lg:items-stretch">
+          <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col gap-3 overflow-hidden lg:flex-row lg:items-stretch">
             <div
               className={cn(
-                "flex h-[min(38vh,20rem)] min-h-0 w-full min-w-0 shrink-0 flex-col overflow-hidden rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.78)] px-2.5 py-3 shadow-[0_10px_30px_rgba(102,80,60,0.07)] lg:h-full lg:w-[340px] lg:min-w-[340px] lg:max-w-[340px]",
+                "flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.78)] px-2.5 py-2.5 shadow-[0_10px_30px_rgba(102,80,60,0.07)] max-lg:min-h-[11rem] lg:h-full lg:w-[340px] lg:min-w-[340px] lg:max-w-[340px] lg:flex-none",
                 dragOverPath === PROJECT_SOURCE_PATH && "ring-1 ring-[hsl(var(--wine)/0.35)]",
                 dragOverPath === "" && "ring-1 ring-[hsl(var(--wine)/0.35)]",
               )}
             >
-              <div className="shrink-0 px-1 pb-3">
+              <div className="shrink-0 px-1 pb-2">
                 <div className="grid grid-cols-2 rounded-[10px] bg-[rgba(78,66,57,0.06)] p-0.5 text-[12px]">
                     <button
                       type="button"
@@ -1701,7 +1701,7 @@ export function ProjectMaterialsSection({
             </div>
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.78)] shadow-[0_10px_30px_rgba(102,80,60,0.07)]">
-              <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-5 py-4 [scrollbar-gutter:stable]">
+              <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-5 py-3 [scrollbar-gutter:stable]">
               <div className="flex items-center gap-3">
                 <div className="min-w-0 flex-1 overflow-hidden">
                   {detail.trail.length > 0 ? (
@@ -2262,7 +2262,7 @@ function UploadMenu({
           "inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--wine))] font-medium text-white hover:bg-[hsl(var(--wine-hover))]",
           compact
             ? "h-8 px-3 text-[12.5px]"
-            : "h-[38px] rounded-[10px] px-3.5 text-[12.5px]",
+            : "h-9 rounded-[10px] px-3.5 text-[12.5px]",
           disabled && "pointer-events-none opacity-60",
         )}
         aria-expanded={open}

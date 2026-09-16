@@ -141,6 +141,20 @@ export function ProjectWorkspaceHeader({
 }: ProjectWorkspaceHeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [shortViewport, setShortViewport] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-height: 1100px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-height: 1100px)");
+    const apply = () => setShortViewport(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+  /** 源文件页锁死视口高度；笔记本高度下标题栏也收一档，避免和文件区五五开。 */
+  const dense = tab === "materials" || shortViewport;
   const role = getProjectRole(userId, project.id, project.createdBy, project.analysisKind);
   const judgment = judgmentFromPipeline(
     project.phase,
@@ -258,27 +272,50 @@ export function ProjectWorkspaceHeader({
     }
   };
 
+  const goBack = () => {
+    if (chatReturnPath) {
+      clearChatReturnPath(project.id);
+      navigate(chatReturnPath);
+      return;
+    }
+    clearChatReturnPath(project.id);
+    navigate("/app/projects");
+  };
+  const backLabel = chatReturnPath ? "← 返回对话" : "← 返回项目列表";
+
   return (
-    <div className="mx-auto w-full max-w-[1600px] shrink-0 px-8 pt-6 md:px-10">
+    <div
+      className={cn(
+        "mx-auto w-full max-w-[1600px] shrink-0 px-8 md:px-10",
+        dense ? "pt-2.5" : "pt-6",
+      )}
+    >
       <button
         type="button"
-        onClick={() => {
-          if (chatReturnPath) {
-            clearChatReturnPath(project.id);
-            navigate(chatReturnPath);
-            return;
-          }
-          clearChatReturnPath(project.id);
-          navigate("/app/projects");
-        }}
-        className="mb-3.5 flex items-center gap-1.5 text-[13px] text-[hsl(var(--wine))]"
+        onClick={goBack}
+        className={cn(
+          "flex items-center gap-1.5 text-[hsl(var(--wine))]",
+          dense ? "mb-1 text-[12.5px]" : "mb-3.5 text-[13px]",
+        )}
       >
-        {chatReturnPath ? "← 返回对话" : "← 返回项目列表"}
+        {backLabel}
       </button>
-      <div className="flex items-start gap-4">
+      <div className={cn("flex gap-4", dense ? "items-center" : "items-start")}>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-3.5">
-            <h1 className="font-display text-[32px] font-semibold tracking-wide text-[hsl(var(--warm-charcoal))]">
+          <div
+            className={cn(
+              "flex flex-wrap items-center",
+              dense ? "gap-x-2.5 gap-y-1" : "gap-3.5",
+            )}
+          >
+            <h1
+              className={cn(
+                "min-w-0 font-display font-semibold text-[hsl(var(--warm-charcoal))]",
+                dense
+                  ? "text-[22px] leading-snug tracking-normal"
+                  : "text-[32px] tracking-wide",
+              )}
+            >
               {project.name}
             </h1>
             <span
@@ -390,7 +427,12 @@ export function ProjectWorkspaceHeader({
           <button
             type="button"
             onClick={onChat}
-            className="inline-flex h-10 items-center gap-1.5 rounded-[11px] bg-[hsl(var(--wine))] px-[18px] text-[13.5px] font-medium text-white hover:bg-[hsl(var(--wine-hover))]"
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-[11px] bg-[hsl(var(--wine))] font-medium text-white hover:bg-[hsl(var(--wine-hover))]",
+              dense
+                ? "h-9 px-3.5 text-[13px]"
+                : "h-10 px-[18px] text-[13.5px]",
+            )}
           >
             <MessageSquare className="h-3.5 w-3.5" strokeWidth={2} />
             进入对话
@@ -399,7 +441,12 @@ export function ProjectWorkspaceHeader({
       </div>
 
       {allChaptersBusy && allChaptersProgress ? (
-        <div className="mt-3.5 rounded-[12px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.85)] px-4 py-3">
+        <div
+          className={cn(
+            "rounded-[12px] border border-[rgba(78,66,57,0.1)] bg-[rgba(255,252,248,0.85)] px-4 py-3",
+            dense ? "mt-2" : "mt-3.5",
+          )}
+        >
           <div className="flex flex-wrap items-center justify-between gap-2 text-[12.5px]">
             <span className="font-medium text-[#1F2423]">
               更新全部章节 {allChaptersProgress.done}/{allChaptersProgress.total}
@@ -433,7 +480,12 @@ export function ProjectWorkspaceHeader({
         </div>
       ) : null}
 
-      <div className="mt-5 flex flex-wrap items-end justify-between gap-2 border-b border-[rgba(78,66,57,0.12)]">
+      <div
+        className={cn(
+          "flex flex-wrap items-end justify-between gap-2 border-b border-[rgba(78,66,57,0.12)]",
+          dense ? "mt-2" : "mt-5",
+        )}
+      >
         <div className="flex flex-wrap items-end gap-1">
           {tabs.map((t) => (
             <Link
@@ -441,7 +493,10 @@ export function ProjectWorkspaceHeader({
               to={t.to}
               state={location.state}
               className={cn(
-                "mb-[-1px] inline-flex h-[42px] items-end px-4 pb-2.5 text-sm leading-none transition-colors",
+                "mb-[-1px] inline-flex items-end leading-none transition-colors",
+                dense
+                  ? "h-[34px] px-3 pb-1.5 text-[13px]"
+                  : "h-[42px] px-4 pb-2.5 text-sm",
                 tab === t.id
                   ? "border-b-2 border-[hsl(var(--wine))] font-semibold text-[hsl(var(--wine))]"
                   : "border-b-2 border-transparent font-normal text-[hsl(var(--warm-charcoal-muted))] hover:text-[hsl(var(--warm-charcoal))]",
