@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type Dispatch,
+  type ReactNode,
   type SetStateAction,
 } from "react";
 import { createPortal } from "react-dom";
@@ -23,13 +24,18 @@ import {
   type ParseUiStatus,
 } from "@/lib/parse-ui-status";
 import {
+  Archive,
   ChevronDown,
+  Download,
   Eye,
   FileText,
   Folder,
+  FolderPlus,
   Loader2,
+  Pencil,
   RefreshCw,
   Search,
+  Trash2,
   Upload,
 } from "lucide-react";
 import { ChatMarkdown } from "@/components/workspace/ChatMarkdown";
@@ -466,6 +472,7 @@ export function ProjectMaterialsSection({
   const [pendingNote, setPendingNote] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [unzippingId, setUnzippingId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragOverPath, setDragOverPath] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => ({
@@ -899,6 +906,33 @@ export function ProjectMaterialsSection({
     }
   };
 
+  const onDownloadFile = async (file: ProjectFileRecord) => {
+    if (file.scope === "package" && !canDownload) {
+      setError("当前权限无法下载该文件（受限）");
+      return;
+    }
+    setDownloadingId(file.id);
+    setError(null);
+    try {
+      const { blob, filename } = await downloadFileBlob(
+        projectId,
+        file.id,
+        userId,
+        file.filename,
+      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename || file.filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   const onUnzipUploadedZip = async (file: ProjectFileRecord) => {
     if (!useLive || !canManage) return;
     if (!isZipRecord(file)) return;
@@ -1216,7 +1250,11 @@ export function ProjectMaterialsSection({
     }
   };
 
-  const busy = folderBusy || Boolean(deletingId) || Boolean(unzippingId);
+  const busy =
+    folderBusy ||
+    Boolean(deletingId) ||
+    Boolean(unzippingId) ||
+    Boolean(downloadingId);
 
   const canParseFile = useCallback(
     (file: ProjectFileRecord) => {
@@ -1740,59 +1778,117 @@ export function ProjectMaterialsSection({
                     </div>
                   )}
                 </div>
-                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                <div className="flex shrink-0 items-center justify-end gap-2">
                   {detail.isFile && detail.file ? (
-                    <button
-                      type="button"
-                      disabled={!detail.canPreview}
-                      onClick={() => openPreview(detail.file!.id)}
-                      className="inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-[rgba(160,99,88,0.3)] bg-transparent px-3 text-[12.5px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Eye className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden />
-                      预览
-                    </button>
-                  ) : null}
-                  {detail.canCreateSubfolder ? (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() =>
-                        void onCreateFolder(
-                          selection.kind === "folder" ? selection.path : "",
-                        )
-                      }
-                      className="h-8 rounded-lg border border-[rgba(160,99,88,0.3)] bg-transparent px-3 text-[12.5px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:opacity-50"
-                    >
-                      新建文件夹
-                    </button>
-                  ) : null}
-                  {detail.canDeleteFolder ? (
-                    <>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => {
-                          if (selection.kind === "folder") {
-                            void onRenameFolder(selection.path);
-                          }
-                        }}
-                        className="h-8 rounded-lg border border-[rgba(160,99,88,0.3)] bg-transparent px-3 text-[12.5px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:opacity-50"
+                    <div className="flex h-8 shrink-0 overflow-hidden rounded-lg border border-[rgba(160,99,88,0.28)]">
+                      <IconToolButton
+                        grouped
+                        label="预览"
+                        disabled={!detail.canPreview}
+                        onClick={() => openPreview(detail.file!.id)}
                       >
-                        重命名
-                      </button>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => {
-                          if (selection.kind === "folder") {
-                            void onDeleteFolder(selection.path);
+                        <Eye className="h-3.5 w-3.5" strokeWidth={1.8} />
+                      </IconToolButton>
+                      {detail.canPreview || canDownload ? (
+                        <IconToolButton
+                          grouped
+                          label="下载"
+                          disabled={downloadingId === detail.file.id}
+                          onClick={() => void onDownloadFile(detail.file!)}
+                        >
+                          {downloadingId === detail.file.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.8} />
+                          ) : (
+                            <Download className="h-3.5 w-3.5" strokeWidth={1.8} />
+                          )}
+                        </IconToolButton>
+                      ) : null}
+                      {canManage &&
+                      fileSourceBucket(detail.file) !== "issuer" &&
+                      isZipRecord(detail.file) ? (
+                        <IconToolButton
+                          grouped
+                          label={unzippingId === detail.file.id ? "解压中" : "解压"}
+                          disabled={busy}
+                          onClick={() => void onUnzipUploadedZip(detail.file!)}
+                        >
+                          {unzippingId === detail.file.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.8} />
+                          ) : (
+                            <Archive className="h-3.5 w-3.5" strokeWidth={1.8} />
+                          )}
+                        </IconToolButton>
+                      ) : null}
+                      {canManage && fileSourceBucket(detail.file) !== "issuer" ? (
+                        <>
+                          <IconToolButton
+                            grouped
+                            label="重命名"
+                            disabled={busy}
+                            onClick={() => void onRenameFile(detail.file!)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" strokeWidth={1.8} />
+                          </IconToolButton>
+                          <IconToolButton
+                            grouped
+                            danger
+                            label="删除"
+                            disabled={busy}
+                            onClick={() => void onDeleteFile(detail.file!)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />
+                          </IconToolButton>
+                        </>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {!detail.isFile &&
+                  (detail.canCreateSubfolder || detail.canDeleteFolder) ? (
+                    <div className="flex h-8 shrink-0 overflow-hidden rounded-lg border border-[rgba(160,99,88,0.28)]">
+                      {detail.canCreateSubfolder ? (
+                        <IconToolButton
+                          grouped
+                          label="新建文件夹"
+                          disabled={busy}
+                          onClick={() =>
+                            void onCreateFolder(
+                              selection.kind === "folder" ? selection.path : "",
+                            )
                           }
-                        }}
-                        className="h-8 rounded-lg border border-[rgba(78,66,57,0.16)] bg-transparent px-3 text-[12.5px] font-medium text-[hsl(var(--warm-charcoal-muted))] hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
-                      >
-                        删除文件夹
-                      </button>
-                    </>
+                        >
+                          <FolderPlus className="h-3.5 w-3.5" strokeWidth={1.8} />
+                        </IconToolButton>
+                      ) : null}
+                      {detail.canDeleteFolder ? (
+                        <>
+                          <IconToolButton
+                            grouped
+                            label="重命名"
+                            disabled={busy}
+                            onClick={() => {
+                              if (selection.kind === "folder") {
+                                void onRenameFolder(selection.path);
+                              }
+                            }}
+                          >
+                            <Pencil className="h-3.5 w-3.5" strokeWidth={1.8} />
+                          </IconToolButton>
+                          <IconToolButton
+                            grouped
+                            danger
+                            label="删除文件夹"
+                            disabled={busy}
+                            onClick={() => {
+                              if (selection.kind === "folder") {
+                                void onDeleteFolder(selection.path);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />
+                          </IconToolButton>
+                        </>
+                      ) : null}
+                    </div>
                   ) : null}
                   {useLive && canManage && detail.canUploadHere ? (
                     <UploadMenu
@@ -1808,39 +1904,6 @@ export function ProjectMaterialsSection({
                       }
                     />
                   ) : null}
-                  {detail.isFile &&
-                  detail.file &&
-                  canManage &&
-                  fileSourceBucket(detail.file) !== "issuer" ? (
-                    <>
-                      {isZipRecord(detail.file) ? (
-                        <button
-                          type="button"
-                          disabled={busy || unzippingId === detail.file.id}
-                          onClick={() => void onUnzipUploadedZip(detail.file!)}
-                          className="h-8 rounded-lg border border-[rgba(160,99,88,0.3)] bg-transparent px-3 text-[12.5px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:opacity-50"
-                        >
-                          {unzippingId === detail.file.id ? "解压中…" : "解压"}
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => void onRenameFile(detail.file!)}
-                        className="h-8 rounded-lg border border-[rgba(160,99,88,0.3)] bg-transparent px-3 text-[12.5px] font-medium text-[hsl(var(--wine))] hover:bg-[#EFE7E6] disabled:opacity-50"
-                      >
-                        重命名
-                      </button>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => void onDeleteFile(detail.file!)}
-                        className="h-8 rounded-lg border border-[rgba(78,66,57,0.16)] bg-transparent px-3 text-[12.5px] font-medium text-[hsl(var(--warm-charcoal-muted))] hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
-                      >
-                        删除
-                      </button>
-                    </>
-                  ) : null}
                   {detail.isFile && detail.file ? (
                     <button
                       type="button"
@@ -1850,7 +1913,7 @@ export function ProjectMaterialsSection({
                           filename: detail.file!.filename,
                         })
                       }
-                      className="h-8 rounded-lg bg-[hsl(var(--wine))] px-3 text-[12.5px] font-medium text-white hover:bg-[hsl(var(--wine-hover))]"
+                      className="h-8 rounded-lg bg-[hsl(var(--wine))] px-3 text-[13px] font-medium text-white hover:bg-[hsl(var(--wine-hover))]"
                     >
                       在对话中追问
                     </button>
@@ -1883,7 +1946,7 @@ export function ProjectMaterialsSection({
                       <div key={file.id} className="flex h-8 items-center gap-3">
                         <button
                           type="button"
-                          className="min-w-0 flex-1 truncate text-left text-[13px] text-[#1F2423] hover:text-[hsl(var(--wine))]"
+                          className="min-w-0 flex-1 truncate text-left text-[14px] text-[#1F2423] hover:text-[hsl(var(--wine))]"
                           onClick={() => selectFile(file)}
                           title={
                             humanUploadNote(file.uploadNote)
@@ -1920,7 +1983,7 @@ export function ProjectMaterialsSection({
               ) : null}
 
               {detail.isFile ? (
-                <div className="mt-5 text-sm leading-[1.9] text-[hsl(var(--warm-charcoal))]">
+                <div className="mt-5 text-[14px] leading-[1.85] text-[hsl(var(--warm-charcoal))]">
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <span
                       className="inline-flex h-6 shrink-0 items-center rounded-md px-2 text-[11.5px] font-medium"
@@ -1973,15 +2036,19 @@ export function ProjectMaterialsSection({
                     ) : null}
                   </div>
                   {detail.documentType ? (
-                    <div className="mb-2 break-words text-[13px] font-medium leading-snug text-[#1F2423]">
+                    <div className="mb-2 break-words text-[14px] font-medium leading-snug text-[#1F2423]">
                       {detail.documentType}
                     </div>
                   ) : null}
                   {detail.summary.trim() ? (
                     <>
-                      <ChatMarkdown text={detail.summary} variant="assistant" />
+                      <ChatMarkdown
+                        text={detail.summary}
+                        variant="assistant"
+                        className="text-[14px] leading-[1.85]"
+                      />
                       {detail.keyPoints.length > 0 ? (
-                        <ul className="mt-3 list-disc space-y-1 pl-5 text-[13px] leading-relaxed text-[hsl(var(--warm-charcoal))]">
+                        <ul className="mt-3 list-disc space-y-1 pl-5 text-[14px] leading-relaxed text-[hsl(var(--warm-charcoal))]">
                           {detail.keyPoints.map((p, i) => (
                             <li key={`${i}-${p.slice(0, 24)}`}>{p}</li>
                           ))}
@@ -1995,7 +2062,7 @@ export function ProjectMaterialsSection({
               ) : null}
 
               {detail.isFile && detail.srcLines.length > 0 ? (
-                <div className="mt-[22px] flex flex-col gap-1.5 text-[13px] leading-snug">
+                <div className="mt-[22px] flex flex-col gap-1.5 text-[14px] leading-snug">
                   {detail.srcLines.map((row) => (
                     <div key={row.label} className="flex gap-2">
                       <span className="w-11 shrink-0 text-[hsl(var(--warm-charcoal-muted))]">
@@ -2223,6 +2290,47 @@ function UploadNoteDialog({
   );
 }
 
+function IconToolButton({
+  label,
+  onClick,
+  disabled,
+  danger,
+  grouped,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  danger?: boolean;
+  grouped?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "inline-flex h-8 w-8 shrink-0 items-center justify-center transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+        grouped
+          ? "border-r border-[rgba(160,99,88,0.16)] last:border-r-0"
+          : "rounded-lg border",
+        danger
+          ? "text-[hsl(var(--warm-charcoal-muted))] hover:bg-rose-50 hover:text-rose-700"
+          : "text-[hsl(var(--wine))] hover:bg-[#EFE7E6]",
+        !grouped &&
+          (danger
+            ? "border-[rgba(78,66,57,0.16)]"
+            : "border-[rgba(160,99,88,0.3)]"),
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 function UploadMenu({
   disabled,
   uploading,
@@ -2392,7 +2500,7 @@ function TreeRow({
         <FileText className="h-[15px] w-[15px] shrink-0 opacity-70" strokeWidth={1.8} />
         <span
           className={cn(
-            "min-w-0 flex-1 truncate text-[13px]",
+            "min-w-0 flex-1 truncate text-[14px]",
             selected ? "font-medium" : "font-normal",
           )}
         >
@@ -2462,7 +2570,7 @@ function TreeRow({
           {node.children.length > 0 ? (open ? "▾" : "▸") : ""}
         </span>
         <Folder className="h-[15px] w-[15px] shrink-0 text-[hsl(var(--wine))]" strokeWidth={1.8} />
-        <span className="min-w-0 flex-1 truncate text-[13px] font-medium" title={node.name}>
+        <span className="min-w-0 flex-1 truncate text-[14px] font-medium" title={node.name}>
           {node.name}
         </span>
       </div>

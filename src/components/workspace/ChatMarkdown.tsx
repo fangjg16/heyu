@@ -91,6 +91,7 @@ function TableCellContent({ children, userVariant }: { children: React.ReactNode
 type ChatMarkdownProps = {
   text: string;
   variant: "assistant" | "user";
+  className?: string;
 };
 
 type CitationTipPlacementX = "center" | "left" | "right";
@@ -188,7 +189,7 @@ function CitationMarker({
   );
 }
 
-export function ChatMarkdown({ text, variant }: ChatMarkdownProps) {
+export function ChatMarkdown({ text, variant, className }: ChatMarkdownProps) {
   const u = variant === "user";
   const components: Components = {
     p: ({ children }) => (
@@ -391,6 +392,7 @@ export function ChatMarkdown({ text, variant }: ChatMarkdownProps) {
     <div
       className={cn(
         "chat-markdown min-w-0 max-w-full break-words text-[13px] leading-relaxed",
+        className,
         u
           ? "text-wine-deep-foreground selection:bg-[hsl(var(--wine-muted))] selection:text-[hsl(var(--warm-charcoal))]"
           : "text-foreground selection:bg-[hsl(var(--wine-deep)/0.14)] selection:text-foreground",

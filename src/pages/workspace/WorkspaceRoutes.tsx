@@ -998,12 +998,7 @@ function ProjectWorkspaceLayout() {
         />
 
         {overviewError ? (
-          <div
-            className={cn(
-              "mx-auto w-full max-w-[1600px] shrink-0 px-8 md:px-10",
-              materialsTab ? "pt-2" : "pt-3",
-            )}
-          >
+          <div className="mx-auto w-full max-w-[1600px] shrink-0 px-8 pt-3 md:px-10">
             <p className="rounded-xl border border-[rgba(160,99,88,0.25)] bg-[rgba(160,99,88,0.06)] px-3.5 py-2 text-[12.5px] text-[#A06358]">
               {overviewError}
             </p>
@@ -1015,12 +1010,7 @@ function ProjectWorkspaceLayout() {
           allChaptersProgress?.phase === "done" &&
           !draftDialogOpen) ||
         (persistedActiveRunId && !draftDialogOpen) ? (
-          <div
-            className={cn(
-              "mx-auto w-full max-w-[1600px] shrink-0 px-8 md:px-10",
-              materialsTab ? "pt-2" : "pt-3",
-            )}
-          >
+          <div className="mx-auto w-full max-w-[1600px] shrink-0 px-8 pt-3 md:px-10">
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[rgba(94,155,117,0.28)] bg-[rgba(94,155,117,0.08)] px-3.5 py-1.5 text-[12.5px] text-[#2F6B4F]">
               <p>
                 {allChaptersNotice ??
@@ -1045,7 +1035,7 @@ function ProjectWorkspaceLayout() {
           className={cn(
             "mx-auto w-full max-w-[1600px] px-8 md:px-10",
             materialsTab
-              ? "flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden py-2.5"
+              ? "flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden py-4"
               : "py-6 pb-12",
           )}
         >
