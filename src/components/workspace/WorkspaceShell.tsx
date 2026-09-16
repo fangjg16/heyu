@@ -20,7 +20,7 @@ export function WorkspaceShell({
   return (
     <div
       className={cn(
-        "workspace-paper-bg flex h-[100dvh] min-h-0 overflow-hidden",
+        "workspace-paper-bg workspace-density flex min-h-0 overflow-hidden",
         shellClassName
       )}
     >

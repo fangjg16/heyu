@@ -270,7 +270,7 @@ export function ProjectWorkspaceHeader({
   const backLabel = chatReturnPath ? "← 返回对话" : "← 返回项目列表";
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] shrink-0 px-8 pt-4 md:px-10">
+    <div className="mx-auto w-full max-w-[1600px] shrink-0 px-8 pt-6 md:px-10">
       <button
         type="button"
         onClick={goBack}
@@ -279,7 +279,7 @@ export function ProjectWorkspaceHeader({
         {backLabel}
       </button>
       <div className="flex items-center gap-x-3 overflow-x-auto">
-        <h1 className="min-w-[20rem] shrink font-display text-[20px] font-semibold leading-snug text-[hsl(var(--warm-charcoal))]">
+        <h1 className="min-w-0 shrink font-display text-[32px] font-semibold leading-snug tracking-wide text-[hsl(var(--warm-charcoal))]">
           {project.name}
         </h1>
         <div className="flex shrink-0 flex-nowrap items-center gap-2">

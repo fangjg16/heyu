@@ -509,3 +509,22 @@ a.kn-cite:hover {
   text-decoration: underline !important;
   color: #8f564c !important;
 }
+
+/**
+ * 工作台整体密度：接近笔记本浏览器 75% 的观感（略宽于 75%，正文不那么小）。
+ * 顶栏、侧栏、概览、知识网络、源文件同一套比例。
+ */
+.workspace-density {
+  --workspace-density: 0.8;
+  zoom: var(--workspace-density);
+  height: calc(100dvh / var(--workspace-density));
+  min-height: calc(100dvh / var(--workspace-density));
+}
+
+@supports not (zoom: 1) {
+  .workspace-density {
+    transform: scale(var(--workspace-density));
+    transform-origin: 0 0;
+    width: calc(100% / var(--workspace-density));
+  }
+}
