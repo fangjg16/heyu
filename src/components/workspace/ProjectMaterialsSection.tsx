@@ -492,8 +492,6 @@ export function ProjectMaterialsSection({
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [sharingFolder, setSharingFolder] = useState(false);
   const [query, setQuery] = useState("");
-  const [kindFilter, setKindFilter] = useState<FileKindFilter>("all");
-  const [parseFilter, setParseFilter] = useState<ParseFilter>("all");
   const [previewFileId, setPreviewFileId] = useState<string | null>(null);
   const [parsedById, setParsedById] = useState<Record<string, ParseCacheEntry>>(
     {},
@@ -566,15 +564,8 @@ export function ProjectMaterialsSection({
 
   const tree = useMemo(
     () =>
-      filterTree(
-        fullTree,
-        query,
-        kindFilter,
-        parseFilter,
-        parsedById,
-        parsingId,
-      ),
-    [fullTree, query, kindFilter, parseFilter, parsedById, parsingId],
+      filterTree(fullTree, query, "all", "all", parsedById, parsingId),
+    [fullTree, query, parsedById, parsingId],
   );
 
   const selectedFolder = useMemo(() => {
@@ -1607,46 +1598,6 @@ export function ProjectMaterialsSection({
         源文件
       </h3>
 
-          <div className="mb-2 flex shrink-0 flex-wrap items-center gap-2">
-            <label className="flex h-9 w-[260px] max-w-full items-center gap-2 rounded-[10px] border border-[rgba(78,66,57,0.14)] bg-[rgba(255,252,248,0.8)] px-3.5 text-[13px] text-[hsl(var(--warm-charcoal-muted))]">
-              <Search className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="搜索源文件"
-                className="min-w-0 flex-1 bg-transparent text-[13px] text-[hsl(var(--warm-charcoal))] outline-none placeholder:text-[#969E9A]"
-              />
-            </label>
-            <select
-              value={kindFilter}
-              onChange={(e) => setKindFilter(e.target.value as FileKindFilter)}
-              className="h-9 rounded-[10px] border border-[rgba(78,66,57,0.14)] bg-[rgba(255,252,248,0.6)] px-3 text-[12.5px] text-[hsl(var(--warm-charcoal-muted))] outline-none"
-            >
-              <option value="all">全部类型</option>
-              <option value="pdf">PDF</option>
-              <option value="text">文本</option>
-              <option value="other">其他</option>
-            </select>
-            <select
-              value={parseFilter}
-              onChange={(e) => setParseFilter(e.target.value as ParseFilter)}
-              className="h-9 rounded-[10px] border border-[rgba(78,66,57,0.14)] bg-[rgba(255,252,248,0.6)] px-3 text-[12.5px] text-[hsl(var(--warm-charcoal-muted))] outline-none"
-            >
-              <option value="all">解析状态</option>
-              <option value="parsed">已解析</option>
-              <option value="unparsed">未解析</option>
-            </select>
-            <div className="flex-1" />
-            {useLive && canManage ? (
-              <UploadMenu
-                disabled={folderBusy}
-                uploading={uploading}
-                onSelectFiles={() => triggerFilePicker(PROJECT_SOURCE_PATH)}
-                onSelectFolder={() => triggerFolderPicker(PROJECT_SOURCE_PATH)}
-              />
-            ) : null}
-          </div>
-
           {loading ? (
             <p className="mb-3 flex shrink-0 items-center gap-2 text-[12px] text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -1682,7 +1633,27 @@ export function ProjectMaterialsSection({
                 dragOverPath === "" && "ring-1 ring-[hsl(var(--wine)/0.35)]",
               )}
             >
-              <div className="shrink-0 px-1 pb-2">
+              <div className="shrink-0 space-y-2 px-0.5 pb-2">
+                <div className="flex items-center gap-1.5">
+                  <label className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-lg bg-[rgba(78,66,57,0.055)] px-2.5 text-[12.5px] text-[hsl(var(--warm-charcoal-muted))]">
+                    <Search className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
+                    <input
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="搜索"
+                      className="min-w-0 flex-1 bg-transparent text-[12.5px] text-[hsl(var(--warm-charcoal))] outline-none placeholder:text-[#969E9A]"
+                    />
+                  </label>
+                  {useLive && canManage ? (
+                    <UploadMenu
+                      quiet
+                      disabled={folderBusy}
+                      uploading={uploading}
+                      onSelectFiles={() => triggerFilePicker(PROJECT_SOURCE_PATH)}
+                      onSelectFolder={() => triggerFolderPicker(PROJECT_SOURCE_PATH)}
+                    />
+                  ) : null}
+                </div>
                 <div className="grid grid-cols-2 rounded-[10px] bg-[rgba(78,66,57,0.06)] p-0.5 text-[12px]">
                     <button
                       type="button"
@@ -1780,9 +1751,8 @@ export function ProjectMaterialsSection({
                 </div>
                 <div className="flex shrink-0 items-center justify-end gap-2">
                   {detail.isFile && detail.file ? (
-                    <div className="flex h-8 shrink-0 overflow-hidden rounded-lg border border-[rgba(160,99,88,0.28)]">
+                    <div className="flex shrink-0 items-center gap-0.5">
                       <IconToolButton
-                        grouped
                         label="在对话中追问"
                         onClick={() =>
                           openChatAskAboutFile(projectId, {
@@ -1794,7 +1764,6 @@ export function ProjectMaterialsSection({
                         <MessageSquare className="h-3.5 w-3.5" strokeWidth={1.8} />
                       </IconToolButton>
                       <IconToolButton
-                        grouped
                         label="预览"
                         disabled={!detail.canPreview}
                         onClick={() => openPreview(detail.file!.id)}
@@ -1803,7 +1772,6 @@ export function ProjectMaterialsSection({
                       </IconToolButton>
                       {detail.canPreview || canDownload ? (
                         <IconToolButton
-                          grouped
                           label="下载"
                           disabled={downloadingId === detail.file.id}
                           onClick={() => void onDownloadFile(detail.file!)}
@@ -1819,7 +1787,6 @@ export function ProjectMaterialsSection({
                       fileSourceBucket(detail.file) !== "issuer" &&
                       isZipRecord(detail.file) ? (
                         <IconToolButton
-                          grouped
                           label={unzippingId === detail.file.id ? "解压中" : "解压"}
                           disabled={busy}
                           onClick={() => void onUnzipUploadedZip(detail.file!)}
@@ -1834,7 +1801,6 @@ export function ProjectMaterialsSection({
                       {canManage && fileSourceBucket(detail.file) !== "issuer" ? (
                         <>
                           <IconToolButton
-                            grouped
                             label="重命名"
                             disabled={busy}
                             onClick={() => void onRenameFile(detail.file!)}
@@ -1842,7 +1808,6 @@ export function ProjectMaterialsSection({
                             <Pencil className="h-3.5 w-3.5" strokeWidth={1.8} />
                           </IconToolButton>
                           <IconToolButton
-                            grouped
                             danger
                             label="删除"
                             disabled={busy}
@@ -1856,10 +1821,9 @@ export function ProjectMaterialsSection({
                   ) : null}
                   {!detail.isFile &&
                   (detail.canCreateSubfolder || detail.canDeleteFolder) ? (
-                    <div className="flex h-8 shrink-0 overflow-hidden rounded-lg border border-[rgba(160,99,88,0.28)]">
+                    <div className="flex shrink-0 items-center gap-0.5">
                       {detail.canCreateSubfolder ? (
                         <IconToolButton
-                          grouped
                           label="新建文件夹"
                           disabled={busy}
                           onClick={() =>
@@ -1874,7 +1838,6 @@ export function ProjectMaterialsSection({
                       {detail.canDeleteFolder ? (
                         <>
                           <IconToolButton
-                            grouped
                             label="重命名"
                             disabled={busy}
                             onClick={() => {
@@ -1886,7 +1849,6 @@ export function ProjectMaterialsSection({
                             <Pencil className="h-3.5 w-3.5" strokeWidth={1.8} />
                           </IconToolButton>
                           <IconToolButton
-                            grouped
                             danger
                             label="删除文件夹"
                             disabled={busy}
@@ -1904,7 +1866,7 @@ export function ProjectMaterialsSection({
                   ) : null}
                   {useLive && canManage && detail.canUploadHere ? (
                     <UploadMenu
-                      compact
+                      quiet
                       disabled={folderBusy}
                       uploading={uploading}
                       label="上传到此"
@@ -2293,14 +2255,12 @@ function IconToolButton({
   onClick,
   disabled,
   danger,
-  grouped,
   children,
 }: {
   label: string;
   onClick: () => void;
   disabled?: boolean;
   danger?: boolean;
-  grouped?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -2311,17 +2271,10 @@ function IconToolButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "inline-flex h-8 w-8 shrink-0 items-center justify-center transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-        grouped
-          ? "border-r border-[rgba(160,99,88,0.16)] last:border-r-0"
-          : "rounded-lg border",
+        "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-40",
         danger
-          ? "text-[hsl(var(--warm-charcoal-muted))] hover:bg-rose-50 hover:text-rose-700"
-          : "text-[hsl(var(--wine))] hover:bg-[#EFE7E6]",
-        !grouped &&
-          (danger
-            ? "border-[rgba(78,66,57,0.16)]"
-            : "border-[rgba(160,99,88,0.3)]"),
+          ? "text-[#8A8178] hover:bg-rose-50 hover:text-rose-700"
+          : "text-[#8A8178] hover:bg-[rgba(78,66,57,0.06)] hover:text-[hsl(var(--wine))]",
       )}
     >
       {children}
@@ -2333,6 +2286,7 @@ function UploadMenu({
   disabled,
   uploading,
   compact,
+  quiet,
   label = "上传资料",
   onSelectFiles,
   onSelectFolder,
@@ -2340,6 +2294,7 @@ function UploadMenu({
   disabled?: boolean;
   uploading?: boolean;
   compact?: boolean;
+  quiet?: boolean;
   label?: string;
   onSelectFiles: () => void;
   onSelectFolder: () => void;
@@ -2365,10 +2320,12 @@ function UploadMenu({
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--wine))] font-medium text-white hover:bg-[hsl(var(--wine-hover))]",
-          compact
-            ? "h-8 px-3 text-[12.5px]"
-            : "h-9 rounded-[10px] px-3.5 text-[12.5px]",
+          "inline-flex items-center gap-1 font-medium",
+          quiet
+            ? "h-8 shrink-0 rounded-lg px-2 text-[12.5px] text-[hsl(var(--wine))] hover:bg-[hsl(var(--wine)/0.08)]"
+            : compact
+              ? "h-8 rounded-lg bg-[hsl(var(--wine))] px-3 text-[12.5px] text-white hover:bg-[hsl(var(--wine-hover))]"
+              : "h-9 rounded-[10px] bg-[hsl(var(--wine))] px-3.5 text-[12.5px] text-white hover:bg-[hsl(var(--wine-hover))]",
           disabled && "pointer-events-none opacity-60",
         )}
         aria-expanded={open}

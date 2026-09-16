@@ -278,12 +278,11 @@ export function ProjectWorkspaceHeader({
       >
         {backLabel}
       </button>
-      <div className="flex items-start gap-x-4">
-        <div className="min-w-0 flex-1">
-          <h1 className="font-display text-[22px] font-semibold leading-snug tracking-tight text-[hsl(var(--warm-charcoal))]">
-            {project.name}
-          </h1>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+      <div className="flex items-center gap-x-3">
+        <h1 className="min-w-0 shrink font-display text-[22px] font-semibold leading-snug tracking-tight text-[hsl(var(--warm-charcoal))]">
+          {project.name}
+        </h1>
+        <div className="flex shrink-0 flex-wrap items-center gap-x-1.5 gap-y-1">
             <span
               className="rounded-full px-2.5 py-0.5 text-[12px] font-medium"
               style={{ background: judgment.bg, color: judgment.fg }}
@@ -332,9 +331,9 @@ export function ProjectWorkspaceHeader({
             {pipelineError ? (
               <span className="text-[12px] text-[#A06358]">{pipelineError}</span>
             ) : null}
-          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-3 pt-0.5">
+        <div className="min-w-2 flex-1" />
+        <div className="flex shrink-0 items-center gap-3">
           {avatarChips.length > 0 ? (
             canManage ? (
               <button
