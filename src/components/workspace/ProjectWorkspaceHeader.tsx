@@ -278,11 +278,8 @@ export function ProjectWorkspaceHeader({
       >
         {backLabel}
       </button>
-      <div className="flex items-center gap-3 overflow-x-auto">
-        <h1
-          className="min-w-[8rem] shrink truncate font-display text-[24px] font-semibold leading-tight tracking-normal text-[hsl(var(--warm-charcoal))]"
-          title={project.name}
-        >
+      <div className="flex items-center gap-x-3">
+        <h1 className="min-w-0 shrink font-display text-[20px] font-semibold leading-snug text-[hsl(var(--warm-charcoal))]">
           {project.name}
         </h1>
         <div className="flex shrink-0 flex-nowrap items-center gap-2">
