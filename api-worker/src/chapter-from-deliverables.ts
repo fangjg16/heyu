@@ -4,7 +4,6 @@ import { readCurrentMarkdownAtPath } from "./ai-generated-documents";
 import { AI_GENERATED_ROOT } from "./ai-generated-path";
 import {
   capitallensKnSources,
-  DILIGENCE_SIGNAL_FILE_IDS,
   resolveKnWorkstream,
   sliceDeliverableForKn,
   type KnWorkstream,
@@ -21,7 +20,6 @@ import {
   extractNumberedMarkdownChapter,
 } from "./kn-md-headings";
 import {
-  markdownHasBody,
   renderDeliverableChapterHtml,
 } from "./kn-md-render";
 import type { AnalysisKind } from "./analysis-kind";
@@ -56,19 +54,6 @@ async function readDeliverableMarkdown(
   return "";
 }
 
-async function projectHasDiligenceBody(
-  env: Env,
-  projectId: string,
-): Promise<boolean> {
-  for (const id of DILIGENCE_SIGNAL_FILE_IDS) {
-    const file = deliverableById("mature", id);
-    if (!file) continue;
-    const raw = await readDeliverableMarkdown(env, projectId, file);
-    if (markdownHasBody(raw)) return true;
-  }
-  return false;
-}
-
 export async function resolveProjectKnWorkstream(
   env: Env,
   projectId: string,
@@ -76,10 +61,8 @@ export async function resolveProjectKnWorkstream(
 ): Promise<KnWorkstream | undefined> {
   if (kind !== "mature") return undefined;
   const project = await getProjectById(env, projectId).catch(() => null);
-  const hasDiligenceBody = await projectHasDiligenceBody(env, projectId);
   return resolveKnWorkstream({
     pipelineStage: project?.pipelineStage ?? null,
-    hasDiligenceBody,
   });
 }
 

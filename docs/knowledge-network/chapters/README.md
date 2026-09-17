@@ -19,7 +19,7 @@ npm run seed:kn-chapter-templates -- --force
 
 ## 投资（mature）
 
-筛选和尽调共用七个一级目录，但**按阶段换底稿**，不把 screening-memo 和 investment-analysis-report 叠进每一章。结论写在 1.1（筛选备忘录 / 尽调报告里，不另建评分底稿）。表内子节是必有内容，不是白名单——专章底稿整份进入。深度用工件状态 `indicative` / `working` / `diligence-adjusted` 区分。Agent 建议不改项目流水线。
+筛选和尽调共用七个一级目录，但**按项目流水线阶段换底稿**，不把 screening-memo 和 investment-analysis-report 叠进每一章。阶段仍是筛选时，资料包里即使已有尽调文件也不改装配。结论写在 1.1（筛选备忘录 / 尽调报告里，不另建评分底稿）。表内子节是必有内容，不是白名单——专章底稿整份进入。深度用工件状态 `indicative` / `working` / `diligence-adjusted` 区分。Agent 建议不改项目流水线。
 
 | 章 | 筛选 | 尽调 |
 |----|------|------|

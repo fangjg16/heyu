@@ -29,19 +29,12 @@ function memoChapter(
   return { fileId: MEMO, numberedChapter: n, headings };
 }
 
+/** 尽调流水线阶段。筛选/准入/不投都按筛选装配，不因资料包里已有尽调文件就抢跑。 */
 export const DILIGENCE_PIPELINE_STAGES: readonly PipelineStage[] = [
   "due-diligence",
   "ic-review",
   "invested",
 ];
-
-/** 平台阶段仍停在筛选、但资料包已有尽调正文时，按尽调装配。 */
-export const DILIGENCE_SIGNAL_FILE_IDS = [
-  "industry-due-diligence",
-  "business-due-diligence",
-  "financial-due-diligence",
-  "investment-analysis-report",
-] as const;
 
 export const SCREENING_KN_SOURCES: Readonly<
   Record<string, readonly KnSourceSpec[]>
@@ -121,7 +114,6 @@ export function capitallensKnSources(
 
 export function resolveKnWorkstream(input: {
   pipelineStage?: PipelineStage | null;
-  hasDiligenceBody?: boolean;
 }): KnWorkstream {
   const stage = input.pipelineStage ?? null;
   if (
@@ -130,7 +122,6 @@ export function resolveKnWorkstream(input: {
   ) {
     return "diligence";
   }
-  if (input.hasDiligenceBody) return "diligence";
   return "screening";
 }
 

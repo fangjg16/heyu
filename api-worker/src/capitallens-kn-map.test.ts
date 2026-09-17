@@ -58,7 +58,7 @@ const BUSINESS = `# 商业尽调
 `;
 
 describe("capitallens kn map", () => {
-  it("treats due-diligence pipeline as diligence even without extra files", () => {
+  it("follows pipeline stage and does not upgrade screening when diligence files exist", () => {
     expect(
       resolveKnWorkstream({ pipelineStage: "due-diligence" }),
     ).toBe("diligence");
@@ -66,11 +66,11 @@ describe("capitallens kn map", () => {
       resolveKnWorkstream({ pipelineStage: "deal-screening" }),
     ).toBe("screening");
     expect(
-      resolveKnWorkstream({
-        pipelineStage: "deal-screening",
-        hasDiligenceBody: true,
-      }),
-    ).toBe("diligence");
+      resolveKnWorkstream({ pipelineStage: "inbound" }),
+    ).toBe("screening");
+    expect(
+      resolveKnWorkstream({ pipelineStage: "passed" }),
+    ).toBe("screening");
   });
 
   it("does not put the screening memo into diligence industry, or the report into every chapter", () => {
