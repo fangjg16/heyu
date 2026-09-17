@@ -3225,6 +3225,38 @@
   color: hsl(var(--wine));
 }
 
+.kn-cap__levels {
+  --cols: 1;
+  min-width: max-content;
+  width: 100%;
+}
+
+.kn-cap__level {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(6.4rem, 1fr));
+  justify-items: center;
+  align-items: start;
+}
+
+.kn-cap__cell {
+  display: flex;
+  justify-content: center;
+  padding: 0 0.35rem;
+}
+
+.kn-cap__wires {
+  display: block;
+  width: 100%;
+  height: 28px;
+  color: hsl(var(--border));
+}
+
+.kn-cap__wires line {
+  stroke: currentColor;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
 .kn-cap__tree,
 .kn-cap__branch,
 .kn-cap__kids {
@@ -3244,29 +3276,9 @@
   position: relative;
 }
 
-.kn-cap__kids::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 12%;
-  right: 12%;
-  height: 1px;
-  background: hsl(var(--border));
-}
-
 .kn-cap__branch {
   position: relative;
   min-width: 6.5rem;
-}
-
-.kn-cap__kids > .kn-cap__branch::before {
-  content: "";
-  position: absolute;
-  top: -0.85rem;
-  left: 50%;
-  width: 1px;
-  height: 0.85rem;
-  background: hsl(var(--border));
 }
 
 .kn-cap__node {
@@ -3312,16 +3324,6 @@
   .kn-decision__row {
     grid-template-columns: 1fr;
     gap: 0.2rem;
-  }
-
-  .kn-cap__kids::before,
-  .kn-cap__kids > .kn-cap__branch::before {
-    display: none;
-  }
-
-  .kn-cap__kids {
-    flex-direction: column;
-    padding-top: 0.4rem;
   }
 
   .kn-stats,

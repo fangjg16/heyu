@@ -102,6 +102,7 @@ describe("deliverable-catalog", () => {
       deliverableDraftId("screening-memo"),
       deliverableDraftId("business-due-diligence"),
       deliverableDraftId("background-check"),
+      deliverableDraftId("company-team-qcc"),
       deliverableDraftId("investment-analysis-report"),
       "company-team",
     ]);

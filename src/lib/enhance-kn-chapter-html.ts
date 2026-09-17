@@ -3,6 +3,7 @@ import {
   isConclusionHeading,
   localizeKnStatusText,
   looksLikeCapTable,
+  mermaidFlowHtml,
   splitConclusionSection,
 } from "./kn-structure";
 
@@ -569,6 +570,17 @@ function hoistLaterDeliverables(root: Element): void {
 }
 
 function wrapCapTables(root: Element, doc: Document): void {
+  for (const el of [...root.querySelectorAll("pre")]) {
+    if (!el.isConnected || alreadyEnhanced(el)) continue;
+    const text = knPlain(el.textContent ?? "");
+    const html = mermaidFlowHtml(text);
+    if (!html) continue;
+    const wrap = doc.createElement("div");
+    wrap.innerHTML = html;
+    const nodes = [...wrap.children];
+    if (nodes.length === 1) el.replaceWith(nodes[0]!);
+    else if (nodes.length > 1) el.replaceWith(...nodes);
+  }
   for (const el of [...root.querySelectorAll("p")]) {
     if (!el.isConnected || alreadyEnhanced(el)) continue;
     if (el.querySelector("ul,ol,table,p,div")) continue;

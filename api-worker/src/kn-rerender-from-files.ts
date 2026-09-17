@@ -1,13 +1,13 @@
 /**
- * 用资料包里已有分析重新渲知识网络研究章：不重写文件、不跑概览。
- * 有待审核草案时重排当前草案；没有时新建一份待审核草案。
+ * 用资料包里已有分析重新渲知识网络章节：不重写文件、不跑大模型。
+ * 有对应资料包文件的章（含项目概览）都会按文件重排。
  */
 import type { AnalysisKind } from "./analysis-kind";
 import { knSectionRendersFromFiles } from "./chapter-from-deliverables";
 import { fullDraftSectionIds } from "./kn-catalog";
 
 export function knSectionsToRerenderFromFiles(kind: AnalysisKind): string[] {
-  return fullDraftSectionIds(kind).filter(
-    (id) => id !== "project-overview" && knSectionRendersFromFiles(kind, id),
+  return fullDraftSectionIds(kind).filter((id) =>
+    knSectionRendersFromFiles(kind, id),
   );
 }

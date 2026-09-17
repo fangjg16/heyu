@@ -14,6 +14,7 @@ import {
   capTableHtml,
   isConclusionHeading,
   looksLikeCapTable,
+  mermaidFlowHtml,
   splitConclusionSection,
 } from "./kn-md-structure";
 import {
@@ -1893,6 +1894,7 @@ function markdownToKnHtmlInner(src: string): string {
     if (trimmed.startsWith("```")) {
       flushPara();
       flushList();
+      const fenceLang = trimmed.slice(3).trim().toLowerCase();
       i += 1;
       const code: string[] = [];
       while (i < lines.length && !(lines[i] ?? "").trim().startsWith("```")) {
@@ -1900,6 +1902,13 @@ function markdownToKnHtmlInner(src: string): string {
         i += 1;
       }
       if (i < lines.length) i += 1;
+      if (fenceLang === "mermaid") {
+        const chart = mermaidFlowHtml(code.join("\n"));
+        if (chart) {
+          out.push(chart);
+          continue;
+        }
+      }
       out.push(
         `<pre class="kn-pre"><code>${escapeHtml(code.join("\n"))}</code></pre>`,
       );
@@ -2078,6 +2087,20 @@ function markdownToKnHtmlInner(src: string): string {
   return html;
 }
 
+function isStandaloneDeliverable(file: {
+  title: string;
+  markdown: string;
+}): boolean {
+  const first = (file.markdown.trim().match(/^[^\n]+/u)?.[0] ?? "").trim();
+  if (!/^#\s+(?!#)/u.test(first)) return false;
+  const bare = first
+    .replace(/^#\s+/u, "")
+    .replace(/^\d+(?:\.\d+)*[.)．、]?\s*/u, "")
+    .trim();
+  if (!bare) return false;
+  return bare.includes(file.title) || file.title.includes(bare);
+}
+
 export function renderDeliverableChapterHtml(
   files: { title: string; markdown: string; id?: string; phase?: number }[],
 ): string {
@@ -2088,6 +2111,10 @@ export function renderDeliverableChapterHtml(
   const ranked = [...nonempty].sort(
     (a, b) => (b.phase ?? 0) - (a.phase ?? 0),
   );
+  const standalone = ranked.find((f) => isStandaloneDeliverable(f));
+  if (standalone) {
+    return markdownToKnHtml(standalone.markdown, standalone.id);
+  }
   if (ranked.length === 1) {
     return markdownToKnHtml(ranked[0]!.markdown, ranked[0]!.id);
   }

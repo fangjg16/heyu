@@ -126,6 +126,8 @@ export function localizeKnStatusText(s: string): string {
 const CAP_CLAUSE =
   /(?:^|[。；;]\s*)([^。；;：:]{1,24})[:：]\s*([^。；;]+?\d+(?:\.\d+)?\s*%[^。；;]*)/gu;
 
+type CapNode = { name: string; pct: string | null; children: CapNode[] };
+
 function parseHolders(blob: string): Holding[] {
   const out: Holding[] = [];
   const re = /([^、，,]+?)(\d+(?:\.\d+)?)\s*%/gu;
@@ -164,6 +166,52 @@ export function looksLikeCapTable(text: string): boolean {
   return parseCapTable(text) != null;
 }
 
+export function looksLikeMermaidFlow(text: string): boolean {
+  return /^\s*flowchart\s+(?:TD|TB|LR|RL)?/imu.test(text) && /-->\|/.test(text);
+}
+
+function edgePct(label: string): string {
+  const m = /(\d+(?:\.\d+)?)\s*%/u.exec(label);
+  return m ? `${m[1]}%` : label.trim();
+}
+
+export function parseMermaidCapEntities(code: string): CapEntity[] | null {
+  if (!looksLikeMermaidFlow(code)) return null;
+  const labels = new Map<string, string>();
+  const nodeRe = /([A-Za-z][\w]*)\[([^\]]+)\]/gu;
+  let nm: RegExpExecArray | null;
+  while ((nm = nodeRe.exec(code))) {
+    labels.set(nm[1] ?? "", (nm[2] ?? "").trim());
+  }
+  const byTarget = new Map<string, Holding[]>();
+  const edgeRe =
+    /([A-Za-z][\w]*)(?:\[[^\]]+\])?\s*-->\|([^|]+)\|\s*([A-Za-z][\w]*)(?:\[[^\]]+\])?/gu;
+  let m: RegExpExecArray | null;
+  while ((m = edgeRe.exec(code))) {
+    const fromId = m[1] ?? "";
+    const toId = m[3] ?? "";
+    const pct = edgePct(m[2] ?? "");
+    if (!fromId || !toId) continue;
+    const fromName = labels.get(fromId) ?? fromId;
+    const toName = labels.get(toId) ?? toId;
+    labels.set(fromId, fromName);
+    labels.set(toId, toName);
+    const holders = byTarget.get(toId) ?? [];
+    if (!holders.some((h) => h.name === fromName)) {
+      holders.push({ name: fromName, pct });
+    }
+    byTarget.set(toId, holders);
+  }
+  const entities: CapEntity[] = [];
+  for (const [id, holders] of byTarget) {
+    const name = labels.get(id) ?? id;
+    if (!name || holders.length < 1) continue;
+    entities.push({ name, holders });
+  }
+  if (entities.length < 2) return null;
+  return entities;
+}
+
 function resolveEntity(name: string, entities: CapEntity[]): CapEntity | null {
   const exact = entities.find((e) => e.name === name);
   if (exact) return exact;
@@ -174,36 +222,7 @@ function resolveEntity(name: string, entities: CapEntity[]): CapEntity | null {
   );
 }
 
-function capNodeHtml(
-  name: string,
-  pct: string | null,
-  entities: CapEntity[],
-  depth: number,
-  visited: Set<string>,
-): string {
-  const entity = resolveEntity(name, entities);
-  const key = entity?.name ?? name;
-  const kids =
-    entity && depth < 4 && !visited.has(key) ? entity.holders : [];
-  const nextVisited = new Set(visited);
-  nextVisited.add(key);
-  const rootCls = depth === 0 ? " kn-cap__node--root" : "";
-  const pctHtml = pct
-    ? `<span class="kn-cap__pct">${escapeHtml(pct)}</span>`
-    : "";
-  const node = `<div class="kn-cap__node${rootCls}"><span class="kn-cap__name">${escapeHtml(name)}</span>${pctHtml}</div>`;
-  if (kids.length === 0) {
-    return `<div class="kn-cap__branch">${node}</div>`;
-  }
-  const childHtml = kids
-    .map((h) => capNodeHtml(h.name, h.pct, entities, depth + 1, nextVisited))
-    .join("");
-  return `<div class="kn-cap__branch">${node}<div class="kn-cap__kids">${childHtml}</div></div>`;
-}
-
-export function capTableHtml(text: string, caption = "登记股权"): string | null {
-  const entities = parseCapTable(text);
-  if (!entities) return null;
+function heldNames(entities: CapEntity[]): Set<string> {
   const held = new Set<string>();
   for (const e of entities) {
     for (const h of e.holders) {
@@ -211,10 +230,193 @@ export function capTableHtml(text: string, caption = "登记股权"): string | n
       if (resolved) held.add(resolved.name);
     }
   }
+  return held;
+}
+
+function pickRoots(entities: CapEntity[], prefer?: RegExp): CapEntity[] {
+  if (prefer) {
+    const hit = entities.find((e) => prefer.test(e.name));
+    if (hit) return [hit];
+  }
+  const held = heldNames(entities);
   const roots = entities.filter((e) => !held.has(e.name));
-  const start = roots[0] ?? entities[0]!;
-  const tree = capNodeHtml(start.name, null, entities, 0, new Set());
-  return `<figure class="kn-cap"><figcaption class="kn-cap__caption">${escapeHtml(caption)}</figcaption><div class="kn-cap__tree">${tree}</div></figure>`;
+  return roots.length ? roots : [entities[0]!];
+}
+
+function buildCapNode(
+  name: string,
+  pct: string | null,
+  entities: CapEntity[],
+  depth: number,
+  visited: Set<string>,
+): CapNode {
+  const entity = resolveEntity(name, entities);
+  const key = entity?.name ?? name;
+  const kids =
+    entity && depth < 5 && !visited.has(key) ? entity.holders : [];
+  const nextVisited = new Set(visited);
+  nextVisited.add(key);
+  return {
+    name,
+    pct,
+    children: kids.map((h) =>
+      buildCapNode(h.name, h.pct, entities, depth + 1, nextVisited),
+    ),
+  };
+}
+
+function leafCount(node: CapNode): number {
+  if (node.children.length === 0) return 1;
+  return node.children.reduce((n, child) => n + leafCount(child), 0);
+}
+
+function collectNames(node: CapNode, into: Set<string>): void {
+  into.add(node.name);
+  for (const child of node.children) collectNames(child, into);
+}
+
+function cellsAtDepth(
+  node: CapNode,
+  depth: number,
+  target: number,
+): { node: CapNode | null; span: number }[] {
+  const span = leafCount(node);
+  if (depth === target) return [{ node, span }];
+  if (node.children.length === 0) return [{ node: null, span }];
+  return node.children.flatMap((child) =>
+    cellsAtDepth(child, depth + 1, target),
+  );
+}
+
+function parentsAtDepth(
+  node: CapNode,
+  depth: number,
+  target: number,
+  col: number,
+): { node: CapNode; col: number; span: number }[] {
+  const span = leafCount(node);
+  if (depth === target) return [{ node, col, span }];
+  if (node.children.length === 0) return [];
+  const out: { node: CapNode; col: number; span: number }[] = [];
+  let next = col;
+  for (const child of node.children) {
+    out.push(...parentsAtDepth(child, depth + 1, target, next));
+    next += leafCount(child);
+  }
+  return out;
+}
+
+function treeDepth(node: CapNode): number {
+  if (node.children.length === 0) return 1;
+  return 1 + Math.max(...node.children.map(treeDepth));
+}
+
+function capNodeBox(node: CapNode, isRoot: boolean): string {
+  const rootCls = isRoot ? " kn-cap__node--root" : "";
+  const pctHtml = node.pct
+    ? `<span class="kn-cap__pct">${escapeHtml(node.pct)}</span>`
+    : "";
+  return `<div class="kn-cap__node${rootCls}"><span class="kn-cap__name">${escapeHtml(node.name)}</span>${pctHtml}</div>`;
+}
+
+function wiresSvg(
+  parents: { node: CapNode; col: number; span: number }[],
+  cols: number,
+): string {
+  const lines: string[] = [];
+  for (const p of parents) {
+    if (p.node.children.length === 0) continue;
+    const parentX = p.col + p.span / 2;
+    const childXs: number[] = [];
+    let childCol = p.col;
+    for (const child of p.node.children) {
+      const span = leafCount(child);
+      childXs.push(childCol + span / 2);
+      childCol += span;
+    }
+    if (childXs.length === 1) {
+      lines.push(
+        `<line x1="${parentX}" y1="0" x2="${childXs[0]}" y2="2" />`,
+      );
+      continue;
+    }
+    const x1 = childXs[0]!;
+    const x2 = childXs[childXs.length - 1]!;
+    lines.push(`<line x1="${parentX}" y1="0" x2="${parentX}" y2="1" />`);
+    lines.push(`<line x1="${x1}" y1="1" x2="${x2}" y2="1" />`);
+    for (const cx of childXs) {
+      lines.push(`<line x1="${cx}" y1="1" x2="${cx}" y2="2" />`);
+    }
+  }
+  if (lines.length === 0) return "";
+  return `<svg class="kn-cap__wires" viewBox="0 0 ${cols} 2" preserveAspectRatio="none" aria-hidden="true">${lines.join("")}</svg>`;
+}
+
+function renderCapTree(root: CapNode, caption: string): string {
+  const cols = leafCount(root);
+  const depth = treeDepth(root);
+  const rows: string[] = [];
+  for (let d = 0; d < depth; d += 1) {
+    if (d > 0) {
+      rows.push(wiresSvg(parentsAtDepth(root, 0, d - 1, 0), cols));
+    }
+    const cells = cellsAtDepth(root, 0, d)
+      .map((cell) => {
+        const inner = cell.node ? capNodeBox(cell.node, d === 0) : "";
+        return `<div class="kn-cap__cell" style="grid-column: span ${cell.span}">${inner}</div>`;
+      })
+      .join("");
+    rows.push(`<div class="kn-cap__level">${cells}</div>`);
+  }
+  const cap = caption
+    ? `<figcaption class="kn-cap__caption">${escapeHtml(caption)}</figcaption>`
+    : "";
+  return `<figure class="kn-cap">${cap}<div class="kn-cap__levels" style="--cols: ${cols}">${rows.join("")}</div></figure>`;
+}
+
+function capFiguresFromEntities(
+  entities: CapEntity[],
+  caption: string,
+  prefer?: RegExp,
+): string | null {
+  const roots = pickRoots(entities, prefer);
+  const figures: string[] = [];
+  const used = new Set<string>();
+  for (const start of roots) {
+    if (used.has(start.name)) continue;
+    const tree = buildCapNode(start.name, null, entities, 0, new Set());
+    collectNames(tree, used);
+    figures.push(
+      renderCapTree(tree, figures.length === 0 ? caption : ""),
+    );
+  }
+  if (figures.length === 0) return null;
+  return figures.join("");
+}
+
+export function capTableHtml(text: string, caption = "登记股权"): string | null {
+  const entities = parseCapTable(text);
+  if (!entities) return null;
+  return capFiguresFromEntities(entities, caption, /传媒/u);
+}
+
+export function mermaidFlowHtml(code: string): string | null {
+  const entities = parseMermaidCapEntities(code);
+  if (!entities) return null;
+  const owner = capFiguresFromEntities(entities, "登记股权", /传媒/u);
+  if (!owner) return null;
+  const used = new Set<string>();
+  const ownerRoot = pickRoots(entities, /传媒/u)[0];
+  if (ownerRoot) {
+    collectNames(
+      buildCapNode(ownerRoot.name, null, entities, 0, new Set()),
+      used,
+    );
+  }
+  const rest = entities.filter((e) => !used.has(e.name));
+  const extra =
+    rest.length > 0 ? capFiguresFromEntities(rest, "对外投资") ?? "" : "";
+  return `${owner}${extra}`;
 }
 
 const FACT_KEYS: Array<{ re: RegExp; id: string; label: string }> = [

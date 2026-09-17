@@ -1313,9 +1313,6 @@ export default function KnowledgeChapterDraftReviewPage() {
                         ? ` · 全部 ${runProgress.done}/${runProgress.total}`
                         : ""}
                     </p>
-                    <p className="mt-2 max-w-sm text-[12px] leading-relaxed text-[#969E9A]">
-                      可先离开，回来后会继续显示进度。完成后草案会出现在这里。
-                    </p>
                   </div>
                 ) : selected.kind === "revising" ? (
                   selected.draftHtml?.trim() ? (

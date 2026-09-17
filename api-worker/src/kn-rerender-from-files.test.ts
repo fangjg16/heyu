@@ -15,7 +15,7 @@ describe("rerender knowledge chapters from files", () => {
 
   it("covers mature research chapters that render from files", () => {
     const ids = knSectionsToRerenderFromFiles("mature");
-    expect(ids).not.toContain("project-overview");
+    expect(ids).toContain("project-overview");
     expect(ids).toContain("project-summary");
     expect(ids).toContain("industry-competition");
     expect(ids).toContain("company-team");

@@ -107,6 +107,23 @@ describe("enhanceKnChapterHtml", () => {
       expect(html).toContain("kn-cap");
       expect(html).toContain("传媒");
       expect(html).toContain("55%");
+      expect(html).toContain("kn-cap__wires");
+    },
+  );
+
+  it.skipIf(typeof DOMParser === "undefined")(
+    "turns mermaid flowchart code into a cap figure",
+    () => {
+      const html = enhanceKnChapterHtml(`
+        <pre class="kn-pre"><code>flowchart TD
+    LY[李元] -->|74%| WH[巨东文化]
+    WH -->|55%| CM[巨东传媒]
+    BF[本分本心] -->|45%| CM
+</code></pre>
+      `);
+      expect(html).toContain("kn-cap");
+      expect(html).toContain("巨东传媒");
+      expect(html).not.toContain("kn-pre");
     },
   );
 });

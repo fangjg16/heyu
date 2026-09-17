@@ -1183,9 +1183,30 @@ Not Ready（未就绪）
 `);
     expect(html).toContain("kn-cap");
     expect(html).toContain("kn-cap__node--root");
+    expect(html).toContain("kn-cap__wires");
     expect(html).toContain("传媒");
     expect(html).toContain("55%");
     expect(html).toContain("吴钢");
     expect(html).toContain("40.82639%");
+  });
+
+  it("turns a mermaid ownership flowchart into cap figures", () => {
+    const html = markdownToKnHtml(`# 股权
+
+\`\`\`mermaid
+flowchart TD
+    LY[李元] -->|74.2298%| WH[巨东文化]
+    HL[巨东合力] -->|9.31%| WH
+    WG[吴钢] -->|100%| BF[本分本心]
+    WH -->|55%| CM[巨东传媒]
+    BF -->|45%| CM
+    CM -->|40%| ZM[巨东造梦]
+    BF -->|30%| ZM
+\`\`\`
+`);
+    expect(html).toContain("kn-cap__wires");
+    expect(html).toContain("巨东传媒");
+    expect(html).toContain("巨东造梦");
+    expect(html).not.toContain("kn-pre");
   });
 });

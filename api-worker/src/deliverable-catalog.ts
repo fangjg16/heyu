@@ -117,13 +117,14 @@ const BUSINESS_KN = [
 ] as const;
 
 const MATURE: readonly DeliverableFile[] = [
-  f("brief", "capitallens", "01-intake", "project-brief.md", "项目简报", "deal-screening", [], 1, ["references/project-intake.md", HONESTY], [{ folder: "00-intake", filename: "brief.md" }]),
+  f("brief", "capitallens", "01-intake", "project-brief.md", "项目简报", "deal-screening", ["project-overview"], 1, ["references/project-intake.md", HONESTY], [{ folder: "00-intake", filename: "brief.md" }]),
   f("theme", "capitallens", "01-intake", "theme-classification.md", "投资主题", "deal-screening", [], 1, ["references/theme-classification.md", "references/taxonomy.md", "references/decision-rules.md", HONESTY], [{ folder: "00-intake", filename: "theme.md" }]),
   f("enrichment", "capitallens", "02-screening", "enrichment.md", "公开信息补充", "deal-screening", [], 1, ["references/enrichment.md", "references/research-principles.md", HONESTY]),
   f("screening-memo", "capitallens", "02-screening", "screening-memo.md", "筛选备忘录", "deal-screening", MATURE_SEVEN, 1, ["references/screening-memo.md", "references/scoring.md", "references/open-questions.md", HONESTY]),
   f("industry-due-diligence", "capitallens", "03-diligence", "industry-diligence.md", "行业尽调", "due-diligence", INDUSTRY_KN, 2, ["references/dd-industry.md", HONESTY], [{ folder: "01-industry", filename: "industry-due-diligence.md" }]),
   f("business-due-diligence", "capitallens", "03-diligence", "business-diligence.md", "商业尽调", "due-diligence", BUSINESS_KN, 3, ["references/dd-business.md", HONESTY], [{ folder: "02-business", filename: "business-due-diligence.md" }]),
   f("background-check", "capitallens", "03-diligence", "background-check.md", "背景调查", "due-diligence", ["company-team", "company-background"], 4, ["references/dd-background-check.md", HONESTY], [{ folder: "04-company", filename: "background-check.md" }]),
+  f("company-team-qcc", "capitallens", "03-diligence", "company-team.md", "公司与团队", "due-diligence", ["company-team"], 10, ["references/dd-background-check.md", HONESTY], [{ folder: "04-company", filename: "company-team.md" }]),
   f("compliance-check", "capitallens", "03-diligence", "legal-screening.md", "合规筛查", "due-diligence", [], 4, ["references/dd-legal.md", HONESTY], [{ folder: "04-company", filename: "compliance-check.md" }]),
   f("financial-due-diligence", "capitallens", "03-diligence", "financial-diligence.md", "财务尽调", "due-diligence", ["financial-diligence"], 5, ["references/dd-financial.md", HONESTY], [{ folder: "03-financials", filename: "financial-due-diligence.md" }]),
   f("returns", "capitallens", "04-underwriting", "valuation-and-returns.md", "回报测算", "due-diligence", ["risk-return", "investment-structure-returns"], 6, ["references/returns-analysis.md", HONESTY], [{ folder: "05-decision", filename: "returns.md" }]),

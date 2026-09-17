@@ -78,7 +78,6 @@ export function knSectionRendersFromFiles(
   kind: AnalysisKind,
   sectionId: string,
 ): boolean {
-  if (sectionId === "project-overview") return false;
   return deliverablesForKnSection(kind, sectionId).length > 0;
 }
 
