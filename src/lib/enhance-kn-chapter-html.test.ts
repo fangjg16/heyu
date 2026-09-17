@@ -72,4 +72,41 @@ describe("enhanceKnChapterHtml", () => {
     expect(html).not.toContain("<h3>建议</h3>");
     },
   );
+
+  it.skipIf(typeof DOMParser === "undefined")(
+    "turns screening and diligence conclusions into decision cards",
+    () => {
+      const html = enhanceKnChapterHtml(`
+        <h4>初筛结论</h4>
+        <p>核心判断：值得保留联系。</p>
+        <ul>
+          <li>总体评级：Watch（观察）。</li>
+          <li>下一步建议：request_information（先补关键事实）。</li>
+          <li>支持理由：已有付费窗口。</li>
+        </ul>
+        <h4>投资结论</h4>
+        <p>投资建议：Defer（暂缓投资，继续定向验证）。</p>
+        <p>核心判断：证据不足。</p>
+        <p>值得继续看的原因有三点。</p>
+      `);
+      expect(html).toContain("kn-decision--caution");
+      expect(html).toContain("观察");
+      expect(html).toContain("先补关键事实");
+      expect(html).toContain("暂缓投资");
+      expect(html).not.toContain("request_information");
+      expect(html).toContain("值得继续看的原因有三点");
+    },
+  );
+
+  it.skipIf(typeof DOMParser === "undefined")(
+    "turns an equity paragraph into a cap tree",
+    () => {
+      const html = enhanceKnChapterHtml(`
+        <p>传媒：巨东文化55%，本分本心45%。文化：李元74.2298%、巨东合力9.31%、深圳汇文4.9%。本分本心：吴钢100%。</p>
+      `);
+      expect(html).toContain("kn-cap");
+      expect(html).toContain("传媒");
+      expect(html).toContain("55%");
+    },
+  );
 });

@@ -3,6 +3,8 @@
  * 不改资料包原文，只改页面上看到的字。
  */
 
+import { localizeKnStatusText } from "./kn-md-structure";
+
 const TAG_KIND_ZH: Record<string, string> = {
   data: "资料",
   opinion: "判断",
@@ -236,7 +238,7 @@ export function localizeKnText(s: string): string {
   t = t.replace(/([\u4e00-\u9fff])\s+and\s+/giu, "$1、");
   t = t.replace(/;\s+/gu, "；");
   t = t.replace(/有条件继续\s*[—–-]\s*有条件继续。?/gu, "有条件继续");
-  return t;
+  return localizeKnStatusText(t);
 }
 
 /** 方括号标签里的 Data/Opinion 留给标签解析，其余英文词先译。 */

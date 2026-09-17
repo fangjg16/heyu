@@ -64,7 +64,12 @@ export async function renderKnSectionFromDeliverables(
           ? extractNumberedMarkdownChapter(raw, 1)
           : "";
     }
-    loaded.push({ title: file.title, markdown, id: file.id });
+    loaded.push({
+      title: file.title,
+      markdown,
+      id: file.id,
+      phase: file.phase,
+    });
   }
   return renderDeliverableChapterHtml(loaded);
 }

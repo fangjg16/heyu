@@ -3082,7 +3082,248 @@
   border-radius: 8px;
 }
 
+.kn-decision {
+  margin: 0.4rem 0 1.9rem;
+  padding: 1.35rem 1.45rem 1.4rem;
+  border-radius: 16px;
+  border: 1px solid hsl(var(--border));
+  border-left-width: 5px;
+  background: hsl(var(--paper));
+}
+
+.kn-decision__kicker {
+  margin: 0 0 0.35rem;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: hsl(var(--ink-soft));
+}
+
+.kn-decision__verdict {
+  margin: 0;
+  font-family: "Noto Serif SC", serif;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: hsl(var(--warm-charcoal));
+}
+
+.kn-decision__detail {
+  margin: 0.35rem 0 0;
+  font-size: 14px;
+  font-weight: 650;
+  color: hsl(var(--ink-soft));
+}
+
+.kn-decision__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.85rem 0 0;
+}
+
+.kn-decision__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  background: hsl(var(--linen));
+  color: hsl(24 10% 28%);
+}
+
+.kn-decision__lede {
+  margin: 1rem 0 0;
+  font-family: "Noto Serif SC", serif;
+  font-size: 16.5px;
+  font-weight: 650;
+  line-height: 1.6;
+  letter-spacing: -0.015em;
+  color: hsl(var(--warm-charcoal));
+}
+
+.kn-decision__note {
+  margin: 0.65rem 0 0;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: hsl(24 10% 36%);
+}
+
+.kn-decision__facts {
+  display: grid;
+  gap: 0.7rem;
+  margin: 1.05rem 0 0;
+}
+
+.kn-decision__row {
+  display: grid;
+  grid-template-columns: 4.6rem minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: start;
+}
+
+.kn-decision__row dt {
+  margin: 0.15rem 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: hsl(var(--ink-soft));
+}
+
+.kn-decision__row dd {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: hsl(24 10% 28%);
+}
+
+.kn-decision--go {
+  border-left-color: hsl(var(--sage));
+  background: hsl(145 28% 97%);
+}
+
+.kn-decision--go .kn-decision__verdict {
+  color: hsl(var(--sage));
+}
+
+.kn-decision--caution {
+  border-left-color: hsl(38 48% 46%);
+  background: hsl(38 55% 96%);
+}
+
+.kn-decision--caution .kn-decision__verdict {
+  color: hsl(28 42% 28%);
+}
+
+.kn-decision--stop {
+  border-left-color: hsl(var(--wine));
+  background: hsl(var(--wine-muted) / 0.7);
+}
+
+.kn-decision--stop .kn-decision__verdict {
+  color: hsl(var(--wine));
+}
+
+.kn-cap {
+  margin: 0.85rem 0 1.8rem;
+  padding: 1.15rem 0.85rem 1.35rem;
+  border-radius: 16px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--linen) / 0.55);
+  overflow-x: auto;
+}
+
+.kn-cap__caption {
+  margin: 0 0 1rem;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: hsl(var(--wine));
+}
+
+.kn-cap__tree,
+.kn-cap__branch,
+.kn-cap__kids {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.kn-cap__kids {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 0.85rem 1.1rem;
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  position: relative;
+}
+
+.kn-cap__kids::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: hsl(var(--border));
+}
+
+.kn-cap__branch {
+  position: relative;
+  min-width: 6.5rem;
+}
+
+.kn-cap__kids > .kn-cap__branch::before {
+  content: "";
+  position: absolute;
+  top: -0.85rem;
+  left: 50%;
+  width: 1px;
+  height: 0.85rem;
+  background: hsl(var(--border));
+}
+
+.kn-cap__node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 6.8rem;
+  max-width: 10.5rem;
+  padding: 0.55rem 0.75rem 0.6rem;
+  border-radius: 12px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--paper));
+  text-align: center;
+}
+
+.kn-cap__node--root {
+  min-width: 8rem;
+  border-color: hsl(var(--wine) / 0.35);
+  box-shadow: 0 1px 0 hsl(var(--wine) / 0.08);
+}
+
+.kn-cap__name {
+  font-family: "Noto Serif SC", serif;
+  font-size: 13.5px;
+  font-weight: 650;
+  line-height: 1.35;
+  color: hsl(var(--warm-charcoal));
+}
+
+.kn-cap__pct {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: hsl(var(--wine));
+}
+
 @media (max-width: 900px) {
+  .kn-decision__verdict {
+    font-size: 26px;
+  }
+
+  .kn-decision__row {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
+  }
+
+  .kn-cap__kids::before,
+  .kn-cap__kids > .kn-cap__branch::before {
+    display: none;
+  }
+
+  .kn-cap__kids {
+    flex-direction: column;
+    padding-top: 0.4rem;
+  }
+
   .kn-stats,
   .kn-stats--4,
   .kn-scenarios,
@@ -3138,3 +3379,4 @@
     text-align: left;
   }
 }
+

@@ -1119,4 +1119,73 @@ Not Ready（未就绪）
     expect(html).toContain("kn-callout--terms");
     expect(html).toContain("专利权属清晰");
   });
+
+  it("turns a 初筛结论 block into a Chinese decision card", () => {
+    const html = markdownToKnHtml(`# 筛选备忘录
+
+### 1.1 初筛结论
+
+**核心判断：值得保留联系并做一次验证。**
+
+- 总体评级：**Watch（观察）**。
+- 下一步建议：**request_information（先补关键事实）**。
+- 支持理由：已有付费窗口。
+- 主要保留意见：缺结算证据。
+- 改变判断的条件：拿到独立客户交易。
+
+### 1.2 项目基本情况
+
+项目以巨东呈现。
+`);
+    expect(html).toContain("kn-decision kn-decision--caution");
+    expect(html).toContain("观察");
+    expect(html).toContain("下一步 · 先补关键事实");
+    expect(html).toContain("值得保留联系");
+    expect(html).not.toContain("Watch（观察）");
+    expect(html).not.toContain("request_information");
+    expect(html).toContain("项目以巨东呈现");
+  });
+
+  it("turns 投资结论 into a Defer card and keeps the rest of the section", () => {
+    const html = markdownToKnHtml(`# 投资分析
+
+### 1.1 投资结论
+
+**投资建议：Defer（暂缓投资，继续定向验证）。**
+
+**核心判断：证据不足以支持按投后1亿元投入。**
+
+**内容状态：partial。**建议暂缓的是投资承诺。
+
+**最强反对理由：**缺业务闭环。
+
+### 1.2 项目摘要
+
+摘要正文。
+`);
+    expect(html).toContain("kn-decision--dd");
+    expect(html).toContain("暂缓投资");
+    expect(html).toContain("继续定向验证");
+    expect(html).toContain("部分核验");
+    expect(html).toContain("最强反对理由");
+    expect(html).toContain("摘要正文");
+    expect(html).not.toMatch(/>Defer</);
+  });
+
+  it("draws an ownership tree when a paragraph lists equity percentages", () => {
+    const html = markdownToKnHtml(`# 背景
+
+## 3. 登记股权、控制与受益人
+
+传媒：巨东文化55%，本分本心45%。文化：李元74.2298%、巨东合力合伙企业9.31%、深圳汇文4.9052%、北京朵朵花儿4.9%、陈海峰4.655%、深圳望禾2%。本分本心：吴钢100%。
+
+仅按已披露的直接路径乘积，李元→文化→传媒为40.82639%。
+`);
+    expect(html).toContain("kn-cap");
+    expect(html).toContain("kn-cap__node--root");
+    expect(html).toContain("传媒");
+    expect(html).toContain("55%");
+    expect(html).toContain("吴钢");
+    expect(html).toContain("40.82639%");
+  });
 });

@@ -1,3 +1,11 @@
+import {
+  capTableHtml,
+  isConclusionHeading,
+  localizeKnStatusText,
+  looksLikeCapTable,
+  splitConclusionSection,
+} from "./kn-structure";
+
 const SOURCE_LEAD =
   /^(?:本章依据|资料来源|依据文件|依据资料|来源[:：]|Sources?\s*[:：])/u;
 
@@ -141,7 +149,7 @@ function isBlockLabel(el: Element, re: RegExp): boolean {
 function alreadyEnhanced(el: Element): boolean {
   return Boolean(
     el.closest(
-      ".kn-verdict, .kn-readiness, .kn-lede-card, .kn-split, .kn-source-note, .kn-stats, .kn-callout--verdict, .kn-callout--terms, .kn-hero",
+      ".kn-verdict, .kn-readiness, .kn-lede-card, .kn-split, .kn-source-note, .kn-stats, .kn-callout--verdict, .kn-callout--terms, .kn-hero, .kn-decision, .kn-cap",
     ),
   );
 }
@@ -215,8 +223,8 @@ function wrapOneLiners(root: Element, doc: Document): void {
 
 function splitStatusLine(text: string): { en: string; zh: string } {
   const t = knPlain(text);
-  const m = /^(.{1,40}?)[（(]([^）)]{1,20})[）)]$/.exec(t);
-  if (m) return { en: m[1]!.trim(), zh: m[2]!.trim() };
+  const m = /^(.{1,40}?)[（(]([^）)]{1,40})[）)]$/.exec(t);
+  if (m) return { en: m[2]!.trim(), zh: m[1]!.trim() };
   return { en: t, zh: "" };
 }
 
@@ -546,6 +554,96 @@ function wrapSplits(root: Element, doc: Document): void {
   }
 }
 
+function hoistLaterDeliverables(root: Element): void {
+  const files = [...root.querySelectorAll(":scope > .kn-from-md-file")];
+  if (files.length < 2) return;
+  const score = (el: Element) => {
+    const t = knPlain(el.textContent ?? "").slice(0, 120);
+    if (/投资分析|投资结论/u.test(t)) return 2;
+    if (/筛选备忘录|初筛结论/u.test(t)) return 0;
+    return 1;
+  };
+  const ranked = [...files].sort((a, b) => score(b) - score(a));
+  if (ranked.every((el, i) => el === files[i])) return;
+  for (const el of ranked) root.append(el);
+}
+
+function wrapCapTables(root: Element, doc: Document): void {
+  for (const el of [...root.querySelectorAll("p")]) {
+    if (!el.isConnected || alreadyEnhanced(el)) continue;
+    if (el.querySelector("ul,ol,table,p,div")) continue;
+    const text = knPlain(el.textContent ?? "");
+    if (!looksLikeCapTable(text)) continue;
+    const html = capTableHtml(text);
+    if (!html) continue;
+    const wrap = doc.createElement("div");
+    wrap.innerHTML = html;
+    const figure = wrap.firstElementChild;
+    if (figure) el.replaceWith(figure);
+  }
+}
+
+const FACT_LINE =
+  /^(?:核心判断|投资建议|总体评级|下一步建议|内容状态|支持理由|主要保留意见|改变判断的条件)[:：]/u;
+
+function wrapConclusionBlocks(root: Element, doc: Document): void {
+  for (const h of [...root.querySelectorAll("h2,h3,h4")]) {
+    if (!h.isConnected || alreadyEnhanced(h)) continue;
+    if (!isConclusionHeading(headingLabel(h))) continue;
+    const mdLines: string[] = [];
+    const taken: Element[] = [];
+    let n = nextElement(h);
+    while (n && !isHeading(n)) {
+      const next = nextElement(n);
+      if (/^(UL|OL)$/u.test(n.tagName)) {
+        const items = [...n.querySelectorAll(":scope > li")].map((li) =>
+          knPlain(li.textContent ?? ""),
+        );
+        if (
+          items.some((t) =>
+            /^(?:总体评级|下一步建议|支持理由|主要保留意见|改变判断的条件)/u.test(
+              t,
+            ),
+          )
+        ) {
+          for (const t of items) mdLines.push(`- ${t}`);
+          taken.push(n);
+        } else {
+          break;
+        }
+      } else if (
+        /^(P|DIV)$/u.test(n.tagName) &&
+        FACT_LINE.test(knPlain(n.textContent ?? ""))
+      ) {
+        mdLines.push(knPlain(n.textContent ?? ""));
+        taken.push(n);
+      } else {
+        break;
+      }
+      n = next;
+    }
+    const split = splitConclusionSection(headingLabel(h), mdLines.join("\n"));
+    if (!split) continue;
+    const box = doc.createElement("div");
+    box.innerHTML = split.cardHtml;
+    const card = box.firstElementChild;
+    if (!card) continue;
+    h.replaceWith(card);
+    for (const el of taken) el.remove();
+  }
+}
+
+function localizeShortStatusCells(root: Element): void {
+  for (const el of [...root.querySelectorAll("td,th,strong,em,li")]) {
+    if (el.querySelector("p,div,table,ul,ol,section")) continue;
+    if (el.closest(".kn-decision, .kn-cap, .kn-verdict")) continue;
+    const raw = knPlain(el.textContent ?? "");
+    if (!raw || raw.length > 48) continue;
+    const loc = localizeKnStatusText(raw);
+    if (loc !== raw && el.childElementCount === 0) el.textContent = loc;
+  }
+}
+
 function aliasLegacy(root: Element): void {
   for (const el of [...root.querySelectorAll(".adv-grid")]) {
     el.classList.add("kn-split");
@@ -594,9 +692,13 @@ export function enhanceKnChapterRoot(root: Element, doc: Document): void {
   wrapOneLiners(root, doc);
   wrapStatusCards(root, doc, RECOMMEND_HEAD, "verdict", knVerdictTone);
   wrapStatusCards(root, doc, READINESS_HEAD, "readiness", knReadinessTone);
+  wrapConclusionBlocks(root, doc);
+  wrapCapTables(root, doc);
+  hoistLaterDeliverables(root);
   wrapPrereqs(root, doc);
   wrapSplits(root, doc);
   dropRedundantDebateHeads(root);
+  localizeShortStatusCells(root);
   wrapPendingIn(root, doc);
 }
 

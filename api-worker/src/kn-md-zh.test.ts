@@ -42,6 +42,11 @@ describe("kn-md-zh", () => {
       ),
     ).toBe("内部问题和产品方向把握中等；外部需求和收入把握偏低");
     expect(localizeKnText("User Journey")).toBe("用户旅程");
+    expect(localizeKnText("Watch（观察）")).toBe("观察");
+    expect(localizeKnText("partially_meets")).toBe("部分符合");
+    expect(localizeKnText("request_information（先补关键事实）")).toBe(
+      "先补关键事实",
+    );
     expect(localizeKnText("Top three risks and mitigations")).toBe(
       "三大风险与对策",
     );

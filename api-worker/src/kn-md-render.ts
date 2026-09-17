@@ -11,6 +11,12 @@ import {
   stripAntiPatternName,
 } from "./kn-md-specials";
 import {
+  capTableHtml,
+  isConclusionHeading,
+  looksLikeCapTable,
+  splitConclusionSection,
+} from "./kn-md-structure";
+import {
   evidenceTagPattern,
   localizeKnText,
   localizeOutsideTags,
@@ -638,8 +644,8 @@ function looksLikeStatusValue(text: string): boolean {
 
 function splitStatusLine(text: string): { en: string; zh: string } {
   const t = text.replace(/\*+/gu, "").replace(/\s+/gu, " ").trim();
-  const m = /^(.{1,40}?)[（(]([^）)]{1,20})[）)]$/.exec(t);
-  if (m) return { en: m[1]!.trim(), zh: m[2]!.trim() };
+  const m = /^(.{1,40}?)[（(]([^）)]{1,40})[）)]$/.exec(t);
+  if (m) return { en: m[2]!.trim(), zh: m[1]!.trim() };
   return { en: t, zh: "" };
 }
 
@@ -1396,6 +1402,8 @@ function markdownToKnHtmlInner(src: string): string {
       out.push(`<p class="kn-source-note">${inline(text)}</p>`);
     } else if (isPendingExact(plain)) {
       out.push(`<p><span class="kn-pending">${inline(text)}</span></p>`);
+    } else if (looksLikeCapTable(plain)) {
+      out.push(capTableHtml(plain) ?? `<p>${inline(text)}</p>`);
     } else {
       out.push(`<p>${inline(text)}</p>`);
     }
@@ -1557,6 +1565,27 @@ function markdownToKnHtmlInner(src: string): string {
         out.push(decision.html);
         i = decision.next;
         continue;
+      }
+      if (isConclusionHeading(title)) {
+        closeMdSection();
+        i += 1;
+        const body: string[] = [];
+        while (i < lines.length) {
+          const t = (lines[i] ?? "").trim();
+          const n = /^(#{1,6})\s+/u.exec(t);
+          if (n && n[1]!.length <= hashes) break;
+          body.push(lines[i] ?? "");
+          i += 1;
+        }
+        const split = splitConclusionSection(title, body.join("\n"));
+        if (split) {
+          out.push(split.cardHtml);
+          if (split.restMd.trim()) {
+            out.push(markdownToKnHtmlInner(split.restMd));
+          }
+          continue;
+        }
+        i -= body.length + 1;
       }
       const numbered = hashes >= 2 && isNumberedSectionTitle(title);
       const sub = !numbered && (isSubHeadingTitle(title) || hashes >= 4);
@@ -2050,16 +2079,19 @@ function markdownToKnHtmlInner(src: string): string {
 }
 
 export function renderDeliverableChapterHtml(
-  files: { title: string; markdown: string; id?: string }[],
+  files: { title: string; markdown: string; id?: string; phase?: number }[],
 ): string {
   const withText = files.filter((f) => f.markdown.trim());
   const withBody = withText.filter((f) => markdownHasBody(f.markdown));
   const nonempty = withBody.length > 0 ? withBody : withText;
   if (nonempty.length === 0) return EMPTY_CHAPTER_HTML;
-  if (nonempty.length === 1) {
-    return markdownToKnHtml(nonempty[0]!.markdown, nonempty[0]!.id);
+  const ranked = [...nonempty].sort(
+    (a, b) => (b.phase ?? 0) - (a.phase ?? 0),
+  );
+  if (ranked.length === 1) {
+    return markdownToKnHtml(ranked[0]!.markdown, ranked[0]!.id);
   }
-  return nonempty
+  return ranked
     .map((f) => {
       const kicker = fileKickerHtml(f.title, f.markdown);
       return `<section class="kn-from-md-file">${kicker}${markdownToKnHtml(f.markdown, f.id)}</section>`;
