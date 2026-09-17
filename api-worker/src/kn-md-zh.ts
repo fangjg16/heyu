@@ -168,6 +168,13 @@ const PHRASES: Array<[RegExp, string]> = [
   [/\brevenue\b/giu, "收入"],
   [/\bsynthesis\b/giu, "综合"],
   [/\bdeferred\b/giu, "暂缓"],
+  [/\bunsupported\b/giu, "未获支持"],
+  [/\bunverified\b/giu, "未核验"],
+  [/\bdue[-\s]?diligence\b/giu, "尽调"],
+  [/\bdeal[-\s]?screening\b/giu, "筛选"],
+  [/\bindicative\b/giu, "示意"],
+  [/\bclosest\b/giu, "贴近"],
+  [/\btaxonomy_version\b/giu, "分类版本"],
 ];
 
 const CITE_ID = /^[A-Za-z]{1,3}-?\d+[a-z]?$/u;

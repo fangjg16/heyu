@@ -227,6 +227,7 @@ export function ProjectKnowledgeNetworkSection({
 
   const [html, setHtml] = useState<string | null>(null);
   const [questionsHtml, setQuestionsHtml] = useState<string | null>(null);
+  const [questionFocus, setQuestionFocus] = useState<string | null>(null);
   const [sourcesHtml, setSourcesHtml] = useState<string | null>(null);
   const [glossaryHtml, setGlossaryHtml] = useState<string | null>(null);
   const [loadingChapter, setLoadingChapter] = useState(false);
@@ -971,12 +972,33 @@ export function ProjectKnowledgeNetworkSection({
     }
   };
 
-  const goToQuestions = () => {
+  const goToQuestions = (focusText?: string) => {
+    setQuestionFocus(focusText?.trim() || null);
     setView("chapters");
     const loc = resolveSectionLocation(questionsSectionId, analysisKind, projectId);
     setGroupId(loc?.groupId ?? chapterGroups[0]!.id);
     setSectionId(questionsSectionId);
   };
+
+  useEffect(() => {
+    if (!questionFocus || sectionId !== questionsSectionId || !html) return;
+    const root = chapterPaneRef.current;
+    if (!root) return;
+    const needle = questionFocus.replace(/\s+/gu, "").slice(0, 36);
+    if (!needle) return;
+    const nodes = [
+      ...root.querySelectorAll("li, p, summary, td, h3, h4, .kn-takeaway__body"),
+    ];
+    const hit = nodes.find((el) => {
+      const hay = (el.textContent ?? "").replace(/\s+/gu, "");
+      return hay.includes(needle) || needle.includes(hay.slice(0, 24));
+    });
+    if (!hit) return;
+    hit.classList.add("kn-q-focus");
+    hit.scrollIntoView({ block: "center", behavior: "smooth" });
+    const timer = window.setTimeout(() => hit.classList.remove("kn-q-focus"), 2600);
+    return () => window.clearTimeout(timer);
+  }, [questionFocus, sectionId, html, questionsSectionId]);
 
   const openInterviewChat = (conversationId: string) => {
     navigate(`/app/chat/${encodeURIComponent(projectId)}/${encodeURIComponent(conversationId)}`);
@@ -1519,11 +1541,11 @@ export function ProjectKnowledgeNetworkSection({
                     <>
                       <div className="my-4 h-px bg-[rgba(78,66,57,0.1)]" />
                       <div className="mb-2 text-[12px] text-[#59625F]">
-                        关联待确认问题
+                        本章待解决问题
                       </div>
                       {relatedQuestions.length === 0 ? (
                         <p className="text-[12px] leading-relaxed text-[#969E9A]">
-                          暂无关联事项
+                          本章还没有待解决问题
                         </p>
                       ) : (
                         <div>
@@ -1533,7 +1555,7 @@ export function ProjectKnowledgeNetworkSection({
                               <button
                                 key={`${q.priority}-${i}-${q.text.slice(0, 24)}`}
                                 type="button"
-                                onClick={goToQuestions}
+                                onClick={() => goToQuestions(q.text)}
                                 className="flex w-full items-start gap-2.5 border-b border-[rgba(78,66,57,0.08)] bg-transparent py-2.5 text-left font-inherit last:border-b-0"
                               >
                                 <span
@@ -1559,10 +1581,10 @@ export function ProjectKnowledgeNetworkSection({
                       )}
                       <button
                         type="button"
-                        onClick={goToQuestions}
+                        onClick={() => goToQuestions()}
                         className="h-[34px] border-none bg-transparent p-0 text-[12px] font-medium text-[#A06358]"
                       >
-                        查看全部待确认问题 →
+                        打开待解决问题 →
                       </button>
                     </>
                   ) : null}

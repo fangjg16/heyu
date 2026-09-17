@@ -146,6 +146,37 @@ describe("enhanceKnChapterHtml", () => {
   );
 
   it.skipIf(typeof DOMParser === "undefined")(
+    "turns a workpaper header ul into a sheet",
+    () => {
+      const html = enhanceKnChapterHtml(`
+        <ul>
+          <li>项目与视角：巨东数字克隆业务股权投资 / 财务投资人。</li>
+          <li>工作流与状态：due-diligence /partial。</li>
+          <li>工件状态：working。</li>
+          <li>日期与输入：2026-09-17；SRC-022。</li>
+          <li>决策问题：哪个业态算？</li>
+          <li>结论：股权存在真实使用场景。</li>
+        </ul>
+      `);
+      expect(html).toContain("kn-sheet");
+      expect(html).toContain("股权存在真实使用场景");
+      expect(html).not.toContain("SRC-022");
+    },
+  );
+
+  it.skipIf(typeof DOMParser === "undefined")(
+    "turns 结论 kicker into a takeaway",
+    () => {
+      const html = enhanceKnChapterHtml(`
+        <p class="kn-md-kicker">结论</p>
+        <p>来源：需求宽度测量unsupported。</p>
+      `);
+      expect(html).toContain("kn-takeaway");
+      expect(html).toContain("未获支持");
+    },
+  );
+
+  it.skipIf(typeof DOMParser === "undefined")(
     "turns 本章结论 and 判断 into distinct blocks",
     () => {
       const html = enhanceKnChapterHtml(`

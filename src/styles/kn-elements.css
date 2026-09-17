@@ -3438,6 +3438,64 @@
   color: hsl(24 10% 28%);
 }
 
+.kn-sheet {
+  margin: 0 0 1.85rem;
+  padding: 1rem 1.15rem 1.15rem;
+  border-radius: 16px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--linen) / 0.58);
+}
+
+.kn-sheet__bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.55rem;
+}
+
+.kn-sheet__by {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: hsl(24 10% 34%);
+}
+
+.kn-sheet__class {
+  margin: 0.25rem 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: hsl(24 8% 46%);
+}
+
+.kn-sheet .kn-takeaway {
+  margin: 0.75rem 0 0;
+}
+
+.kn-sheet__ask {
+  margin: 0.85rem 0 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  background: hsl(var(--paper));
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: hsl(var(--warm-charcoal));
+}
+
+.kn-sheet__ask-k {
+  display: block;
+  margin: 0 0 0.28rem;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: hsl(var(--wine));
+}
+
+.kn-q-focus {
+  border-radius: 8px;
+  outline: 2px solid hsl(var(--wine) / 0.35);
+  background: hsl(38 72% 94%);
+}
+
 @media (max-width: 900px) {
   .kn-decision__verdict {
     font-size: 26px;

@@ -5,6 +5,7 @@ import {
   isJudgmentKey,
   isNextKey,
   isTakeawayKey,
+  isVerifyKey,
   judgmentBlockHtml,
   localizeKnStatusText,
   looksLikeCapTable,
@@ -14,6 +15,9 @@ import {
   splitConclusionSection,
   statusRowHtml,
   stripStatusClauses,
+  takeawayKickerForKey,
+  verifyStatusHtml,
+  workpaperSheetHtml,
 } from "./kn-structure";
 
 const SOURCE_LEAD =
@@ -159,7 +163,7 @@ function isBlockLabel(el: Element, re: RegExp): boolean {
 function alreadyEnhanced(el: Element): boolean {
   return Boolean(
     el.closest(
-      ".kn-verdict, .kn-readiness, .kn-lede-card, .kn-split, .kn-source-note, .kn-stats, .kn-callout--verdict, .kn-callout--terms, .kn-hero, .kn-decision, .kn-cap, .kn-takeaway, .kn-judgment, .kn-next, .kn-statusrow",
+      ".kn-verdict, .kn-readiness, .kn-lede-card, .kn-split, .kn-source-note, .kn-stats, .kn-callout--verdict, .kn-callout--terms, .kn-hero, .kn-decision, .kn-cap, .kn-takeaway, .kn-judgment, .kn-next, .kn-statusrow, .kn-sheet",
     ),
   );
 }
@@ -594,6 +598,22 @@ function relabelCapPercents(root: Element, doc: Document): void {
   }
 }
 
+function wrapWorkpaperLists(root: Element, doc: Document): void {
+  for (const ul of [...root.querySelectorAll("ul")]) {
+    if (!ul.isConnected || alreadyEnhanced(ul)) continue;
+    const items = [...ul.querySelectorAll(":scope > li")].map((li) =>
+      knPlain(li.textContent ?? ""),
+    );
+    if (items.length < 3) continue;
+    const html = workpaperSheetHtml(items);
+    if (!html) continue;
+    const box = doc.createElement("div");
+    box.innerHTML = html;
+    const sheet = box.firstElementChild;
+    if (sheet) ul.replaceWith(sheet);
+  }
+}
+
 function wrapTakeawayAndJudgment(root: Element, doc: Document): void {
   for (const h of [...root.querySelectorAll("h2,h3,h4")]) {
     if (!h.isConnected || alreadyEnhanced(h)) continue;
@@ -603,7 +623,11 @@ function wrapTakeawayAndJudgment(root: Element, doc: Document): void {
     const body = knPlain(nxt.textContent ?? "");
     if (!body) continue;
     const box = doc.createElement("div");
-    box.innerHTML = chapterTakeawayHtml(body, parseStatusChips(body));
+    box.innerHTML = chapterTakeawayHtml(
+      body,
+      parseStatusChips(body),
+      takeawayKickerForKey(headingLabel(h)),
+    );
     const card = box.firstElementChild;
     if (!card) continue;
     h.replaceWith(card);
@@ -618,7 +642,50 @@ function wrapTakeawayAndJudgment(root: Element, doc: Document): void {
     const value = labeled?.[2]?.trim() ?? "";
     if (labeled && isTakeawayKey(key)) {
       const box = doc.createElement("div");
-      box.innerHTML = chapterTakeawayHtml(value, parseStatusChips(text));
+      box.innerHTML = chapterTakeawayHtml(
+        value,
+        parseStatusChips(text),
+        takeawayKickerForKey(key),
+      );
+      const card = box.firstElementChild;
+      if (card) el.replaceWith(card);
+      continue;
+    }
+    if (el.classList.contains("kn-md-kicker") && isTakeawayKey(text)) {
+      const nxt = nextElement(el);
+      const body = nxt && /^(P|DIV)$/u.test(nxt.tagName)
+        ? knPlain(nxt.textContent ?? "")
+        : "";
+      if (!body) continue;
+      const box = doc.createElement("div");
+      box.innerHTML = chapterTakeawayHtml(
+        body,
+        parseStatusChips(body),
+        takeawayKickerForKey(text),
+      );
+      const card = box.firstElementChild;
+      if (!card) continue;
+      el.replaceWith(card);
+      nxt?.remove();
+      continue;
+    }
+    if (el.classList.contains("kn-md-kicker") && isVerifyKey(text)) {
+      const nxt = nextElement(el);
+      const body = nxt && /^(P|DIV)$/u.test(nxt.tagName)
+        ? knPlain(nxt.textContent ?? "")
+        : "";
+      if (!body) continue;
+      const box = doc.createElement("div");
+      box.innerHTML = verifyStatusHtml(body);
+      const card = box.firstElementChild;
+      if (!card) continue;
+      el.replaceWith(card);
+      nxt?.remove();
+      continue;
+    }
+    if (labeled && isVerifyKey(key)) {
+      const box = doc.createElement("div");
+      box.innerHTML = verifyStatusHtml(value);
       const card = box.firstElementChild;
       if (card) el.replaceWith(card);
       continue;
@@ -816,6 +883,7 @@ export function enhanceKnChapterRoot(root: Element, doc: Document): void {
   wrapConclusionBlocks(root, doc);
   wrapCapTables(root, doc);
   relabelCapPercents(root, doc);
+  wrapWorkpaperLists(root, doc);
   wrapTakeawayAndJudgment(root, doc);
   hoistLaterDeliverables(root);
   wrapPrereqs(root, doc);

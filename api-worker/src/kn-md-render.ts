@@ -20,11 +20,15 @@ import {
   isJudgmentKey,
   isNextKey,
   isTakeawayKey,
+  isVerifyKey,
   judgmentBlockHtml,
   nextBlockHtml,
   parseStatusChips,
   statusRowHtml,
   stripStatusClauses,
+  takeawayKickerForKey,
+  verifyStatusHtml,
+  workpaperSheetHtml,
 } from "./kn-md-structure";
 import {
   evidenceTagPattern,
@@ -251,10 +255,27 @@ function isDocMetaLine(line: string): boolean {
   return DOC_META_KEY.test(m.key);
 }
 
+function emptyLabeledKey(line: string): string | null {
+  const t = line.trim().replace(/\*\*/gu, "").trim();
+  const m =
+    /^(本章结论|本章判断|结论|核验状态|证据核验状态|内容状态|判断|融资判断|投资判断|风险传导|关闭标准|下一步)[：:]\s*$/u.exec(
+      t,
+    );
+  return m?.[1] ?? null;
+}
+
 /** 文首所有 **Key:** 都收进封面，避免 Financial Model Stage 挡住后面的日期。 */
 function isCoverMetaLine(line: string): boolean {
   const m = parseMetaLine(line);
   if (!m || isSectionConfLine(line)) return false;
+  if (
+    isTakeawayKey(m.key) ||
+    isVerifyKey(m.key) ||
+    isJudgmentKey(m.key) ||
+    isNextKey(m.key)
+  ) {
+    return false;
+  }
   return !COVER_SKIP_KEY.test(m.key);
 }
 
@@ -1417,7 +1438,15 @@ function markdownToKnHtmlInner(src: string): string {
     } else {
       const labeled = parseMetaLine(text);
       if (labeled && isTakeawayKey(labeled.key)) {
-        out.push(chapterTakeawayHtml(labeled.value, parseStatusChips(plain)));
+        out.push(
+          chapterTakeawayHtml(
+            labeled.value,
+            parseStatusChips(plain),
+            takeawayKickerForKey(labeled.key),
+          ),
+        );
+      } else if (labeled && isVerifyKey(labeled.key)) {
+        out.push(verifyStatusHtml(labeled.value));
       } else if (labeled && isJudgmentKey(labeled.key)) {
         out.push(judgmentBlockHtml(labeled.key, labeled.value));
       } else if (labeled && isNextKey(labeled.key)) {
@@ -1437,6 +1466,13 @@ function markdownToKnHtmlInner(src: string): string {
   };
   const flushList = () => {
     if (!listKind || listItems.length === 0) {
+      listKind = null;
+      listItems = [];
+      return;
+    }
+    const sheet = listKind === "ul" ? workpaperSheetHtml(listItems) : null;
+    if (sheet) {
+      out.push(sheet);
       listKind = null;
       listItems = [];
       return;
@@ -1789,6 +1825,73 @@ function markdownToKnHtmlInner(src: string): string {
       continue;
     }
 
+    const emptyKey = emptyLabeledKey(trimmed);
+    if (emptyKey) {
+      flushPara();
+      flushList();
+      let j = i + 1;
+      while (j < lines.length && !(lines[j] ?? "").trim()) j += 1;
+      const next = (lines[j] ?? "").trim();
+      const nextPlain = next.replace(/\*\*/gu, "").trim();
+      const nextIsLabel =
+        Boolean(emptyLabeledKey(next)) ||
+        Boolean(parseMetaLine(next)) ||
+        /^(#{1,6})\s+/u.test(next);
+      if (!next || nextIsLabel) {
+        i += 1;
+        continue;
+      }
+      if (isVerifyKey(emptyKey) && !looksLikeStatusValue(nextPlain) && nextPlain.length > 24) {
+        i += 1;
+        continue;
+      }
+      if (
+        isTakeawayKey(emptyKey) &&
+        nextPlain.length > 280 &&
+        !/^来源[:：]/u.test(nextPlain)
+      ) {
+        i += 1;
+        continue;
+      }
+      const valueLines: string[] = [];
+      i = j;
+      while (i < lines.length) {
+        const follow = (lines[i] ?? "").trim();
+        if (!follow) {
+          if (valueLines.length) break;
+          i += 1;
+          continue;
+        }
+        if (
+          /^(#{1,6})\s+/u.test(follow) ||
+          emptyLabeledKey(follow) ||
+          parseMetaLine(follow)
+        ) {
+          break;
+        }
+        valueLines.push(follow.replace(/\*\*/gu, "").trim());
+        i += 1;
+        if (valueLines.join("").length > 480) break;
+      }
+      const value = valueLines.join(" ").trim();
+      if (isTakeawayKey(emptyKey) && value) {
+        out.push(
+          chapterTakeawayHtml(
+            value,
+            parseStatusChips(value),
+            takeawayKickerForKey(emptyKey),
+          ),
+        );
+      } else if (isVerifyKey(emptyKey) && value) {
+        out.push(verifyStatusHtml(value));
+      } else if (isJudgmentKey(emptyKey) && value) {
+        out.push(judgmentBlockHtml(emptyKey, value));
+      } else if (isNextKey(emptyKey) && value) {
+        out.push(nextBlockHtml(emptyKey, value));
+      }
+      continue;
+    }
+
     const labeled = parseMetaLine(trimmed);
     if (
       labeled &&
@@ -1796,6 +1899,7 @@ function markdownToKnHtmlInner(src: string): string {
       (!isDocMetaLine(trimmed) ||
         isJudgmentKey(labeled.key) ||
         isTakeawayKey(labeled.key) ||
+        isVerifyKey(labeled.key) ||
         isNextKey(labeled.key))
     ) {
       flushPara();
@@ -1827,7 +1931,15 @@ function markdownToKnHtmlInner(src: string): string {
           `<div class="kn-so"><p class="kn-so__k">含义</p>${labeled.value ? `<p>${inline(labeled.value)}</p>` : ""}</div>`,
         );
       } else if (isTakeawayKey(labeled.key)) {
-        out.push(chapterTakeawayHtml(labeled.value, parseStatusChips(trimmed)));
+        out.push(
+          chapterTakeawayHtml(
+            labeled.value,
+            parseStatusChips(trimmed),
+            takeawayKickerForKey(labeled.key),
+          ),
+        );
+      } else if (isVerifyKey(labeled.key)) {
+        out.push(verifyStatusHtml(labeled.value));
       } else if (isJudgmentKey(labeled.key)) {
         out.push(judgmentBlockHtml(labeled.key, labeled.value));
       } else if (isNextKey(labeled.key)) {

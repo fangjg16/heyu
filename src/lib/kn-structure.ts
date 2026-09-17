@@ -33,6 +33,12 @@ const STATUS_ZH: Record<string, string> = {
   stub: "草稿",
   working: "工作稿",
   empty: "空白",
+  unsupported: "未获支持",
+  unverified: "未核验",
+  supported: "已支持",
+  not_verifiable: "无法核验",
+  "due-diligence": "尽调",
+  "deal-screening": "筛选",
 };
 
 function escapeHtml(s: string): string {
@@ -124,6 +130,24 @@ export function localizeKnStatusText(s: string): string {
   t = t.replace(/\bPromising\b/gu, "有前景");
   t = t.replace(/\bProceed\b/gu, "推进");
   t = t.replace(/\bReject(?:ed)?\b/gu, "否决");
+  t = t.replace(/\bdue[-\s]?diligence\b/giu, "尽调");
+  t = t.replace(/\bdeal[-\s]?screening\b/giu, "筛选");
+  t = t.replace(/\bic[-\s]?review\b/giu, "投委会");
+  t = t.replace(/[/／]\s*partial\b/giu, " · 部分核验");
+  t = t.replace(/\bworking\b/giu, "工作稿");
+  t = t.replace(/\bindicative\b/giu, "示意");
+  t = t.replace(/\bunsupported\b/giu, "未获支持");
+  t = t.replace(/\bunverified\b/giu, "未核验");
+  t = t.replace(/\bnot[_-]?verifiable\b/giu, "无法核验");
+  t = t.replace(/\bclosest\b/giu, "贴近");
+  t = t.replace(/\btaxonomy_version\b/giu, "分类版本");
+  t = t.replace(/\bevidenceCutoff\b/giu, "证据截止");
+  t = t.replace(/\bdependencyVersion\b/giu, "依赖版本");
+  t = t.replace(/\blastReviewedAt\b/giu, "复核日期");
+  t = t.replace(
+    /([\u4e00-\u9fff])(未获支持|未核验|无法核验)/gu,
+    "$1（$2）",
+  );
   return t;
 }
 
@@ -577,7 +601,17 @@ export function stripStatusClauses(text: string): string {
 }
 
 export function isTakeawayKey(key: string): boolean {
-  return /^(本章结论|本章判断)$/u.test(key.trim());
+  return /^(本章结论|本章判断|结论)$/u.test(key.trim());
+}
+
+export function isVerifyKey(key: string): boolean {
+  return /^(核验状态|证据核验状态|内容状态)$/u.test(key.trim());
+}
+
+export function takeawayKickerForKey(key: string): string {
+  if (/本章判断/u.test(key)) return "本章判断";
+  if (/本章/u.test(key)) return "本章结论";
+  return "结论";
 }
 
 export function isJudgmentKey(key: string): boolean {
@@ -609,6 +643,7 @@ function splitPrioritySentence(body: string): { main: string; next: string } {
 export function chapterTakeawayHtml(
   body: string,
   chips: KnStatusChip[] = [],
+  kicker = "本章结论",
 ): string {
   const split = splitPrioritySentence(body);
   const chipHtml = chips.length
@@ -622,7 +657,7 @@ export function chapterTakeawayHtml(
   const next = split.next
     ? `<div class="kn-next kn-next--inline"><p class="kn-next__k">下一步</p><p class="kn-next__body">${escapeHtml(split.next)}</p></div>`
     : "";
-  return `<aside class="kn-takeaway"><header class="kn-takeaway__head"><p class="kn-takeaway__k">本章结论</p>${chipHtml}</header><p class="kn-takeaway__body">${escapeHtml(localizeKnStatusText(split.main))}</p>${next}</aside>`;
+  return `<aside class="kn-takeaway"><header class="kn-takeaway__head"><p class="kn-takeaway__k">${escapeHtml(kicker)}</p>${chipHtml}</header><p class="kn-takeaway__body">${escapeHtml(localizeKnStatusText(split.main))}</p>${next}</aside>`;
 }
 
 export function judgmentBlockHtml(kind: string, body: string): string {
@@ -633,4 +668,137 @@ export function judgmentBlockHtml(kind: string, body: string): string {
 export function nextBlockHtml(kind: string, body: string): string {
   const label = /关闭/u.test(kind) ? "关闭标准" : "下一步";
   return `<aside class="kn-next"><p class="kn-next__k">${escapeHtml(label)}</p><p class="kn-next__body">${escapeHtml(localizeKnStatusText(body))}</p></aside>`;
+}
+
+export function verifyStatusHtml(value: string): string {
+  const zh = displayVerifyStatus(localizeKnStatusText(value));
+  if (!zh) return "";
+  return statusRowHtml([{ label: "核验", value: zh }]);
+}
+
+type WorkpaperFieldId =
+  | "project"
+  | "workflow"
+  | "artifact"
+  | "dates"
+  | "evidence"
+  | "decision"
+  | "conclusion"
+  | "taxonomy"
+  | "primary"
+  | "match";
+
+const WORKPAPER_KEYS: Array<{ id: WorkpaperFieldId; re: RegExp }> = [
+  { id: "project", re: /^项目(?:与视角|\s*\/\s*视角|\/视角)?$/u },
+  { id: "workflow", re: /^(?:工作流与状态|工作流)$/u },
+  { id: "artifact", re: /^工件状态$/u },
+  { id: "dates", re: /^(?:日期与输入|日期与信息截止|日期)$/u },
+  { id: "evidence", re: /^(?:证据截止与依赖版本|证据截止)$/u },
+  { id: "decision", re: /^决策问题$/u },
+  { id: "conclusion", re: /^结论$/u },
+  { id: "taxonomy", re: /^(?:taxonomy_version|分类版本)$/iu },
+  { id: "primary", re: /^(?:主分类|次分类)$/u },
+  { id: "match", re: /^匹配类型(?:\s*\/\s*置信度)?$/u },
+];
+
+function classifyWorkpaperKey(key: string): WorkpaperFieldId | null {
+  const k = key.replace(/\*\*/gu, "").trim();
+  for (const row of WORKPAPER_KEYS) {
+    if (row.re.test(k)) return row.id;
+  }
+  return null;
+}
+
+function stripWorkpaperItem(s: string): string {
+  return s
+    .replace(/\*\*/gu, "")
+    .replace(/^[-*•·◦]\s+/u, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+function firstDate(s: string): string {
+  const m = /(\d{4}-\d{2}-\d{2})/u.exec(s);
+  return m?.[1] ?? "";
+}
+
+function stageChips(raw: string): string[] {
+  const t = raw.replace(/[（(][^）)]{0,80}[）)]/gu, " ");
+  const chips: string[] = [];
+  const push = (v: string) => {
+    if (v && !chips.includes(v)) chips.push(v);
+  };
+  if (/due[-\s]?diligence|尽调/iu.test(t)) push("尽调");
+  else if (/deal[-\s]?screening|筛选/iu.test(t)) push("筛选");
+  else if (/ic[-\s]?review|投委/iu.test(t)) push("投委会");
+  if (/[/／]\s*partial|部分核验|部分完成/iu.test(t)) push("部分核验");
+  if (/\bworking\b|工作稿/iu.test(t)) push("工作稿");
+  if (/\bindicative\b|示意/iu.test(t)) push("示意");
+  if (/\bstub\b/iu.test(t)) push("草稿");
+  return chips;
+}
+
+export function parseWorkpaperHeader(
+  items: string[],
+): Partial<Record<WorkpaperFieldId, string>> | null {
+  const fields: Partial<Record<WorkpaperFieldId, string>> = {};
+  let hits = 0;
+  for (const raw of items) {
+    const plain = stripWorkpaperItem(raw);
+    const clauses = plain.split(/[；;]/u).map((c) => c.trim()).filter(Boolean);
+    for (const clause of clauses) {
+      const m = /^([^：:]{1,24})[:：]\s*(.*)$/u.exec(clause);
+      if (!m) continue;
+      const id = classifyWorkpaperKey(m[1] ?? "");
+      if (!id) continue;
+      hits += 1;
+      const value = (m[2] ?? "").replace(/[。.．]+$/u, "").trim();
+      if (!value) continue;
+      if (id === "primary" && fields.primary) {
+        fields.primary = `${fields.primary} → ${value}`;
+      } else if (!fields[id]) {
+        fields[id] = value;
+      }
+    }
+  }
+  if (hits < 3) return null;
+  if (!fields.conclusion && !fields.decision && !fields.workflow && !fields.artifact) {
+    return null;
+  }
+  return fields;
+}
+
+export function workpaperSheetHtml(items: string[]): string | null {
+  const fields = parseWorkpaperHeader(items);
+  if (!fields) return null;
+  const chips = [
+    ...stageChips(`${fields.workflow ?? ""} ${fields.artifact ?? ""}`),
+  ];
+  const date = firstDate(fields.dates ?? "") || firstDate(fields.evidence ?? "");
+  if (date) chips.push(date);
+  if (fields.match) {
+    const matchZh = localizeKnStatusText(fields.match).replace(/\s*\/\s*/gu, " · ");
+    if (matchZh) chips.push(matchZh);
+  }
+  const bar = chips.length
+    ? `<p class="kn-sheet__bar">${chips
+        .map((c) => `<span class="kn-statuschip">${escapeHtml(c)}</span>`)
+        .join("")}</p>`
+    : "";
+  const project = fields.project
+    ? `<p class="kn-sheet__by">${escapeHtml(localizeKnStatusText(fields.project))}</p>`
+    : "";
+  const klass = fields.primary
+    ? `<p class="kn-sheet__class">${escapeHtml(localizeKnStatusText(fields.primary))}</p>`
+    : "";
+  const conclusion = (fields.conclusion ?? "").trim();
+  const takeaway = conclusion
+    ? chapterTakeawayHtml(conclusion, [], "结论")
+    : "";
+  const decision = (fields.decision ?? "").trim();
+  const ask = decision
+    ? `<p class="kn-sheet__ask"><span class="kn-sheet__ask-k">决策问题</span>${escapeHtml(localizeKnStatusText(decision))}</p>`
+    : "";
+  if (!bar && !takeaway && !ask && !project) return null;
+  return `<aside class="kn-sheet">${bar}${project}${klass}${takeaway}${ask}</aside>`;
 }

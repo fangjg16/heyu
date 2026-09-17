@@ -1212,6 +1212,45 @@ flowchart TD
     expect(html).not.toContain("kn-pre");
   });
 
+  it("turns a workpaper header list into a sheet with the conclusion as hero", () => {
+    const html = markdownToKnHtml(`# 行业尽调：巨东数字克隆业务
+
+- 项目与视角：巨东数字克隆业务股权投资 / 财务投资人。
+- 工作流与状态：due-diligence /partial（本地分析已完成，外部证据未齐备）。
+- 工件状态：working。
+- 日期与输入：2026-09-17；SRC-022—026, 022, 028—031。
+- 证据截止与依赖版本：evidenceCutoff=2026-09-17；dependencyVersion=CL-20260917-v1；lastReviewedAt=2026-09-17。
+- 决策问题：表格里的数字、业务来源跟票仓里签的合约哪个业态算？
+- 结论：股权存在真实使用场景，平台也是真人。
+`);
+    expect(html).toContain("kn-sheet");
+    expect(html).toContain("kn-takeaway");
+    expect(html).toContain("股权存在真实使用场景");
+    expect(html).toContain("尽调");
+    expect(html).toContain("工作稿");
+    expect(html).toContain("决策问题");
+    expect(html).not.toContain("evidenceCutoff");
+    expect(html).not.toContain("taxonomy_version");
+    expect(html).not.toContain("SRC-022");
+    expect(html).not.toMatch(/<ul>/);
+  });
+
+  it("turns subsection 结论 and 核验状态 into a takeaway and chips", () => {
+    const html = markdownToKnHtml(`# 行业尽调：巨东
+
+## 2.2 市场需求
+
+**结论：** 来源：需求宽度测量unsupported，任务真实采购路径未测量unverified。
+
+**核验状态：** unsupported
+`);
+    expect(html).toContain("kn-takeaway");
+    expect(html).toContain("未获支持");
+    expect(html).toContain("未核验");
+    expect(html).toContain("kn-statuschip");
+    expect(html).not.toContain("unsupported");
+  });
+
   it("turns 本章结论 into a takeaway and 判断 into a distinct block", () => {
     const html = markdownToKnHtml(`# 公司与团队
 
