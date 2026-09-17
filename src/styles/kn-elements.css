@@ -3325,63 +3325,92 @@
 }
 
 .kn-takeaway {
-  margin: 0.35rem 0 1.7rem;
-  padding: 1.15rem 1.25rem 1.2rem;
-  border-radius: 14px;
-  border: 1px solid hsl(var(--border));
-  border-left: 5px solid hsl(var(--wine) / 0.75);
-  background: hsl(var(--paper));
+  margin: 0.45rem 0 1.45rem;
+  padding: 0.65rem 0.85rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid hsl(var(--wine) / 0.18);
+  background: hsl(var(--linen) / 0.78);
 }
 
 .kn-takeaway__head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.45rem 0.7rem;
-  margin: 0 0 0.7rem;
+  gap: 0.35rem 0.5rem;
+  margin: 0 0 0.4rem;
 }
 
 .kn-takeaway__k {
   margin: 0;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
   color: hsl(var(--wine));
 }
 
 .kn-takeaway__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.35rem;
   margin: 0;
 }
 
 .kn-takeaway__body {
   margin: 0;
   font-family: "Noto Serif SC", serif;
-  font-size: 16px;
-  font-weight: 650;
-  line-height: 1.65;
-  letter-spacing: -0.015em;
+  font-size: 16.5px;
+  font-weight: 600;
+  line-height: 1.7;
+  letter-spacing: 0;
   color: hsl(var(--warm-charcoal));
+}
+
+.kn-chapter-html .kn-takeaway__body,
+.kn-project-overview-html .kn-takeaway__body,
+.kn-chapter-html .kn-sheet__by,
+.kn-project-overview-html .kn-sheet__by {
+  margin: 0;
+}
+
+.kn-chapter-html .kn-sheet__bar,
+.kn-project-overview-html .kn-sheet__bar,
+.kn-chapter-html .kn-sheet__meta,
+.kn-project-overview-html .kn-sheet__meta {
+  margin: 0 0 0.35rem;
+}
+
+.kn-chapter-html .kn-sheet__ask,
+.kn-project-overview-html .kn-sheet__ask {
+  margin: 0.65rem 0 0;
+}
+
+.kn-chapter-html .kn-sheet__ask-k,
+.kn-project-overview-html .kn-sheet__ask-k {
+  margin: 0 0 0.3rem;
+}
+
+.kn-chapter-html .kn-sheet__ask-body,
+.kn-project-overview-html .kn-sheet__ask-body {
+  margin: 0;
 }
 
 .kn-statusrow {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: 0 0 1rem;
+  gap: 0.35rem;
+  margin: 0.15rem 0 1rem;
 }
 
 .kn-statuschip {
   display: inline-flex;
   align-items: center;
-  padding: 0.22rem 0.65rem;
+  padding: 0.18rem 0.58rem;
   border-radius: 999px;
   font-size: 11.5px;
   font-weight: 650;
-  letter-spacing: 0.02em;
-  background: hsl(var(--linen));
+  letter-spacing: 0;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--paper));
   color: hsl(24 10% 32%);
 }
 
@@ -3420,7 +3449,11 @@
 }
 
 .kn-next--inline {
-  margin: 0.85rem 0 0;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
 }
 
 .kn-next__k {
@@ -3440,54 +3473,67 @@
 
 .kn-sheet {
   margin: 0 0 1.85rem;
-  padding: 1rem 1.15rem 1.15rem;
-  border-radius: 16px;
+  padding: 0.85rem 1rem 0.95rem;
+  border-radius: 10px;
   border: 1px solid hsl(var(--border));
-  background: hsl(var(--linen) / 0.58);
+  background: hsl(36 22% 95%);
 }
 
-.kn-sheet__bar {
+.kn-sheet__bar,
+.kn-sheet__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: 0 0 0.55rem;
+  gap: 0.35rem;
+  margin: 0 0 0.4rem;
 }
 
 .kn-sheet__by {
   margin: 0;
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: hsl(24 10% 34%);
+  font-size: 13px;
+  line-height: 1.55;
+  color: hsl(24 8% 40%);
 }
 
 .kn-sheet__class {
-  margin: 0.25rem 0 0;
+  margin: 0.15rem 0 0;
   font-size: 12.5px;
   line-height: 1.5;
-  color: hsl(24 8% 46%);
+  color: hsl(24 8% 48%);
 }
 
 .kn-sheet .kn-takeaway {
-  margin: 0.75rem 0 0;
+  margin: 0.7rem 0 0;
+  background: hsl(var(--paper));
+  border-color: hsl(var(--wine) / 0.16);
+}
+
+.kn-sheet .kn-takeaway__body {
+  font-size: 16.5px;
 }
 
 .kn-sheet__ask {
-  margin: 0.85rem 0 0;
-  padding: 0.7rem 0.85rem;
-  border-radius: 10px;
-  background: hsl(var(--paper));
-  font-size: 13.5px;
+  display: block;
+  margin: 0.65rem 0 0;
+  padding: 0.65rem 0.85rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(34 22% 88% / 0.42);
+  font-size: 14px;
   line-height: 1.65;
-  color: hsl(var(--warm-charcoal));
+  color: hsl(24 10% 28%);
 }
 
 .kn-sheet__ask-k {
   display: block;
-  margin: 0 0 0.28rem;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  margin: 0 0 0.3rem;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
   color: hsl(var(--wine));
+}
+
+.kn-sheet__ask-body {
+  margin: 0;
 }
 
 .kn-q-focus {

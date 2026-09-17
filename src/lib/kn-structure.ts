@@ -640,12 +640,16 @@ function splitPrioritySentence(body: string): { main: string; next: string } {
   return { main: body.trim(), next: (m[1] ?? "").trim() };
 }
 
+function stripTakeawayLead(body: string): string {
+  return body.replace(/^(?:来源|依据)[:：]\s*/u, "").trim();
+}
+
 export function chapterTakeawayHtml(
   body: string,
   chips: KnStatusChip[] = [],
   kicker = "本章结论",
 ): string {
-  const split = splitPrioritySentence(body);
+  const split = splitPrioritySentence(stripTakeawayLead(body));
   const chipHtml = chips.length
     ? `<p class="kn-takeaway__chips">${chips
         .map(
@@ -797,7 +801,7 @@ export function workpaperSheetHtml(items: string[]): string | null {
     : "";
   const decision = (fields.decision ?? "").trim();
   const ask = decision
-    ? `<p class="kn-sheet__ask"><span class="kn-sheet__ask-k">决策问题</span>${escapeHtml(localizeKnStatusText(decision))}</p>`
+    ? `<aside class="kn-sheet__ask"><p class="kn-sheet__ask-k">决策问题</p><p class="kn-sheet__ask-body">${escapeHtml(localizeKnStatusText(decision))}</p></aside>`
     : "";
   if (!bar && !takeaway && !ask && !project) return null;
   return `<aside class="kn-sheet">${bar}${project}${klass}${takeaway}${ask}</aside>`;
