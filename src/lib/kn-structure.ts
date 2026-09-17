@@ -29,6 +29,10 @@ const STATUS_ZH: Record<string, string> = {
   conditional: "有条件",
   partial: "部分核验",
   indicative: "示意",
+  populated: "已填充",
+  stub: "草稿",
+  working: "工作稿",
+  empty: "空白",
 };
 
 function escapeHtml(s: string): string {
@@ -55,7 +59,7 @@ function headingBare(title: string): string {
 }
 
 export function isConclusionHeading(title: string): boolean {
-  return /^(?:初筛结论|投资结论)$/u.test(headingBare(title));
+  return /^(?:初筛结论|投资结论|本章结论)$/u.test(headingBare(title));
 }
 
 export function knStatusTone(text: string): KnTone {
@@ -313,10 +317,12 @@ function treeDepth(node: CapNode): number {
 
 function capNodeBox(node: CapNode, isRoot: boolean): string {
   const rootCls = isRoot ? " kn-cap__node--root" : "";
-  const pctHtml = node.pct
-    ? `<span class="kn-cap__pct">${escapeHtml(node.pct)}</span>`
-    : "";
-  return `<div class="kn-cap__node${rootCls}"><span class="kn-cap__name">${escapeHtml(node.name)}</span>${pctHtml}</div>`;
+  return `<div class="kn-cap__node${rootCls}"><span class="kn-cap__name">${escapeHtml(node.name)}</span></div>`;
+}
+
+function holdLabel(pct: string | null): string {
+  if (!pct) return "";
+  return `<span class="kn-cap__hold">持有 ${escapeHtml(pct)}</span>`;
 }
 
 function wiresSvg(
@@ -359,6 +365,13 @@ function renderCapTree(root: CapNode, caption: string): string {
   for (let d = 0; d < depth; d += 1) {
     if (d > 0) {
       rows.push(wiresSvg(parentsAtDepth(root, 0, d - 1, 0), cols));
+      const holds = cellsAtDepth(root, 0, d)
+        .map((cell) => {
+          const inner = cell.node ? holdLabel(cell.node.pct) : "";
+          return `<div class="kn-cap__cell" style="grid-column: span ${cell.span}">${inner}</div>`;
+        })
+        .join("");
+      rows.push(`<div class="kn-cap__holds">${holds}</div>`);
     }
     const cells = cellsAtDepth(root, 0, d)
       .map((cell) => {
@@ -394,7 +407,10 @@ function capFiguresFromEntities(
   return figures.join("");
 }
 
-export function capTableHtml(text: string, caption = "登记股权"): string | null {
+export function capTableHtml(
+  text: string,
+  caption = "登记股权 · 数字为对上一层持股",
+): string | null {
   const entities = parseCapTable(text);
   if (!entities) return null;
   return capFiguresFromEntities(entities, caption, /传媒/u);
@@ -403,7 +419,11 @@ export function capTableHtml(text: string, caption = "登记股权"): string | n
 export function mermaidFlowHtml(code: string): string | null {
   const entities = parseMermaidCapEntities(code);
   if (!entities) return null;
-  const owner = capFiguresFromEntities(entities, "登记股权", /传媒/u);
+  const owner = capFiguresFromEntities(
+    entities,
+    "登记股权 · 数字为对上一层持股",
+    /传媒/u,
+  );
   if (!owner) return null;
   const used = new Set<string>();
   const ownerRoot = pickRoots(entities, /传媒/u)[0];
@@ -509,4 +529,108 @@ export function splitConclusionSection(
   const cardHtml = `<aside class="kn-decision kn-decision--${tone} kn-decision--${kind}"><header class="kn-decision__head"><p class="kn-decision__kicker">${escapeHtml(kicker)}</p><p class="kn-decision__verdict">${escapeHtml(shown.primary || "待定")}</p>${detail}</header>${chipRow}${lede}${note}${dl}</aside>`;
   const restMd = rest.join("\n").trim();
   return { cardHtml, restMd };
+}
+
+export type KnStatusChip = { label: string; value: string };
+
+const STATUS_CLAUSE =
+  /(文稿状态|证据核验状态|核验状态|内容状态|工件状态)[:：]\s*([^；。]+)/gu;
+
+const VERIFY_ZH: Record<string, string> = {
+  部分完成: "部分核验",
+  部分核验: "部分核验",
+  已完成: "已核验",
+  未开始: "未核验",
+};
+
+export function displayVerifyStatus(raw: string): string {
+  const t = stripMd(raw).replace(/[。.．]+$/u, "");
+  if (VERIFY_ZH[t]) return VERIFY_ZH[t]!;
+  return displayStatus(t).primary;
+}
+
+export function parseStatusChips(text: string): KnStatusChip[] {
+  const out: KnStatusChip[] = [];
+  const seen = new Set<string>();
+  const re = new RegExp(STATUS_CLAUSE.source, "gu");
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    const rawLabel = (m[1] ?? "").trim();
+    const value = displayVerifyStatus(m[2] ?? "");
+    if (!value) continue;
+    const label = /核验|内容/u.test(rawLabel) ? "核验" : "文稿";
+    const key = `${label}:${value}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ label, value });
+  }
+  return out;
+}
+
+export function stripStatusClauses(text: string): string {
+  return text
+    .replace(new RegExp(STATUS_CLAUSE.source, "gu"), "")
+    .replace(/[；;]\s*[；;]/gu, "；")
+    .replace(/^[；;。.\s]+|[；;。.\s]+$/gu, "")
+    .replace(/\s{2,}/gu, " ")
+    .trim();
+}
+
+export function isTakeawayKey(key: string): boolean {
+  return /^(本章结论|本章判断)$/u.test(key.trim());
+}
+
+export function isJudgmentKey(key: string): boolean {
+  return /^(判断|融资判断|投资判断|风险传导)$/u.test(key.trim());
+}
+
+export function isNextKey(key: string): boolean {
+  return /^(关闭标准|下一步)$/u.test(key.trim());
+}
+
+export function statusRowHtml(chips: KnStatusChip[]): string {
+  if (!chips.length) return "";
+  const inner = chips
+    .map(
+      (c) =>
+        `<span class="kn-statuschip">${escapeHtml(c.label)} · ${escapeHtml(c.value)}</span>`,
+    )
+    .join("");
+  return `<p class="kn-statusrow">${inner}</p>`;
+}
+
+function splitPrioritySentence(body: string): { main: string; next: string } {
+  const m =
+    /(?:当前)?最需优先解决的是[：:]\s*(.+?)(?:[。．]|$)/u.exec(body);
+  if (!m) return { main: body.trim(), next: "" };
+  return { main: body.trim(), next: (m[1] ?? "").trim() };
+}
+
+export function chapterTakeawayHtml(
+  body: string,
+  chips: KnStatusChip[] = [],
+): string {
+  const split = splitPrioritySentence(body);
+  const chipHtml = chips.length
+    ? `<p class="kn-takeaway__chips">${chips
+        .map(
+          (c) =>
+            `<span class="kn-statuschip">${escapeHtml(c.label)} · ${escapeHtml(c.value)}</span>`,
+        )
+        .join("")}</p>`
+    : "";
+  const next = split.next
+    ? `<div class="kn-next kn-next--inline"><p class="kn-next__k">下一步</p><p class="kn-next__body">${escapeHtml(split.next)}</p></div>`
+    : "";
+  return `<aside class="kn-takeaway"><header class="kn-takeaway__head"><p class="kn-takeaway__k">本章结论</p>${chipHtml}</header><p class="kn-takeaway__body">${escapeHtml(localizeKnStatusText(split.main))}</p>${next}</aside>`;
+}
+
+export function judgmentBlockHtml(kind: string, body: string): string {
+  const label = kind.trim() || "判断";
+  return `<aside class="kn-judgment"><p class="kn-judgment__k">${escapeHtml(label)}</p><p class="kn-judgment__body">${escapeHtml(localizeKnStatusText(body))}</p></aside>`;
+}
+
+export function nextBlockHtml(kind: string, body: string): string {
+  const label = /关闭/u.test(kind) ? "关闭标准" : "下一步";
+  return `<aside class="kn-next"><p class="kn-next__k">${escapeHtml(label)}</p><p class="kn-next__body">${escapeHtml(localizeKnStatusText(body))}</p></aside>`;
 }

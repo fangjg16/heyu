@@ -124,6 +124,40 @@ describe("enhanceKnChapterHtml", () => {
       expect(html).toContain("kn-cap");
       expect(html).toContain("巨东传媒");
       expect(html).not.toContain("kn-pre");
+      expect(html).toContain("kn-cap__hold");
+    },
+  );
+
+  it.skipIf(typeof DOMParser === "undefined")(
+    "moves in-node equity percents onto 持有 labels",
+    () => {
+      const html = enhanceKnChapterHtml(`
+        <figure class="kn-cap">
+          <div class="kn-cap__levels">
+            <div class="kn-cap__level"><div class="kn-cap__cell"><div class="kn-cap__node kn-cap__node--root"><span class="kn-cap__name">巨东传媒</span></div></div></div>
+            <div class="kn-cap__level"><div class="kn-cap__cell"><div class="kn-cap__node"><span class="kn-cap__name">巨东文化</span><span class="kn-cap__pct">55%</span></div></div></div>
+          </div>
+        </figure>
+      `);
+      expect(html).toContain("持有 55%");
+      expect(html).toContain("kn-cap__hold");
+      expect(html).not.toContain("kn-cap__pct");
+    },
+  );
+
+  it.skipIf(typeof DOMParser === "undefined")(
+    "turns 本章结论 and 判断 into distinct blocks",
+    () => {
+      const html = enhanceKnChapterHtml(`
+        <p>文稿状态：工作稿；证据核验状态：部分完成。</p>
+        <p>本章结论：尚不能确认实际控制。当前最需优先解决的是：欠税线索。</p>
+        <p>判断：减资本身可以是正常重组。</p>
+      `);
+      expect(html).toContain("kn-statusrow");
+      expect(html).toContain("kn-takeaway");
+      expect(html).toContain("当前最需优先解决");
+      expect(html).toContain("kn-judgment");
+      expect(html).toContain("kn-next");
     },
   );
 });

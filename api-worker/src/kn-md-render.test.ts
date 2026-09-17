@@ -1207,6 +1207,32 @@ flowchart TD
     expect(html).toContain("kn-cap__wires");
     expect(html).toContain("巨东传媒");
     expect(html).toContain("巨东造梦");
+    expect(html).toContain("kn-cap__hold");
+    expect(html).toContain("持有 55%");
     expect(html).not.toContain("kn-pre");
+  });
+
+  it("turns 本章结论 into a takeaway and 判断 into a distinct block", () => {
+    const html = markdownToKnHtml(`# 公司与团队
+
+编制日期：2026年9月17日。文稿状态：工作稿；证据核验状态：部分完成。
+
+**本章结论：尚不能仅凭55%/45%确认实际控制。当前最需优先解决的是：欠税线索、实缴不一致。**
+
+**判断：** 减资引资本身可以是正常重组。
+
+**关闭标准：** 取得章程和银行流水后才能关闭。
+`);
+    expect(html).toContain("kn-statusrow");
+    expect(html).toContain("核验 · 部分核验");
+    expect(html).toContain("文稿 · 工作稿");
+    expect(html).toContain("kn-takeaway");
+    expect(html).toContain("尚不能仅凭");
+    expect(html).toContain("当前最需优先解决");
+    expect(html).toContain("kn-next");
+    expect(html).toContain("欠税线索");
+    expect(html).toContain("kn-judgment");
+    expect(html).toContain("正常重组");
+    expect(html).toContain("关闭标准");
   });
 });

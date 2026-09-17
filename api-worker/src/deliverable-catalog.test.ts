@@ -94,16 +94,43 @@ describe("deliverable-catalog", () => {
     expect(draftGenerateItemIds("mature", "section", "project-summary")).toEqual(
       [
         deliverableDraftId("screening-memo"),
+        deliverableDraftId("brief"),
+        deliverableDraftId("theme"),
         deliverableDraftId("investment-analysis-report"),
         "project-summary",
       ],
     );
+    expect(
+      draftGenerateItemIds("mature", "section", "project-summary", "diligence"),
+    ).toEqual([
+      deliverableDraftId("investment-analysis-report"),
+      deliverableDraftId("brief"),
+      deliverableDraftId("theme"),
+      "project-summary",
+    ]);
+    expect(
+      draftGenerateItemIds("mature", "section", "project-summary", "screening"),
+    ).toEqual([
+      deliverableDraftId("screening-memo"),
+      deliverableDraftId("brief"),
+      deliverableDraftId("theme"),
+      "project-summary",
+    ]);
     expect(draftGenerateItemIds("mature", "section", "company-team")).toEqual([
       deliverableDraftId("screening-memo"),
+      deliverableDraftId("company-team-qcc"),
+      deliverableDraftId("brief"),
       deliverableDraftId("business-due-diligence"),
       deliverableDraftId("background-check"),
+      "company-team",
+    ]);
+    expect(
+      draftGenerateItemIds("mature", "section", "company-team", "diligence"),
+    ).toEqual([
       deliverableDraftId("company-team-qcc"),
-      deliverableDraftId("investment-analysis-report"),
+      deliverableDraftId("brief"),
+      deliverableDraftId("business-due-diligence"),
+      deliverableDraftId("background-check"),
       "company-team",
     ]);
     expect(
@@ -114,10 +141,15 @@ describe("deliverable-catalog", () => {
     ).toEqual([
       deliverableDraftId("screening-memo"),
       deliverableDraftId("returns"),
-      deliverableDraftId("risk-matrix"),
       deliverableDraftId("claim-audit"),
-      deliverableDraftId("investment-analysis-report"),
+      deliverableDraftId("risk-matrix"),
       "risk-return",
+    ]);
+    expect(
+      draftGenerateItemIds("mature", "section", "industry-competition", "diligence"),
+    ).toEqual([
+      deliverableDraftId("industry-due-diligence"),
+      "industry-competition",
     ]);
     expect(
       headingSlicesForDeliverable(
@@ -140,19 +172,20 @@ describe("deliverable-catalog", () => {
         deliverablesForKind("mature").find((d) => d.id === "screening-memo")!,
         "industry-competition",
       ),
-    ).toEqual(["行业与竞争"]);
+    ).toBeNull();
     expect(
-      headingSlicesForDeliverable(
-        deliverablesForKind("mature").find((d) => d.id === "screening-memo")!,
-        "project-summary",
+      deliverablesForKnSection("mature", "industry-competition", "screening").map(
+        (d) => d.id,
       ),
-    ).toEqual([
-      "项目概览",
-      "项目概况",
-      "初筛结论",
-      "投资结论",
-      "项目基本情况",
-    ]);
+    ).toEqual(["screening-memo"]);
+    expect(
+      deliverablesForKnSection("mature", "industry-competition", "diligence").map(
+        (d) => d.id,
+      ),
+    ).toEqual(["industry-due-diligence"]);
+    expect(
+      deliverablesForKnSection("mature", "industry-competition").map((d) => d.id),
+    ).toEqual(["screening-memo", "industry-due-diligence"]);
     expect(deliverablesForKnSection("mature", "sources")).toEqual([]);
     expect(deliverablesForKind("mature").some((d) => d.id === "source-register")).toBe(
       true,

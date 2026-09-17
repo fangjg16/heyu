@@ -10,6 +10,10 @@ import {
 } from "./kn-catalog";
 import { AI_GENERATED_ROOT } from "./ai-generated-path";
 import type { SkillPackId } from "./skill-packs";
+import {
+  capitallensKnSources,
+  type KnWorkstream,
+} from "./capitallens-kn-map";
 
 export type DeliverableLegacyPath = {
   readonly folder: string;
@@ -136,40 +140,10 @@ const MATURE: readonly DeliverableFile[] = [
   f("source-register", "capitallens", "02-evidence", "source-register.md", "引用来源", "due-diligence", [], 9, ["references/shared/source-grading.md", "references/shared/evidence-contract.md", HONESTY]),
 ];
 
-/** 一份尽调文件切到多个二级 tab 时，按标题抽取。 */
+/** 一份尽调文件切到多个历史二级 tab 时，按标题抽取。七章装配见 capitallens-kn-map。 */
 export const MATURE_KN_HEADING_SLICES: Readonly<
   Record<string, Readonly<Record<string, readonly string[]>>>
 > = {
-  "screening-memo": {
-    "project-summary": [
-      "项目概览",
-      "项目概况",
-      "初筛结论",
-      "投资结论",
-      "项目基本情况",
-    ],
-    "industry-competition": ["行业与竞争"],
-    "business-technology": ["业务与技术"],
-    "company-team": ["公司与团队"],
-    "financial-diligence": ["财务分析"],
-    "risk-return": ["风险与回报"],
-    "diligence-gaps": ["待解决问题"],
-  },
-  "investment-analysis-report": {
-    "project-summary": [
-      "项目概况",
-      "项目概览",
-      "投资结论",
-      "初筛结论",
-      "项目基本情况",
-    ],
-    "industry-competition": ["行业与竞争"],
-    "business-technology": ["业务与技术"],
-    "company-team": ["公司与团队"],
-    "financial-diligence": ["财务分析"],
-    "risk-return": ["风险与回报"],
-    "diligence-gaps": ["待解决问题"],
-  },
   "industry-due-diligence": {
     "industry-overview": [
       "行业定义与坐标",
@@ -227,10 +201,36 @@ export function deliverableRelativePath(file: DeliverableFile): string {
   return `${AI_GENERATED_ROOT}/${file.pack}/${file.folder}`;
 }
 
+function deliverablesFromKnMap(
+  sectionId: string,
+  workstream?: KnWorkstream,
+): DeliverableFile[] {
+  const specs = workstream
+    ? capitallensKnSources(workstream, sectionId)
+    : [
+        ...capitallensKnSources("screening", sectionId),
+        ...capitallensKnSources("diligence", sectionId),
+      ];
+  const seen = new Set<string>();
+  const files: DeliverableFile[] = [];
+  for (const spec of specs) {
+    if (seen.has(spec.fileId)) continue;
+    seen.add(spec.fileId);
+    const file = deliverableById("mature", spec.fileId);
+    if (file) files.push(file);
+  }
+  return files;
+}
+
 export function deliverablesForKnSection(
   kind: AnalysisKind,
   sectionId: string,
+  workstream?: KnWorkstream,
 ): DeliverableFile[] {
+  if (kind === "mature") {
+    const mapped = deliverablesFromKnMap(sectionId, workstream);
+    if (mapped.length) return mapped;
+  }
   return deliverablesForKind(kind).filter((d) =>
     d.knSectionIds.includes(sectionId),
   );
@@ -248,10 +248,11 @@ export function draftGenerateItemIds(
   kind: AnalysisKind,
   scope: "full" | "section",
   sectionId?: string | null,
+  workstream?: KnWorkstream,
 ): string[] {
   if (scope === "section" && sectionId) {
-    const files = deliverablesForKnSection(kind, sectionId).map((d) =>
-      deliverableDraftId(d.id),
+    const files = deliverablesForKnSection(kind, sectionId, workstream).map(
+      (d) => deliverableDraftId(d.id),
     );
     return [...files, sectionId];
   }
@@ -266,12 +267,22 @@ export function deliverableDraftIdsForKnSections(
   const wanted = new Set(sectionIds);
   const out: string[] = [];
   const seen = new Set<string>();
-  for (const d of deliverablesForKind(kind)) {
-    if (!d.knSectionIds.some((id) => wanted.has(id))) continue;
-    const itemId = deliverableDraftId(d.id);
-    if (seen.has(itemId)) continue;
+  const add = (file: DeliverableFile) => {
+    const itemId = deliverableDraftId(file.id);
+    if (seen.has(itemId)) return;
     seen.add(itemId);
     out.push(itemId);
+  };
+  if (kind === "mature") {
+    for (const sectionId of sectionIds) {
+      for (const file of deliverablesForKnSection("mature", sectionId)) {
+        add(file);
+      }
+    }
+  }
+  for (const d of deliverablesForKind(kind)) {
+    if (!d.knSectionIds.some((id) => wanted.has(id))) continue;
+    add(d);
   }
   return out;
 }

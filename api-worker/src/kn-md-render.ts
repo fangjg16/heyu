@@ -16,6 +16,15 @@ import {
   looksLikeCapTable,
   mermaidFlowHtml,
   splitConclusionSection,
+  chapterTakeawayHtml,
+  isJudgmentKey,
+  isNextKey,
+  isTakeawayKey,
+  judgmentBlockHtml,
+  nextBlockHtml,
+  parseStatusChips,
+  statusRowHtml,
+  stripStatusClauses,
 } from "./kn-md-structure";
 import {
   evidenceTagPattern,
@@ -190,7 +199,7 @@ function parseMetaLine(line: string): { key: string; value: string } | null {
     if (key && value) return { key, value };
   }
   // **Key: value**  冒号写在加粗里面，合域 GPT 草案常用
-  m = /^\*\*([^*]+?)[:：]\s+(.+?)\*\*\s*$/u.exec(t);
+  m = /^\*\*([^*]+?)[:：]\s*(.+?)\*\*\s*$/u.exec(t);
   if (m) {
     const key = m[1]!.trim();
     const value = m[2]!.trim().replace(/[。.]\s*$/u, "");
@@ -518,7 +527,7 @@ function firstHeadingTitle(md: string): string {
   return (m?.[1] ?? "").trim();
 }
 
-function markdownHasBody(md: string): boolean {
+export function markdownHasBody(md: string): boolean {
   return (
     md
       .replace(/^\uFEFF/, "")
@@ -1406,7 +1415,23 @@ function markdownToKnHtmlInner(src: string): string {
     } else if (looksLikeCapTable(plain)) {
       out.push(capTableHtml(plain) ?? `<p>${inline(text)}</p>`);
     } else {
-      out.push(`<p>${inline(text)}</p>`);
+      const labeled = parseMetaLine(text);
+      if (labeled && isTakeawayKey(labeled.key)) {
+        out.push(chapterTakeawayHtml(labeled.value, parseStatusChips(plain)));
+      } else if (labeled && isJudgmentKey(labeled.key)) {
+        out.push(judgmentBlockHtml(labeled.key, labeled.value));
+      } else if (labeled && isNextKey(labeled.key)) {
+        out.push(nextBlockHtml(labeled.key, labeled.value));
+      } else {
+        const chips = parseStatusChips(plain);
+        if (chips.length) {
+          const rest = stripStatusClauses(plain);
+          out.push(statusRowHtml(chips));
+          if (rest) out.push(`<p>${inline(rest)}</p>`);
+        } else {
+          out.push(`<p>${inline(text)}</p>`);
+        }
+      }
     }
     para = [];
   };
@@ -1767,8 +1792,11 @@ function markdownToKnHtmlInner(src: string): string {
     const labeled = parseMetaLine(trimmed);
     if (
       labeled &&
-      !isDocMetaLine(trimmed) &&
-      !isSectionConfLine(trimmed)
+      !isSectionConfLine(trimmed) &&
+      (!isDocMetaLine(trimmed) ||
+        isJudgmentKey(labeled.key) ||
+        isTakeawayKey(labeled.key) ||
+        isNextKey(labeled.key))
     ) {
       flushPara();
       flushList();
@@ -1798,6 +1826,12 @@ function markdownToKnHtmlInner(src: string): string {
         out.push(
           `<div class="kn-so"><p class="kn-so__k">含义</p>${labeled.value ? `<p>${inline(labeled.value)}</p>` : ""}</div>`,
         );
+      } else if (isTakeawayKey(labeled.key)) {
+        out.push(chapterTakeawayHtml(labeled.value, parseStatusChips(trimmed)));
+      } else if (isJudgmentKey(labeled.key)) {
+        out.push(judgmentBlockHtml(labeled.key, labeled.value));
+      } else if (isNextKey(labeled.key)) {
+        out.push(nextBlockHtml(labeled.key, labeled.value));
       } else if (planKind) {
         out.push(
           `<div class="kn-plan${planKind}"><p class="kn-plan__label">${inline(keyZh)}</p>${labeled.value ? `<p class="kn-plan__lead">${inline(labeled.value)}</p>` : ""}</div>`,
@@ -1877,6 +1911,15 @@ function markdownToKnHtmlInner(src: string): string {
     }
 
     if (isDocMetaLine(trimmed) && out.length > 0) {
+      const labeledMeta = parseMetaLine(trimmed);
+      if (
+        labeledMeta &&
+        (isJudgmentKey(labeledMeta.key) ||
+          isTakeawayKey(labeledMeta.key) ||
+          isNextKey(labeledMeta.key))
+      ) {
+        /* 正文里的判断/结论不当封面元数据 */
+      } else {
       flushPara();
       flushList();
       const meta = [trimmed];
@@ -1889,6 +1932,7 @@ function markdownToKnHtmlInner(src: string): string {
       if (cover) out.push(`<aside class="kn-dochead kn-dochead--inline">${cover}</aside>`);
       i = skipFollowingRule(lines, i);
       continue;
+      }
     }
 
     if (trimmed.startsWith("```")) {
@@ -2101,17 +2145,27 @@ function isStandaloneDeliverable(file: {
   return bare.includes(file.title) || file.title.includes(bare);
 }
 
+export type RenderDeliverableChapterOptions = {
+  /** 按传入顺序拼接，不按 catalog phase 倒序。 */
+  keepSourceOrder?: boolean;
+  /** 主稿标题命中时仍保留其它底稿。 */
+  keepExtras?: boolean;
+};
+
 export function renderDeliverableChapterHtml(
   files: { title: string; markdown: string; id?: string; phase?: number }[],
+  options?: RenderDeliverableChapterOptions,
 ): string {
   const withText = files.filter((f) => f.markdown.trim());
   const withBody = withText.filter((f) => markdownHasBody(f.markdown));
   const nonempty = withBody.length > 0 ? withBody : withText;
   if (nonempty.length === 0) return EMPTY_CHAPTER_HTML;
-  const ranked = [...nonempty].sort(
-    (a, b) => (b.phase ?? 0) - (a.phase ?? 0),
-  );
-  const standalone = ranked.find((f) => isStandaloneDeliverable(f));
+  const ranked = options?.keepSourceOrder
+    ? [...nonempty]
+    : [...nonempty].sort((a, b) => (b.phase ?? 0) - (a.phase ?? 0));
+  const standalone = options?.keepExtras
+    ? undefined
+    : ranked.find((f) => isStandaloneDeliverable(f));
   if (standalone) {
     return markdownToKnHtml(standalone.markdown, standalone.id);
   }

@@ -19,17 +19,17 @@ npm run seed:kn-chapter-templates -- --force
 
 ## 投资（mature）
 
-筛选备忘录和尽调报告共用七个一级目录。结论写在 1.1，投资风险写在 6.3，不再单独做顶栏。深度用工件状态 `indicative` / `working` / `diligence-adjusted` 区分，不靠拆 tab。Agent 的 Exciting/Pass 或 Proceed/Reject 只是建议，不改项目流水线。
+筛选和尽调共用七个一级目录，但**按阶段换底稿**，不把 screening-memo 和 investment-analysis-report 叠进每一章。结论写在 1.1（筛选备忘录 / 尽调报告里，不另建评分底稿）。表内子节是必有内容，不是白名单——专章底稿整份进入。深度用工件状态 `indicative` / `working` / `diligence-adjusted` 区分。Agent 建议不改项目流水线。
 
-| 章 | 模板 | 对应产出 |
-|----|------|----------|
-| 1 项目概况（含 1.1 结论） | [mature/project-summary.md](mature/project-summary.md) | screening-memo.md 第 1 章 / investment-analysis-report.md 第 1 章 |
-| 2 行业与竞争 | [mature/industry-competition.md](mature/industry-competition.md) | 筛选备忘录第 2 章 / industry-diligence.md |
-| 3 业务与技术 | [mature/business-technology.md](mature/business-technology.md) | 筛选备忘录第 3 章 / business-diligence.md |
-| 4 公司与团队 | [mature/company-team.md](mature/company-team.md) | 筛选备忘录第 4 章 / 业务底稿 + background-check.md |
-| 5 财务分析 | [mature/financial-diligence.md](mature/financial-diligence.md) | 筛选备忘录第 5 章 / financial-diligence.md |
-| 6 风险与回报（6.1 估值 · 6.2 主张核验 · 6.3 投资风险） | [mature/risk-return.md](mature/risk-return.md) | 筛选备忘录第 6 章 / valuation-and-returns.md + claim-audit.md + 风险登记 |
-| 7 待解决问题（7.1 问被投方 · 7.2 内部） | [mature/diligence-gaps.md](mature/diligence-gaps.md) | 筛选备忘录第 7 章 / diligence-request-list.md |
+| 章 | 筛选 | 尽调 |
+|----|------|------|
+| 1 项目概况（1.1 结论） | screening-memo 第 1 章 + 简报/主题 | investment-analysis-report 第 1 章 + 简报/主题 |
+| 2 行业与竞争 | screening-memo 第 2 章 | industry-diligence.md 整份 |
+| 3 业务与技术 | screening-memo 第 3 章 | business-diligence.md 整份 |
+| 4 公司与团队 | screening-memo 第 4 章 | company-team.md、简报、业务底稿组织节、background-check（有深查才有） |
+| 5 财务分析 | screening-memo 第 5 章 | financial-diligence.md 整份 |
+| 6 风险与回报（6.1 估值 · 6.2 主张核验 · 6.3 投资风险） | screening-memo 第 6 章 | valuation-and-returns.md + claim-audit.md + investment-risks.md |
+| 7 待解决问题（7.1 问被投方 · 7.2 内部） | screening-memo 第 7 章 | diligence-request-list.md + diligence-readiness.md |
 
 平台终态用词是 `passed`（不投）；skill 里是 `declined`。流水线筛选→尽调仍需人点「推进到尽调」。
 

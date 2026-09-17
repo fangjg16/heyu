@@ -1,10 +1,19 @@
 import {
   capTableHtml,
+  chapterTakeawayHtml,
   isConclusionHeading,
+  isJudgmentKey,
+  isNextKey,
+  isTakeawayKey,
+  judgmentBlockHtml,
   localizeKnStatusText,
   looksLikeCapTable,
   mermaidFlowHtml,
+  nextBlockHtml,
+  parseStatusChips,
   splitConclusionSection,
+  statusRowHtml,
+  stripStatusClauses,
 } from "./kn-structure";
 
 const SOURCE_LEAD =
@@ -150,7 +159,7 @@ function isBlockLabel(el: Element, re: RegExp): boolean {
 function alreadyEnhanced(el: Element): boolean {
   return Boolean(
     el.closest(
-      ".kn-verdict, .kn-readiness, .kn-lede-card, .kn-split, .kn-source-note, .kn-stats, .kn-callout--verdict, .kn-callout--terms, .kn-hero, .kn-decision, .kn-cap",
+      ".kn-verdict, .kn-readiness, .kn-lede-card, .kn-split, .kn-source-note, .kn-stats, .kn-callout--verdict, .kn-callout--terms, .kn-hero, .kn-decision, .kn-cap, .kn-takeaway, .kn-judgment, .kn-next, .kn-statusrow",
     ),
   );
 }
@@ -569,6 +578,106 @@ function hoistLaterDeliverables(root: Element): void {
   for (const el of ranked) root.append(el);
 }
 
+function relabelCapPercents(root: Element, doc: Document): void {
+  for (const node of [...root.querySelectorAll(".kn-cap__node")]) {
+    if (!node.isConnected) continue;
+    if (node.classList.contains("kn-cap__node--root")) continue;
+    const cell = node.parentElement;
+    if (!cell || cell.querySelector(":scope > .kn-cap__hold")) continue;
+    const pct = node.querySelector(".kn-cap__pct");
+    if (!pct) continue;
+    const hold = doc.createElement("span");
+    hold.className = "kn-cap__hold";
+    hold.textContent = `持有 ${knPlain(pct.textContent ?? "")}`;
+    cell.insertBefore(hold, node);
+    pct.remove();
+  }
+}
+
+function wrapTakeawayAndJudgment(root: Element, doc: Document): void {
+  for (const h of [...root.querySelectorAll("h2,h3,h4")]) {
+    if (!h.isConnected || alreadyEnhanced(h)) continue;
+    if (!isTakeawayKey(headingLabel(h))) continue;
+    const nxt = nextElement(h);
+    if (!nxt || !/^(P|DIV)$/u.test(nxt.tagName)) continue;
+    const body = knPlain(nxt.textContent ?? "");
+    if (!body) continue;
+    const box = doc.createElement("div");
+    box.innerHTML = chapterTakeawayHtml(body, parseStatusChips(body));
+    const card = box.firstElementChild;
+    if (!card) continue;
+    h.replaceWith(card);
+    nxt.remove();
+  }
+  for (const el of [...root.querySelectorAll("p, .kn-md-kicker")]) {
+    if (!el.isConnected || alreadyEnhanced(el)) continue;
+    if (el.querySelector("ul,ol,table,div")) continue;
+    const text = knPlain(el.textContent ?? "");
+    const labeled = /^([^：:]{2,12})[:：]\s*(.+)$/u.exec(text);
+    const key = labeled?.[1]?.trim() ?? "";
+    const value = labeled?.[2]?.trim() ?? "";
+    if (labeled && isTakeawayKey(key)) {
+      const box = doc.createElement("div");
+      box.innerHTML = chapterTakeawayHtml(value, parseStatusChips(text));
+      const card = box.firstElementChild;
+      if (card) el.replaceWith(card);
+      continue;
+    }
+    if (el.classList.contains("kn-md-kicker") && isJudgmentKey(text)) {
+      const nxt = nextElement(el);
+      const body = nxt && /^(P|DIV)$/u.test(nxt.tagName)
+        ? knPlain(nxt.textContent ?? "")
+        : "";
+      if (!body) continue;
+      const box = doc.createElement("div");
+      box.innerHTML = judgmentBlockHtml(text, body);
+      const card = box.firstElementChild;
+      if (!card) continue;
+      el.replaceWith(card);
+      nxt?.remove();
+      continue;
+    }
+    if (labeled && isJudgmentKey(key)) {
+      const box = doc.createElement("div");
+      box.innerHTML = judgmentBlockHtml(key, value);
+      const card = box.firstElementChild;
+      if (card) el.replaceWith(card);
+      continue;
+    }
+    if (el.classList.contains("kn-md-kicker") && isNextKey(text)) {
+      const nxt = nextElement(el);
+      const body = nxt && /^(P|DIV)$/u.test(nxt.tagName)
+        ? knPlain(nxt.textContent ?? "")
+        : "";
+      if (!body) continue;
+      const box = doc.createElement("div");
+      box.innerHTML = nextBlockHtml(text, body);
+      const card = box.firstElementChild;
+      if (!card) continue;
+      el.replaceWith(card);
+      nxt?.remove();
+      continue;
+    }
+    if (labeled && isNextKey(key)) {
+      const box = doc.createElement("div");
+      box.innerHTML = nextBlockHtml(key, value);
+      const card = box.firstElementChild;
+      if (card) el.replaceWith(card);
+      continue;
+    }
+    const chips = parseStatusChips(text);
+    if (!chips.length) continue;
+    const rest = stripStatusClauses(text);
+    const row = doc.createElement("div");
+    row.innerHTML = statusRowHtml(chips);
+    const chipEl = row.firstElementChild;
+    if (!chipEl) continue;
+    el.parentElement?.insertBefore(chipEl, el);
+    if (rest) el.textContent = rest;
+    else el.remove();
+  }
+}
+
 function wrapCapTables(root: Element, doc: Document): void {
   for (const el of [...root.querySelectorAll("pre")]) {
     if (!el.isConnected || alreadyEnhanced(el)) continue;
@@ -706,6 +815,8 @@ export function enhanceKnChapterRoot(root: Element, doc: Document): void {
   wrapStatusCards(root, doc, READINESS_HEAD, "readiness", knReadinessTone);
   wrapConclusionBlocks(root, doc);
   wrapCapTables(root, doc);
+  relabelCapPercents(root, doc);
+  wrapTakeawayAndJudgment(root, doc);
   hoistLaterDeliverables(root);
   wrapPrereqs(root, doc);
   wrapSplits(root, doc);

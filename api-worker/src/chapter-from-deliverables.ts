@@ -3,6 +3,14 @@ import type { AppObjectStorage } from "./app-storage";
 import { readCurrentMarkdownAtPath } from "./ai-generated-documents";
 import { AI_GENERATED_ROOT } from "./ai-generated-path";
 import {
+  capitallensKnSources,
+  DILIGENCE_SIGNAL_FILE_IDS,
+  resolveKnWorkstream,
+  sliceDeliverableForKn,
+  type KnWorkstream,
+} from "./capitallens-kn-map";
+import {
+  deliverableById,
   deliverableRelativePath,
   deliverablesForKnSection,
   headingSlicesForDeliverable,
@@ -12,8 +20,12 @@ import {
   extractMarkdownHeadingSlices,
   extractNumberedMarkdownChapter,
 } from "./kn-md-headings";
-import { renderDeliverableChapterHtml } from "./kn-md-render";
+import {
+  markdownHasBody,
+  renderDeliverableChapterHtml,
+} from "./kn-md-render";
 import type { AnalysisKind } from "./analysis-kind";
+import { getProjectById } from "./projects-db";
 
 type Env = { DB: AppDatabase; FILES?: AppObjectStorage };
 
@@ -44,29 +56,87 @@ async function readDeliverableMarkdown(
   return "";
 }
 
+async function projectHasDiligenceBody(
+  env: Env,
+  projectId: string,
+): Promise<boolean> {
+  for (const id of DILIGENCE_SIGNAL_FILE_IDS) {
+    const file = deliverableById("mature", id);
+    if (!file) continue;
+    const raw = await readDeliverableMarkdown(env, projectId, file);
+    if (markdownHasBody(raw)) return true;
+  }
+  return false;
+}
+
+export async function resolveProjectKnWorkstream(
+  env: Env,
+  projectId: string,
+  kind: AnalysisKind,
+): Promise<KnWorkstream | undefined> {
+  if (kind !== "mature") return undefined;
+  const project = await getProjectById(env, projectId).catch(() => null);
+  const hasDiligenceBody = await projectHasDiligenceBody(env, projectId);
+  return resolveKnWorkstream({
+    pipelineStage: project?.pipelineStage ?? null,
+    hasDiligenceBody,
+  });
+}
+
+function sliceCatalogMarkdown(
+  raw: string,
+  file: DeliverableFile,
+  sectionId: string,
+): string {
+  const slices = headingSlicesForDeliverable(file, sectionId);
+  if (!slices?.length || !raw.trim()) return raw;
+  const cut = extractMarkdownHeadingSlices(raw, slices);
+  if (cut.trim()) return cut;
+  if (sectionId === "project-summary") {
+    return extractNumberedMarkdownChapter(raw, 1);
+  }
+  return "";
+}
+
 export async function renderKnSectionFromDeliverables(
   env: Env,
   projectId: string,
   kind: AnalysisKind,
   sectionId: string,
 ): Promise<string> {
-  const files = deliverablesForKnSection(kind, sectionId);
-  const loaded: { title: string; markdown: string; id: string }[] = [];
+  const workstream = await resolveProjectKnWorkstream(env, projectId, kind);
+  const specs =
+    kind === "mature" && workstream
+      ? capitallensKnSources(workstream, sectionId)
+      : [];
+  if (specs.length) {
+    const loaded: { title: string; markdown: string; id: string; phase: number }[] =
+      [];
+    for (const spec of specs) {
+      const file = deliverableById(kind, spec.fileId);
+      if (!file) continue;
+      const raw = await readDeliverableMarkdown(env, projectId, file);
+      loaded.push({
+        title: file.title,
+        markdown: sliceDeliverableForKn(raw, spec),
+        id: file.id,
+        phase: file.phase,
+      });
+    }
+    return renderDeliverableChapterHtml(loaded, {
+      keepSourceOrder: true,
+      keepExtras: true,
+    });
+  }
+
+  const files = deliverablesForKnSection(kind, sectionId, workstream);
+  const loaded: { title: string; markdown: string; id: string; phase: number }[] =
+    [];
   for (const file of files) {
     const raw = await readDeliverableMarkdown(env, projectId, file);
-    const slices = headingSlicesForDeliverable(file, sectionId);
-    let markdown = raw;
-    if (slices?.length && raw.trim()) {
-      const cut = extractMarkdownHeadingSlices(raw, slices);
-      markdown = cut.trim()
-        ? cut
-        : sectionId === "project-summary"
-          ? extractNumberedMarkdownChapter(raw, 1)
-          : "";
-    }
     loaded.push({
       title: file.title,
-      markdown,
+      markdown: sliceCatalogMarkdown(raw, file, sectionId),
       id: file.id,
       phase: file.phase,
     });

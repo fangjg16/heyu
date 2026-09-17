@@ -31,6 +31,7 @@ import {
   orderDeliverableDraftIds,
   unpublishedGenerateItemIds,
 } from "./deliverable-catalog";
+import { resolveProjectKnWorkstream } from "./chapter-from-deliverables";
 import { handleGenerateDeliverableDraft } from "./deliverable-generate";
 import {
   hasUnconsumedSeedFirstVersionDeliverable,
@@ -736,9 +737,14 @@ export async function handleCreateChapterDraftRun(
       projectId,
       `${project.name}\n${project.summary ?? ""}`,
     ));
+  const workstream = await resolveProjectKnWorkstream(
+    env,
+    projectId,
+    analysisKind,
+  );
   const wantedIds =
     scope === "section" && sectionId
-      ? draftGenerateItemIds(analysisKind, "section", sectionId)
+      ? draftGenerateItemIds(analysisKind, "section", sectionId, workstream)
       : fullUpdateSectionIds(analysisKind);
 
   const active = await findActiveDraftRun(env.DB, projectId);
@@ -1128,7 +1134,12 @@ export async function handleGenerateChapterDraftSection(
         (await getStoredAnalysisKind(env.DB, projectId)) ??
         DEFAULT_ANALYSIS_KIND;
       if (!isDeliverableDraftId(sectionId) && sectionId !== "project-overview") {
-        const files = deliverablesForKnSection(kind, sectionId);
+        const workstream = await resolveProjectKnWorkstream(
+          env,
+          projectId,
+          kind,
+        );
+        const files = deliverablesForKnSection(kind, sectionId, workstream);
         for (const file of files) {
           await runOneDraftSectionGenerate(
             env,
