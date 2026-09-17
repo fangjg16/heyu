@@ -25,7 +25,6 @@ import {
 } from "@/lib/parse-ui-status";
 import {
   Archive,
-  ChevronDown,
   Download,
   Eye,
   FileText,
@@ -458,7 +457,6 @@ export function ProjectMaterialsSection({
   const skipFacetResetRef = useRef(Boolean(folderFromQuery));
   const appliedFolderQueryRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const folderInputRef = useRef<HTMLInputElement | null>(null);
   const uploadTargetRef = useRef<string>("");
 
   const [liveFiles, setLiveFiles] = useState<ProjectFileRecord[] | null>(null);
@@ -537,13 +535,6 @@ export function ProjectMaterialsSection({
       void reload();
     });
   }, [projectId, reload]);
-
-  useEffect(() => {
-    const el = folderInputRef.current;
-    if (!el) return;
-    el.setAttribute("webkitdirectory", "");
-    el.setAttribute("directory", "");
-  }, []);
 
   const allLive = liveFiles ?? [];
   const packageLive = useMemo(
@@ -824,22 +815,9 @@ export function ProjectMaterialsSection({
     [],
   );
 
-  const onFolderInputChange = useCallback(
-    (list: FileList | null, targetFolder: string) => {
-      void processUploadSelection(list, targetFolder);
-      if (folderInputRef.current) folderInputRef.current.value = "";
-    },
-    [processUploadSelection],
-  );
-
   const triggerFilePicker = (targetFolder: string) => {
     uploadTargetRef.current = targetFolder;
     fileInputRef.current?.click();
-  };
-
-  const triggerFolderPicker = (targetFolder: string) => {
-    uploadTargetRef.current = targetFolder;
-    folderInputRef.current?.click();
   };
 
   const onCreateFolder = async (parentPath: string) => {
@@ -1649,8 +1627,7 @@ export function ProjectMaterialsSection({
                       quiet
                       disabled={folderBusy}
                       uploading={uploading}
-                      onSelectFiles={() => triggerFilePicker(PROJECT_SOURCE_PATH)}
-                      onSelectFolder={() => triggerFolderPicker(PROJECT_SOURCE_PATH)}
+                      onPick={() => triggerFilePicker(PROJECT_SOURCE_PATH)}
                     />
                   ) : null}
                 </div>
@@ -1869,12 +1846,11 @@ export function ProjectMaterialsSection({
                       quiet
                       disabled={folderBusy}
                       uploading={uploading}
-                      label="上传到此"
-                      onSelectFiles={() =>
-                        triggerFilePicker(selection.kind === "folder" ? selection.path : "")
-                      }
-                      onSelectFolder={() =>
-                        triggerFolderPicker(selection.kind === "folder" ? selection.path : "")
+                      label="上传到此文件夹"
+                      onPick={() =>
+                        triggerFilePicker(
+                          selection.kind === "folder" ? selection.path : "",
+                        )
                       }
                     />
                   ) : null}
@@ -2049,15 +2025,6 @@ export function ProjectMaterialsSection({
           void processUploadSelection(e.target.files, uploadTargetRef.current);
           if (fileInputRef.current) fileInputRef.current.value = "";
         }}
-      />
-      <input
-        ref={folderInputRef}
-        type="file"
-        className="sr-only"
-        multiple
-        onChange={(e) =>
-          void onFolderInputChange(e.target.files, uploadTargetRef.current)
-        }
       />
 
       {pendingUpload ? (
@@ -2288,91 +2255,37 @@ function UploadMenu({
   compact,
   quiet,
   label = "上传资料",
-  onSelectFiles,
-  onSelectFolder,
+  onPick,
 }: {
   disabled?: boolean;
   uploading?: boolean;
   compact?: boolean;
   quiet?: boolean;
   label?: string;
-  onSelectFiles: () => void;
-  onSelectFolder: () => void;
+  onPick: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
-
   return (
-    <div ref={rootRef} className="relative inline-flex">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
-        className={cn(
-          "inline-flex items-center gap-1 font-medium",
-          quiet
-            ? "h-8 shrink-0 rounded-lg px-2 text-[12.5px] text-[hsl(var(--wine))] hover:bg-[hsl(var(--wine)/0.08)]"
-            : compact
-              ? "h-8 rounded-lg bg-[hsl(var(--wine))] px-3 text-[12.5px] text-white hover:bg-[hsl(var(--wine-hover))]"
-              : "h-9 rounded-[10px] bg-[hsl(var(--wine))] px-3.5 text-[12.5px] text-white hover:bg-[hsl(var(--wine-hover))]",
-          disabled && "pointer-events-none opacity-60",
-        )}
-        aria-expanded={open}
-        aria-haspopup="menu"
-      >
-        {uploading ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-        ) : (
-          <Upload className="h-3.5 w-3.5" aria-hidden />
-        )}
-        {label}
-        <ChevronDown className="h-3 w-3 opacity-80" aria-hidden />
-      </button>
-      {open ? (
-        <ul
-          role="menu"
-          className="absolute right-0 top-full z-30 mt-1 min-w-[9rem] rounded-lg border border-border/80 bg-white py-1 shadow-lg"
-        >
-          <li role="none">
-            <button
-              type="button"
-              role="menuitem"
-              className="block w-full px-3 py-1.5 text-left text-[12px] hover:bg-muted/60"
-              onClick={() => {
-                onSelectFiles();
-                setOpen(false);
-              }}
-            >
-              选择文件
-            </button>
-          </li>
-          <li role="none">
-            <button
-              type="button"
-              role="menuitem"
-              className="block w-full px-3 py-1.5 text-left text-[12px] hover:bg-muted/60"
-              onClick={() => {
-                onSelectFolder();
-                setOpen(false);
-              }}
-            >
-              选择文件夹
-            </button>
-          </li>
-        </ul>
-      ) : null}
-    </div>
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onPick}
+      className={cn(
+        "inline-flex items-center gap-1 font-medium",
+        quiet
+          ? "h-8 shrink-0 rounded-lg px-2 text-[12.5px] text-[hsl(var(--wine))] hover:bg-[hsl(var(--wine)/0.08)]"
+          : compact
+            ? "h-8 rounded-lg bg-[hsl(var(--wine))] px-3 text-[12.5px] text-white hover:bg-[hsl(var(--wine-hover))]"
+            : "h-9 rounded-[10px] bg-[hsl(var(--wine))] px-3.5 text-[12.5px] text-white hover:bg-[hsl(var(--wine-hover))]",
+        disabled && "pointer-events-none opacity-60",
+      )}
+    >
+      {uploading ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+      ) : (
+        <Upload className="h-3.5 w-3.5" aria-hidden />
+      )}
+      {label}
+    </button>
   );
 }
 
