@@ -37,9 +37,11 @@ describe("knowledge-network display patterns", () => {
     expect(looksLikeStatusValue("注册周期长且不确定性高")).toBe(false);
   });
 
-  it("strips outline numbers from visible titles", () => {
+  it("keeps 1.1 / 2.3 subsection numbers and strips chapter-level 11.", () => {
     expect(knDisplayHeadingTitle("11. 一句话业务")).toBe("一句话业务");
-    expect(knDisplayHeadingTitle("9.3 反方意见")).toBe("反方意见");
+    expect(knDisplayHeadingTitle("1.1 初筛结论")).toBe("1.1 初筛结论");
+    expect(knDisplayHeadingTitle("2.3 产业链")).toBe("2.3 产业链");
+    expect(knDisplayHeadingTitle("一、行业概况")).toBe("行业概况");
   });
 });
 

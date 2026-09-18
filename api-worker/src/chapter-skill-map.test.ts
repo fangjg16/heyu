@@ -89,16 +89,15 @@ describe("chapter-skill-map", () => {
     }
   });
 
-  it("maps diligence-gaps to due-diligence first for mature", () => {
-    expect(skillsForChapter("diligence-gaps", "mature")[0]).toBe("due-diligence");
-    expect(skillsForChapter("diligence-gaps", "mature")).toContain(
+  it("maps screening research chapters to deal-screening first for mature", () => {
+    expect(skillsForChapter("diligence-gaps", "mature")[0]).toBe(
       "deal-screening",
     );
-  });
-
-  it("maps company-team to due-diligence first for mature", () => {
-    expect(skillsForChapter("company-team", "mature")[0]).toBe("due-diligence");
-    expect(skillsForChapter("company-team", "mature")).toContain("deal-screening");
+    expect(skillsForChapter("diligence-gaps", "mature")).toContain(
+      "due-diligence",
+    );
+    expect(skillsForChapter("company-team", "mature")[0]).toBe("deal-screening");
+    expect(skillsForChapter("company-team", "mature")).toContain("due-diligence");
   });
 
   it("uses due-diligence for mature business-overview, startup-design for early mvp", () => {
@@ -112,8 +111,8 @@ describe("chapter-skill-map", () => {
     expect(skillsForChapter("competitor-landscape", "early")).toContain(
       "startup-competitors",
     );
-    expect(skillsForChapter("industry-competition", "mature")).toContain(
-      "startup-competitors",
+    expect(skillsForChapter("industry-competition", "mature")[0]).toBe(
+      "deal-screening",
     );
     expect(skillsForChapter("industry-competition", "mature")).not.toContain(
       "startup-positioning",
@@ -228,9 +227,10 @@ describe("buildChapterSkillMethodBlock", () => {
   it("reads SKILL.md from the repo and wraps a fill-only lock", async () => {
     const block = await buildChapterSkillMethodBlock("diligence-gaps");
     expect(block).toContain("【分析方法 · 只用于填写模板中的「待补」】");
+    expect(block).toContain("deal-screening");
     expect(block).toContain("due-diligence");
     expect(block).toContain("禁止改表头或替换【章节 Markdown 模板】");
-    expect(block).toContain("Diligence Request List");
+    expect(block).toContain("待解决问题");
   });
 
   it("returns empty when the chapter has no mapped skill", async () => {

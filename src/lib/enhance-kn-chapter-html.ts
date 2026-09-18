@@ -53,13 +53,12 @@ export function knPlain(text: string): string {
     .trim();
 }
 
-/** 导航已由章节 tab 承担，标题上的 11. / 9.3 / 一、 不应再出现。 */
+/** 章级 11. / 一、 由 tab 承担；1.1 / 2.3 这种子节号留在标题里。 */
 export function knDisplayHeadingTitle(title: string): string {
   const raw = knPlain(title);
+  if (/^\d+\.\d+/.test(raw)) return raw;
   const prefix =
-    /^(?:[0-9]+(?:\.[0-9]+)*[.)．、]?|[一二三四五六七八九十百]+[、.．])\s*/u.exec(
-      raw,
-    );
+    /^(?:[0-9]+[.)．、]?|[一二三四五六七八九十百]+[、.．])\s*/u.exec(raw);
   if (!prefix) return raw;
   return raw.slice(prefix[0].length).trim() || raw;
 }

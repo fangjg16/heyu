@@ -23,13 +23,13 @@ npm run seed:kn-chapter-templates -- --force
 
 | 章 | 筛选 | 尽调 |
 |----|------|------|
-| 1 项目概况（1.1 结论） | screening-memo 第 1 章 + 简报/主题 | investment-analysis-report 第 1 章 + 简报/主题 |
-| 2 行业与竞争 | screening-memo 第 2 章 | industry-diligence.md 整份 |
-| 3 业务与技术 | screening-memo 第 3 章 | business-diligence.md 整份 |
-| 4 公司与团队 | screening-memo 第 4 章 | company-team.md、简报、业务底稿组织节、background-check（有深查才有） |
-| 5 财务分析 | screening-memo 第 5 章 | financial-diligence.md 整份 |
-| 6 风险与回报（6.1 估值 · 6.2 主张核验 · 6.3 投资风险） | screening-memo 第 6 章 | valuation-and-returns.md + claim-audit.md + investment-risks.md |
-| 7 待解决问题（7.1 问被投方 · 7.2 内部） | screening-memo 第 7 章 | diligence-request-list.md + diligence-readiness.md |
+| 1 项目概况（1.1 初筛结论 · 1.2 项目基本情况） | 备忘录第 1 章；enrichment 综合/评分 → 1.1；brief → 1.2 事实；theme / coordinate → 1.2 分类 | investment-analysis-report 第 1 章 + 简报/主题 |
+| 2 行业与竞争（2.1–2.5） | 备忘录第 2 章；enrichment 四轮证据按节填入 2.1–2.5，不整份顶成「公开补充要点」 | industry-diligence.md 整份 |
+| 3 业务与技术（3.1–3.5） | 备忘录第 3 章；brief → 3.1；enrichment 需求/渠道/能力 → 3.2–3.5 | business-diligence.md 整份 |
+| 4 公司与团队（4.1–4.4） | 备忘录第 4 章；brief 公司/团队 → 4.1、4.2；公开检索线索 → 4.4 | company-team.md、简报、业务底稿组织节、background-check（有深查才有） |
+| 5 财务分析（5.1–5.4） | 备忘录第 5 章；brief 数字 → 5.1、5.2；enrichment 需求/价格/渠道 → 5.3 | financial-diligence.md 整份 |
+| 6 风险与回报（6.1–6.3） | 备忘录第 6 章；brief + enrichment 综合 → 6.1–6.3 | valuation-and-returns.md + claim-audit.md + investment-risks.md |
+| 7 待解决问题（7.1–7.2） | 备忘录第 7 章；材料/公开研究/评分缺口 → 7.1、7.2 | diligence-request-list.md + diligence-readiness.md |
 
 平台终态用词是 `passed`（不投）；skill 里是 `declined`。流水线筛选→尽调仍需人点「推进到尽调」。
 

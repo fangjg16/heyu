@@ -94,6 +94,7 @@ describe("deliverable-catalog", () => {
     expect(draftGenerateItemIds("mature", "section", "project-summary")).toEqual(
       [
         deliverableDraftId("screening-memo"),
+        deliverableDraftId("enrichment"),
         deliverableDraftId("brief"),
         deliverableDraftId("theme"),
         deliverableDraftId("investment-analysis-report"),
@@ -112,14 +113,16 @@ describe("deliverable-catalog", () => {
       draftGenerateItemIds("mature", "section", "project-summary", "screening"),
     ).toEqual([
       deliverableDraftId("screening-memo"),
+      deliverableDraftId("enrichment"),
       deliverableDraftId("brief"),
       deliverableDraftId("theme"),
       "project-summary",
     ]);
     expect(draftGenerateItemIds("mature", "section", "company-team")).toEqual([
       deliverableDraftId("screening-memo"),
-      deliverableDraftId("company-team-qcc"),
       deliverableDraftId("brief"),
+      deliverableDraftId("enrichment"),
+      deliverableDraftId("company-team-qcc"),
       deliverableDraftId("business-due-diligence"),
       deliverableDraftId("background-check"),
       "company-team",
@@ -140,6 +143,8 @@ describe("deliverable-catalog", () => {
       draftGenerateItemIds("mature", "section", "risk-return"),
     ).toEqual([
       deliverableDraftId("screening-memo"),
+      deliverableDraftId("brief"),
+      deliverableDraftId("enrichment"),
       deliverableDraftId("returns"),
       deliverableDraftId("claim-audit"),
       deliverableDraftId("risk-matrix"),
@@ -177,7 +182,7 @@ describe("deliverable-catalog", () => {
       deliverablesForKnSection("mature", "industry-competition", "screening").map(
         (d) => d.id,
       ),
-    ).toEqual(["screening-memo"]);
+    ).toEqual(["screening-memo", "enrichment"]);
     expect(
       deliverablesForKnSection("mature", "industry-competition", "diligence").map(
         (d) => d.id,
@@ -185,7 +190,7 @@ describe("deliverable-catalog", () => {
     ).toEqual(["industry-due-diligence"]);
     expect(
       deliverablesForKnSection("mature", "industry-competition").map((d) => d.id),
-    ).toEqual(["screening-memo", "industry-due-diligence"]);
+    ).toEqual(["screening-memo", "enrichment", "industry-due-diligence"]);
     expect(deliverablesForKnSection("mature", "sources")).toEqual([]);
     expect(deliverablesForKind("mature").some((d) => d.id === "source-register")).toBe(
       true,

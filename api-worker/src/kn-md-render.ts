@@ -508,13 +508,12 @@ function coverDisplayTitle(title: string): string {
   return stripped || title;
 }
 
-/** 知识网络标题不显示资料包原序号（7. / 8.1 / 一、）；导航已由 tab 承担。 */
+/** 章级 2. / 一、 由 tab 承担；1.1 / 2.3 这种子节号留在标题里。 */
 function displayHeadingTitle(title: string): string {
   const raw = String(title ?? "").trim();
+  if (/^\d+\.\d+/.test(raw)) return raw;
   const prefix =
-    /^(?:[0-9]+(?:\.[0-9]+)*[.)．、]?|[一二三四五六七八九十百]+[、.．])\s*/u.exec(
-      raw,
-    );
+    /^(?:[0-9]+[.)．、]?|[一二三四五六七八九十百]+[、.．])\s*/u.exec(raw);
   if (!prefix) return raw;
   const rest = raw.slice(prefix[0].length).trim();
   return rest || raw;

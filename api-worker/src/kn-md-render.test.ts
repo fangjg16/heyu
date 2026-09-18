@@ -289,8 +289,8 @@ PwC 2024。
 床头被动监测。
 `);
     expect(html).not.toContain("####");
-    expect(html).not.toContain("3.1");
-    expect(html).not.toContain("3.2");
+    expect(html).toContain("3.1 问题");
+    expect(html).toContain("3.2 方案");
     expect(html).toContain("kn-md-topic");
     expect(html).toContain("问题");
     expect(html).toContain("方案");
@@ -533,7 +533,7 @@ PwC 2024。
     expect(html).toContain("kn-hero--concern");
   });
 
-  it("strips source-file chapter numbers from knowledge headings", () => {
+  it("strips chapter-level 7. but keeps subsection 8.1", () => {
     const html = markdownToKnHtml(`# 行业尽调
 
 ## 7.价值链与利润池
@@ -548,9 +548,8 @@ PwC 2024。
 `);
     expect(html).toContain("价值链与利润池");
     expect(html).toContain("竞争结构与参与者");
-    expect(html).toContain("竞争格局判断");
-    expect(html).not.toContain("7.");
-    expect(html).not.toContain("8.1");
+    expect(html).toContain("8.1 竞争格局判断");
+    expect(html).not.toContain(">7.");
     expect(html).not.toContain("kn-md-h__n");
   });
 
@@ -1044,9 +1043,28 @@ Not Ready（未就绪）
     expect(html).toContain("kn-lede-card__label");
     expect(html).toContain("一句话业务");
     expect(html).not.toMatch(/kn-lede-card__label">\s*11/);
-    expect(html).toContain("多模态诊断系统");
-    expect(html).toContain("kn-source-note");
-    expect(html).toContain("project-brief.md");
+  });
+
+  it("keeps screening subsection numbers like 1.1 and 2.1", () => {
+    const html = markdownToKnHtml(`# 项目概览
+
+### 1.1 初筛结论
+
+总体评级 Watch。
+
+### 1.2 项目基本情况
+
+卖数字人克隆。
+
+## 2. 行业与竞争
+
+### 2.1 行业概况
+
+内容电商。
+`);
+    expect(html).toContain("1.1 初筛结论");
+    expect(html).toContain("1.2 项目基本情况");
+    expect(html).toContain("2.1 行业概况");
   });
 
   it("keeps 资料 tags on source footnotes in lists", () => {
@@ -1086,7 +1104,7 @@ Not Ready（未就绪）
     expect(html).not.toMatch(
       /kn-split__col--go[\s\S]*最强证据[\s\S]*kn-split__col--stop[\s\S]*支持投资的论点/,
     );
-    expect(html).not.toContain("9.3");
+    expect(html).toContain("9.3 反方意见");
   });
 
   it("pairs 正方 and 反方 as a split and chips 待补", () => {

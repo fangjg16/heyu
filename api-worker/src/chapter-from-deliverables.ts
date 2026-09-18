@@ -3,9 +3,11 @@ import type { AppObjectStorage } from "./app-storage";
 import { readCurrentMarkdownAtPath } from "./ai-generated-documents";
 import { AI_GENERATED_ROOT } from "./ai-generated-path";
 import {
+  assembleScreeningChapterMarkdown,
   capitallensKnSources,
   resolveKnWorkstream,
   sliceDeliverableForKn,
+  SCREENING_KN_FLOORS,
   type KnWorkstream,
 } from "./capitallens-kn-map";
 import {
@@ -93,6 +95,30 @@ export async function renderKnSectionFromDeliverables(
       ? capitallensKnSources(workstream, sectionId)
       : [];
   if (specs.length) {
+    if (workstream === "screening") {
+      const files: Record<string, string> = {};
+      const seen = new Set<string>();
+      for (const spec of specs) {
+        if (seen.has(spec.fileId)) continue;
+        seen.add(spec.fileId);
+        const file = deliverableById(kind, spec.fileId);
+        if (!file) continue;
+        files[spec.fileId] = await readDeliverableMarkdown(env, projectId, file);
+      }
+      const markdown = assembleScreeningChapterMarkdown(sectionId, files);
+      const floor = SCREENING_KN_FLOORS[sectionId];
+      return renderDeliverableChapterHtml(
+        [
+          {
+            title: floor?.title ?? "筛选备忘录",
+            markdown,
+            id: "screening-memo",
+            phase: 1,
+          },
+        ],
+        { keepSourceOrder: true },
+      );
+    }
     const loaded: { title: string; markdown: string; id: string; phase: number }[] =
       [];
     for (const spec of specs) {
@@ -132,6 +158,18 @@ export function knSectionRendersFromFiles(
   sectionId: string,
 ): boolean {
   return deliverablesForKnSection(kind, sectionId).length > 0;
+}
+
+/** 成熟投资研究章一律从底稿装配，备忘录切空也用筛选大纲，不再改走大模型。 */
+export function knSectionAlwaysAssembles(
+  kind: AnalysisKind,
+  sectionId: string,
+): boolean {
+  if (kind !== "mature") return false;
+  return (
+    capitallensKnSources("screening", sectionId).length > 0 ||
+    capitallensKnSources("diligence", sectionId).length > 0
+  );
 }
 
 export type { DeliverableFile };

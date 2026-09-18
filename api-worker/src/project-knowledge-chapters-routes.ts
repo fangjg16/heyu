@@ -27,6 +27,7 @@ import {
 } from "./kn-catalog";
 import { deliverableFilenamesForKnSection } from "./deliverable-catalog";
 import {
+  knSectionAlwaysAssembles,
   knSectionRendersFromFiles,
   renderKnSectionFromDeliverables,
 } from "./chapter-from-deliverables";
@@ -675,7 +676,10 @@ export async function handleGenerateProjectKnowledgeChapter(
       storedKind,
       sectionId,
     );
-    if (html.trim() && html.trim() !== EMPTY_CHAPTER_HTML) {
+    if (
+      knSectionAlwaysAssembles(storedKind, sectionId) ||
+      (html.trim() && html.trim() !== EMPTY_CHAPTER_HTML)
+    ) {
       if (isDraft && draftRunId) {
         await upsertDraftItem(env.DB, {
           runId: draftRunId,
