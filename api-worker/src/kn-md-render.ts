@@ -508,6 +508,13 @@ function coverDisplayTitle(title: string): string {
   return stripped || title;
 }
 
+function isWeakCoverTitle(title: string): boolean {
+  const t = displayHeadingTitle(title);
+  return /^(?:Agent\s*建议|建议|Suggested\s*next\s*step|团队决定|下一步)$/iu.test(
+    t,
+  );
+}
+
 /** 章级 2. / 一、 由 tab 承担；1.1 / 2.3 这种子节号留在标题里。 */
 function displayHeadingTitle(title: string): string {
   const raw = String(title ?? "").trim();
@@ -1708,7 +1715,7 @@ function markdownToKnHtmlInner(src: string): string {
         hashes === 1 ||
         (!seenCover &&
           hashes === 2 &&
-          !numbered &&
+          !isWeakCoverTitle(title) &&
           !isFlagsHeading(title) &&
           !isVerdictHeading(title));
       const parts = headingInner(

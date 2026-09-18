@@ -140,4 +140,25 @@ describe("extractMarkdownHeadingSlices", () => {
     expect(ch1).toContain("小节正文");
     expect(ch1).not.toContain("行业正文");
   });
+
+  it("keeps unnumbered H2 like Agent建议 inside the numbered chapter", () => {
+    const memo = `## 6. 风险与回报
+
+### 6.1 回报来源
+
+转让收益。
+
+## Agent建议
+
+先补合同。
+
+## 7. 待解决问题
+
+对方待答。
+`;
+    const ch6 = extractNumberedMarkdownChapter(memo, 6);
+    expect(ch6).toContain("先补合同");
+    expect(ch6).not.toContain("对方待答");
+    expect(extractNumberedMarkdownChapter(memo, 7)).toContain("对方待答");
+  });
 });

@@ -8,6 +8,7 @@ import {
   extractMarkdownHeadingSlice,
   extractMarkdownHeadingSlices,
   extractNumberedMarkdownChapter,
+  normalizeKnHeading,
 } from "./kn-md-headings";
 import type { PipelineStage } from "./pipeline-stage";
 
@@ -137,7 +138,8 @@ export const SCREENING_KN_SOURCES: Readonly<
   ],
   "company-team": [
     memoChapter(4, ["公司与团队"]),
-    into(BRIEF, "4.1", BRIEF_CO, true),
+    { fileId: "company-team-qcc" },
+    into(BRIEF, "4.1", BRIEF_CO),
     into(BRIEF, "4.2", ["团队", "创始人", "经历", "职责"]),
     into(ENRICH, "4.4", ["身份", "控制权", "关联方", "负面"]),
   ],
@@ -146,19 +148,36 @@ export const SCREENING_KN_SOURCES: Readonly<
     into(BRIEF, "5.1", BRIEF_FIN, true),
     into(BRIEF, "5.2", BRIEF_FIN),
     into(ENRICH, "5.3", ["价格", "需求", "渠道", ...WAVE3, ...WAVE4]),
+    into(ENRICH, "5.4", [
+      "分析局限",
+      "发现、证据及缺口",
+      "证据及缺口",
+      "无法判断",
+    ]),
   ],
   "risk-return": [
     memoChapter(6, ["风险与回报"]),
     into(BRIEF, "6.1", ["回报", "融资", "退出", "交易"]),
     into(ENRICH, "6.2", ["风险", "矛盾", ...SYNTHESIS], true),
-    into(ENRICH, "6.3", ["催化", "阻断", "推进", "待确认"]),
+    into(ENRICH, "6.3", [
+      "催化",
+      "阻断",
+      "推进条件",
+      "Agent建议",
+      "Suggested next step",
+    ]),
   ],
   "diligence-gaps": [
     memoChapter(7, ["待解决问题"]),
-    into(ENRICH, "7.1", ["待确认", "开放问题", "未知", "不清楚"], true),
+    into(ENRICH, "7.1", ["待确认", "开放问题", "未知", "不清楚", "对方待答"], true),
     into(THEME, "7.1", ["待确认"]),
-    into(ENRICH, "7.2", ["内部", "待办", "核查"]),
-    into(BRIEF, "7.2", ["未知", "待确认", "缺口"]),
+    into(ENRICH, "7.2", [
+      "内部待确认",
+      "内部待办",
+      "内部核验与判断",
+      "内部核验",
+      "内部核查",
+    ]),
   ],
 };
 
@@ -442,6 +461,359 @@ export function appendUnderSubsection(
     .trim();
 }
 
+function markdownBodyLength(md: string): number {
+  return md
+    .replace(/^#{1,3}\s+.+$/gmu, "")
+    .replace(/\s+/gu, "")
+    .length;
+}
+
+/** 下限子节如果完全没有正文，就不要空标题挂在章末。 */
+export function pruneEmptyScreeningSubsections(md: string): string {
+  const lines = md.split(/\r?\n/u);
+  const out: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const m = /^(#{1,3})\s+(\d+\.\d+)\s+\S/u.exec(lines[i] ?? "");
+    if (!m) {
+      out.push(lines[i] ?? "");
+      i += 1;
+      continue;
+    }
+    const level = m[1]!.length;
+    let end = i + 1;
+    while (end < lines.length) {
+      const numbered = /^(#{1,3})\s+\d+\.\d+\s+\S/u.exec(lines[end] ?? "");
+      if (numbered) break;
+      const next = /^(#{1,3})\s+/u.exec(lines[end] ?? "");
+      if (next && next[1]!.length <= level) break;
+      end += 1;
+    }
+    const body = lines.slice(i + 1, end).join("\n").trim();
+    if (body) out.push(...lines.slice(i, end));
+    i = end;
+  }
+  return out.join("\n").replace(/\n{3,}/gu, "\n\n").trim();
+}
+
+function headingTitleMatches(raw: string, want: string): boolean {
+  const a = normalizeKnHeading(raw);
+  const b = normalizeKnHeading(want);
+  // 只允许标题包含检索词，避免「待确认」被「内部待确认」反向命中。
+  return Boolean(a && b && (a === b || a.includes(b)));
+}
+
+function extractHeadingSliceContaining(md: string, title: string): string {
+  const lines = md.split(/\r?\n/u);
+  let start = -1;
+  let startLevel = 2;
+  for (let i = 0; i < lines.length; i += 1) {
+    const m = /^(#{1,3})\s+(.*)$/u.exec(lines[i] ?? "");
+    if (!m) continue;
+    if (!headingTitleMatches(m[2] ?? "", title)) continue;
+    start = i;
+    startLevel = m[1]!.length;
+    break;
+  }
+  if (start < 0) return "";
+  let end = lines.length;
+  for (let j = start + 1; j < lines.length; j += 1) {
+    const m = /^(#{1,3})\s+(.*)$/u.exec(lines[j] ?? "");
+    if (!m) continue;
+    const rawTitle = (m[2] ?? "").trim();
+    if (/^\d+\.\d+/.test(rawTitle) || m[1]!.length <= startLevel) {
+      end = j;
+      break;
+    }
+  }
+  return lines.slice(start, end).join("\n").trim();
+}
+
+const ORPHAN_SCREENING_BLOCKS: readonly {
+  titles: readonly string[];
+  into: string;
+}[] = [
+  { titles: ["Agent建议", "Suggested next step"], into: "6.3" },
+  { titles: ["分析局限", "发现、证据及缺口", "证据及缺口"], into: "5.4" },
+  { titles: ["内部待确认", "内部待办", "内部核验与判断", "内部核验"], into: "7.2" },
+];
+
+/** 备忘录里未编号的 Agent建议 等，挪到对应下限子节，避免空 6.3 或抢章标题。 */
+export function relocateOrphanScreeningBlocks(md: string): string {
+  let out = md;
+  for (const group of ORPHAN_SCREENING_BLOCKS) {
+    for (const title of group.titles) {
+      const lines = out.split(/\r?\n/u);
+      let start = -1;
+      let startLevel = 2;
+      for (let i = 0; i < lines.length; i += 1) {
+        const m = /^(#{1,3})\s+(.*)$/u.exec(lines[i] ?? "");
+        if (!m) continue;
+        const raw = (m[2] ?? "").trim();
+        if (/^\d+\.\d+/.test(raw)) continue;
+        if (!headingTitleMatches(raw, title)) continue;
+        start = i;
+        startLevel = m[1]!.length;
+        break;
+      }
+      if (start < 0) continue;
+      let end = start + 1;
+      while (end < lines.length) {
+        const m = /^(#{1,3})\s+(.*)$/u.exec(lines[end] ?? "");
+        if (m) {
+          const raw = (m[2] ?? "").trim();
+          if (/^\d+\.\d+/.test(raw)) break;
+          if (m[1]!.length <= startLevel) break;
+        }
+        end += 1;
+      }
+      const body = lines.slice(start + 1, end).join("\n").trim();
+      out = [...lines.slice(0, start), ...lines.slice(end)]
+        .join("\n")
+        .replace(/\n{3,}/gu, "\n\n")
+        .trim();
+      if (body) out = appendUnderSubsection(out, group.into, body);
+    }
+  }
+  return out;
+}
+
+const INTERNAL_PENDING_HEADING =
+  /内部待确认|内部核验与判断|内部核验|内部待办|内部核查/u;
+const INTERNAL_PENDING_ID = /\bI-\d{2}\b/iu;
+
+function subsectionRange(
+  lines: readonly string[],
+  subsectionId: string,
+): { start: number; end: number; level: number } | null {
+  const idRe = new RegExp(
+    `^#{1,3}\\s+${subsectionId.replace(/\./gu, "\\.")}(?:\\s|$)`,
+    "u",
+  );
+  let start = -1;
+  let level = 3;
+  for (let i = 0; i < lines.length; i += 1) {
+    if (!idRe.test(lines[i] ?? "")) continue;
+    start = i;
+    level = headingLevel(lines[i] ?? "") || 3;
+    break;
+  }
+  if (start < 0) return null;
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i += 1) {
+    const next = headingLevel(lines[i] ?? "");
+    if (next && next <= level) {
+      end = i;
+      break;
+    }
+  }
+  return { start, end, level };
+}
+
+function isTableSep(line: string): boolean {
+  return /^\s*\|[-:| ]+\|\s*$/u.test(line);
+}
+
+function isInternalTableRow(line: string): boolean {
+  if (!line.trim().startsWith("|") || isTableSep(line)) return false;
+  const cells = line
+    .split("|")
+    .map((c) => c.trim())
+    .filter((c) => c.length > 0);
+  if (cells.some((c) => /^I-\d{2}$/iu.test(c))) return true;
+  if (
+    cells.some((c) =>
+      /^(?:内部待确认|内部核验与判断|内部核验|内部待办|内部核查|内部判断|内部)$/u.test(
+        c,
+      ),
+    )
+  ) {
+    return true;
+  }
+  return cells.some((c) => /内部待确认/u.test(c));
+}
+
+function isInternalPendingBlock(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  if (INTERNAL_PENDING_ID.test(t) || INTERNAL_PENDING_HEADING.test(t)) {
+    return true;
+  }
+  return false;
+}
+
+function replaceSubsectionBody(
+  doc: string,
+  subsectionId: string,
+  body: string,
+): string {
+  const lines = doc.split(/\r?\n/u);
+  const range = subsectionRange(lines, subsectionId);
+  if (!range) {
+    return body.trim()
+      ? `${doc.trim()}\n\n### ${subsectionId}\n\n${body.trim()}\n`
+      : doc;
+  }
+  const heading = lines[range.start] ?? `### ${subsectionId}`;
+  const next = body.trim()
+    ? [heading, "", body.trim(), ""]
+    : [heading, ""];
+  return [...lines.slice(0, range.start), ...next, ...lines.slice(range.end)]
+    .join("\n")
+    .replace(/\n{3,}/gu, "\n\n")
+    .trim();
+}
+
+/**
+ * 从 7.1 混排清单里抽出「内部待确认」；没有就不造 7.2。
+ */
+export function liftInternalPendingTo72(doc: string): string {
+  const lines = doc.split(/\r?\n/u);
+  const range = subsectionRange(lines, "7.1");
+  if (!range) return doc;
+  const bodyLines = lines.slice(range.start + 1, range.end);
+  const kept: string[] = [];
+  const lifted: string[] = [];
+  let i = 0;
+  while (i < bodyLines.length) {
+    const line = bodyLines[i] ?? "";
+    const heading = /^(#{1,3})\s+(.*)$/u.exec(line);
+    if (heading && INTERNAL_PENDING_HEADING.test(heading[2] ?? "")) {
+      const level = heading[1]!.length;
+      let end = i + 1;
+      while (end < bodyLines.length) {
+        const next = /^(#{1,3})\s+/u.exec(bodyLines[end] ?? "");
+        if (next && next[1]!.length <= level) break;
+        end += 1;
+      }
+      lifted.push(...bodyLines.slice(i, end));
+      i = end;
+      continue;
+    }
+    if (line.trim().startsWith("|")) {
+      const table: string[] = [];
+      while (i < bodyLines.length && (bodyLines[i] ?? "").trim().startsWith("|")) {
+        table.push(bodyLines[i] ?? "");
+        i += 1;
+      }
+      const header: string[] = [];
+      const keepRows: string[] = [];
+      const liftRows: string[] = [];
+      for (const row of table) {
+        if (header.length < 2 && (header.length === 0 || isTableSep(row))) {
+          header.push(row);
+          continue;
+        }
+        if (isInternalTableRow(row)) liftRows.push(row);
+        else keepRows.push(row);
+      }
+      if (keepRows.length) kept.push(...header, ...keepRows);
+      if (liftRows.length) lifted.push(...header, ...liftRows);
+      continue;
+    }
+    if (/^\s*[-*+]\s+/.test(line) || /^\s*\d+[.)]\s+/.test(line)) {
+      if (isInternalPendingBlock(line)) lifted.push(line);
+      else kept.push(line);
+      i += 1;
+      continue;
+    }
+    if (isInternalPendingBlock(line) && line.trim()) {
+      lifted.push(line);
+      i += 1;
+      continue;
+    }
+    kept.push(line);
+    i += 1;
+  }
+  const liftedBody = lifted.join("\n").trim();
+  if (!liftedBody) return doc;
+  let out = replaceSubsectionBody(doc, "7.1", kept.join("\n").trim());
+  return appendUnderSubsection(out, "7.2", liftedBody);
+}
+
+const LIMITATION_SIGNAL =
+  /尚未桥接|不能相加|非价值或资金到账核验|非估值|非.{0,8}核验|无需.{0,12}分析|拟投法人尚未|仅有预测|不能作为已经发生|缺口是否影响|报价事实[，,]非/u;
+
+const ADVANCE_SIGNAL =
+  /Suggested\s*next\s*step|先补关键事实|进入尽调|若\s*Pass|若\s*Watch|改变判断|下一步[：:]/iu;
+
+function paragraphLooksLikeLimitation(text: string): boolean {
+  const t = text.trim();
+  if (t.length < 12 || /^#{1,3}\s+/.test(t)) return false;
+  return LIMITATION_SIGNAL.test(t);
+}
+
+function isAdvanceLine(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  return ADVANCE_SIGNAL.test(t);
+}
+
+function extractMatchingBlocks(
+  md: string,
+  pred: (block: string) => boolean,
+): string {
+  return md
+    .split(/\n{2,}/u)
+    .map((b) => b.trim())
+    .filter((b) => pred(b))
+    .join("\n\n")
+    .trim();
+}
+
+/** 6.2 里的「下一步」等推进句挪到 6.3，风险正文留下。 */
+export function liftAdvanceLinesTo63(doc: string): string {
+  let out = doc;
+  for (const id of ["6.1", "6.2"] as const) {
+    const lines = out.split(/\r?\n/u);
+    const range = subsectionRange(lines, id);
+    if (!range) continue;
+    const body = lines.slice(range.start + 1, range.end);
+    const kept: string[] = [];
+    const lifted: string[] = [];
+    for (const line of body) {
+      if (isAdvanceLine(line)) lifted.push(line);
+      else kept.push(line);
+    }
+    if (!lifted.join("\n").trim()) continue;
+    out = replaceSubsectionBody(out, id, kept.join("\n").trim());
+    out = appendUnderSubsection(out, "6.3", lifted.join("\n").trim());
+  }
+  return out;
+}
+
+/**
+ * 5.4 / 6.3 不另跑爱马仕：从已有底稿和本章正文里抽出局限句、推进句。
+ */
+export function fillImpliedScreeningFloors(
+  sectionId: string,
+  doc: string,
+  files: Readonly<Partial<Record<string, string>>>,
+): string {
+  if (sectionId === "financial-diligence") {
+    const pool = [
+      files[MEMO] ?? "",
+      files[BRIEF] ?? "",
+      files[ENRICH] ?? "",
+      doc,
+    ].join("\n\n");
+    let out = doc;
+    for (const title of ["分析局限", "发现、证据及缺口", "证据及缺口"]) {
+      const slice = extractHeadingSliceContaining(pool, title);
+      if (!slice.trim()) continue;
+      const body = slice.replace(/^#{1,3}\s+[^\n]+\n?/u, "").trim();
+      if (body) out = appendUnderSubsection(out, "5.4", body);
+    }
+    const extra = extractMatchingBlocks(pool, paragraphLooksLikeLimitation);
+    if (extra) out = appendUnderSubsection(out, "5.4", extra);
+    return out;
+  }
+  if (sectionId === "risk-return") {
+    return liftAdvanceLinesTo63(doc);
+  }
+  return doc;
+}
+
 /**
  * 筛选报告一章：备忘录骨架 + 底稿按子节填入。
  * 主题/公开补充稿不会整份变成该章标题。
@@ -456,6 +828,12 @@ export function assembleScreeningChapterMarkdown(
     ? sliceDeliverableForKn(files[MEMO] ?? "", memoSpec)
     : "";
   if (isScreeningWorkpaperDump(memo)) memo = "";
+  for (const spec of specs) {
+    if (spec.into || spec.fileId === MEMO) continue;
+    const sliced = sliceDeliverableForKn(files[spec.fileId] ?? "", spec);
+    if (!sliced.trim() || isScreeningWorkpaperDump(sliced)) continue;
+    if (markdownBodyLength(sliced) > markdownBodyLength(memo)) memo = sliced;
+  }
   let doc = ensureScreeningChapterFloor(memo, sectionId);
   const usedWhole = new Set<string>();
   for (const spec of specs) {
@@ -464,7 +842,13 @@ export function assembleScreeningChapterMarkdown(
     if (!raw.trim() || !spec.into) continue;
     let slice = "";
     if (spec.headings?.length) {
-      slice = extractMarkdownHeadingSlices(raw, spec.headings);
+      slice =
+        spec.into === "7.2"
+          ? spec.headings
+              .map((title) => extractHeadingSliceContaining(raw, title))
+              .filter(Boolean)
+              .join("\n\n")
+          : extractMarkdownHeadingSlices(raw, spec.headings);
     }
     if (!slice.trim() && spec.fallbackWhole && !usedWhole.has(spec.fileId)) {
       slice = stripWorkpaperCover(raw);
@@ -473,5 +857,13 @@ export function assembleScreeningChapterMarkdown(
     if (!slice.trim()) continue;
     doc = appendUnderSubsection(doc, spec.into, slice);
   }
-  return doc.trim();
+  return pruneEmptyScreeningSubsections(
+    liftInternalPendingTo72(
+      fillImpliedScreeningFloors(
+        sectionId,
+        relocateOrphanScreeningBlocks(doc),
+        files,
+      ),
+    ),
+  );
 }

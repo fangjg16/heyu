@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { DraftProgressDock } from "@/components/workspace/KnowledgeDraftGeneratingDialog";
 import { useDraftProgressUi } from "@/components/workspace/draft-progress-ui";
 import {
+  draftRunElapsedMs,
   isWatchedDraftRun,
   unwatchDraftRun,
   watchDraftRun,
@@ -17,12 +18,11 @@ const POLL_MS = 3000;
 
 function toProgress(item: MyChapterDraftRunItem) {
   const generating = item.status === "generating";
-  const created = Date.parse(item.createdAt);
   return {
     done: item.progressDone,
     total: item.progressTotal || 1,
     failed: item.failedCount,
-    elapsedMs: Number.isFinite(created) ? Math.max(0, Date.now() - created) : 0,
+    elapsedMs: draftRunElapsedMs(item.runId),
     phase: generating ? ("generating" as const) : ("done" as const),
   };
 }

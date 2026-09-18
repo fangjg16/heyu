@@ -100,7 +100,14 @@ export function extractNumberedMarkdownChapter(
   let end = lines.length;
   for (let i = start + 1; i < lines.length; i += 1) {
     const m = HEADING_RE.exec(lines[i] ?? "");
-    if (m && m[1]!.length <= startLevel) {
+    if (!m || m[1]!.length > startLevel) continue;
+    if (m[1]!.length < startLevel) {
+      end = i;
+      break;
+    }
+    const title = (m[2] ?? "").trim();
+    // 同级未编号标题（如 Agent建议）仍属本章；只有下一编号章才切断。
+    if (/^\d+(?:\.(?!\d)|、|\s)/u.test(title) && !titleRe.test(title)) {
       end = i;
       break;
     }

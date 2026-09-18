@@ -37,6 +37,7 @@ import {
   type ChapterDraftRegenMode,
 } from "@/lib/project-api";
 import { stripAuthoringHintsFromHtml } from "@/lib/strip-authoring-hints";
+import { markDraftRunClock, watchDraftRun } from "@/lib/draft-progress-watch";
 import { formatChapterVersionLabel, formatOverviewVersionLabel } from "@/lib/chapter-version";
 import {
   ProjectRelationGraph,
@@ -791,6 +792,8 @@ export function ProjectKnowledgeNetworkSection({
         sectionId: targetSectionId,
       });
       const runId = created.run.id;
+      markDraftRunClock(runId, startedAt);
+      watchDraftRun(runId);
       setDraftRunId(runId);
 
       if (created.reused && created.run.status === "ready") {

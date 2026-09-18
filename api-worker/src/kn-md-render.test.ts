@@ -1045,6 +1045,22 @@ Not Ready（未就绪）
     expect(html).not.toMatch(/kn-lede-card__label">\s*11/);
   });
 
+  it("does not promote Agent建议 over the chapter title", () => {
+    const html = markdownToKnHtml(`## 6. 风险与回报
+
+### 6.1 回报来源
+
+转让收益。
+
+## Agent建议
+
+Suggested next step：先补合同。
+`);
+    expect(html).toContain("风险与回报");
+    expect(html).not.toMatch(/kn-doc-title">\s*Agent建议/);
+    expect(html).toContain("Agent建议");
+  });
+
   it("keeps screening subsection numbers like 1.1 and 2.1", () => {
     const html = markdownToKnHtml(`# 项目概览
 

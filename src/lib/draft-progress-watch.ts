@@ -1,4 +1,31 @@
 const KEY = "heyu-kn-watched-draft-runs";
+const CLOCK_PREFIX = "heyu-kn-draft-clock:";
+
+/** 本次点击更新/重排的计时原点，不沿用整条草案第一次创建时间。 */
+export function markDraftRunClock(runId: string, startedAt = Date.now()): void {
+  if (!runId) return;
+  try {
+    sessionStorage.setItem(`${CLOCK_PREFIX}${runId}`, String(startedAt));
+  } catch {
+    /* ignore quota */
+  }
+}
+
+export function draftRunElapsedMs(runId: string): number {
+  if (!runId) return 0;
+  try {
+    const raw = sessionStorage.getItem(`${CLOCK_PREFIX}${runId}`);
+    const origin = raw ? Number(raw) : NaN;
+    if (Number.isFinite(origin) && origin > 0) {
+      return Math.max(0, Date.now() - origin);
+    }
+    const now = Date.now();
+    sessionStorage.setItem(`${CLOCK_PREFIX}${runId}`, String(now));
+    return 0;
+  } catch {
+    return 0;
+  }
+}
 
 function readIds(): string[] {
   try {

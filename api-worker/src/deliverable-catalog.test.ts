@@ -120,9 +120,9 @@ describe("deliverable-catalog", () => {
     ]);
     expect(draftGenerateItemIds("mature", "section", "company-team")).toEqual([
       deliverableDraftId("screening-memo"),
+      deliverableDraftId("company-team-qcc"),
       deliverableDraftId("brief"),
       deliverableDraftId("enrichment"),
-      deliverableDraftId("company-team-qcc"),
       deliverableDraftId("business-due-diligence"),
       deliverableDraftId("background-check"),
       "company-team",

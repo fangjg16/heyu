@@ -24,10 +24,78 @@ import {
 import {
   renderDeliverableChapterHtml,
 } from "./kn-md-render";
+import { isDirectoryMarker } from "./documents-access";
 import type { AnalysisKind } from "./analysis-kind";
 import { getProjectById } from "./projects-db";
 
 type Env = { DB: AppDatabase; FILES?: AppObjectStorage };
+
+const COMPANY_TEAM_PACKAGE_HINT = /企查查交叉分析|4[-_]?公司与团队/u;
+
+async function readPackageMarkdownByFilenameHint(
+  env: Env,
+  projectId: string,
+  hint: RegExp,
+): Promise<string> {
+  if (!env.FILES) return "";
+  try {
+    const q = await env.DB.prepare(
+      `SELECT filename, relative_path, r2_key, mime
+       FROM documents
+       WHERE project_id = ?
+         AND scope = 'package'
+       ORDER BY created_at DESC
+       LIMIT 120`,
+    )
+      .bind(projectId)
+      .all<{
+        filename: string;
+        relative_path: string | null;
+        r2_key: string;
+        mime: string | null;
+      }>();
+    const row = (q.results ?? []).find((r) => {
+      if (isDirectoryMarker(r.mime, r.filename)) return false;
+      const mime = (r.mime ?? "").toLowerCase();
+      if (mime.includes("pdf")) return false;
+      const name = `${r.relative_path ?? ""}/${r.filename}`;
+      if (!hint.test(r.filename) && !hint.test(name)) return false;
+      return (
+        /\.(?:md|markdown|txt)$/iu.test(r.filename) ||
+        mime.includes("markdown") ||
+        mime.includes("text")
+      );
+    });
+    if (!row) return "";
+    const obj = await env.FILES.get(row.r2_key);
+    if (!obj) return "";
+    const text = (await obj.text()).trim();
+    if (!text || text.includes("\u0000")) return "";
+    return text;
+  } catch {
+    return "";
+  }
+}
+
+function markdownCharCount(md: string): number {
+  return md.replace(/\s+/gu, "").length;
+}
+
+async function preferLongerCompanyTeamSource(
+  env: Env,
+  projectId: string,
+  files: Record<string, string>,
+): Promise<void> {
+  const fromPkg = await readPackageMarkdownByFilenameHint(
+    env,
+    projectId,
+    COMPANY_TEAM_PACKAGE_HINT,
+  );
+  if (markdownCharCount(fromPkg) <= markdownCharCount(files["company-team-qcc"] ?? "")) {
+    return;
+  }
+  files["company-team-qcc"] = fromPkg;
+}
 
 async function readDeliverableMarkdown(
   env: Env,
@@ -105,6 +173,9 @@ export async function renderKnSectionFromDeliverables(
         if (!file) continue;
         files[spec.fileId] = await readDeliverableMarkdown(env, projectId, file);
       }
+      if (sectionId === "company-team") {
+        await preferLongerCompanyTeamSource(env, projectId, files);
+      }
       const markdown = assembleScreeningChapterMarkdown(sectionId, files);
       const floor = SCREENING_KN_FLOORS[sectionId];
       return renderDeliverableChapterHtml(
@@ -131,6 +202,25 @@ export async function renderKnSectionFromDeliverables(
         id: file.id,
         phase: file.phase,
       });
+    }
+    if (sectionId === "company-team") {
+      const files: Record<string, string> = {};
+      for (const item of loaded) files[item.id] = item.markdown;
+      await preferLongerCompanyTeamSource(env, projectId, files);
+      const qcc = files["company-team-qcc"] ?? "";
+      if (qcc.trim()) {
+        const idx = loaded.findIndex((item) => item.id === "company-team-qcc");
+        if (idx >= 0) loaded[idx] = { ...loaded[idx]!, markdown: qcc };
+        else {
+          const file = deliverableById(kind, "company-team-qcc");
+          loaded.unshift({
+            title: file?.title ?? "公司与团队",
+            markdown: qcc,
+            id: "company-team-qcc",
+            phase: file?.phase ?? 10,
+          });
+        }
+      }
     }
     return renderDeliverableChapterHtml(loaded, {
       keepSourceOrder: true,

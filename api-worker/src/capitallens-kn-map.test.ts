@@ -4,6 +4,9 @@ import {
   capitallensKnSources,
   ensureScreeningChapterFloor,
   isScreeningWorkpaperDump,
+  liftInternalPendingTo72,
+  pruneEmptyScreeningSubsections,
+  relocateOrphanScreeningBlocks,
   resolveKnWorkstream,
   sliceDeliverableForKn,
 } from "./capitallens-kn-map";
@@ -180,7 +183,7 @@ describe("capitallens kn map", () => {
 **taxonomy_version**：2026-08-26-r2
 `,
     });
-    expect(overview).toContain("### 1.1 初筛结论");
+    expect(overview).not.toContain("### 1.1 初筛结论");
     expect(overview).toContain("### 1.2 项目基本情况");
     expect(overview).toContain("卖数字人克隆给品牌方");
     expect(overview).toContain("传媒与内容");
@@ -191,6 +194,176 @@ describe("capitallens kn map", () => {
     });
     expect(business).toContain("### 3.1 业务概览");
     expect(business).toContain("定价按条收费");
+  });
+
+  it("uses the 企查查 company-team workpaper as the chapter body", () => {
+    const md = assembleScreeningChapterMarkdown("company-team", {
+      "company-team-qcc": `# 4. 公司与团队
+
+## 4.1 公司基本信息
+
+传媒由文化持有 55%。
+
+## 4.2 团队与治理
+
+李元是文化法定代表人。
+
+## 4.3 背景调查与风险交叉分析
+
+传媒出现欠税公告线索。
+`,
+    });
+    expect(md).toContain("传媒由文化持有 55%");
+    expect(md).toContain("## 4.1 公司基本信息");
+    expect(md).not.toContain("4.4 核查线索");
+  });
+
+  it("drops empty floor headings like 5.4 after assembly", () => {
+    const pruned = pruneEmptyScreeningSubsections(`## 5. 财务分析
+
+### 5.1 数据口径
+
+只有预测。
+
+### 5.4 分析局限
+`);
+    expect(pruned).toContain("### 5.1 数据口径");
+    expect(pruned).toContain("只有预测");
+    expect(pruned).not.toContain("5.4");
+  });
+
+  it("moves leftover Agent建议 into 6.3 instead of leaving 6.3 empty", () => {
+    const moved = relocateOrphanScreeningBlocks(`## 6. 风险与回报
+
+### 6.1 回报来源
+
+转让收益。
+
+### 6.2 风险信号
+
+欠税线索。
+
+## Agent建议
+
+Suggested next step：先补合同。
+
+### 6.3 推进条件
+`);
+    expect(moved).toContain("### 6.3 推进条件");
+    expect(moved).toContain("先补合同");
+    expect(moved).not.toMatch(/^## Agent建议/m);
+
+    const assembled = assembleScreeningChapterMarkdown("risk-return", {
+      "screening-memo": `## 6. 风险与回报
+
+### 6.1 回报来源
+
+转让收益。
+
+## Agent建议
+
+先补关键事实。
+`,
+    });
+    expect(assembled).toContain("### 6.3 推进条件");
+    expect(assembled).toContain("先补关键事实");
+    expect(assembled).not.toMatch(/^## Agent建议/m);
+  });
+
+  it("fills 5.4 and 6.3 from existing memo/brief text without a dedicated heading", () => {
+    const finance = assembleScreeningChapterMarkdown("financial-diligence", {
+      brief: `# 项目简报
+
+## 交易与已核披露
+
+SRC-032披露投前8500万元、本轮1500万元增资；为报价事实，非价值或资金到账核验。拟投法人尚未明确。
+
+## 待核关键事实
+
+新版MCN三年收入6000万元与核心表1600万元尚未桥接，不能相加。
+`,
+      "screening-memo": `## 5. 财务分析
+
+### 5.1 数据口径
+
+只有预测。
+
+### 发现、证据及缺口
+
+红果渠道结算未闭合，影响现在能否把收入当已发生。
+`,
+    });
+    expect(finance).toContain("### 5.4 分析局限");
+    expect(finance).toContain("非价值或资金到账核验");
+    expect(finance).toContain("尚未桥接，不能相加");
+    expect(finance).toContain("红果渠道结算未闭合");
+
+    const risk = assembleScreeningChapterMarkdown("risk-return", {
+      "screening-memo": `## 6. 风险与回报
+
+### 6.1 回报来源
+
+转让收益。拟投法人尚未明确。
+
+### 6.2 风险信号
+
+平台依赖高。
+
+- 下一步：仅补充底线材料后更快。
+
+## Agent建议
+
+Suggested next step：先补关键事实。
+若 Pass，拒绝理由：无合同。
+`,
+    });
+    expect(risk).toContain("### 6.3 推进条件");
+    expect(risk).toContain("先补关键事实");
+    expect(risk).toContain("仅补充底线材料后更快");
+    expect(risk.split(/### 6\.2/)[1]?.split(/### 6\.3/)[0]).not.toContain(
+      "仅补充底线材料后更快",
+    );
+  });
+
+  it("lifts 内部待确认 items from 7.1 into 7.2 and prunes 7.2 when none exist", () => {
+    const split = liftInternalPendingTo72(`## 7. 待解决问题
+
+### 7.1 对方待答
+
+| 编号 | 类型 | 需要对方回答的问题 |
+|---|---|---|
+| Q-01 | 不清楚 | 融资主体是哪家公司 |
+| Q-02 | 内部待确认 | 欠税公告是否仍有效 |
+| I-01 | 内部核验 | 实缴与年报能否勾稽 |
+
+- 请对方提供最新股东名册
+- 内部待确认：数字克隆资产登记在哪家公司
+
+### 7.2 内部待办
+`);
+    expect(split).toContain("### 7.2");
+    expect(split).toContain("欠税公告是否仍有效");
+    expect(split).toContain("实缴与年报能否勾稽");
+    expect(split).toContain("数字克隆资产登记在哪家公司");
+    expect(split).toContain("融资主体是哪家公司");
+    const gaps = split.split(/### 7\.2/)[1] ?? "";
+    expect(gaps).not.toContain("融资主体是哪家公司");
+    expect(split.split(/### 7\.1/)[1]?.split(/### 7\.2/)[0]).not.toContain(
+      "欠税公告是否仍有效",
+    );
+
+    const assembled = assembleScreeningChapterMarkdown("diligence-gaps", {
+      "screening-memo": `## 7. 待解决问题
+
+### 7.1 对方待答
+
+| 编号 | 类型 | 需要对方回答的问题 |
+|---|---|---|
+| Q-01 | 不清楚 | 谁在付钱 |
+`,
+    });
+    expect(assembled).toContain("谁在付钱");
+    expect(assembled).not.toContain("7.2");
   });
 
   it("does not let theme or enrichment dumps stand in for a screening chapter", () => {

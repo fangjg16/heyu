@@ -43,7 +43,11 @@ import {
   waitForDraftRunSettled,
   type ChapterDraftRegenMode,
 } from "@/lib/project-api";
-import { unwatchDraftRun, watchDraftRun } from "@/lib/draft-progress-watch";
+import {
+  markDraftRunClock,
+  unwatchDraftRun,
+  watchDraftRun,
+} from "@/lib/draft-progress-watch";
 import {
   getMergedProjects,
   setApiProjects,
@@ -398,8 +402,7 @@ function ProjectWorkspaceLayout() {
       }, 1000);
       try {
         const first = await fetchChapterDraftRun(projectId, runId, userId);
-        origin = Date.parse(first.run.createdAt);
-        if (!Number.isFinite(origin)) origin = openedAt;
+        markDraftRunClock(runId, openedAt);
         const ids = researchDraftSectionIds(
           first.items.map((i) => i.sectionId),
         );
@@ -638,9 +641,8 @@ function ProjectWorkspaceLayout() {
         scope: "section",
         sectionId: "project-overview",
       });
-      const createdMs = Date.parse(created.run.createdAt);
-      if (Number.isFinite(createdMs)) startedAt = createdMs;
       const runId = created.run.id;
+      markDraftRunClock(runId, startedAt);
       setDraftRunId(runId);
 
       if (created.reused && created.run.status === "ready") {
@@ -808,8 +810,7 @@ function ProjectWorkspaceLayout() {
         regen,
       });
       runId = created.run.id;
-      const createdMs = Date.parse(created.run.createdAt);
-      if (Number.isFinite(createdMs)) startedAt = createdMs;
+      markDraftRunClock(runId, startedAt);
       setDraftRunId(runId);
       watchDraftRun(runId);
       watchingRunIdRef.current = runId;
