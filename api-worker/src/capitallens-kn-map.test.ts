@@ -218,6 +218,29 @@ describe("capitallens kn map", () => {
     expect(md).not.toContain("4.4 核查线索");
   });
 
+  it("puts 财务分析 / 风险与回报 on the chapter heading, not 总体叙事", () => {
+    const finance = assembleScreeningChapterMarkdown("financial-diligence", {
+      "screening-memo": `## 总体叙事
+
+什么现在：只有预测。
+
+### 5.1 数据口径
+
+只有预测。
+`,
+    });
+    expect(finance.startsWith("## 5. 财务分析")).toBe(true);
+    expect(finance).not.toMatch(/^## 总体叙事/m);
+
+    const risk = assembleScreeningChapterMarkdown("risk-return", {
+      "screening-memo": `### 6.1 回报来源
+
+转让收益。
+`,
+    });
+    expect(risk.startsWith("## 6. 风险与回报")).toBe(true);
+  });
+
   it("drops empty floor headings like 5.4 after assembly", () => {
     const pruned = pruneEmptyScreeningSubsections(`## 5. 财务分析
 

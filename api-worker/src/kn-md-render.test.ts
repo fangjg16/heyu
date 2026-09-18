@@ -1061,6 +1061,49 @@ Suggested next step：先补合同。
     expect(html).toContain("Agent建议");
   });
 
+  it("does not use 总体叙事 or 开放问题 as the chapter cover", () => {
+    const finance = markdownToKnHtml(`## 5. 财务分析
+
+## 总体叙事
+
+什么现在：只有预测。
+
+### 5.1 数据口径
+
+只有预测。
+`);
+    expect(finance).toMatch(/kn-doc-title">[^<]*财务分析/);
+    expect(finance).not.toMatch(/kn-doc-title">[^<]*总体叙事/);
+
+    const gaps = markdownToKnHtml(`## 7. 待解决问题
+
+## 开放问题（给被投方）
+
+### 7.1 对方待答
+
+问融资主体。
+`);
+    expect(gaps).toMatch(/kn-doc-title">[^<]*待解决问题/);
+    expect(gaps).not.toMatch(/kn-doc-title">[^<]*开放问题/);
+  });
+
+  it("keeps one numbered list when 问什么 items have nested bullets", () => {
+    const html = markdownToKnHtml(`## 7. 待解决问题
+
+1. 问什么：融资主体是谁
+- 为什么现在问：影响买入哪家
+- 怎样才算答上：书面确认
+- 不答的后果：不能定价
+
+1. 问什么：数字授权有多少
+- 为什么现在问：收入口径
+`);
+    expect(html).toContain("<ol>");
+    expect((html.match(/<ol>/g) ?? []).length).toBe(1);
+    expect(html).toContain("问什么：融资主体是谁");
+    expect(html).not.toMatch(/<li>1\.\s*问什么/u);
+  });
+
   it("keeps screening subsection numbers like 1.1 and 2.1", () => {
     const html = markdownToKnHtml(`# 项目概览
 

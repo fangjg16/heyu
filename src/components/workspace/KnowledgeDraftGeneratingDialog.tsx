@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { Minus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ChapterDraftRegenMode } from "@/lib/project-api";
 
@@ -76,18 +76,18 @@ function runningBody(opts: {
   regen?: ChapterDraftRegenMode | null;
 }): string {
   if (opts.mode === "section") {
-    return `正在生成「${opts.chapterName}」。可先离开，之后再点「查看进度」。完成后在审核页查看。`;
+    return `正在生成「${opts.chapterName}」。可点右上角收起，进度会留在右下角。完成后去审核页查看。`;
   }
   if (opts.regen === "from-files") {
-    return "正在按现有分析重新排版，不改资料包原文。可先离开，之后再点「查看进度」。";
+    return "正在按现有分析重新排版，不改资料包原文。可点右上角收起，进度会留在右下角。";
   }
   if (opts.regen === "unpublished") {
-    return "正在更新尚未发布的章节，可能需要较长时间。已发布的内容不会改。可先离开，之后再点「查看进度」。";
+    return "正在更新尚未发布的章节，可能需要较长时间。已发布的内容不会改。可点右上角收起，进度会留在右下角。";
   }
   if (opts.regen === "all-drafts") {
-    return "正在重新生成全部草案，可能需要较长时间。已发布的内容在你确认发布前不会改。可先离开，之后再点「查看进度」。";
+    return "正在重新生成全部草案，可能需要较长时间。已发布的内容在你确认发布前不会改。可点右上角收起，进度会留在右下角。";
   }
-  return "正在更新全部章节，可能需要较长时间。可先离开，之后再点「查看进度」。完成后去审核页查看。";
+  return "正在更新全部章节，可能需要较长时间。可点右上角收起，进度会留在右下角。完成后去审核页查看。";
 }
 
 function finishedBody(opts: {
@@ -171,9 +171,14 @@ export function KnowledgeDraftGeneratingDialog({
           type="button"
           onClick={onClose}
           className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#59625F] hover:bg-[rgba(78,66,57,0.06)]"
-          aria-label="关闭"
+          aria-label={finished ? "关闭" : "收起"}
+          title={finished ? "关闭" : "收起到右下角"}
         >
-          <X className="h-4 w-4" strokeWidth={2} />
+          {finished ? (
+            <X className="h-4 w-4" strokeWidth={2} />
+          ) : (
+            <Minus className="h-4 w-4" strokeWidth={2} />
+          )}
         </button>
 
         <div className="px-7 pb-6 pt-7">
@@ -257,13 +262,15 @@ export function KnowledgeDraftGeneratingDialog({
                 {stopping ? "正在停止…" : "停止生成"}
               </button>
             ) : null}
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex h-10 items-center rounded-[11px] border border-[rgba(78,66,57,0.18)] bg-transparent px-4 text-[13.5px] font-medium text-[#1F2423] hover:bg-[rgba(78,66,57,0.04)]"
-            >
-              {finished ? "关闭" : "先离开"}
-            </button>
+            {finished ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex h-10 items-center rounded-[11px] border border-[rgba(78,66,57,0.18)] bg-transparent px-4 text-[13.5px] font-medium text-[#1F2423] hover:bg-[rgba(78,66,57,0.04)]"
+              >
+                关闭
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={onGoReview}

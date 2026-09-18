@@ -509,9 +509,9 @@ function coverDisplayTitle(title: string): string {
 }
 
 function isWeakCoverTitle(title: string): boolean {
-  const t = displayHeadingTitle(title);
-  return /^(?:Agent\s*建议|建议|Suggested\s*next\s*step|团队决定|下一步)$/iu.test(
-    t,
+  const t = displayHeadingTitle(title).replace(/[（(][^)）]*[)）]/gu, "");
+  return /^(?:Agent\s*建议|建议|Suggested\s*next\s*step|团队决定|下一步|总体叙事|开放问题|给被投方|不清楚|不合理)$/iu.test(
+    t.trim(),
   );
 }
 
@@ -1394,7 +1394,9 @@ export function markdownToKnHtml(md: string, fileId?: string): string {
 }
 
 function listItemHtml(raw: string): string {
-  const t = stripAntiPatternName(raw.trim());
+  const chunks = raw.split("\n");
+  let t = stripAntiPatternName((chunks[0] ?? "").trim());
+  t = t.replace(/^\d+[.)]\s+/u, "").trim();
   if (!t) return "";
   const owned =
     /^\*\*([^*]{1,40}?)[:：]\*\*\s*(.+)$/u.exec(t) ??
@@ -1402,16 +1404,30 @@ function listItemHtml(raw: string): string {
     /^((?:老板|Jessica|Jensen)(?:\s*[+＋和、]\s*(?:老板|Jessica|Jensen))*)[:：]\s*(.+)$/u.exec(
       t,
     );
+  let inner: string;
   if (owned && isTaskOwner(owned[1]!)) {
-    return `<li class="kn-task"><span class="kn-task__who">${inline(owned[1]!.replace(/[:：]\s*$/u, ""))}</span><span class="kn-task__do">${inline(owned[2]!)}</span></li>`;
+    inner = `<span class="kn-task__who">${inline(owned[1]!.replace(/[:：]\s*$/u, ""))}</span><span class="kn-task__do">${inline(owned[2]!)}</span>`;
+  } else if (isPendingExact(t.replace(/^[-*•]\s+/u, ""))) {
+    inner = `<span class="kn-pending">${inline(t)}</span>`;
+  } else if (isSourceNoteLine(t.replace(/^[-*•]\s+/u, ""))) {
+    inner = inline(t);
+  } else {
+    inner = inline(t);
   }
-  if (isPendingExact(t.replace(/^[-*•]\s+/u, ""))) {
-    return `<li><span class="kn-pending">${inline(t)}</span></li>`;
+  const nested = chunks
+    .slice(1)
+    .map((line) => line.replace(/^\s*[-*+]\s+/u, "").trim())
+    .filter(Boolean);
+  if (nested.length > 0) {
+    inner += `<ul>${nested.map((n) => `<li>${inline(n)}</li>`).join("")}</ul>`;
   }
-  if (isSourceNoteLine(t.replace(/^[-*•]\s+/u, ""))) {
-    return `<li class="kn-source-note">${inline(t)}</li>`;
-  }
-  return `<li>${inline(t)}</li>`;
+  const cls =
+    owned && isTaskOwner(owned[1]!)
+      ? ' class="kn-task"'
+      : isSourceNoteLine(t.replace(/^[-*•]\s+/u, ""))
+        ? ' class="kn-source-note"'
+        : "";
+  return `<li${cls}>${inner}</li>`;
 }
 
 function markdownToKnHtmlInner(src: string): string {
@@ -1712,12 +1728,11 @@ function markdownToKnHtmlInner(src: string): string {
       }
       const tag = headingTagName(hashes, title);
       const asCover =
-        hashes === 1 ||
-        (!seenCover &&
-          hashes === 2 &&
-          !isWeakCoverTitle(title) &&
-          !isFlagsHeading(title) &&
-          !isVerdictHeading(title));
+        !seenCover &&
+        (hashes === 1 || hashes === 2) &&
+        !isWeakCoverTitle(title) &&
+        !isFlagsHeading(title) &&
+        !isVerdictHeading(title);
       const parts = headingInner(
         hashes === 1 || asCover ? coverDisplayTitle(title) : title,
       );
@@ -2114,6 +2129,11 @@ function markdownToKnHtmlInner(src: string): string {
         i += 1;
         continue;
       }
+      if (listKind === "ol" && listItems.length > 0) {
+        listItems[listItems.length - 1] += `\n- ${ul[1]!}`;
+        i += 1;
+        continue;
+      }
       if (listKind && listKind !== "ul") flushList();
       listKind = "ul";
       listItems.push(ul[1]!);
@@ -2270,6 +2290,12 @@ export type RenderDeliverableChapterOptions = {
   keepExtras?: boolean;
 };
 
+function withFallbackCoverTitle(html: string, title: string): string {
+  if (!title.trim() || /kn-doc-title/u.test(html)) return html;
+  const header = `<header class="kn-dochead"><h2 class="kn-doc-title">${escapeHtml(title.trim())}</h2></header>\n`;
+  return html.replace(/<div class="kn-from-md">/u, `<div class="kn-from-md">${header}`);
+}
+
 export function renderDeliverableChapterHtml(
   files: { title: string; markdown: string; id?: string; phase?: number }[],
   options?: RenderDeliverableChapterOptions,
@@ -2285,10 +2311,16 @@ export function renderDeliverableChapterHtml(
     ? undefined
     : ranked.find((f) => isStandaloneDeliverable(f));
   if (standalone) {
-    return markdownToKnHtml(standalone.markdown, standalone.id);
+    return withFallbackCoverTitle(
+      markdownToKnHtml(standalone.markdown, standalone.id),
+      standalone.title,
+    );
   }
   if (ranked.length === 1) {
-    return markdownToKnHtml(ranked[0]!.markdown, ranked[0]!.id);
+    return withFallbackCoverTitle(
+      markdownToKnHtml(ranked[0]!.markdown, ranked[0]!.id),
+      ranked[0]!.title,
+    );
   }
   return ranked
     .map((f) => {

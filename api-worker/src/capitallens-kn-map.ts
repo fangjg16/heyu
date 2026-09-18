@@ -325,8 +325,13 @@ function hasFloorHeading(md: string, id: string, title: string): boolean {
 }
 
 function hasChapterHeading(md: string, spec: KnChapterFloor): boolean {
-  if (extractNumberedMarkdownChapter(md, spec.chapter).trim()) return true;
-  return Boolean(extractMarkdownHeadingSlice(md, spec.title).trim());
+  const first = /^(#{1,2})\s+(.+)$/mu.exec(md.trim())?.[2]?.trim() ?? "";
+  if (!first) return false;
+  if (first === spec.title) return true;
+  return new RegExp(
+    `^${spec.chapter}(?:\\.(?!\\d)|、)\\s+${spec.title.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`,
+    "u",
+  ).test(first);
 }
 
 /** 备忘录切空或切到主题/补充稿时，仍给出 1.1 / 2.1 这种必有子节。 */
@@ -384,7 +389,7 @@ export function sliceDeliverableForKn(
 }
 
 const WORKPAPER_COVER_RE =
-  /^(?:赛道确认|赛道|公开补充要点|公开信息补充|投资主题|项目简报|项目初筛备忘录)(?:[：:].*)?$/u;
+  /^(?:赛道确认|赛道|公开补充要点|公开信息补充|投资主题|项目简报|项目初筛备忘录|总体叙事)(?:[：:].*)?$/u;
 
 /** 去掉底稿自己的 H1 /「赛道」「公开补充要点」，避免顶替报告子节标题。 */
 export function stripWorkpaperCover(md: string): string {
@@ -858,12 +863,21 @@ export function assembleScreeningChapterMarkdown(
     doc = appendUnderSubsection(doc, spec.into, slice);
   }
   return pruneEmptyScreeningSubsections(
-    liftInternalPendingTo72(
-      fillImpliedScreeningFloors(
-        sectionId,
-        relocateOrphanScreeningBlocks(doc),
-        files,
+    dropWorkpaperHeroHeadings(
+      liftInternalPendingTo72(
+        fillImpliedScreeningFloors(
+          sectionId,
+          relocateOrphanScreeningBlocks(doc),
+          files,
+        ),
       ),
     ),
   );
+}
+
+function dropWorkpaperHeroHeadings(md: string): string {
+  return md
+    .replace(/^#{1,2}\s+总体叙事\s*$/gmu, "")
+    .replace(/\n{3,}/gu, "\n\n")
+    .trim();
 }
