@@ -11,6 +11,10 @@ export function isCollabImageFile(file: {
   return /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/iu.test(file.filename ?? "");
 }
 
+const thumbFrame =
+  "flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[rgba(78,66,57,0.1)] bg-[rgba(78,66,57,0.03)]";
+const thumbImg = "max-h-full max-w-full object-contain";
+
 function SelectedFilesPreview({ files }: { files: File[] }) {
   const previews = useMemo(
     () =>
@@ -30,15 +34,12 @@ function SelectedFilesPreview({ files }: { files: File[] }) {
   }, [previews]);
   if (previews.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-1.5">
       {previews.map((item) =>
         item.url ? (
-          <img
-            key={item.key}
-            src={item.url}
-            alt={item.name}
-            className="max-h-40 max-w-full rounded-lg border border-[rgba(78,66,57,0.1)] bg-[rgba(78,66,57,0.03)] object-contain"
-          />
+          <span key={item.key} className={thumbFrame}>
+            <img src={item.url} alt={item.name} className={thumbImg} />
+          </span>
         ) : (
           <span
             key={item.key}
@@ -107,7 +108,7 @@ export function CollabAttachmentStrip({
     <div className="space-y-2">
       {pending && pending.length > 0 ? <SelectedFilesPreview files={pending} /> : null}
       {images.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           {images.map((file) =>
             urls[file.id] ? (
               <a
@@ -115,20 +116,18 @@ export function CollabAttachmentStrip({
                 href={urls[file.id]}
                 target="_blank"
                 rel="noreferrer"
-                className="block overflow-hidden rounded-lg border border-[rgba(78,66,57,0.1)] bg-[rgba(78,66,57,0.03)]"
+                title={file.filename}
+                className={thumbFrame}
               >
-                <img
-                  src={urls[file.id]}
-                  alt={file.filename}
-                  className="max-h-52 max-w-full object-contain"
-                />
+                <img src={urls[file.id]} alt={file.filename} className={thumbImg} />
               </a>
             ) : (
               <div
                 key={file.id}
-                className="flex h-20 min-w-24 items-center justify-center rounded-lg border border-[rgba(78,66,57,0.1)] bg-[rgba(78,66,57,0.03)] px-2 text-[12px] text-[#969E9A]"
+                title={file.filename}
+                className={`${thumbFrame} px-1 text-center text-[10px] leading-tight text-[#969E9A]`}
               >
-                {file.filename}
+                <span className="line-clamp-2 break-all">{file.filename}</span>
               </div>
             ),
           )}
