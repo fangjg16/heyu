@@ -34,7 +34,11 @@ import {
   isIssuerRole,
   resolveProjectRole,
 } from "./workspace-roles";
-import { getWorkspaceUserById } from "./workspace-users-db";
+import {
+  getWorkspaceUserById,
+  listAllWorkspaceUsers,
+  type WorkspaceUserRow,
+} from "./workspace-users-db";
 import { listProjectMemberRoleOverrides } from "./project-member-roles-db";
 import { stripCitationMarkers } from "./kn-citation-markers";
 import { humanUploadNote } from "./upload-note";
@@ -47,18 +51,51 @@ import {
 
 type Env = { DB: AppDatabase };
 
+function compactAccountKey(raw: string): string {
+  return raw.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/** 账号改名后，事项上可能还记着旧 id 或旧展示名。按当前用户资料显示。 */
+function currentAccountName(
+  users: WorkspaceUserRow[],
+  raw: string | null | undefined,
+): string {
+  const text = (raw ?? "").trim();
+  if (!text) return "";
+  const key = compactAccountKey(text);
+  const hit = users.find((user) =>
+    [user.id, user.username, user.display_name].some(
+      (part) => compactAccountKey(part ?? "") === key,
+    ),
+  );
+  if (!hit) return "";
+  const own = hit.display_name?.trim() || "";
+  if (compactAccountKey(own) !== "janicehi") return own || text;
+  const renamed = users.find(
+    (user) =>
+      compactAccountKey(user.id) === "maxeast" ||
+      compactAccountKey(user.username) === "maxeast",
+  );
+  return renamed?.display_name?.trim() || "MaxEast";
+}
+
 async function listIssuerAccounts(
   env: Env,
   projectId: string,
 ): Promise<{ userId: string; displayName: string }[]> {
   const overrides = await listProjectMemberRoleOverrides(env, projectId);
+  const users = await listAllWorkspaceUsers(env).catch(() => []);
   const out: { userId: string; displayName: string }[] = [];
   for (const [userId, role] of Object.entries(overrides)) {
     if (role !== "issuer") continue;
     const u = await getWorkspaceUserById(env, userId);
+    const resolved = currentAccountName(users, userId);
     out.push({
       userId,
-      displayName: (u?.display_name || u?.username || userId).trim() || userId,
+      displayName:
+        resolved ||
+        (u?.display_name || u?.username || userId).trim() ||
+        userId,
     });
   }
   out.sort((a, b) => a.displayName.localeCompare(b.displayName, "zh"));
@@ -308,9 +345,11 @@ export async function handleListCollabItems(
     list.push(file);
     byItem.set(itemId, list);
   }
+  const users = await listAllWorkspaceUsers(env).catch(() => []);
   const items = rows.map((r) => ({
     ...rowToPublic(r, { includeInternal }),
     attachments: byItem.get(r.id) ?? [],
+    assignedToName: currentAccountName(users, r.assigned_to) || null,
   }));
   const issuers = includeInternal ? await listIssuerAccounts(env, projectId) : [];
   return json({ items, issuers });
@@ -376,8 +415,12 @@ export async function handleGetCollabItem(
   if (isIssuerRole(role)) {
     files = files.filter((file) => issuerCanSeeCollabAttachment(file, userId));
   }
+  const users = await listAllWorkspaceUsers(env).catch(() => []);
   return json({
-    item: rowToPublic(row, { includeInternal: isInvestorRole(role) }),
+    item: {
+      ...rowToPublic(row, { includeInternal: isInvestorRole(role) }),
+      assignedToName: currentAccountName(users, row.assigned_to) || null,
+    },
     files,
   });
 }

@@ -741,8 +741,10 @@ export function InvestorCollabSection({
     setFileInputKey((k) => k + 1);
   };
 
-  const issuerLabel = (id?: string | null) => {
-    const uid = id?.trim();
+  const issuerLabel = (it: { assignedTo?: string | null; assignedToName?: string | null }) => {
+    const named = it.assignedToName?.trim();
+    if (named) return named;
+    const uid = it.assignedTo?.trim();
     if (!uid) return "未指定";
     return issuers.find((a) => a.userId === uid)?.displayName ?? uid;
   };
@@ -831,7 +833,12 @@ export function InvestorCollabSection({
       setItems((rows) =>
         rows.map((row) =>
           row.id === it.id
-            ? { ...row, ...saved, attachments: saved.attachments ?? row.attachments }
+            ? {
+                ...row,
+                ...saved,
+                attachments: saved.attachments ?? row.attachments,
+                assignedToName: saved.assignedToName ?? row.assignedToName,
+              }
             : row,
         ),
       );
@@ -1119,7 +1126,7 @@ export function InvestorCollabSection({
                         {it.dueAt ? it.dueAt.slice(0, 10) : "未设置"}
                       </p>
                       <p className="text-[12.5px] text-[#59625F]">
-                        接收账号：{issuerLabel(it.assignedTo)}
+                        接收账号：{issuerLabel(it)}
                       </p>
                       {it.replyText ? (
                         <p>项目协作方答复：{it.replyText}</p>

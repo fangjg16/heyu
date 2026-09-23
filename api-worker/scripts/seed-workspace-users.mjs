@@ -67,9 +67,9 @@ const USERS = [
   {
     id: "janice-hi",
     username: "janicehi",
-    displayName: "JaniceHi",
+    displayName: "MaxEast",
     orgTitle: "访客",
-    avatarChar: "J",
+    avatarChar: "M",
     avatarClass: "bg-slate-300 text-slate-800 shadow-sm",
     isPlatformAdmin: 0,
     password: "jfo2026",
@@ -152,16 +152,10 @@ async function upsertUser(conn, user, t) {
       created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)
     ON DUPLICATE KEY UPDATE
-      username = VALUES(username),
-      display_name = VALUES(display_name),
       org_title = VALUES(org_title),
-      avatar_char = VALUES(avatar_char),
       avatar_class = VALUES(avatar_class),
       is_platform_admin = VALUES(is_platform_admin),
       status = 'active',
-      password_hash = VALUES(password_hash),
-      password_salt = VALUES(password_salt),
-      password_iters = VALUES(password_iters),
       updated_at = VALUES(updated_at)`,
     [
       user.id,

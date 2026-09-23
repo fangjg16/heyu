@@ -2053,6 +2053,7 @@ export type CollabItem = {
   confirmedAt: string | null;
   sourceQuestionText?: string;
   assignedTo?: string | null;
+  assignedToName?: string | null;
   sortOrder?: number;
   attachments?: CollabFileRecord[];
   updatedAt: string;
