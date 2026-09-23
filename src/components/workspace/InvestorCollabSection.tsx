@@ -6,6 +6,7 @@ import {
   fetchProjectKnowledgeChapter,
   PROJECT_UPLOAD_FOLDER,
   deleteProjectFile,
+  discardUnsentCollabQuestion,
   publishCollabItem,
   publishOpenQuestionToIssuer,
   patchCollabItem,
@@ -770,6 +771,52 @@ export function InvestorCollabSection({
     }
   };
 
+  const onDiscardUnsent = async (entry: UnsentEntry) => {
+    if (!canManage) {
+      setError("仅 Admin / Core 可删除未发送事项");
+      return;
+    }
+    const preview = entry.draft
+      ? previewCollabQuestion(entry.draft)
+      : extractOpenQuestionTitle(entry.text);
+    const label = preview.title.replace(/\s+/g, " ").trim().slice(0, 36);
+    if (
+      !window.confirm(
+        `删除「${label || "这条问题"}」？删除后不会发给协作方。`,
+      )
+    ) {
+      return;
+    }
+    setBusy(`discard:${entry.key}`);
+    setError(null);
+    try {
+      const formatted = entry.draft
+        ? {
+            title: entry.draft.title,
+            body: entry.draft.body,
+            questionKind: entry.draft.questionKind,
+          }
+        : {
+            ...formatOpenQuestionForIssuer(entry.text),
+            questionKind: inferQuestionKind(entry.text),
+          };
+      await discardUnsentCollabQuestion(projectId, {
+        itemId: entry.draft?.id,
+        sourceQuestionText: entry.text,
+        title: formatted.title || entry.text.slice(0, 80),
+        body: formatted.body || entry.text,
+        priority: entry.priority,
+        questionKind: formatted.questionKind,
+      });
+      if (editingKey === entry.key) resetCompose();
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "删除失败");
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const onWithdraw = async (it: CollabItem) => {
     if (!canManage) {
       setError("仅 Admin / Core 可撤回");
@@ -1486,6 +1533,14 @@ export function InvestorCollabSection({
                       </div>
                       {canManage ? (
                         <div className="flex shrink-0 items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={Boolean(busy)}
+                            onClick={() => void onDiscardUnsent(entry)}
+                            className={ghostBtnClass}
+                          >
+                            {busy === `discard:${entry.key}` ? "删除中…" : "删除"}
+                          </button>
                           {expanded ? (
                             <button
                               type="button"

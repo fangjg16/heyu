@@ -2029,7 +2029,8 @@ export type CollabItemStatus =
   | "saved"
   | "submitted"
   | "needs_more"
-  | "confirmed";
+  | "confirmed"
+  | "discarded";
 
 export type CollabFileReq = { id: string; label: string; required: boolean };
 
@@ -2115,13 +2116,15 @@ export function collabStatusLabel(
       return "需补充";
     case "confirmed":
       return "已确认";
+    case "discarded":
+      return "已删除";
     default:
       return status;
   }
 }
 
 export function isCollabSentToIssuer(status: CollabItemStatus): boolean {
-  return status !== "draft";
+  return status !== "draft" && status !== "discarded";
 }
 
 export async function fetchCollabOverview(
@@ -2238,6 +2241,33 @@ export async function publishCollabItem(
   if (!res.ok) throw new Error(data.error || "发布失败");
   if (!data.item) throw new Error("发布成功但未返回事项");
   return data.item;
+}
+
+/** 从未发送列表删掉一条。草稿改为已删除；还没入库的原题记一条已删除，刷新后不再出现。 */
+export async function discardUnsentCollabQuestion(
+  projectId: string,
+  body: {
+    itemId?: string;
+    sourceQuestionText: string;
+    title: string;
+    body: string;
+    priority?: CollabPriority;
+    questionKind?: CollabItem["questionKind"];
+  },
+): Promise<void> {
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/collab/items/discard`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (res.status === 405) {
+    throw new Error("删除还不能用，请先更新服务后再试。");
+  }
+  if (!res.ok) throw new Error(data.error || "删除失败");
 }
 
 /** 按内部问题原文发给项目协作方 */

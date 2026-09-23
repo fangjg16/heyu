@@ -259,11 +259,21 @@ export default function HomeDashboard() {
   );
 
   const todos = useMemo(() => {
-    return openQuestions.map((item) => {
+    return openQuestions.flatMap((item) => {
       const { title, detail } = extractOpenQuestionTitle(item.text);
-      const published = (publishedByProject[item.projectId] ?? []).find(
+      const related = publishedByProject[item.projectId] ?? [];
+      if (
+        related.some(
+          (it) =>
+            it.status === "discarded" && it.sourceQuestionText === item.text,
+        )
+      ) {
+        return [];
+      }
+      const published = related.find(
         (it) =>
           it.status !== "draft" &&
+          it.status !== "discarded" &&
           (it.sourceQuestionText === item.text ||
             it.title === item.text.slice(0, 48)),
       );

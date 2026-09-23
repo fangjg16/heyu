@@ -82,6 +82,7 @@ import {
   handleStartStartupInterview,
 } from "./startup-interview-routes";
 import {
+  handleDiscardUnsentCollabItem,
   handleGetCollabItem,
   handleGetCollabOverview,
   handleIssuerPatchCollabItem,
@@ -673,6 +674,14 @@ export async function routeAuthedApi(
   ) {
     const projectId = decodePathProjectId(path.split("/")[3] ?? "");
     return handleReorderCollabItems(request, env, projectId, authUserId);
+  }
+
+  if (
+    /^\/api\/projects\/[^/]+\/collab\/items\/discard$/u.test(path) &&
+    request.method === "POST"
+  ) {
+    const projectId = decodePathProjectId(path.split("/")[3] ?? "");
+    return handleDiscardUnsentCollabItem(request, env, projectId, authUserId);
   }
 
   if (/^\/api\/projects\/[^/]+\/collab\/items\/[^/]+$/u.test(path)) {

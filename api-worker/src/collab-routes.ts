@@ -107,7 +107,10 @@ function visibleToIssuer(
   row: { assigned_to?: string | null; status?: string | null },
   userId: string,
 ): boolean {
-  if (parseStatus(row.status) === "draft") return false;
+  const raw = String(row.status ?? "").trim();
+  if (raw === "draft" || raw === "discarded") return false;
+  const status = parseStatus(raw);
+  if (status === "draft" || status === "discarded") return false;
   const assigned = String(row.assigned_to ?? "").trim();
   return !assigned || assigned === userId;
 }
@@ -310,7 +313,11 @@ export async function handleGetCollabOverview(
     nearestDueAt:
       items
         .filter(
-          (i) => i.dueAt && i.status !== "confirmed" && i.status !== "draft",
+          (i) =>
+            i.dueAt &&
+            i.status !== "confirmed" &&
+            i.status !== "draft" &&
+            i.status !== "discarded",
         )
         .map((i) => i.dueAt!)
         .sort()[0] ?? null,
@@ -483,6 +490,9 @@ export async function handlePublishCollabItem(
         (r) => r.source_question_text === sourceQuestionText,
       )
     : undefined;
+  if (existing && parseStatus(existing.status) === "discarded") {
+    return json({ error: "该问题已删除" }, 409);
+  }
   if (existing && parseStatus(existing.status) !== "draft") {
     return json({ error: "该问题已发给协作方，请在待回复中修改或撤回" }, 409);
   }
@@ -503,6 +513,76 @@ export async function handlePublishCollabItem(
     ...payload,
     publishedBy: userId,
     status: asDraft ? "draft" : "pending_reply",
+  });
+  return json({ item: rowToPublic(row, { includeInternal: true }) }, 201);
+}
+
+/** POST /api/projects/:id/collab/items/discard  删掉未发送的问题，协作方看不到 */
+export async function handleDiscardUnsentCollabItem(
+  request: Request,
+  env: Env,
+  pathProjectId: string,
+  userId: string,
+): Promise<Response> {
+  const projectId = decodePathProjectId(pathProjectId);
+  const project = await getProjectById(env, projectId);
+  if (!project) return json({ error: "项目不存在" }, 404);
+  if (!(await canManageProjectCollab(env, userId, projectId, project.createdBy))) {
+    return json({ error: "仅 Admin / Core 可删除未发送事项" }, 403);
+  }
+  let body: Record<string, unknown> = {};
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "请求体须为 JSON" }, 400);
+  }
+  const itemId = String(body.itemId ?? "").trim();
+  const sourceQuestionText = String(body.sourceQuestionText ?? "").trim();
+  const rows = await listCollabItems(env, projectId);
+  const existing = itemId
+    ? rows.find((row) => row.id === itemId)
+    : sourceQuestionText
+      ? rows.find((row) => row.source_question_text === sourceQuestionText)
+      : undefined;
+  if (itemId && !existing) return json({ error: "事项不存在" }, 404);
+  if (existing) {
+    const status = parseStatus(existing.status);
+    if (status === "discarded") {
+      return json({ item: rowToPublic(existing, { includeInternal: true }) });
+    }
+    if (status !== "draft") {
+      return json({ error: "已发给协作方的事项不能直接删除，请先撤回" }, 400);
+    }
+    const next = await updateCollabItem(env, projectId, existing.id, {
+      status: "discarded",
+    });
+    return json({ item: rowToPublic(next!, { includeInternal: true }) });
+  }
+  const title =
+    stripCitationMarkers(String(body.title ?? "").trim()) ||
+    sourceQuestionText.slice(0, 80);
+  const content =
+    stripCitationMarkers(String(body.body ?? "").trim()) || sourceQuestionText;
+  if (!sourceQuestionText || !title || !content) {
+    return json({ error: "缺少要删除的问题" }, 400);
+  }
+  const row = await insertCollabItem(env, {
+    id: crypto.randomUUID(),
+    projectId,
+    sourceQuestionText,
+    title,
+    body: content,
+    replyMode: "both",
+    priority: parsePriority(String(body.priority ?? "P2")),
+    questionKind:
+      parseQuestionKind(body.questionKind) ??
+      inferQuestionKind(`${sourceQuestionText}\n${title}\n${content}`),
+    dueAt: null,
+    investorNote: null,
+    fileReqs: [],
+    assignedTo: null,
+    publishedBy: userId,
+    status: "discarded",
   });
   return json({ item: rowToPublic(row, { includeInternal: true }) }, 201);
 }

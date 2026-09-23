@@ -12,7 +12,8 @@ export type CollabItemStatus =
   | "saved"
   | "submitted"
   | "needs_more"
-  | "confirmed";
+  | "confirmed"
+  | "discarded";
 
 export type CollabFileReq = {
   id: string;
@@ -117,16 +118,17 @@ export function parseStatus(raw: string | null | undefined): CollabItemStatus {
     raw === "saved" ||
     raw === "submitted" ||
     raw === "needs_more" ||
-    raw === "confirmed"
+    raw === "confirmed" ||
+    raw === "discarded"
   ) {
     return raw;
   }
   return "pending_reply";
 }
 
-/** 已发给协作方（草稿对协作方不可见） */
+/** 已发给协作方（草稿和已删除的未发送事项对协作方不可见） */
 export function isCollabSentToIssuer(status: CollabItemStatus): boolean {
-  return status !== "draft";
+  return status !== "draft" && status !== "discarded";
 }
 
 export function rowToPublic(
