@@ -87,6 +87,7 @@ import {
   handleIssuerPatchCollabItem,
   handleListCollabFiles,
   handleListCollabItems,
+  handleReorderCollabItems,
   handleListMyCollabInbox,
   handlePublishCollabItem,
   handleReviewCollabItem,
@@ -664,6 +665,14 @@ export async function routeAuthedApi(
     const projectId = decodePathProjectId(path.split("/")[3] ?? "");
     const itemId = path.split("/")[6] ?? "";
     return handleReviewCollabItem(request, env, projectId, itemId, authUserId);
+  }
+
+  if (
+    /^\/api\/projects\/[^/]+\/collab\/items\/reorder$/u.test(path) &&
+    request.method === "POST"
+  ) {
+    const projectId = decodePathProjectId(path.split("/")[3] ?? "");
+    return handleReorderCollabItems(request, env, projectId, authUserId);
   }
 
   if (/^\/api\/projects\/[^/]+\/collab\/items\/[^/]+$/u.test(path)) {

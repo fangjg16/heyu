@@ -44,8 +44,9 @@ export function linkifyCitationMarkersHtml(html: string): string {
 export function stripCitationMarkers(text: string): string {
   return (text ?? "")
     .replace(CITE_CLUSTER_RE, " ")
-    .replace(/\s+([，。；：、])/gu, "$1")
-    .replace(/\s{2,}/gu, " ")
+    .replace(/[^\S\n]+([，。；：、])/gu, "$1")
+    .replace(/[^\S\n]{2,}/gu, " ")
+    .replace(/[ \t]*\n[ \t]*/g, "\n")
     .trim();
 }
 
@@ -54,7 +55,7 @@ export function formatOpenQuestionForIssuer(raw: string): {
   title: string;
   body: string;
 } {
-  const full = stripCitationMarkers(raw).replace(/\s+/gu, " ").trim();
+  const full = stripCitationMarkers(raw).trim();
   const { title, detail } = extractOpenQuestionTitle(raw);
   const cleanTitle = title || full;
   const body = (detail || stripTitleFromBody(full, cleanTitle)).trim();
@@ -69,12 +70,8 @@ export function previewCollabQuestion(input: {
   title?: string | null;
   body?: string | null;
 }): { title: string; detail: string } {
-  const cleanedTitle = stripCitationMarkers(input.title ?? "")
-    .replace(/\s+/gu, " ")
-    .trim();
-  const cleanedBody = stripCitationMarkers(input.body ?? "")
-    .replace(/\s+/gu, " ")
-    .trim();
+  const cleanedTitle = stripCitationMarkers(input.title ?? "").trim();
+  const cleanedBody = stripCitationMarkers(input.body ?? "").trim();
   const clipped = /…$|\.{2,}$/u.test(cleanedTitle);
   const parsed = extractOpenQuestionTitle(cleanedBody || cleanedTitle);
   const customTitle =
@@ -242,7 +239,7 @@ export function extractOpenQuestionTitle(raw: string): {
   detail: string;
 } {
   const text = stripAuthoringHintsFromText(
-    stripCitationMarkers(raw).replace(/\s+/gu, " "),
+    stripCitationMarkers(raw),
   );
   if (!text) return { title: "", detail: "" };
 

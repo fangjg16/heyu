@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { GripVertical } from "lucide-react";
 import {
   collabStatusLabel,
   fetchCollabBoard,
@@ -7,6 +8,7 @@ import {
   publishCollabItem,
   publishOpenQuestionToIssuer,
   patchCollabItem,
+  reorderCollabItems,
   reviewCollabItem,
   suggestCollabFollowUp,
   uploadProjectPackageFile,
@@ -15,6 +17,11 @@ import {
   type CollabItem,
   type CollabPriority,
 } from "@/lib/project-api";
+import {
+  collabQuestionLines,
+  formatCollabLineBreaks,
+  joinCollabQuestionLines,
+} from "@/lib/collab-question-text";
 import {
   inferQuestionKind,
   parseOpenQuestionsFromHtml,
@@ -79,6 +86,110 @@ function canReviseSent(it: CollabItem): boolean {
   );
 }
 
+type ActiveDrag =
+  | { kind: "card"; id: string }
+  | { kind: "line"; id: string; index: number }
+  | null;
+
+let activeDrag: ActiveDrag = null;
+
+function clipCollabTitle(full: string, firstLine: string): string {
+  if (full.length <= 480) return full;
+  return (firstLine || full).slice(0, 480);
+}
+
+function CollabLineList({
+  itemId,
+  lines,
+  onReorder,
+  onActivate,
+}: {
+  itemId: string;
+  lines: string[];
+  onReorder: (lines: string[]) => void;
+  onActivate?: () => void;
+}) {
+  return (
+    <div className="space-y-1">
+      {lines.map((line, index) => (
+        <div
+          key={`${index}:${line.slice(0, 32)}`}
+          className="flex items-start gap-1.5"
+          onDragOver={(e) => {
+            if (activeDrag?.kind !== "line" || activeDrag.id !== itemId) return;
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onDrop={(e) => {
+            if (activeDrag?.kind !== "line" || activeDrag.id !== itemId) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const from = activeDrag.index;
+            activeDrag = null;
+            if (from === index) return;
+            const next = [...lines];
+            const [moved] = next.splice(from, 1);
+            if (!moved) return;
+            next.splice(index, 0, moved);
+            onReorder(next);
+          }}
+        >
+          <span
+            draggable
+            aria-label="拖动调整这条的顺序"
+            title="拖动调整顺序"
+            className="mt-0.5 shrink-0 cursor-grab text-[#C4BBB2] hover:text-[#8A8178] active:cursor-grabbing"
+            onDragStart={(e) => {
+              activeDrag = { kind: "line", id: itemId, index };
+              e.dataTransfer.setData("text/plain", `line:${itemId}:${index}`);
+              e.dataTransfer.effectAllowed = "move";
+              e.stopPropagation();
+            }}
+            onDragEnd={() => {
+              activeDrag = null;
+            }}
+          >
+            <GripVertical className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </span>
+          {onActivate ? (
+            <button
+              type="button"
+              className="min-w-0 flex-1 cursor-pointer whitespace-pre-wrap break-words text-left"
+              onClick={onActivate}
+            >
+              {line}
+            </button>
+          ) : (
+            <p className="min-w-0 flex-1 whitespace-pre-wrap break-words">{line}</p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CardGrip({ id, onDragEnd }: { id: string; onDragEnd: () => void }) {
+  return (
+    <span
+      draggable
+      aria-label="拖动调整事项顺序"
+      title="拖动调整顺序"
+      className="mt-0.5 shrink-0 cursor-grab text-[#C4BBB2] hover:text-[#8A8178] active:cursor-grabbing"
+      onDragStart={(e) => {
+        activeDrag = { kind: "card", id };
+        e.dataTransfer.setData("text/plain", `card:${id}`);
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      onDragEnd={() => {
+        activeDrag = null;
+        onDragEnd();
+      }}
+    >
+      <GripVertical className="h-4 w-4" strokeWidth={1.75} />
+    </span>
+  );
+}
+
 const ghostBtnClass =
   "inline-flex h-8 items-center justify-center rounded-lg border border-[rgba(78,66,57,0.16)] bg-transparent px-3 text-[12.5px] font-medium text-[#59625F] hover:bg-[rgba(78,66,57,0.04)] disabled:opacity-45";
 const primaryBtnClass =
@@ -125,6 +236,8 @@ export function InvestorCollabSection({
   >({});
   const [suggestingId, setSuggestingId] = useState<string | null>(null);
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const [dropCardId, setDropCardId] = useState<string | null>(null);
+  const orderLock = useRef(false);
   const [incomingDraft, setIncomingDraft] = useState<{
     sourceText: string;
     title?: string;
@@ -187,14 +300,14 @@ export function InvestorCollabSection({
       (d) => d.status === "draft" && d.sourceQuestionText === t,
     );
     if (draft) {
-      setTitle(incomingDraft.title || draft.title);
-      setBody(draft.body);
+      setTitle(formatCollabLineBreaks(incomingDraft.title || draft.title));
+      setBody(formatCollabLineBreaks(draft.body));
       setAssignedTo(draft.assignedTo?.trim() || defaultAssignedTo(issuers));
       setDueAt(dueInputValue(draft.dueAt));
     } else {
       const formatted = formatOpenQuestionForIssuer(t);
-      setTitle(incomingDraft.title || formatted.title);
-      setBody(formatted.body);
+      setTitle(formatCollabLineBreaks(incomingDraft.title || formatted.title));
+      setBody(formatCollabLineBreaks(formatted.body));
       setAssignedTo(defaultAssignedTo(issuers));
       setDueAt("");
     }
@@ -293,8 +406,8 @@ export function InvestorCollabSection({
     setSourceText(entry.text);
     setPriority(entry.priority);
     if (entry.draft) {
-      setTitle(entry.draft.title);
-      setBody(entry.draft.body);
+      setTitle(formatCollabLineBreaks(entry.draft.title));
+      setBody(formatCollabLineBreaks(entry.draft.body));
       setAssignedTo(
         entry.draft.assignedTo?.trim() || defaultAssignedTo(issuers),
       );
@@ -302,8 +415,8 @@ export function InvestorCollabSection({
       return;
     }
     const formatted = formatOpenQuestionForIssuer(entry.text);
-    setTitle(formatted.title);
-    setBody(formatted.body);
+    setTitle(formatCollabLineBreaks(formatted.title));
+    setBody(formatCollabLineBreaks(formatted.body));
     setAssignedTo(defaultAssignedTo(issuers));
     setDueAt("");
   };
@@ -583,8 +696,8 @@ export function InvestorCollabSection({
 
   const fillPublished = (it: CollabItem) => {
     setSourceText(it.sourceQuestionText || it.title);
-    setTitle(it.title);
-    setBody(it.body);
+    setTitle(formatCollabLineBreaks(it.title));
+    setBody(formatCollabLineBreaks(it.body));
     setPriority(it.priority);
     setAssignedTo(it.assignedTo?.trim() || defaultAssignedTo(issuers));
     setDueAt(dueInputValue(it.dueAt));
@@ -646,6 +759,80 @@ export function InvestorCollabSection({
       setError(e instanceof Error ? e.message : "审核失败");
     } finally {
       setBusy(null);
+    }
+  };
+
+  const onReorderCards = async (visible: CollabItem[], fromId: string, toId: string) => {
+    if (!canManage || fromId === toId || orderLock.current) return;
+    const from = visible.findIndex((it) => it.id === fromId);
+    const to = visible.findIndex((it) => it.id === toId);
+    if (from < 0 || to < 0) return;
+    const nextVisible = [...visible];
+    const [moved] = nextVisible.splice(from, 1);
+    if (!moved) return;
+    nextVisible.splice(to, 0, moved);
+    const visibleSet = new Set(visible.map((it) => it.id));
+    const queue = [...nextVisible];
+    const nextItems = items.map((it) =>
+      visibleSet.has(it.id) ? queue.shift() ?? it : it,
+    );
+    const prev = items;
+    orderLock.current = true;
+    setItems(nextItems);
+    setError(null);
+    try {
+      await reorderCollabItems(
+        projectId,
+        nextItems.map((it) => it.id),
+      );
+    } catch (e) {
+      setItems(prev);
+      setError(e instanceof Error ? e.message : "排序保存失败");
+    } finally {
+      orderLock.current = false;
+    }
+  };
+
+  const onReorderLines = async (
+    it: CollabItem,
+    field: "title" | "body",
+    nextLines: string[],
+  ) => {
+    if (!canManage || orderLock.current || nextLines.length < 2) return;
+    const joined = joinCollabQuestionLines(nextLines);
+    const titleShown = formatCollabLineBreaks(it.title).trim();
+    const bodyShown = formatCollabLineBreaks(it.body).trim();
+    let nextTitle = it.title;
+    let nextBody = it.body;
+    if (field === "body") {
+      nextBody = joined;
+      if (!titleShown || titleShown === bodyShown) {
+        nextTitle = clipCollabTitle(joined, nextLines[0] ?? joined);
+      }
+    } else {
+      nextTitle = clipCollabTitle(joined, nextLines[0] ?? joined);
+      if (!bodyShown || titleShown === bodyShown) nextBody = joined;
+    }
+    const prev = items;
+    orderLock.current = true;
+    setItems((rows) =>
+      rows.map((row) =>
+        row.id === it.id ? { ...row, title: nextTitle, body: nextBody } : row,
+      ),
+    );
+    setError(null);
+    try {
+      const saved = await patchCollabItem(projectId, it.id, {
+        action: "update",
+        title: nextTitle,
+        body: nextBody,
+      });
+      setItems((rows) => rows.map((row) => (row.id === it.id ? { ...row, ...saved } : row)));
+    } catch (e) {
+      setItems(prev);
+      setError(e instanceof Error ? e.message : "顺序保存失败");
+    } finally {
+      orderLock.current = false;
     }
   };
 
@@ -770,12 +957,55 @@ export function InvestorCollabSection({
           const suggest = followUpSuggests[it.id];
           const suggesting = suggestingId === it.id;
           const revisable = canManage && canReviseSent(it);
+          const titleText = formatCollabLineBreaks(preview.title);
+          const detailSource =
+            preview.detail && preview.detail.trim() !== preview.title.trim()
+              ? preview.detail
+              : it.body.trim() &&
+                  formatCollabLineBreaks(it.body).trim() !== titleText.trim()
+                ? it.body
+                : "";
+          const detailText = detailSource
+            ? formatCollabLineBreaks(detailSource)
+            : "";
+          const titleLines = collabQuestionLines(titleText);
+          const detailLines = detailText ? collabQuestionLines(detailText) : [];
+          const dragTitleLines =
+            revisable && detailLines.length <= 1 && titleLines.length > 1;
+          const dragDetailLines = revisable && detailLines.length > 1;
           return (
-            <li key={it.id} className={cardClass}>
+            <li
+              key={it.id}
+              className={cn(
+                cardClass,
+                dropCardId === it.id && "ring-1 ring-[#A06358]/35",
+              )}
+              onDragOver={(e) => {
+                if (!canManage || activeDrag?.kind !== "card") return;
+                e.preventDefault();
+                setDropCardId((cur) => (cur === it.id ? cur : it.id));
+              }}
+              onDragLeave={() => {
+                setDropCardId((cur) => (cur === it.id ? null : cur));
+              }}
+              onDrop={(e) => {
+                if (!canManage || activeDrag?.kind !== "card") return;
+                e.preventDefault();
+                const fromId = activeDrag.id;
+                activeDrag = null;
+                setDropCardId(null);
+                void onReorderCards(list, fromId, it.id);
+              }}
+            >
+              <div className="flex items-start gap-2">
+                {canManage ? (
+                  <CardGrip id={it.id} onDragEnd={() => setDropCardId(null)} />
+                ) : null}
+                <div className="min-w-0 flex-1">
               {editing || followUpOpen ? (
-                <div className="flex items-center gap-4">
-                  <div className="min-w-0 flex-1 text-[13px] leading-relaxed text-[#1F2423]">
-                    {preview.title}
+                <div className="flex items-start gap-4">
+                  <div className="min-w-0 flex-1 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[#1F2423]">
+                    {titleText}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <button
@@ -813,28 +1043,52 @@ export function InvestorCollabSection({
                   </div>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  className="flex w-full cursor-pointer items-center gap-4 text-left"
-                  onClick={() => openPublishedDetail(it)}
-                >
+                <div className="flex w-full items-start gap-4 text-left">
                   <div className="min-w-0 flex-1 text-[13px] leading-relaxed text-[#1F2423]">
-                    {preview.title}
+                    {dragTitleLines ? (
+                      <CollabLineList
+                        itemId={it.id}
+                        lines={titleLines}
+                        onActivate={() => openPublishedDetail(it)}
+                        onReorder={(lines) => void onReorderLines(it, "title", lines)}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        className="w-full cursor-pointer whitespace-pre-wrap break-words text-left"
+                        onClick={() => openPublishedDetail(it)}
+                      >
+                        {titleText}
+                      </button>
+                    )}
                   </div>
-                  <span className="shrink-0 text-[11.5px] text-[#A06358]">
+                  <button
+                    type="button"
+                    className="shrink-0 cursor-pointer text-[11.5px] text-[#A06358]"
+                    onClick={() => openPublishedDetail(it)}
+                  >
                     {collabStatusLabel(it.status)}
-                  </span>
-                </button>
+                  </button>
+                </div>
               )}
               {expanded ? (
                 <div className="mt-3 space-y-3">
                   {showingDetail ? (
                     <div className="space-y-2 text-[13px] leading-relaxed text-[#1F2423]">
-                      {preview.detail && preview.detail !== preview.title ? (
-                        <p className="whitespace-pre-wrap">{preview.detail}</p>
-                      ) : it.body.trim() &&
-                        it.body.trim() !== preview.title ? (
-                        <p className="whitespace-pre-wrap">{it.body}</p>
+                      {detailText ? (
+                        dragDetailLines ? (
+                          <CollabLineList
+                            itemId={it.id}
+                            lines={detailLines}
+                            onReorder={(lines) =>
+                              void onReorderLines(it, "body", lines)
+                            }
+                          />
+                        ) : (
+                          <p className="whitespace-pre-wrap break-words">
+                            {detailText}
+                          </p>
+                        )
                       ) : null}
                       <p className="text-[12.5px] text-[#59625F]">
                         截止日期：
@@ -943,6 +1197,8 @@ export function InvestorCollabSection({
                   ) : null}
                 </div>
               ) : null}
+                </div>
+              </div>
             </li>
           );
         })}
@@ -1067,7 +1323,9 @@ export function InvestorCollabSection({
                             草稿
                           </span>
                         ) : null}
-                        {preview.title}
+                        <span className="whitespace-pre-wrap break-words">
+                          {formatCollabLineBreaks(preview.title)}
+                        </span>
                       </div>
                       {canManage ? (
                         <div className="flex shrink-0 items-center gap-2">

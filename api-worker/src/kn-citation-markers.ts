@@ -14,7 +14,8 @@ const CITE_CLUSTER_RE = new RegExp(
 export function stripCitationMarkers(text: string): string {
   return (text ?? "")
     .replace(CITE_CLUSTER_RE, " ")
-    .replace(/\s+([，。；：、])/gu, "$1")
-    .replace(/\s{2,}/gu, " ")
+    .replace(/[^\S\n]+([，。；：、])/gu, "$1")
+    .replace(/[^\S\n]{2,}/gu, " ")
+    .replace(/[ \t]*\n[ \t]*/g, "\n")
     .trim();
 }

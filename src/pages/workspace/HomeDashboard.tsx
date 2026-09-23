@@ -13,6 +13,7 @@ import {
   type MyOpenQuestionItem,
 } from "@/lib/project-api";
 import { extractOpenQuestionTitle, previewCollabQuestion, stripCitationMarkers } from "@/lib/kn-citations";
+import { formatCollabLineBreaks } from "@/lib/collab-question-text";
 import { filterMemberProjectsForUser, filterProjectsForUser } from "@/workspace/guest-access";
 import {
   getMergedProjects,
@@ -915,9 +916,10 @@ export default function HomeDashboard() {
                         fontWeight: 600,
                         color: C.ink,
                         lineHeight: 1.4,
+                        whiteSpace: "pre-wrap",
                       }}
                     >
-                      {preview.title}
+                      {formatCollabLineBreaks(preview.title)}
                     </div>
                     <div
                       style={{

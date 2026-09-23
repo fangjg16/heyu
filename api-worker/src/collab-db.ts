@@ -40,6 +40,7 @@ export type CollabItemRow = {
   confirmed_by: string | null;
   created_at: string;
   updated_at: string;
+  sort_order?: number | null;
 };
 
 export type CollabItemPublic = {
@@ -65,6 +66,7 @@ export type CollabItemPublic = {
   confirmedBy: string | null;
   createdAt: string;
   updatedAt: string;
+  sortOrder?: number;
   /** 仅投资团队可见 */
   sourceQuestionText?: string;
 };
@@ -148,6 +150,7 @@ export function rowToPublic(
     confirmedBy: row.confirmed_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    sortOrder: Number(row.sort_order ?? 0) || 0,
   };
   if (opts?.includeInternal) {
     item.sourceQuestionText = row.source_question_text;
@@ -159,18 +162,65 @@ const COLS = `id, project_id, source_question_text, title, body, reply_mode, pri
   investor_note, file_reqs_json, status, published_at, published_by, assigned_to, reply_text,
   reply_saved_at, reply_submitted_at, reply_by, review_note, confirmed_at, confirmed_by,
   created_at, updated_at`;
+const COLS_SORT = `${COLS}, sort_order`;
 const COLS_NO_ASSIGNED = `id, project_id, source_question_text, title, body, reply_mode, priority, due_at,
   investor_note, file_reqs_json, status, published_at, published_by, reply_text,
   reply_saved_at, reply_submitted_at, reply_by, review_note, confirmed_at, confirmed_by,
   created_at, updated_at`;
+const COLS_NO_ASSIGNED_SORT = `${COLS_NO_ASSIGNED}, sort_order`;
 
 type Env = { DB: AppDatabase };
+
+export function isMissingSortOrder(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? "");
+  return /Unknown column ['`]?sort_order['`]?|no such column:\s*sort_order/i.test(
+    msg,
+  );
+}
+
+const STATUS_ORDER = `
+       CASE status
+         WHEN 'needs_more' THEN 0
+         WHEN 'pending_reply' THEN 1
+         WHEN 'saved' THEN 2
+         WHEN 'submitted' THEN 3
+         WHEN 'confirmed' THEN 4
+         WHEN 'draft' THEN 5
+         ELSE 6
+       END,
+       COALESCE(due_at, '9999') ASC,
+       published_at DESC`;
+
+/** 拖过顺序的事项优先；没拖过（sort_order=0）仍按原来的状态/截止日。 */
+const MANUAL_ORDER = `
+       CASE WHEN sort_order = 0 THEN 1 ELSE 0 END,
+       sort_order ASC,
+       ${STATUS_ORDER}`;
 
 function isMissingAssignedTo(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err ?? "");
   return /Unknown column ['`]?assigned_to['`]?|no such column:\s*assigned_to/i.test(
     msg,
   );
+}
+
+/** 还没拖过排序时返回 0；已经排过则接到末尾。列不存在时返回 null。 */
+async function nextManualSortOrder(
+  env: Env,
+  projectId: string,
+): Promise<number | null> {
+  try {
+    const row = await env.DB.prepare(
+      `SELECT COALESCE(MAX(sort_order), 0) AS m FROM project_collab_items WHERE project_id = ?`,
+    )
+      .bind(projectId)
+      .first<{ m: number | null }>();
+    const max = Number(row?.m ?? 0) || 0;
+    return max > 0 ? max + 1 : 0;
+  } catch (e) {
+    if (isMissingSortOrder(e)) return null;
+    throw e;
+  }
 }
 
 export async function insertCollabItem(
@@ -193,60 +243,76 @@ export async function insertCollabItem(
 ): Promise<CollabItemRow> {
   const now = new Date().toISOString();
   const status = input.status ?? "pending_reply";
+  const sortOrder = await nextManualSortOrder(env, input.projectId);
+  const fileReqs = JSON.stringify(input.fileReqs);
+  const insert = async (opts: { assigned: boolean; sort: boolean }) => {
+    const cols = [
+      "id",
+      "project_id",
+      "source_question_text",
+      "title",
+      "body",
+      "reply_mode",
+      "priority",
+      "due_at",
+      "investor_note",
+      "file_reqs_json",
+      "status",
+      "published_at",
+      "published_by",
+    ];
+    const vals: unknown[] = [
+      input.id,
+      input.projectId,
+      input.sourceQuestionText,
+      input.title,
+      input.body,
+      input.replyMode,
+      input.priority,
+      input.dueAt,
+      input.investorNote,
+      fileReqs,
+      status,
+      now,
+      input.publishedBy,
+    ];
+    if (opts.assigned) {
+      cols.push("assigned_to");
+      vals.push(input.assignedTo ?? null);
+    }
+    if (opts.sort && sortOrder != null && sortOrder > 0) {
+      cols.push("sort_order");
+      vals.push(sortOrder);
+    }
+    cols.push("created_at", "updated_at");
+    vals.push(now, now);
+    const placeholders = cols.map(() => "?").join(", ");
+    await env.DB.prepare(
+      `INSERT INTO project_collab_items (${cols.join(", ")}) VALUES (${placeholders})`,
+    )
+      .bind(...vals)
+      .run();
+  };
   try {
-    await env.DB.prepare(
-      `INSERT INTO project_collab_items (
-         id, project_id, source_question_text, title, body, reply_mode, priority, due_at,
-         investor_note, file_reqs_json, status, published_at, published_by, assigned_to,
-         created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-      .bind(
-        input.id,
-        input.projectId,
-        input.sourceQuestionText,
-        input.title,
-        input.body,
-        input.replyMode,
-        input.priority,
-        input.dueAt,
-        input.investorNote,
-        JSON.stringify(input.fileReqs),
-        status,
-        now,
-        input.publishedBy,
-        input.assignedTo ?? null,
-        now,
-        now,
-      )
-      .run();
+    await insert({ assigned: true, sort: true });
   } catch (e) {
-    if (!isMissingAssignedTo(e)) throw e;
-    await env.DB.prepare(
-      `INSERT INTO project_collab_items (
-         id, project_id, source_question_text, title, body, reply_mode, priority, due_at,
-         investor_note, file_reqs_json, status, published_at, published_by,
-         created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-      .bind(
-        input.id,
-        input.projectId,
-        input.sourceQuestionText,
-        input.title,
-        input.body,
-        input.replyMode,
-        input.priority,
-        input.dueAt,
-        input.investorNote,
-        JSON.stringify(input.fileReqs),
-        status,
-        now,
-        input.publishedBy,
-        now,
-        now,
-      )
-      .run();
+    if (isMissingSortOrder(e)) {
+      try {
+        await insert({ assigned: true, sort: false });
+      } catch (e2) {
+        if (!isMissingAssignedTo(e2)) throw e2;
+        await insert({ assigned: false, sort: false });
+      }
+    } else if (isMissingAssignedTo(e)) {
+      try {
+        await insert({ assigned: false, sort: true });
+      } catch (e2) {
+        if (!isMissingSortOrder(e2)) throw e2;
+        await insert({ assigned: false, sort: false });
+      }
+    } else {
+      throw e;
+    }
   }
   const row = await getCollabItem(env, input.projectId, input.id);
   if (!row) throw new Error("协作事项写入后读取失败");
@@ -276,39 +342,45 @@ export async function getCollabItem(
   }
 }
 
+async function selectCollabRows(
+  env: Env,
+  whereSql: string,
+  binds: unknown[],
+): Promise<CollabItemRow[]> {
+  const run = async (cols: string, order: string) => {
+    const q = await env.DB.prepare(
+      `SELECT ${cols} FROM project_collab_items ${whereSql} ORDER BY ${order}`,
+    )
+      .bind(...binds)
+      .all<CollabItemRow>();
+    return q.results ?? [];
+  };
+  try {
+    return await run(COLS_SORT, MANUAL_ORDER);
+  } catch (e) {
+    if (isMissingSortOrder(e)) {
+      try {
+        return await run(COLS, STATUS_ORDER);
+      } catch (e2) {
+        if (!isMissingAssignedTo(e2)) throw e2;
+        return run(COLS_NO_ASSIGNED, STATUS_ORDER);
+      }
+    }
+    if (!isMissingAssignedTo(e)) throw e;
+    try {
+      return await run(COLS_NO_ASSIGNED_SORT, MANUAL_ORDER);
+    } catch (e2) {
+      if (!isMissingSortOrder(e2)) throw e2;
+      return run(COLS_NO_ASSIGNED, STATUS_ORDER);
+    }
+  }
+}
+
 export async function listCollabItems(
   env: Env,
   projectId: string,
 ): Promise<CollabItemRow[]> {
-  const order = `
-     ORDER BY
-       CASE status
-         WHEN 'needs_more' THEN 0
-         WHEN 'pending_reply' THEN 1
-         WHEN 'saved' THEN 2
-         WHEN 'submitted' THEN 3
-         WHEN 'confirmed' THEN 4
-         WHEN 'draft' THEN 5
-         ELSE 6
-       END,
-       COALESCE(due_at, '9999') ASC,
-       published_at DESC`;
-  try {
-    const q = await env.DB.prepare(
-      `SELECT ${COLS} FROM project_collab_items WHERE project_id = ?${order}`,
-    )
-      .bind(projectId)
-      .all<CollabItemRow>();
-    return q.results ?? [];
-  } catch (e) {
-    if (!isMissingAssignedTo(e)) throw e;
-    const q = await env.DB.prepare(
-      `SELECT ${COLS_NO_ASSIGNED} FROM project_collab_items WHERE project_id = ?${order}`,
-    )
-      .bind(projectId)
-      .all<CollabItemRow>();
-    return q.results ?? [];
-  }
+  return selectCollabRows(env, "WHERE project_id = ?", [projectId]);
 }
 
 export async function listCollabItemsForProjects(
@@ -317,25 +389,31 @@ export async function listCollabItemsForProjects(
 ): Promise<CollabItemRow[]> {
   if (projectIds.length === 0) return [];
   const placeholders = projectIds.map(() => "?").join(",");
-  try {
-    const q = await env.DB.prepare(
-      `SELECT ${COLS} FROM project_collab_items
-       WHERE project_id IN (${placeholders})
-       ORDER BY COALESCE(due_at, '9999') ASC, published_at DESC`,
+  return selectCollabRows(
+    env,
+    `WHERE project_id IN (${placeholders})`,
+    projectIds,
+  );
+}
+
+export async function reorderCollabItems(
+  env: Env,
+  projectId: string,
+  ids: string[],
+): Promise<void> {
+  const rows = await listCollabItems(env, projectId);
+  const known = new Set(rows.map((row) => row.id));
+  const ordered = ids.filter((id) => known.has(id));
+  for (const row of rows) {
+    if (!ordered.includes(row.id)) ordered.push(row.id);
+  }
+  const now = new Date().toISOString();
+  for (let i = 0; i < ordered.length; i += 1) {
+    await env.DB.prepare(
+      `UPDATE project_collab_items SET sort_order = ?, updated_at = ? WHERE id = ? AND project_id = ?`,
     )
-      .bind(...projectIds)
-      .all<CollabItemRow>();
-    return q.results ?? [];
-  } catch (e) {
-    if (!isMissingAssignedTo(e)) throw e;
-    const q = await env.DB.prepare(
-      `SELECT ${COLS_NO_ASSIGNED} FROM project_collab_items
-       WHERE project_id IN (${placeholders})
-       ORDER BY COALESCE(due_at, '9999') ASC, published_at DESC`,
-    )
-      .bind(...projectIds)
-      .all<CollabItemRow>();
-    return q.results ?? [];
+      .bind(i + 1, now, ordered[i], projectId)
+      .run();
   }
 }
 

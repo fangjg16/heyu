@@ -26,6 +26,7 @@ import {
   previewCollabQuestion,
   stripCitationMarkers,
 } from "@/lib/kn-citations";
+import { formatCollabLineBreaks } from "@/lib/collab-question-text";
 import { getMergedProjects } from "@/workspace/project-registry";
 import { loadSessionUserId } from "@/workspace/session";
 import {
@@ -349,12 +350,12 @@ export function CollabItemsPage() {
                     className="flex items-start justify-between gap-3 rounded-xl border border-[rgba(78,66,57,0.1)] bg-white/80 px-4 py-3 hover:border-[rgba(160,99,88,0.3)]"
                   >
                     <div className="min-w-0">
-                      <div className="font-display text-[15px] font-semibold text-[#1F2423]">
-                        {preview.title}
+                      <div className="whitespace-pre-wrap break-words font-display text-[15px] font-semibold text-[#1F2423]">
+                        {formatCollabLineBreaks(preview.title)}
                       </div>
                       {preview.detail ? (
-                        <div className="mt-1 line-clamp-2 text-[12.5px] text-[#59625F]">
-                          {preview.detail}
+                        <div className="mt-1 whitespace-pre-wrap break-words text-[12.5px] text-[#59625F]">
+                          {formatCollabLineBreaks(preview.detail)}
                         </div>
                       ) : null}
                       <div className="mt-1.5 text-[11.5px] text-[#969E9A]">
@@ -468,16 +469,16 @@ export function CollabItemDetailPage() {
           <div className="mt-4 space-y-4">
             <div className="rounded-2xl border border-[rgba(78,66,57,0.1)] bg-white/80 p-5">
               <div className="flex items-start justify-between gap-2">
-                <h2 className="text-[18px] font-semibold text-[#1F2423]">
-                  {preview.title}
+                <h2 className="whitespace-pre-wrap break-words text-[18px] font-semibold text-[#1F2423]">
+                  {formatCollabLineBreaks(preview.title)}
                 </h2>
                 <span className="text-[12px] text-[#A06358]">
                   {collabStatusLabel(item.status, "issuer")}
                 </span>
               </div>
               {preview.detail && preview.detail !== preview.title ? (
-                <p className="mt-3 whitespace-pre-wrap text-[13.5px] leading-relaxed text-[#1F2423]">
-                  {preview.detail}
+                <p className="mt-3 whitespace-pre-wrap break-words text-[13.5px] leading-relaxed text-[#1F2423]">
+                  {formatCollabLineBreaks(preview.detail)}
                 </p>
               ) : null}
               {item.investorNote ? (

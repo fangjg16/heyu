@@ -26,4 +26,10 @@ describe("stripCitationMarkers", () => {
       "请确认实控人是否为张三",
     );
   });
+
+  it("keeps author line breaks", () => {
+    expect(stripCitationMarkers("1. 第一问？\n2. 第二问？")).toBe(
+      "1. 第一问？\n2. 第二问？",
+    );
+  });
 });

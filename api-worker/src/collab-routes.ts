@@ -3,6 +3,8 @@ import {
   insertCollabItem,
   listCollabItems,
   listCollabItemsForProjects,
+  reorderCollabItems,
+  isMissingSortOrder,
   getCollabItem,
   updateCollabItem,
   rowToPublic,
@@ -239,6 +241,43 @@ export async function handleListCollabItems(
   const items = rows.map((r) => rowToPublic(r, { includeInternal }));
   const issuers = includeInternal ? await listIssuerAccounts(env, projectId) : [];
   return json({ items, issuers });
+}
+
+/** POST /api/projects/:id/collab/items/reorder  投资人拖动后的顺序，协作方同序 */
+export async function handleReorderCollabItems(
+  request: Request,
+  env: Env,
+  pathProjectId: string,
+  userId: string,
+): Promise<Response> {
+  const projectId = decodePathProjectId(pathProjectId);
+  const project = await getProjectById(env, projectId);
+  if (!project) return json({ error: "项目不存在" }, 404);
+  if (!(await canManageProjectCollab(env, userId, projectId, project.createdBy))) {
+    return json({ error: "仅 Admin / Core 可调整顺序" }, 403);
+  }
+  let body: Record<string, unknown> = {};
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "请求体须为 JSON" }, 400);
+  }
+  const ids = Array.isArray(body.ids)
+    ? body.ids.map((id) => String(id ?? "").trim()).filter(Boolean)
+    : [];
+  if (ids.length === 0) return json({ error: "请提供排序" }, 400);
+  try {
+    await reorderCollabItems(env, projectId, ids);
+  } catch (e) {
+    if (isMissingSortOrder(e)) {
+      return json({ error: "排序暂时保存不了，请先更新数据库后再试。" }, 503);
+    }
+    throw e;
+  }
+  const rows = await listCollabItems(env, projectId);
+  return json({
+    items: rows.map((r) => rowToPublic(r, { includeInternal: true })),
+  });
 }
 
 /** GET /api/projects/:id/collab/items/:itemId */

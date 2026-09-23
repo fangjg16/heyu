@@ -2053,6 +2053,7 @@ export type CollabItem = {
   confirmedAt: string | null;
   sourceQuestionText?: string;
   assignedTo?: string | null;
+  sortOrder?: number;
   updatedAt: string;
 };
 
@@ -2152,6 +2153,26 @@ export async function fetchCollabBoard(projectId: string): Promise<{
     issuers?: CollabIssuerAccount[];
   };
   return { items: payload.items ?? [], issuers: payload.issuers ?? [] };
+}
+
+export async function reorderCollabItems(
+  projectId: string,
+  ids: string[],
+): Promise<CollabItem[]> {
+  const res = await jfoFetch(
+    `/api/projects/${encodeURIComponent(projectId)}/collab/items/reorder`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    },
+  );
+  const data = (await res.json().catch(() => ({}))) as {
+    items?: CollabItem[];
+    error?: string;
+  };
+  if (!res.ok) throw new Error(data.error || "排序保存失败");
+  return data.items ?? [];
 }
 
 export async function fetchCollabItems(projectId: string): Promise<CollabItem[]> {

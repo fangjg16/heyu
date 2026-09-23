@@ -271,6 +271,7 @@ CREATE TABLE IF NOT EXISTS project_collab_items (
   confirmed_by VARCHAR(128) NULL,
   created_at VARCHAR(32) NOT NULL,
   updated_at VARCHAR(32) NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0 COMMENT '投资人拖动后的展示顺序，协作方同序',
   INDEX idx_collab_items_project (project_id),
   INDEX idx_collab_items_status (project_id, status),
   INDEX idx_collab_items_due (project_id, due_at),
