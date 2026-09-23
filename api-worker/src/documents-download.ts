@@ -96,7 +96,8 @@ export async function handleDownloadProjectFile(
         uploadedBy === userId ||
         shared ||
         sourceKind === "issuer_upload" ||
-        sourceKind === "public_source";
+        sourceKind === "public_source" ||
+        sourceKind === "investor_share";
       if (!allowed) {
         return json({ error: "该文件未授权给项目协作方" }, 403);
       }

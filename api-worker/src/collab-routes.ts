@@ -124,61 +124,121 @@ async function attachedItemIds(
   }
 }
 
+type CollabAttachmentRow = {
+  id: string;
+  filename: string;
+  mime: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+  collab_item_id: string | null;
+  source_kind?: string | null;
+  shared_with_issuer?: number | null;
+  file_category?: string | null;
+  period_label?: string | null;
+  is_final?: number | null;
+  upload_note?: string | null;
+  replaces_document_id?: string | null;
+  version_group?: string | null;
+};
+
+export type CollabAttachmentPublic = {
+  id: string;
+  filename: string;
+  mime: string | null;
+  uploadedBy: string | null;
+  createdAt: string;
+  collabItemId: string | null;
+  sourceKind: string | null;
+  sharedWithIssuer: boolean;
+  fileCategory: string | null;
+  periodLabel: string | null;
+  isFinal: boolean | null;
+  uploadNote: string | null;
+  replacesDocumentId: string | null;
+  versionGroup: string | null;
+};
+
+function attachmentFromRow(row: CollabAttachmentRow): CollabAttachmentPublic {
+  return {
+    id: row.id,
+    filename: row.filename,
+    mime: row.mime ?? null,
+    uploadedBy: row.uploaded_by,
+    createdAt: row.created_at,
+    collabItemId: row.collab_item_id,
+    sourceKind: row.source_kind ?? null,
+    sharedWithIssuer: Number(row.shared_with_issuer ?? 0) === 1,
+    fileCategory: row.file_category ?? null,
+    periodLabel: row.period_label ?? null,
+    isFinal: row.is_final == null ? null : Number(row.is_final) === 1,
+    uploadNote: humanUploadNote(row.upload_note),
+    replacesDocumentId: row.replaces_document_id ?? null,
+    versionGroup: row.version_group ?? null,
+  };
+}
+
+/** 协作方能看投资人随问题附上的图，以及自己上传的文件。 */
+export function issuerCanSeeCollabAttachment(
+  file: CollabAttachmentPublic,
+  userId: string,
+): boolean {
+  if (file.sharedWithIssuer || file.uploadedBy === userId) return true;
+  const kind = file.sourceKind ?? "";
+  return (
+    kind === "investor_share" ||
+    kind === "issuer_upload" ||
+    kind === "public_source"
+  );
+}
+
+async function queryCollabAttachments(
+  env: Env,
+  projectId: string,
+  itemId?: string,
+): Promise<CollabAttachmentPublic[]> {
+  const itemClause = itemId
+    ? "AND collab_item_id = ?"
+    : "AND collab_item_id IS NOT NULL AND collab_item_id <> ''";
+  const binds = itemId ? [projectId, itemId] : [projectId];
+  const selects = [
+    `SELECT id, filename, mime, uploaded_by, created_at, collab_item_id,
+            source_kind, shared_with_issuer, file_category, period_label,
+            is_final, upload_note, replaces_document_id, version_group
+     FROM documents
+     WHERE project_id = ? ${itemClause}
+       AND (deleted_at IS NULL OR deleted_at = '')
+     ORDER BY created_at ASC`,
+    `SELECT id, filename, mime, uploaded_by, created_at, collab_item_id
+     FROM documents
+     WHERE project_id = ? ${itemClause}
+       AND (deleted_at IS NULL OR deleted_at = '')
+     ORDER BY created_at ASC`,
+    `SELECT id, filename, mime, uploaded_by, created_at, collab_item_id
+     FROM documents
+     WHERE project_id = ? ${itemClause}
+     ORDER BY created_at ASC`,
+  ];
+  for (const sql of selects) {
+    try {
+      const q = await env.DB.prepare(sql)
+        .bind(...binds)
+        .all<CollabAttachmentRow>();
+      return (q.results ?? []).map(attachmentFromRow);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/Unknown column|no such column/i.test(msg)) continue;
+      throw e;
+    }
+  }
+  return [];
+}
+
 async function listItemFiles(
   env: Env,
   projectId: string,
   itemId: string,
-): Promise<
-  {
-    id: string;
-    filename: string;
-    uploadedBy: string | null;
-    createdAt: string;
-    fileCategory: string | null;
-    periodLabel: string | null;
-    isFinal: boolean | null;
-    uploadNote: string | null;
-    replacesDocumentId: string | null;
-    versionGroup: string | null;
-  }[]
-> {
-  try {
-    const q = await env.DB.prepare(
-      `SELECT id, filename, uploaded_by, created_at, file_category, period_label,
-              is_final, upload_note, replaces_document_id, version_group
-       FROM documents
-       WHERE project_id = ? AND collab_item_id = ?
-         AND (deleted_at IS NULL OR deleted_at = '')
-       ORDER BY created_at DESC`,
-    )
-      .bind(projectId, itemId)
-      .all<{
-        id: string;
-        filename: string;
-        uploaded_by: string | null;
-        created_at: string;
-        file_category: string | null;
-        period_label: string | null;
-        is_final: number | null;
-        upload_note: string | null;
-        replaces_document_id: string | null;
-        version_group: string | null;
-      }>();
-    return (q.results ?? []).map((r) => ({
-      id: r.id,
-      filename: r.filename,
-      uploadedBy: r.uploaded_by,
-      createdAt: r.created_at,
-      fileCategory: r.file_category,
-      periodLabel: r.period_label,
-      isFinal: r.is_final == null ? null : Number(r.is_final) === 1,
-      uploadNote: humanUploadNote(r.upload_note),
-      replacesDocumentId: r.replaces_document_id,
-      versionGroup: r.version_group,
-    }));
-  } catch {
-    return [];
-  }
+): Promise<CollabAttachmentPublic[]> {
+  return queryCollabAttachments(env, projectId, itemId);
 }
 
 /** GET /api/projects/:id/collab/overview */
@@ -238,7 +298,20 @@ export async function handleListCollabItems(
   if (isIssuerRole(role)) {
     rows = rows.filter((r) => visibleToIssuer(r, userId));
   }
-  const items = rows.map((r) => rowToPublic(r, { includeInternal }));
+  const attachments = await queryCollabAttachments(env, projectId);
+  const byItem = new Map<string, CollabAttachmentPublic[]>();
+  for (const file of attachments) {
+    const itemId = file.collabItemId ?? "";
+    if (!itemId) continue;
+    if (isIssuerRole(role) && !issuerCanSeeCollabAttachment(file, userId)) continue;
+    const list = byItem.get(itemId) ?? [];
+    list.push(file);
+    byItem.set(itemId, list);
+  }
+  const items = rows.map((r) => ({
+    ...rowToPublic(r, { includeInternal }),
+    attachments: byItem.get(r.id) ?? [],
+  }));
   const issuers = includeInternal ? await listIssuerAccounts(env, projectId) : [];
   return json({ items, issuers });
 }
@@ -299,7 +372,10 @@ export async function handleGetCollabItem(
   if (isIssuerRole(role) && !visibleToIssuer(row, userId)) {
     return json({ error: "事项不存在" }, 404);
   }
-  const files = await listItemFiles(env, projectId, itemId);
+  let files = await listItemFiles(env, projectId, itemId);
+  if (isIssuerRole(role)) {
+    files = files.filter((file) => issuerCanSeeCollabAttachment(file, userId));
+  }
   return json({
     item: rowToPublic(row, { includeInternal: isInvestorRole(role) }),
     files,

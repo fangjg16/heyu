@@ -35,6 +35,7 @@ import {
 } from "@/lib/kn-citations";
 import { getMergedProjects } from "@/workspace/project-registry";
 import { canPublishToIssuer, getProjectRole } from "@/workspace/workspace-users";
+import { CollabAttachmentStrip } from "@/components/workspace/CollabAttachmentStrip";
 import { cn } from "@/lib/utils";
 
 type InvestorCollabSectionProps = {
@@ -827,7 +828,13 @@ export function InvestorCollabSection({
         title: nextTitle,
         body: nextBody,
       });
-      setItems((rows) => rows.map((row) => (row.id === it.id ? { ...row, ...saved } : row)));
+      setItems((rows) =>
+        rows.map((row) =>
+          row.id === it.id
+            ? { ...row, ...saved, attachments: saved.attachments ?? row.attachments }
+            : row,
+        ),
+      );
     } catch (e) {
       setItems(prev);
       setError(e instanceof Error ? e.message : "顺序保存失败");
@@ -912,6 +919,14 @@ export function InvestorCollabSection({
           }
         />
       </label>
+      {attachFiles.length > 0 || (opts.existing?.attachments?.length ?? 0) > 0 ? (
+        <CollabAttachmentStrip
+          projectId={projectId}
+          userId={userId}
+          files={opts.existing?.attachments ?? []}
+          pending={attachFiles}
+        />
+      ) : null}
       {opts.showDraftSave || opts.showSend ? (
         <div className="flex flex-wrap gap-2">
           {opts.showDraftSave ? (
@@ -1071,6 +1086,15 @@ export function InvestorCollabSection({
                   </button>
                 </div>
               )}
+              {!editing && !followUpOpen && (it.attachments?.length ?? 0) > 0 ? (
+                <div className="mt-3">
+                  <CollabAttachmentStrip
+                    projectId={projectId}
+                    userId={userId}
+                    files={it.attachments ?? []}
+                  />
+                </div>
+              ) : null}
               {expanded ? (
                 <div className="mt-3 space-y-3">
                   {showingDetail ? (

@@ -35,6 +35,10 @@ import {
 } from "@/workspace/workspace-users";
 import type { WorkspaceProject } from "@/workspace/projects";
 import { apiFetch } from "@/lib/api-auth";
+import {
+  CollabAttachmentStrip,
+  isCollabImageFile,
+} from "@/components/workspace/CollabAttachmentStrip";
 
 async function downloadCollabFile(
   projectId: string,
@@ -312,7 +316,7 @@ export function CollabOverviewPage() {
 }
 
 export function CollabItemsPage() {
-  const { project } = useCollabOutlet();
+  const { project, userId } = useCollabOutlet();
   const [items, setItems] = useState<CollabItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -356,6 +360,15 @@ export function CollabItemsPage() {
                       {preview.detail ? (
                         <div className="mt-1 whitespace-pre-wrap break-words text-[12.5px] text-[#59625F]">
                           {formatCollabLineBreaks(preview.detail)}
+                        </div>
+                      ) : null}
+                      {(it.attachments?.length ?? 0) > 0 ? (
+                        <div className="mt-2">
+                          <CollabAttachmentStrip
+                            projectId={project.id}
+                            userId={userId}
+                            files={it.attachments ?? []}
+                          />
                         </div>
                       ) : null}
                       <div className="mt-1.5 text-[11.5px] text-[#969E9A]">
@@ -480,6 +493,15 @@ export function CollabItemDetailPage() {
                 <p className="mt-3 whitespace-pre-wrap break-words text-[13.5px] leading-relaxed text-[#1F2423]">
                   {formatCollabLineBreaks(preview.detail)}
                 </p>
+              ) : null}
+              {files.some(isCollabImageFile) ? (
+                <div className="mt-3">
+                  <CollabAttachmentStrip
+                    projectId={project.id}
+                    userId={userId}
+                    files={files.filter(isCollabImageFile)}
+                  />
+                </div>
               ) : null}
               {item.investorNote ? (
                 <p className="mt-3 rounded-lg bg-[rgba(78,66,57,0.05)] px-3 py-2 text-[12.5px] text-[#59625F]">

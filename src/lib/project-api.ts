@@ -2054,6 +2054,7 @@ export type CollabItem = {
   sourceQuestionText?: string;
   assignedTo?: string | null;
   sortOrder?: number;
+  attachments?: CollabFileRecord[];
   updatedAt: string;
 };
 
