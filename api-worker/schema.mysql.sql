@@ -255,6 +255,7 @@ CREATE TABLE IF NOT EXISTS project_collab_items (
   body TEXT NOT NULL COMMENT '需确认的具体内容（对外冻结稿）',
   reply_mode VARCHAR(32) NOT NULL DEFAULT 'both' COMMENT 'text | file | both',
   priority VARCHAR(8) NOT NULL DEFAULT 'P2' COMMENT 'P1 | P2 | P3',
+  question_kind VARCHAR(16) NULL COMMENT 'business | tech | finance | legal | other',
   due_at VARCHAR(32) NULL COMMENT '截止日期 ISO',
   investor_note TEXT NULL COMMENT '投资人对外补充说明',
   file_reqs_json LONGTEXT NOT NULL COMMENT '待补充文件清单 JSON',

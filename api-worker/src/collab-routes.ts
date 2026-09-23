@@ -19,6 +19,7 @@ import {
   type CollabItemRow,
   type CollabItemStatus,
 } from "./collab-db";
+import { inferQuestionKind, parseQuestionKind } from "./open-questions-parse";
 import { appendConfirmedAnswerToQuestionsHtml, buildConfirmedWritebackBlock } from "./collab-writeback";
 import { getProjectById, listProjects } from "./projects-db";
 import { filterProjectsForDirectory } from "./projects-auth";
@@ -465,6 +466,9 @@ export async function handlePublishCollabItem(
     body: content,
     replyMode: parseReplyMode(String(body.replyMode ?? "both")),
     priority: parsePriority(String(body.priority ?? "P2")),
+    questionKind:
+      parseQuestionKind(body.questionKind) ??
+      inferQuestionKind(`${sourceQuestionText}\n${title}\n${content}`),
     dueAt: String(body.dueAt ?? "").trim() || null,
     investorNote: String(body.investorNote ?? "").trim() || null,
     fileReqs: fileReqs.map((f) => ({
@@ -520,6 +524,10 @@ function wordingFromBody(
       String(body.sourceQuestionText ?? row.source_question_text ?? "").trim() ||
       title,
     priority: parsePriority(String(body.priority ?? row.priority ?? "P2")),
+    questionKind:
+      body.questionKind === undefined
+        ? parseQuestionKind(row.question_kind)
+        : parseQuestionKind(body.questionKind),
     dueAt:
       body.dueAt === undefined
         ? row.due_at
@@ -602,6 +610,7 @@ async function handleInvestorManageCollabItem(
       body: wording.content,
       sourceQuestionText: wording.sourceQuestionText,
       priority: wording.priority,
+      questionKind: wording.questionKind,
       dueAt: wording.dueAt,
       assignedTo: wording.assignedTo,
       investorNote: wording.investorNote,
@@ -616,6 +625,7 @@ async function handleInvestorManageCollabItem(
     body: wording.content,
     sourceQuestionText: wording.sourceQuestionText,
     priority: wording.priority,
+    questionKind: wording.questionKind,
     dueAt: wording.dueAt,
     assignedTo: wording.assignedTo,
     investorNote: wording.investorNote,

@@ -1,4 +1,8 @@
 import type { AppDatabase } from "./app-database";
+import {
+  parseQuestionKind,
+  type QuestionKind,
+} from "./open-questions-parse";
 
 export type CollabReplyMode = "text" | "file" | "both";
 export type CollabPriority = "P1" | "P2" | "P3";
@@ -24,6 +28,7 @@ export type CollabItemRow = {
   body: string;
   reply_mode: string;
   priority: string;
+  question_kind?: string | null;
   due_at: string | null;
   investor_note: string | null;
   file_reqs_json: string;
@@ -50,6 +55,7 @@ export type CollabItemPublic = {
   body: string;
   replyMode: CollabReplyMode;
   priority: CollabPriority;
+  questionKind?: QuestionKind | null;
   dueAt: string | null;
   investorNote: string | null;
   fileReqs: CollabFileReq[];
@@ -134,6 +140,7 @@ export function rowToPublic(
     body: row.body,
     replyMode: parseReplyMode(row.reply_mode),
     priority: parsePriority(row.priority),
+    questionKind: parseQuestionKind(row.question_kind),
     dueAt: row.due_at,
     investorNote: row.investor_note,
     fileReqs: parseFileReqs(row.file_reqs_json),
@@ -158,23 +165,49 @@ export function rowToPublic(
   return item;
 }
 
-const COLS = `id, project_id, source_question_text, title, body, reply_mode, priority, due_at,
+const COLS = `id, project_id, source_question_text, title, body, reply_mode, priority, question_kind, due_at,
   investor_note, file_reqs_json, status, published_at, published_by, assigned_to, reply_text,
   reply_saved_at, reply_submitted_at, reply_by, review_note, confirmed_at, confirmed_by,
   created_at, updated_at`;
-const COLS_SORT = `${COLS}, sort_order`;
+const COLS_NO_KIND = `id, project_id, source_question_text, title, body, reply_mode, priority, due_at,
+  investor_note, file_reqs_json, status, published_at, published_by, assigned_to, reply_text,
+  reply_saved_at, reply_submitted_at, reply_by, review_note, confirmed_at, confirmed_by,
+  created_at, updated_at`;
 const COLS_NO_ASSIGNED = `id, project_id, source_question_text, title, body, reply_mode, priority, due_at,
   investor_note, file_reqs_json, status, published_at, published_by, reply_text,
   reply_saved_at, reply_submitted_at, reply_by, review_note, confirmed_at, confirmed_by,
   created_at, updated_at`;
+const COLS_SORT = `${COLS}, sort_order`;
+const COLS_NO_KIND_SORT = `${COLS_NO_KIND}, sort_order`;
 const COLS_NO_ASSIGNED_SORT = `${COLS_NO_ASSIGNED}, sort_order`;
 
 type Env = { DB: AppDatabase };
 
-export function isMissingSortOrder(err: unknown): boolean {
+function isMissingColumn(err: unknown, col: string): boolean {
   const msg = err instanceof Error ? err.message : String(err ?? "");
-  return /Unknown column ['`]?sort_order['`]?|no such column:\s*sort_order/i.test(
-    msg,
+  return new RegExp(
+    `Unknown column ['\`]?${col}['\`]?|no such column:\\s*${col}`,
+    "i",
+  ).test(msg);
+}
+
+export function isMissingSortOrder(err: unknown): boolean {
+  return isMissingColumn(err, "sort_order");
+}
+
+function isMissingAssignedTo(err: unknown): boolean {
+  return isMissingColumn(err, "assigned_to");
+}
+
+function isMissingQuestionKind(err: unknown): boolean {
+  return isMissingColumn(err, "question_kind");
+}
+
+function isMissingOptionalCol(err: unknown): boolean {
+  return (
+    isMissingQuestionKind(err) ||
+    isMissingAssignedTo(err) ||
+    isMissingSortOrder(err)
   );
 }
 
@@ -196,13 +229,6 @@ const MANUAL_ORDER = `
        CASE WHEN sort_order = 0 THEN 1 ELSE 0 END,
        sort_order ASC,
        ${STATUS_ORDER}`;
-
-function isMissingAssignedTo(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err ?? "");
-  return /Unknown column ['`]?assigned_to['`]?|no such column:\s*assigned_to/i.test(
-    msg,
-  );
-}
 
 /** 还没拖过排序时返回 0；已经排过则接到末尾。列不存在时返回 null。 */
 async function nextManualSortOrder(
@@ -233,6 +259,7 @@ export async function insertCollabItem(
     body: string;
     replyMode: CollabReplyMode;
     priority: CollabPriority;
+    questionKind?: QuestionKind | null;
     dueAt: string | null;
     investorNote: string | null;
     fileReqs: CollabFileReq[];
@@ -245,7 +272,12 @@ export async function insertCollabItem(
   const status = input.status ?? "pending_reply";
   const sortOrder = await nextManualSortOrder(env, input.projectId);
   const fileReqs = JSON.stringify(input.fileReqs);
-  const insert = async (opts: { assigned: boolean; sort: boolean }) => {
+  const kind = parseQuestionKind(input.questionKind);
+  const insert = async (opts: {
+    assigned: boolean;
+    sort: boolean;
+    kind: boolean;
+  }) => {
     const cols = [
       "id",
       "project_id",
@@ -276,6 +308,10 @@ export async function insertCollabItem(
       now,
       input.publishedBy,
     ];
+    if (opts.kind) {
+      cols.push("question_kind");
+      vals.push(kind);
+    }
     if (opts.assigned) {
       cols.push("assigned_to");
       vals.push(input.assignedTo ?? null);
@@ -294,24 +330,18 @@ export async function insertCollabItem(
       .run();
   };
   try {
-    await insert({ assigned: true, sort: true });
+    await insert({ assigned: true, sort: true, kind: true });
   } catch (e) {
-    if (isMissingSortOrder(e)) {
-      try {
-        await insert({ assigned: true, sort: false });
-      } catch (e2) {
-        if (!isMissingAssignedTo(e2)) throw e2;
-        await insert({ assigned: false, sort: false });
-      }
-    } else if (isMissingAssignedTo(e)) {
-      try {
-        await insert({ assigned: false, sort: true });
-      } catch (e2) {
-        if (!isMissingSortOrder(e2)) throw e2;
-        await insert({ assigned: false, sort: false });
-      }
-    } else {
-      throw e;
+    if (!isMissingOptionalCol(e)) throw e;
+    try {
+      await insert({
+        assigned: !isMissingAssignedTo(e),
+        sort: !isMissingSortOrder(e),
+        kind: !isMissingQuestionKind(e),
+      });
+    } catch (e2) {
+      if (!isMissingOptionalCol(e2)) throw e2;
+      await insert({ assigned: false, sort: false, kind: false });
     }
   }
   const row = await getCollabItem(env, input.projectId, input.id);
@@ -324,22 +354,22 @@ export async function getCollabItem(
   projectId: string,
   itemId: string,
 ): Promise<CollabItemRow | null> {
-  try {
-    const row = await env.DB.prepare(
-      `SELECT ${COLS} FROM project_collab_items WHERE id = ? AND project_id = ?`,
-    )
-      .bind(itemId, projectId)
-      .first<CollabItemRow>();
-    return row ?? null;
-  } catch (e) {
-    if (!isMissingAssignedTo(e)) throw e;
-    const row = await env.DB.prepare(
-      `SELECT ${COLS_NO_ASSIGNED} FROM project_collab_items WHERE id = ? AND project_id = ?`,
-    )
-      .bind(itemId, projectId)
-      .first<CollabItemRow>();
-    return row ?? null;
+  const tries = [COLS, COLS_NO_KIND, COLS_NO_ASSIGNED];
+  let lastErr: unknown;
+  for (const cols of tries) {
+    try {
+      const row = await env.DB.prepare(
+        `SELECT ${cols} FROM project_collab_items WHERE id = ? AND project_id = ?`,
+      )
+        .bind(itemId, projectId)
+        .first<CollabItemRow>();
+      return row ?? null;
+    } catch (e) {
+      lastErr = e;
+      if (!isMissingOptionalCol(e)) throw e;
+    }
   }
+  throw lastErr;
 }
 
 async function selectCollabRows(
@@ -347,33 +377,30 @@ async function selectCollabRows(
   whereSql: string,
   binds: unknown[],
 ): Promise<CollabItemRow[]> {
-  const run = async (cols: string, order: string) => {
-    const q = await env.DB.prepare(
-      `SELECT ${cols} FROM project_collab_items ${whereSql} ORDER BY ${order}`,
-    )
-      .bind(...binds)
-      .all<CollabItemRow>();
-    return q.results ?? [];
-  };
-  try {
-    return await run(COLS_SORT, MANUAL_ORDER);
-  } catch (e) {
-    if (isMissingSortOrder(e)) {
-      try {
-        return await run(COLS, STATUS_ORDER);
-      } catch (e2) {
-        if (!isMissingAssignedTo(e2)) throw e2;
-        return run(COLS_NO_ASSIGNED, STATUS_ORDER);
-      }
-    }
-    if (!isMissingAssignedTo(e)) throw e;
+  const tries = [
+    COLS_SORT,
+    COLS,
+    COLS_NO_KIND_SORT,
+    COLS_NO_KIND,
+    COLS_NO_ASSIGNED_SORT,
+    COLS_NO_ASSIGNED,
+  ];
+  let lastErr: unknown;
+  for (const cols of tries) {
+    const order = cols.includes("sort_order") ? MANUAL_ORDER : STATUS_ORDER;
     try {
-      return await run(COLS_NO_ASSIGNED_SORT, MANUAL_ORDER);
-    } catch (e2) {
-      if (!isMissingSortOrder(e2)) throw e2;
-      return run(COLS_NO_ASSIGNED, STATUS_ORDER);
+      const q = await env.DB.prepare(
+        `SELECT ${cols} FROM project_collab_items ${whereSql} ORDER BY ${order}`,
+      )
+        .bind(...binds)
+        .all<CollabItemRow>();
+      return q.results ?? [];
+    } catch (e) {
+      lastErr = e;
+      if (!isMissingOptionalCol(e)) throw e;
     }
   }
+  throw lastErr;
 }
 
 export async function listCollabItems(
@@ -427,6 +454,7 @@ export async function updateCollabItem(
     body: string;
     sourceQuestionText: string;
     priority: CollabPriority;
+    questionKind: QuestionKind | null;
     dueAt: string | null;
     assignedTo: string | null;
     investorNote: string | null;
@@ -467,10 +495,17 @@ export async function updateCollabItem(
   if (patch.confirmedAt !== undefined) apply("confirmed_at", patch.confirmedAt);
   if (patch.confirmedBy !== undefined) apply("confirmed_by", patch.confirmedBy);
 
-  const runUpdate = async (includeAssigned: boolean) => {
+  const runUpdate = async (opts: {
+    includeAssigned: boolean;
+    includeKind: boolean;
+  }) => {
     const nextSets = [...sets];
     const nextBinds = [...binds];
-    if (includeAssigned && patch.assignedTo !== undefined) {
+    if (opts.includeKind && patch.questionKind !== undefined) {
+      nextSets.push("question_kind = ?");
+      nextBinds.push(parseQuestionKind(patch.questionKind));
+    }
+    if (opts.includeAssigned && patch.assignedTo !== undefined) {
       nextSets.push("assigned_to = ?");
       nextBinds.push(patch.assignedTo);
     }
@@ -483,10 +518,20 @@ export async function updateCollabItem(
   };
 
   try {
-    await runUpdate(true);
+    await runUpdate({ includeAssigned: true, includeKind: true });
   } catch (e) {
-    if (!isMissingAssignedTo(e) || patch.assignedTo === undefined) throw e;
-    await runUpdate(false);
+    if (!isMissingOptionalCol(e)) throw e;
+    try {
+      await runUpdate({
+        includeAssigned: !isMissingAssignedTo(e) && patch.assignedTo !== undefined
+          ? true
+          : !isMissingAssignedTo(e),
+        includeKind: !isMissingQuestionKind(e),
+      });
+    } catch (e2) {
+      if (!isMissingOptionalCol(e2)) throw e2;
+      await runUpdate({ includeAssigned: false, includeKind: false });
+    }
   }
   return getCollabItem(env, projectId, itemId);
 }
@@ -517,13 +562,12 @@ export function summarizeCollabItems(
     }
     const needsFile =
       item.replyMode === "file" || item.replyMode === "both";
-    const required = item.fileReqs.filter((r) => r.required);
     if (
       needsFile &&
       (item.status === "pending_reply" ||
         item.status === "saved" ||
         item.status === "needs_more") &&
-      (required.length > 0 ? !attachedItemIds.has(item.id) : !attachedItemIds.has(item.id))
+      !attachedItemIds.has(item.id)
     ) {
       pendingFiles += 1;
     }

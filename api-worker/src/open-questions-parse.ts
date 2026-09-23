@@ -227,94 +227,57 @@ export function priorityRank(p: OpenQuestionPriority): number {
 
 export type QuestionKind = "business" | "tech" | "finance" | "legal" | "other";
 
-const KIND_KEYWORDS: Record<Exclude<QuestionKind, "other">, string[]> = {
-  business: [
-    "业务",
-    "模式",
-    "客群",
-    "市场",
-    "客户",
-    "销售",
-    "运营",
-    "商业",
-    "产品",
-    "规划",
-    "路线图",
-    "艺人",
-    "数字人",
-    "内容",
-    "规模",
-  ],
-  tech: [
-    "技术",
-    "电芯",
-    "工艺",
-    "系统",
-    "设备",
-    "专利",
-    "效率",
-    "寿命",
-    "功率",
-    "热管理",
-    "模型",
-    "平台",
-    "算法",
-    "架构",
-    "自研",
-    "依赖",
-    "评测",
-    "api",
-  ],
-  finance: [
-    "财务",
-    "回报",
-    "IRR",
-    "估值",
-    "收入",
-    "利润",
-    "现金流",
-    "成本",
-    "融资",
-    "造价",
-    "收益",
-    "分配",
-    "费用",
-    "瀑布",
-    "募集",
-    "募资",
-    "资金",
-    "基金",
-  ],
-  legal: [
-    "法务",
-    "合同",
-    "合规",
-    "协议",
-    "权属",
-    "许可",
-    "牌照",
-    "诉讼",
-    "条款",
-    "监管",
-  ],
-};
-
-/** 「技术人员」等角色词不是技术类问题，先挖掉再匹配关键词。 */
+/** 「技术人员」等角色词不是技术类问题，先挖掉再匹配主题。 */
 const ROLE_COMPOUND_RE =
   /(?:核心)?(?:技术|业务|财务|法务|运营|产品)(?:人员|团队|负责人|合伙人|顾问|总监|经理|骨干|人才|同事|出身|背景)/gu;
 
+const LEGAL_THEME_RE =
+  /企查查|天眼查|工商(?:档案|登记|信息)?|股权|股东|持股|代持|实控人|\bubo\b|权属|章程|注册资本|主体资格|出资|授权|牌照|著作权|版权|知识产权|商标权|使用权|所有权|权利人|合同|协议|诉讼|仲裁|合规|监管资质|归属确认|资产归属|收入归属|核心资产.{0,12}归属|许可(?!证号)/iu;
+const FINANCE_THEME_RE =
+  /\birr\b|估值|利润|现金流|收益分配|费用瀑布|瀑布|募集资金|募资|造价|财务|回报|资金用途|基金方案|融资(?!协议)|收入(?!归属)/iu;
+const TECH_THEME_RE =
+  /小模型|大模型|\bskills?\b|算法|架构|自研|评测|\bapi\b|电芯|工艺|热管理|技术处理|技术路线|技术主张|第三方模型|模型|平台|专利(?!转让)|系统/iu;
+const BUSINESS_THEME_RE =
+  /商业模式|客群|市场|销售|产品规划|路线图|短剧业务|获客|艺人|数字人|内容|规模|取舍|业务|产品|规划|模式|客户|运营/iu;
+
+function themeHead(text: string): string {
+  const first = (text.split(/\n/u)[0] ?? text).trim();
+  return (first.split(/[：:]/u)[0] ?? first).trim().slice(0, 80);
+}
+
+function countThemeHits(hay: string, re: RegExp): number {
+  const flags = re.flags.includes("g") ? re.flags : `${re.flags}g`;
+  return hay.match(new RegExp(re.source, flags))?.length ?? 0;
+}
+
+export function parseQuestionKind(raw: unknown): QuestionKind | null {
+  if (
+    raw === "business" ||
+    raw === "tech" ||
+    raw === "finance" ||
+    raw === "legal" ||
+    raw === "other"
+  ) {
+    return raw;
+  }
+  return null;
+}
+
+/** 看整题主题（标题优先），股权 / 企查查 / 授权等归法务，不让「收入」「业务」单字抢走。 */
 export function inferQuestionKind(text: string): QuestionKind {
-  const hay = (text ?? "").replace(ROLE_COMPOUND_RE, " ").toLowerCase();
-  const score = (kws: string[]) =>
-    kws.reduce((n, kw) => (hay.includes(kw.toLowerCase()) ? n + 1 : n), 0);
-  const business = score(KIND_KEYWORDS.business);
-  const tech = score(KIND_KEYWORDS.tech);
-  const finance = score(KIND_KEYWORDS.finance);
-  const legal = score(KIND_KEYWORDS.legal);
-  const max = Math.max(business, tech, finance, legal);
+  const hay = (text ?? "").replace(ROLE_COMPOUND_RE, " ");
+  const head = themeHead(hay);
+  if (LEGAL_THEME_RE.test(head)) return "legal";
+  const score = (re: RegExp) =>
+    countThemeHits(head, re) * 3 + countThemeHits(hay, re);
+  const legal = score(LEGAL_THEME_RE);
+  const finance = score(FINANCE_THEME_RE);
+  const tech = score(TECH_THEME_RE);
+  const business = score(BUSINESS_THEME_RE);
+  const max = Math.max(legal, finance, tech, business);
   if (max === 0) return "other";
-  if (finance === max) return "finance";
   if (legal === max) return "legal";
+  if (finance === max) return "finance";
   if (tech === max) return "tech";
   return "business";
 }

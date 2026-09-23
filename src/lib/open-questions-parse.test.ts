@@ -18,4 +18,15 @@ describe("inferQuestionKind", () => {
     expect(inferQuestionKind("5,000万元募集资金的实际用途")).toBe("finance");
     expect(inferQuestionKind("基金方案的正式版本")).toBe("finance");
   });
+
+  it("puts 企查查 / 股权 / 授权 / 收入归属 under 法务 by theme", () => {
+    expect(inferQuestionKind("企查查交叉分析：主体与对外投资")).toBe("legal");
+    expect(inferQuestionKind("股东身份如何转化为业务资源")).toBe("legal");
+    expect(inferQuestionKind("投资对象、核心资产与收入归属确认")).toBe("legal");
+    expect(inferQuestionKind("旧作品训练素材授权")).toBe("legal");
+    expect(inferQuestionKind("演员Skill、小模型、大模型的区别")).toBe("tech");
+    expect(
+      inferQuestionKind("只做短工业级与短剧业务的取舍安排"),
+    ).toBe("business");
+  });
 });

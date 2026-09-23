@@ -27,6 +27,8 @@ import {
 import {
   inferQuestionKind,
   parseOpenQuestionsFromHtml,
+  parseQuestionKind,
+  QUESTION_KIND_LABEL,
   type QuestionKind,
 } from "@/lib/open-questions-parse";
 import {
@@ -70,6 +72,16 @@ function dueInputValue(iso: string | null | undefined) {
 
 function defaultAssignedTo(list: CollabIssuerAccount[]) {
   return list.length === 1 ? list[0].userId : "";
+}
+
+function kindFromParts(
+  stored: CollabItem["questionKind"] | undefined,
+  ...parts: (string | null | undefined)[]
+): QuestionKind {
+  return (
+    parseQuestionKind(stored) ??
+    inferQuestionKind(parts.filter(Boolean).join("\n"))
+  );
 }
 
 function hasCollaboratorReply(it: CollabItem): boolean {
@@ -229,6 +241,8 @@ export function InvestorCollabSection({
   const [body, setBody] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
   const [priority, setPriority] = useState<CollabPriority>("P2");
+  const [questionKind, setQuestionKind] = useState<QuestionKind>("other");
+  const [kindManual, setKindManual] = useState(false);
   const [dueAt, setDueAt] = useState("");
   const [attachFiles, setAttachFiles] = useState<File[]>([]);
   const [fileInputKey, setFileInputKey] = useState(0);
@@ -317,6 +331,16 @@ export function InvestorCollabSection({
       setDueAt("");
     }
     setPriority(q?.priority ?? incomingDraft.priority ?? draft?.priority ?? "P2");
+    setKindManual(Boolean(parseQuestionKind(draft?.questionKind)));
+    setQuestionKind(
+      kindFromParts(
+        draft?.questionKind,
+        t,
+        incomingDraft.title,
+        draft?.title,
+        draft?.body,
+      ),
+    );
     setIncomingDraft(null);
   }, [incomingDraft, questions, issuers, items]);
 
@@ -331,14 +355,21 @@ export function InvestorCollabSection({
   }, [issuers]);
 
   useEffect(() => {
+    if (kindManual) return;
+    setQuestionKind(inferQuestionKind([sourceText, title, body].filter(Boolean).join("\n")));
+  }, [sourceText, title, body, kindManual]);
+
+  useEffect(() => {
     followUpIdRef.current = followUpId;
   }, [followUpId]);
 
   const sentItems = items.filter((it) => it.status !== "draft");
   const draftItems = items.filter((it) => it.status === "draft");
 
-  const matchKind = (text: string) =>
-    kindFilter === "all" || inferQuestionKind(text) === kindFilter;
+  const matchKind = (text: string, item?: CollabItem | null) =>
+    kindFilter === "all" ||
+    kindFromParts(item?.questionKind, text, item?.title, item?.body) ===
+      kindFilter;
 
   const unsentEntries: UnsentEntry[] = [
     ...questions
@@ -363,8 +394,7 @@ export function InvestorCollabSection({
       })),
   ].filter(
     (row) =>
-      matchKind(row.text) ||
-      (row.draft ? matchKind(`${row.draft.title} ${row.draft.body}`) : false),
+      matchKind(row.text, row.draft),
   );
 
   const unsentList = unsentEntries;
@@ -373,12 +403,12 @@ export function InvestorCollabSection({
       (it.status === "pending_reply" ||
         it.status === "saved" ||
         it.status === "needs_more") &&
-      matchKind(it.sourceQuestionText || it.title),
+      matchKind(it.sourceQuestionText || it.title, it),
   );
   const repliedList = items.filter(
     (it) =>
       (it.status === "submitted" || it.status === "confirmed") &&
-      matchKind(it.sourceQuestionText || it.title),
+      matchKind(it.sourceQuestionText || it.title, it),
   );
 
   const tabs = useMemo(
@@ -400,6 +430,8 @@ export function InvestorCollabSection({
     setDueAt("");
     setAssignedTo(defaultAssignedTo(issuers));
     setPriority("P2");
+    setQuestionKind("other");
+    setKindManual(false);
     setEditingKey(null);
     setDetailId(null);
     setEditingPublishedId(null);
@@ -410,6 +442,15 @@ export function InvestorCollabSection({
   const fillWording = (entry: UnsentEntry) => {
     setSourceText(entry.text);
     setPriority(entry.priority);
+    setKindManual(Boolean(parseQuestionKind(entry.draft?.questionKind)));
+    setQuestionKind(
+      kindFromParts(
+        entry.draft?.questionKind,
+        entry.text,
+        entry.draft?.title,
+        entry.draft?.body,
+      ),
+    );
     if (entry.draft) {
       setTitle(formatCollabLineBreaks(entry.draft.title));
       setBody(formatCollabLineBreaks(entry.draft.body));
@@ -451,6 +492,7 @@ export function InvestorCollabSection({
     sourceQuestionText: sourceText,
     replyMode: "both" as const,
     priority,
+    questionKind,
     dueAt: dueAt ? new Date(dueAt).toISOString() : null,
     assignedTo: assignedTo || null,
   });
@@ -510,6 +552,8 @@ export function InvestorCollabSection({
     setTitle("");
     setBody("");
     setPriority("P2");
+    setQuestionKind("other");
+    setKindManual(false);
     setAssignedTo(defaultAssignedTo(issuers));
     setDueAt("");
     setAttachFiles([]);
@@ -537,6 +581,10 @@ export function InvestorCollabSection({
     setTitle("");
     setBody("");
     setPriority(it.priority);
+    setKindManual(Boolean(parseQuestionKind(it.questionKind)));
+    setQuestionKind(
+      kindFromParts(it.questionKind, it.sourceQuestionText, it.title, it.body),
+    );
     setAssignedTo(it.assignedTo?.trim() || defaultAssignedTo(issuers));
     setDueAt("");
     setAttachFiles([]);
@@ -580,6 +628,12 @@ export function InvestorCollabSection({
           body: entry.draft.body,
           sourceQuestionText: entry.draft.sourceQuestionText || entry.text,
           priority: entry.draft.priority,
+          questionKind: kindFromParts(
+            entry.draft.questionKind,
+            entry.text,
+            entry.draft.title,
+            entry.draft.body,
+          ),
           dueAt: entry.draft.dueAt,
           assignedTo: entry.draft.assignedTo,
         });
@@ -588,6 +642,7 @@ export function InvestorCollabSection({
           text: entry.text,
           title: extractOpenQuestionTitle(entry.text).title,
           priority: entry.priority,
+          questionKind: inferQuestionKind(entry.text),
         });
       }
       if (editingKey === entry.key) resetCompose();
@@ -616,6 +671,12 @@ export function InvestorCollabSection({
             body: entry.draft.body,
             sourceQuestionText: entry.draft.sourceQuestionText || entry.text,
             priority: entry.draft.priority,
+            questionKind: kindFromParts(
+              entry.draft.questionKind,
+              entry.text,
+              entry.draft.title,
+              entry.draft.body,
+            ),
             dueAt: entry.draft.dueAt,
             assignedTo: entry.draft.assignedTo,
           });
@@ -624,6 +685,7 @@ export function InvestorCollabSection({
             text: entry.text,
             title: extractOpenQuestionTitle(entry.text).title,
             priority: entry.priority,
+            questionKind: inferQuestionKind(entry.text),
           });
         }
       }
@@ -739,6 +801,10 @@ export function InvestorCollabSection({
     setTitle(formatCollabLineBreaks(it.title));
     setBody(formatCollabLineBreaks(it.body));
     setPriority(it.priority);
+    setKindManual(Boolean(parseQuestionKind(it.questionKind)));
+    setQuestionKind(
+      kindFromParts(it.questionKind, it.sourceQuestionText, it.title, it.body),
+    );
     setAssignedTo(it.assignedTo?.trim() || defaultAssignedTo(issuers));
     setDueAt(dueInputValue(it.dueAt));
   };
@@ -916,7 +982,7 @@ export function InvestorCollabSection({
         value={body}
         onChange={(e) => setBody(e.target.value)}
       />
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <select
           value={assignedTo}
           onChange={(e) => setAssignedTo(e.target.value)}
@@ -936,6 +1002,25 @@ export function InvestorCollabSection({
               ))}
             </>
           )}
+        </select>
+        <select
+          value={questionKind}
+          onChange={(e) => {
+            const next = parseQuestionKind(e.target.value);
+            if (!next) return;
+            setKindManual(true);
+            setQuestionKind(next);
+          }}
+          className="h-9 rounded-lg border border-[rgba(78,66,57,0.12)] bg-white px-2 text-[13px]"
+          aria-label="问题类型"
+        >
+          {(
+            Object.keys(QUESTION_KIND_LABEL) as QuestionKind[]
+          ).map((id) => (
+            <option key={id} value={id}>
+              {QUESTION_KIND_LABEL[id]}
+            </option>
+          ))}
         </select>
         <select
           value={priority}

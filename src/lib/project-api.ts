@@ -7,6 +7,7 @@ import {
 } from "@/workspace/project-registry";
 import { apiFetch } from "@/lib/api-auth";
 import { formatOpenQuestionForIssuer } from "@/lib/kn-citations";
+import { inferQuestionKind } from "@/lib/open-questions-parse";
 import { sectionLabel } from "@/lib/kn-catalog";
 import { humanUploadNote } from "@/lib/upload-note";
 
@@ -2040,6 +2041,7 @@ export type CollabItem = {
   body: string;
   replyMode: CollabReplyMode;
   priority: CollabPriority;
+  questionKind?: "business" | "tech" | "finance" | "legal" | "other" | null;
   dueAt: string | null;
   investorNote: string | null;
   fileReqs: CollabFileReq[];
@@ -2213,6 +2215,7 @@ export async function publishCollabItem(
     sourceQuestionText?: string;
     replyMode: CollabReplyMode;
     priority: CollabPriority;
+    questionKind?: "business" | "tech" | "finance" | "legal" | "other" | null;
     dueAt?: string | null;
     investorNote?: string | null;
     fileReqs?: CollabFileReq[];
@@ -2244,6 +2247,7 @@ export async function publishOpenQuestionToIssuer(
     text: string;
     title?: string;
     priority?: CollabPriority;
+    questionKind?: "business" | "tech" | "finance" | "legal" | "other" | null;
   },
 ): Promise<CollabItem> {
   const text = question.text.trim();
@@ -2255,6 +2259,7 @@ export async function publishOpenQuestionToIssuer(
     sourceQuestionText: text,
     replyMode: "both",
     priority: question.priority ?? "P2",
+    questionKind: question.questionKind ?? inferQuestionKind(text),
   });
 }
 
