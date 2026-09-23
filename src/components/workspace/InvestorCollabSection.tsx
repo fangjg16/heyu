@@ -5,6 +5,7 @@ import {
   fetchCollabBoard,
   fetchProjectKnowledgeChapter,
   PROJECT_UPLOAD_FOLDER,
+  deleteProjectFile,
   publishCollabItem,
   publishOpenQuestionToIssuer,
   patchCollabItem,
@@ -12,6 +13,7 @@ import {
   reviewCollabItem,
   suggestCollabFollowUp,
   uploadProjectPackageFile,
+  type CollabFileRecord,
   type CollabFollowUpSuggest,
   type CollabIssuerAccount,
   type CollabItem,
@@ -230,6 +232,8 @@ export function InvestorCollabSection({
   const [dueAt, setDueAt] = useState("");
   const [attachFiles, setAttachFiles] = useState<File[]>([]);
   const [fileInputKey, setFileInputKey] = useState(0);
+  const [removingFileId, setRemovingFileId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [followUpId, setFollowUpId] = useState<string | null>(null);
   const followUpIdRef = useRef<string | null>(null);
   const [followUpSuggests, setFollowUpSuggests] = useState<
@@ -458,6 +462,41 @@ export function InvestorCollabSection({
         collabItemId: itemId,
         sourceKind: "investor_share",
       });
+    }
+  };
+
+  const removePendingFile = (file: File) => {
+    setAttachFiles((prev) => {
+      const next = prev.filter((item) => item !== file);
+      const input = fileInputRef.current;
+      if (input) {
+        const transfer = new DataTransfer();
+        for (const item of next) transfer.items.add(item);
+        input.files = transfer.files;
+      }
+      return next;
+    });
+  };
+
+  const removeSavedAttachment = async (file: CollabFileRecord) => {
+    setRemovingFileId(file.id);
+    setError(null);
+    try {
+      await deleteProjectFile(projectId, file.id, userId);
+      setItems((rows) =>
+        rows.map((row) =>
+          row.attachments?.some((item) => item.id === file.id)
+            ? {
+                ...row,
+                attachments: row.attachments.filter((item) => item.id !== file.id),
+              }
+            : row,
+        ),
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "删除附件失败");
+    } finally {
+      setRemovingFileId(null);
     }
   };
 
@@ -918,6 +957,7 @@ export function InvestorCollabSection({
         <span className="shrink-0">增加附件</span>
         <input
           key={fileInputKey}
+          ref={fileInputRef}
           type="file"
           multiple
           className="min-w-0 flex-1 text-[12.5px] file:mr-2 file:rounded file:border-0 file:bg-transparent file:text-[12.5px]"
@@ -932,6 +972,9 @@ export function InvestorCollabSection({
           userId={userId}
           files={opts.existing?.attachments ?? []}
           pending={attachFiles}
+          onRemoveFile={(file) => void removeSavedAttachment(file)}
+          onRemovePending={removePendingFile}
+          removingFileId={removingFileId}
         />
       ) : null}
       {opts.showDraftSave || opts.showSend ? (
@@ -1093,15 +1136,6 @@ export function InvestorCollabSection({
                   </button>
                 </div>
               )}
-              {!editing && !followUpOpen && (it.attachments?.length ?? 0) > 0 ? (
-                <div className="mt-3">
-                  <CollabAttachmentStrip
-                    projectId={projectId}
-                    userId={userId}
-                    files={it.attachments ?? []}
-                  />
-                </div>
-              ) : null}
               {expanded ? (
                 <div className="mt-3 space-y-3">
                   {showingDetail ? (
@@ -1120,6 +1154,13 @@ export function InvestorCollabSection({
                             {detailText}
                           </p>
                         )
+                      ) : null}
+                      {(it.attachments?.length ?? 0) > 0 ? (
+                        <CollabAttachmentStrip
+                          projectId={projectId}
+                          userId={userId}
+                          files={it.attachments ?? []}
+                        />
                       ) : null}
                       <p className="text-[12.5px] text-[#59625F]">
                         截止日期：

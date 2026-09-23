@@ -316,7 +316,7 @@ export function CollabOverviewPage() {
 }
 
 export function CollabItemsPage() {
-  const { project, userId } = useCollabOutlet();
+  const { project } = useCollabOutlet();
   const [items, setItems] = useState<CollabItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -360,15 +360,6 @@ export function CollabItemsPage() {
                       {preview.detail ? (
                         <div className="mt-1 whitespace-pre-wrap break-words text-[12.5px] text-[#59625F]">
                           {formatCollabLineBreaks(preview.detail)}
-                        </div>
-                      ) : null}
-                      {(it.attachments?.length ?? 0) > 0 ? (
-                        <div className="mt-2">
-                          <CollabAttachmentStrip
-                            projectId={project.id}
-                            userId={userId}
-                            files={it.attachments ?? []}
-                          />
                         </div>
                       ) : null}
                       <div className="mt-1.5 text-[11.5px] text-[#969E9A]">

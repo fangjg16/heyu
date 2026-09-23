@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { X } from "lucide-react";
 import { apiFetch } from "@/lib/api-auth";
 import type { CollabFileRecord } from "@/lib/project-api";
 
@@ -15,10 +16,49 @@ const thumbFrame =
   "flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[rgba(78,66,57,0.1)] bg-[rgba(78,66,57,0.03)]";
 const thumbImg = "max-h-full max-w-full object-contain";
 
-function SelectedFilesPreview({ files }: { files: File[] }) {
+function RemoveMark({
+  label,
+  disabled,
+  onClick,
+  className,
+}: {
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title="删除"
+      disabled={disabled}
+      className={
+        className ??
+        "absolute right-0.5 top-0.5 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-white text-[#4E4239] shadow-[0_1px_2px_rgba(31,36,35,0.35)] disabled:opacity-40"
+      }
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClick();
+      }}
+    >
+      <X className="h-2.5 w-2.5" strokeWidth={2.5} />
+    </button>
+  );
+}
+
+function SelectedFilesPreview({
+  files,
+  onRemove,
+}: {
+  files: File[];
+  onRemove?: (file: File) => void;
+}) {
   const previews = useMemo(
     () =>
       files.map((file) => ({
+        file,
         key: `${file.name}:${file.size}:${file.lastModified}`,
         name: file.name,
         url: file.type.startsWith("image/") ? URL.createObjectURL(file) : "",
@@ -37,15 +77,34 @@ function SelectedFilesPreview({ files }: { files: File[] }) {
     <div className="flex flex-wrap gap-1.5">
       {previews.map((item) =>
         item.url ? (
-          <span key={item.key} className={thumbFrame}>
-            <img src={item.url} alt={item.name} className={thumbImg} />
+          <span key={item.key} className="relative h-14 w-14 shrink-0">
+            <span className={thumbFrame}>
+              <img src={item.url} alt={item.name} className={thumbImg} />
+            </span>
+            {onRemove ? (
+              <RemoveMark
+                label={`删除 ${item.name}`}
+                onClick={() => onRemove(item.file)}
+              />
+            ) : null}
           </span>
         ) : (
           <span
             key={item.key}
-            className="rounded-lg border border-[rgba(78,66,57,0.1)] bg-white px-2 py-1 text-[12px] text-[#59625F]"
+            className="inline-flex items-center gap-1 rounded-lg border border-[rgba(78,66,57,0.1)] bg-white px-2 py-1 text-[12px] text-[#59625F]"
           >
-            {item.name}
+            <span className="max-w-[12rem] truncate">{item.name}</span>
+            {onRemove ? (
+              <button
+                type="button"
+                aria-label={`删除 ${item.name}`}
+                title="删除"
+                className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[#8A8178] hover:bg-[rgba(78,66,57,0.06)] hover:text-[#4E4239]"
+                onClick={() => onRemove(item.file)}
+              >
+                <X className="h-3 w-3" strokeWidth={2.25} />
+              </button>
+            ) : null}
           </span>
         ),
       )}
@@ -58,11 +117,17 @@ export function CollabAttachmentStrip({
   userId,
   files,
   pending,
+  onRemoveFile,
+  onRemovePending,
+  removingFileId,
 }: {
   projectId: string;
   userId: string;
   files: CollabFileRecord[];
   pending?: File[];
+  onRemoveFile?: (file: CollabFileRecord) => void;
+  onRemovePending?: (file: File) => void;
+  removingFileId?: string | null;
 }) {
   const images = files.filter(isCollabImageFile);
   const others = files.filter((file) => !isCollabImageFile(file));
@@ -106,37 +171,60 @@ export function CollabAttachmentStrip({
 
   return (
     <div className="space-y-2">
-      {pending && pending.length > 0 ? <SelectedFilesPreview files={pending} /> : null}
+      {pending && pending.length > 0 ? (
+        <SelectedFilesPreview files={pending} onRemove={onRemovePending} />
+      ) : null}
       {images.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
-          {images.map((file) =>
-            urls[file.id] ? (
-              <a
-                key={file.id}
-                href={urls[file.id]}
-                target="_blank"
-                rel="noreferrer"
-                title={file.filename}
-                className={thumbFrame}
-              >
-                <img src={urls[file.id]} alt={file.filename} className={thumbImg} />
-              </a>
-            ) : (
-              <div
-                key={file.id}
-                title={file.filename}
-                className={`${thumbFrame} px-1 text-center text-[10px] leading-tight text-[#969E9A]`}
-              >
-                <span className="line-clamp-2 break-all">{file.filename}</span>
-              </div>
-            ),
-          )}
+          {images.map((file) => (
+            <span key={file.id} className="relative h-14 w-14 shrink-0">
+              {urls[file.id] ? (
+                <a
+                  href={urls[file.id]}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={file.filename}
+                  className={thumbFrame}
+                >
+                  <img src={urls[file.id]} alt={file.filename} className={thumbImg} />
+                </a>
+              ) : (
+                <div
+                  title={file.filename}
+                  className={`${thumbFrame} px-1 text-center text-[10px] leading-tight text-[#969E9A]`}
+                >
+                  <span className="line-clamp-2 break-all">{file.filename}</span>
+                </div>
+              )}
+              {onRemoveFile ? (
+                <RemoveMark
+                  label={`删除 ${file.filename}`}
+                  disabled={removingFileId === file.id}
+                  onClick={() => onRemoveFile(file)}
+                />
+              ) : null}
+            </span>
+          ))}
         </div>
       ) : null}
       {others.length > 0 ? (
         <ul className="space-y-1 text-[12.5px] text-[#59625F]">
           {others.map((file) => (
-            <li key={file.id}>{file.filename}</li>
+            <li key={file.id} className="flex items-center gap-2">
+              <span className="min-w-0 flex-1 truncate">{file.filename}</span>
+              {onRemoveFile ? (
+                <button
+                  type="button"
+                  aria-label={`删除 ${file.filename}`}
+                  title="删除"
+                  disabled={removingFileId === file.id}
+                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[#8A8178] hover:bg-[rgba(78,66,57,0.06)] hover:text-[#4E4239] disabled:opacity-40"
+                  onClick={() => onRemoveFile(file)}
+                >
+                  <X className="h-3 w-3" strokeWidth={2.25} />
+                </button>
+              ) : null}
+            </li>
           ))}
         </ul>
       ) : null}
