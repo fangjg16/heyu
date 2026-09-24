@@ -299,6 +299,20 @@ export default function HomeDashboard() {
     });
   }, [openQuestions, publishedByProject]);
 
+  const issuerAllTodosTo = useMemo(() => {
+    const projectIds = [
+      ...new Set(collabInbox.map((it) => it.projectId).filter(Boolean)),
+    ];
+    const projectId =
+      projectIds[0] ??
+      memberProjects.find((p) =>
+        isIssuerRole(
+          getProjectRole(userId ?? "", p.id, p.createdBy, p.analysisKind),
+        ),
+      )?.id;
+    return projectId ? `/app/collab/${projectId}/items` : "";
+  }, [collabInbox, memberProjects, userId]);
+
   const collabFocus = collabInbox[0]
     ? (() => {
         const preview = previewCollabQuestion(collabInbox[0]);
@@ -876,20 +890,20 @@ export default function HomeDashboard() {
               >
                 项目协作方待办
               </div>
-              <span style={{ fontSize: 14, color: C.muted }}>
-                {collabInbox.length} 项
-              </span>
+              {issuerAllTodosTo ? (
+                <Link
+                  to={issuerAllTodosTo}
+                  style={{
+                    fontSize: 14,
+                    color: C.wine,
+                    textDecoration: "none",
+                    flexShrink: 0,
+                  }}
+                >
+                  查看所有待办
+                </Link>
+              ) : null}
             </div>
-            <p
-              style={{
-                marginTop: 8,
-                fontSize: 13.5,
-                color: C.muted,
-                lineHeight: 1.6,
-              }}
-            >
-              投资团队发给你的事项会列在这里。
-            </p>
             <div style={{ marginTop: 14 }}>
               {collabInbox.length === 0 ? (
                 <p
