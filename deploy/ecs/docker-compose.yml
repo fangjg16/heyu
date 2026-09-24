@@ -145,6 +145,8 @@ services:
       HERMES_RESTART_MODE: docker
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      # 用仓库里的种子脚本，避免旧镜像在迁移时把改过的登录名和密码写回去
+      - ../../api-worker/scripts/seed-workspace-users.mjs:/app/scripts/seed-workspace-users.mjs:ro
     depends_on:
       mysql-bridge:
         condition: service_healthy

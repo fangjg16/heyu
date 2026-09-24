@@ -66,13 +66,13 @@ const USERS = [
   },
   {
     id: "janice-hi",
-    username: "janicehi",
+    username: "maxeast_co",
     displayName: "MaxEast",
     orgTitle: "访客",
     avatarChar: "M",
     avatarClass: "bg-slate-300 text-slate-800 shadow-sm",
     isPlatformAdmin: 0,
-    password: "jfo2026",
+    password: "maxeast_co",
   },
   {
     id: "peptide",
@@ -156,7 +156,8 @@ async function upsertUser(conn, user, t) {
       avatar_class = VALUES(avatar_class),
       is_platform_admin = VALUES(is_platform_admin),
       status = 'active',
-      updated_at = VALUES(updated_at)`,
+      updated_at = VALUES(updated_at)`
+    /* 已有账号不改登录名、密码、展示名、头像字。系统里改过的要留着。 */,
     [
       user.id,
       username,
