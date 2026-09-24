@@ -991,7 +991,7 @@ export default function HomeDashboard() {
               textDecoration: "none",
             }}
           >
-            查看全部项目 →
+            查看全部项目
           </Link>
         </div>
         <div
