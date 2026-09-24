@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { apiFetch } from "@/lib/api-auth";
-import type { CollabFileRecord } from "@/lib/project-api";
+import {
+  downloadFileBlob,
+  FilePreviewModal,
+} from "@/components/workspace/FilePreviewModal";
+import type { CollabFileRecord, ProjectFileRecord } from "@/lib/project-api";
 
 export function isCollabImageFile(file: {
   mime?: string | null;
@@ -15,6 +19,48 @@ export function isCollabImageFile(file: {
 const thumbFrame =
   "flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[rgba(78,66,57,0.1)] bg-[rgba(78,66,57,0.03)]";
 const thumbImg = "max-h-full max-w-full object-contain";
+
+function asProjectFile(file: CollabFileRecord): ProjectFileRecord {
+  return {
+    id: file.id,
+    filename: file.filename,
+    relativePath: file.relativePath,
+    scope: "package",
+    conversationId: null,
+    mime: file.mime,
+    sizeBytes: file.sizeBytes,
+    createdAt: file.createdAt || new Date(0).toISOString(),
+    uploadedBy: file.uploadedBy,
+    chunkCount: 0,
+    sourceKind: file.sourceKind,
+    sharedWithIssuer: file.sharedWithIssuer,
+    fileCategory: file.fileCategory,
+    versionGroup: file.versionGroup,
+    replacesDocumentId: file.replacesDocumentId,
+    uploadNote: file.uploadNote,
+  };
+}
+
+async function saveCollabFile(
+  projectId: string,
+  userId: string,
+  file: CollabFileRecord,
+) {
+  const { blob, filename } = await downloadFileBlob(
+    projectId,
+    file.id,
+    userId,
+    file.filename,
+  );
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename || file.filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 function RemoveMark({
   label,
@@ -133,6 +179,7 @@ export function CollabAttachmentStrip({
   const others = files.filter((file) => !isCollabImageFile(file));
   const imageKey = images.map((file) => file.id).join(",");
   const [urls, setUrls] = useState<Record<string, string>>({});
+  const [preview, setPreview] = useState<CollabFileRecord | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -211,7 +258,17 @@ export function CollabAttachmentStrip({
         <ul className="space-y-1 text-[12.5px] text-[#59625F]">
           {others.map((file) => (
             <li key={file.id} className="flex items-center gap-2">
-              <span className="min-w-0 flex-1 truncate">{file.filename}</span>
+              <button
+                type="button"
+                title="预览并下载"
+                className="min-w-0 flex-1 truncate text-left text-[#A06358] hover:underline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPreview(file);
+                }}
+              >
+                {file.filename}
+              </button>
               {onRemoveFile ? (
                 <button
                   type="button"
@@ -227,6 +284,15 @@ export function CollabAttachmentStrip({
             </li>
           ))}
         </ul>
+      ) : null}
+      {preview ? (
+        <FilePreviewModal
+          projectId={projectId}
+          userId={userId}
+          file={asProjectFile(preview)}
+          onClose={() => setPreview(null)}
+          onDownload={() => saveCollabFile(projectId, userId, preview)}
+        />
       ) : null}
     </div>
   );
