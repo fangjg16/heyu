@@ -251,6 +251,7 @@ CREATE TABLE IF NOT EXISTS project_collab_items (
   id VARCHAR(64) PRIMARY KEY COMMENT '协作事项 ID',
   project_id VARCHAR(64) NOT NULL COMMENT '所属项目',
   source_question_text TEXT NOT NULL COMMENT '内部原题（仅投资团队）',
+  parent_item_id VARCHAR(64) NULL COMMENT '补充问询所接的上一条事项',
   title VARCHAR(512) NOT NULL COMMENT '对外中性标题',
   body TEXT NOT NULL COMMENT '需确认的具体内容（对外冻结稿）',
   reply_mode VARCHAR(32) NOT NULL DEFAULT 'both' COMMENT 'text | file | both',

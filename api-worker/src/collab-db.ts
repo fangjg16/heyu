@@ -25,6 +25,7 @@ export type CollabItemRow = {
   id: string;
   project_id: string;
   source_question_text: string;
+  parent_item_id?: string | null;
   title: string;
   body: string;
   reply_mode: string;
@@ -74,6 +75,8 @@ export type CollabItemPublic = {
   createdAt: string;
   updatedAt: string;
   sortOrder?: number;
+  /** 补充问询所接的上一条；双方都用来串问答 */
+  parentItemId?: string | null;
   /** 仅投资团队可见 */
   sourceQuestionText?: string;
 };
@@ -160,6 +163,7 @@ export function rowToPublic(
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     sortOrder: Number(row.sort_order ?? 0) || 0,
+    parentItemId: String(row.parent_item_id ?? "").trim() || null,
   };
   if (opts?.includeInternal) {
     item.sourceQuestionText = row.source_question_text;
@@ -167,7 +171,7 @@ export function rowToPublic(
   return item;
 }
 
-const COLS = `id, project_id, source_question_text, title, body, reply_mode, priority, question_kind, due_at,
+const COLS = `id, project_id, source_question_text, parent_item_id, title, body, reply_mode, priority, question_kind, due_at,
   investor_note, file_reqs_json, status, published_at, published_by, assigned_to, reply_text,
   reply_saved_at, reply_submitted_at, reply_by, review_note, confirmed_at, confirmed_by,
   created_at, updated_at`;
@@ -205,11 +209,16 @@ function isMissingQuestionKind(err: unknown): boolean {
   return isMissingColumn(err, "question_kind");
 }
 
+function isMissingParentItem(err: unknown): boolean {
+  return isMissingColumn(err, "parent_item_id");
+}
+
 function isMissingOptionalCol(err: unknown): boolean {
   return (
     isMissingQuestionKind(err) ||
     isMissingAssignedTo(err) ||
-    isMissingSortOrder(err)
+    isMissingSortOrder(err) ||
+    isMissingParentItem(err)
   );
 }
 
@@ -268,6 +277,7 @@ export async function insertCollabItem(
     publishedBy: string;
     assignedTo?: string | null;
     status?: CollabItemStatus;
+    parentItemId?: string | null;
   },
 ): Promise<CollabItemRow> {
   const now = new Date().toISOString();
@@ -275,10 +285,12 @@ export async function insertCollabItem(
   const sortOrder = await nextManualSortOrder(env, input.projectId);
   const fileReqs = JSON.stringify(input.fileReqs);
   const kind = parseQuestionKind(input.questionKind);
+  const parentItemId = String(input.parentItemId ?? "").trim() || null;
   const insert = async (opts: {
     assigned: boolean;
     sort: boolean;
     kind: boolean;
+    parent: boolean;
   }) => {
     const cols = [
       "id",
@@ -322,6 +334,10 @@ export async function insertCollabItem(
       cols.push("sort_order");
       vals.push(sortOrder);
     }
+    if (opts.parent && parentItemId) {
+      cols.push("parent_item_id");
+      vals.push(parentItemId);
+    }
     cols.push("created_at", "updated_at");
     vals.push(now, now);
     const placeholders = cols.map(() => "?").join(", ");
@@ -332,7 +348,7 @@ export async function insertCollabItem(
       .run();
   };
   try {
-    await insert({ assigned: true, sort: true, kind: true });
+    await insert({ assigned: true, sort: true, kind: true, parent: true });
   } catch (e) {
     if (!isMissingOptionalCol(e)) throw e;
     try {
@@ -340,15 +356,34 @@ export async function insertCollabItem(
         assigned: !isMissingAssignedTo(e),
         sort: !isMissingSortOrder(e),
         kind: !isMissingQuestionKind(e),
+        parent: !isMissingParentItem(e),
       });
     } catch (e2) {
       if (!isMissingOptionalCol(e2)) throw e2;
-      await insert({ assigned: false, sort: false, kind: false });
+      await insert({ assigned: false, sort: false, kind: false, parent: false });
     }
   }
   const row = await getCollabItem(env, input.projectId, input.id);
   if (!row) throw new Error("协作事项写入后读取失败");
   return row;
+}
+
+function withoutParentColumn(cols: string): string {
+  return cols.replace(/, parent_item_id\b/g, "");
+}
+
+async function selectOne(
+  env: Env,
+  cols: string,
+  itemId: string,
+  projectId: string,
+): Promise<CollabItemRow | null> {
+  const row = await env.DB.prepare(
+    `SELECT ${cols} FROM project_collab_items WHERE id = ? AND project_id = ?`,
+  )
+    .bind(itemId, projectId)
+    .first<CollabItemRow>();
+  return row ?? null;
 }
 
 export async function getCollabItem(
@@ -360,13 +395,17 @@ export async function getCollabItem(
   let lastErr: unknown;
   for (const cols of tries) {
     try {
-      const row = await env.DB.prepare(
-        `SELECT ${cols} FROM project_collab_items WHERE id = ? AND project_id = ?`,
-      )
-        .bind(itemId, projectId)
-        .first<CollabItemRow>();
-      return row ?? null;
+      return await selectOne(env, cols, itemId, projectId);
     } catch (e) {
+      if (isMissingParentItem(e)) {
+        try {
+          return await selectOne(env, withoutParentColumn(cols), itemId, projectId);
+        } catch (e2) {
+          lastErr = e2;
+          if (!isMissingOptionalCol(e2)) throw e2;
+          continue;
+        }
+      }
       lastErr = e;
       if (!isMissingOptionalCol(e)) throw e;
     }
@@ -388,16 +427,28 @@ async function selectCollabRows(
     COLS_NO_ASSIGNED,
   ];
   let lastErr: unknown;
-  for (const cols of tries) {
+  const run = async (cols: string) => {
     const order = cols.includes("sort_order") ? MANUAL_ORDER : STATUS_ORDER;
+    const q = await env.DB.prepare(
+      `SELECT ${cols} FROM project_collab_items ${whereSql} ORDER BY ${order}`,
+    )
+      .bind(...binds)
+      .all<CollabItemRow>();
+    return q.results ?? [];
+  };
+  for (const cols of tries) {
     try {
-      const q = await env.DB.prepare(
-        `SELECT ${cols} FROM project_collab_items ${whereSql} ORDER BY ${order}`,
-      )
-        .bind(...binds)
-        .all<CollabItemRow>();
-      return q.results ?? [];
+      return await run(cols);
     } catch (e) {
+      if (isMissingParentItem(e)) {
+        try {
+          return await run(withoutParentColumn(cols));
+        } catch (e2) {
+          lastErr = e2;
+          if (!isMissingOptionalCol(e2)) throw e2;
+          continue;
+        }
+      }
       lastErr = e;
       if (!isMissingOptionalCol(e)) throw e;
     }

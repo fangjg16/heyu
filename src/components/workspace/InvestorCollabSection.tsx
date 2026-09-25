@@ -41,6 +41,8 @@ import {
 import { getMergedProjects } from "@/workspace/project-registry";
 import { canPublishToIssuer, getProjectRole } from "@/workspace/workspace-users";
 import { CollabAttachmentStrip } from "@/components/workspace/CollabAttachmentStrip";
+import { CollabQuestionChain } from "@/components/workspace/CollabQuestionChain";
+import { collabPriorTurns } from "@/lib/collab-thread";
 import { cn } from "@/lib/utils";
 
 type InvestorCollabSectionProps = {
@@ -759,7 +761,10 @@ export function InvestorCollabSection({
           ...fields,
         });
       } else {
-        item = await publishCollabItem(projectId, fields);
+        item = await publishCollabItem(projectId, {
+          ...fields,
+          ...(followUpId ? { parentItemId: followUpId } : {}),
+        });
       }
       await uploadAttachments(item.id);
       resetCompose();
@@ -1272,6 +1277,7 @@ export function InvestorCollabSection({
                 <div className="mt-3 space-y-3">
                   {showingDetail ? (
                     <div className="space-y-2 text-[13px] leading-relaxed text-[#1F2423]">
+                      <CollabQuestionChain turns={collabPriorTurns(it, items)} />
                       {detailText ? (
                         dragDetailLines ? (
                           <CollabLineList

@@ -2055,6 +2055,7 @@ export type CollabItem = {
   reviewNote: string | null;
   confirmedAt: string | null;
   sourceQuestionText?: string;
+  parentItemId?: string | null;
   assignedTo?: string | null;
   assignedToName?: string | null;
   sortOrder?: number;
@@ -2223,6 +2224,7 @@ export async function publishCollabItem(
     investorNote?: string | null;
     fileReqs?: CollabFileReq[];
     assignedTo?: string | null;
+    parentItemId?: string | null;
     status?: "draft" | "pending_reply";
   },
 ): Promise<CollabItem> {

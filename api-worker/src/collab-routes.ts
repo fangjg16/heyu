@@ -467,8 +467,18 @@ export async function handlePublishCollabItem(
     }
   }
   const asDraft = String(body.status ?? "").trim() === "draft";
+  const parentItemId = String(body.parentItemId ?? "").trim();
+  if (parentItemId) {
+    const parent = await getCollabItem(env, projectId, parentItemId);
+    if (!parent) return json({ error: "找不到要接上的原问题" }, 400);
+    const parentStatus = parseStatus(parent.status);
+    if (parentStatus === "draft" || parentStatus === "discarded") {
+      return json({ error: "只能接在已发给协作方的问题上" }, 400);
+    }
+  }
   const payload = {
     sourceQuestionText: sourceQuestionText || title,
+    parentItemId: parentItemId || null,
     title,
     body: content,
     replyMode: parseReplyMode(String(body.replyMode ?? "both")),

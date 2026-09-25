@@ -27,6 +27,8 @@ import {
   stripCitationMarkers,
 } from "@/lib/kn-citations";
 import { formatCollabLineBreaks } from "@/lib/collab-question-text";
+import { collabPriorTurns } from "@/lib/collab-thread";
+import { CollabQuestionChain } from "@/components/workspace/CollabQuestionChain";
 import { getMergedProjects } from "@/workspace/project-registry";
 import { loadSessionUserId } from "@/workspace/session";
 import {
@@ -386,6 +388,7 @@ export function CollabItemDetailPage() {
   const { itemId = "" } = useParams();
   const navigate = useNavigate();
   const [item, setItem] = useState<CollabItem | null>(null);
+  const [siblings, setSiblings] = useState<CollabItem[]>([]);
   const [files, setFiles] = useState<CollabFileRecord[]>([]);
   const [reply, setReply] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -397,8 +400,12 @@ export function CollabItemDetailPage() {
   const [replacesId, setReplacesId] = useState("");
 
   const load = useCallback(async () => {
-    const data = await fetchCollabItem(project.id, itemId);
+    const [data, rows] = await Promise.all([
+      fetchCollabItem(project.id, itemId),
+      fetchCollabItems(project.id).catch(() => [] as CollabItem[]),
+    ]);
     setItem(data.item);
+    setSiblings(rows);
     setFiles(data.files);
     setReply(data.item.replyText ?? "");
   }, [project.id, itemId]);
@@ -472,6 +479,7 @@ export function CollabItemDetailPage() {
         ) : (
           <div className="mt-4 space-y-4">
             <div className="rounded-2xl border border-[rgba(78,66,57,0.1)] bg-white/80 p-5">
+              <CollabQuestionChain turns={collabPriorTurns(item, siblings)} />
               <div className="flex items-start justify-between gap-2">
                 <h2 className="whitespace-pre-wrap break-words text-[18px] font-semibold text-[#1F2423]">
                   {formatCollabLineBreaks(preview.title)}
