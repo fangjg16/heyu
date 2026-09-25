@@ -1326,7 +1326,7 @@ export function InvestorCollabSection({
                     ? wordingForm({
                         lead: suggesting ? (
                           <p className="text-[12.5px] text-[#59625F]">
-                            判断中…
+                            AI 正在分析这条答复，并起草可参考的补充问询…
                           </p>
                         ) : suggest ? (
                           <>
