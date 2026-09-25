@@ -42,7 +42,7 @@ import { getMergedProjects } from "@/workspace/project-registry";
 import { canPublishToIssuer, getProjectRole } from "@/workspace/workspace-users";
 import { CollabAttachmentStrip } from "@/components/workspace/CollabAttachmentStrip";
 import { CollabQuestionChain } from "@/components/workspace/CollabQuestionChain";
-import { collabPriorTurns } from "@/lib/collab-thread";
+import { collabPriorTurns, collabThreadLeaves } from "@/lib/collab-thread";
 import { cn } from "@/lib/utils";
 
 type InvestorCollabSectionProps = {
@@ -401,14 +401,15 @@ export function InvestorCollabSection({
   );
 
   const unsentList = unsentEntries;
-  const pendingList = items.filter(
+  const threadItems = collabThreadLeaves(items);
+  const pendingList = threadItems.filter(
     (it) =>
       (it.status === "pending_reply" ||
         it.status === "saved" ||
         it.status === "needs_more") &&
       matchKind(it.sourceQuestionText || it.title, it),
   );
-  const repliedList = items.filter(
+  const repliedList = threadItems.filter(
     (it) =>
       (it.status === "submitted" || it.status === "confirmed") &&
       matchKind(it.sourceQuestionText || it.title, it),
@@ -767,6 +768,7 @@ export function InvestorCollabSection({
         });
       }
       await uploadAttachments(item.id);
+      if (followUpId) setTab("pending");
       resetCompose();
       await load();
     } catch (e) {

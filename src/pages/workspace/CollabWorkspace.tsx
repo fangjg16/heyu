@@ -27,7 +27,7 @@ import {
   stripCitationMarkers,
 } from "@/lib/kn-citations";
 import { formatCollabLineBreaks } from "@/lib/collab-question-text";
-import { collabPriorTurns } from "@/lib/collab-thread";
+import { collabPriorTurns, collabThreadLeaves } from "@/lib/collab-thread";
 import { CollabQuestionChain } from "@/components/workspace/CollabQuestionChain";
 import { getMergedProjects } from "@/workspace/project-registry";
 import { loadSessionUserId } from "@/workspace/session";
@@ -347,7 +347,7 @@ export function CollabItemsPage() {
           </div>
         ) : (
           <ul className="space-y-2">
-            {items.map((it) => {
+            {collabThreadLeaves(items).map((it) => {
               const preview = previewCollabQuestion(it);
               return (
                 <li key={it.id}>

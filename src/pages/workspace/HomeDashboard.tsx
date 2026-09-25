@@ -13,6 +13,7 @@ import {
   type MyOpenQuestionItem,
 } from "@/lib/project-api";
 import { extractOpenQuestionTitle, previewCollabQuestion, stripCitationMarkers } from "@/lib/kn-citations";
+import { collabThreadLeaves } from "@/lib/collab-thread";
 import { formatCollabLineBreaks } from "@/lib/collab-question-text";
 import { filterMemberProjectsForUser, filterProjectsForUser } from "@/workspace/guest-access";
 import {
@@ -194,7 +195,7 @@ export default function HomeDashboard() {
     let cancelled = false;
     void fetchMyCollabInbox()
       .then((items) => {
-        if (!cancelled) setCollabInbox(items);
+        if (!cancelled) setCollabInbox(collabThreadLeaves(items));
       })
       .catch(() => {
         if (!cancelled) setCollabInbox([]);

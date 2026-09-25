@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collabPriorTurns } from "./collab-thread";
+import { collabPriorTurns, collabThreadLeaves } from "./collab-thread";
 import type { CollabItem } from "@/lib/project-api";
 
 function item(partial: Partial<CollabItem> & Pick<CollabItem, "id" | "title">): CollabItem {
@@ -77,5 +77,30 @@ describe("collabPriorTurns", () => {
       sourceQuestionText: "补充问询｜原问题\n原答复：已答复",
     });
     expect(collabPriorTurns(follow, [follow, root]).map((row) => row.id)).toEqual(["a"]);
+  });
+
+  it("keeps only the latest card once a follow-up is sent", () => {
+    const root = item({ id: "a", title: "原问题", replyText: "已答复" });
+    const follow = item({
+      id: "b",
+      title: "补充",
+      status: "pending_reply",
+      parentItemId: "a",
+    });
+    expect(collabThreadLeaves([root, follow]).map((row) => row.id)).toEqual(["b"]);
+  });
+
+  it("shows the original card again when the follow-up is withdrawn to draft", () => {
+    const root = item({ id: "a", title: "原问题", replyText: "已答复" });
+    const follow = item({
+      id: "b",
+      title: "补充",
+      status: "draft",
+      parentItemId: "a",
+    });
+    expect(collabThreadLeaves([root, follow]).map((row) => row.id)).toEqual([
+      "a",
+      "b",
+    ]);
   });
 });

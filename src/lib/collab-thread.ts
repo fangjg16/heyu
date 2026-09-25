@@ -37,3 +37,13 @@ export function collabPriorTurns(item: CollabItem, all: CollabItem[]): CollabIte
   }
   return priors.reverse();
 }
+
+/** 同一条问答只展示最新一张卡片。已被补充问询接上的旧卡不再单独占「已回复」。 */
+export function collabThreadLeaves<T extends CollabItem>(items: T[]): T[] {
+  const superseded = new Set<string>();
+  for (const item of items) {
+    if (item.status === "draft" || item.status === "discarded") continue;
+    for (const prior of collabPriorTurns(item, items)) superseded.add(prior.id);
+  }
+  return items.filter((item) => !superseded.has(item.id));
+}
