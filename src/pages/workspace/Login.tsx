@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { getToken, useAuth, useSignIn, useSignUp } from "@clerk/react";
 import { LoginParticleCanvas } from "@/components/login/LoginParticleCanvas";
 import {
+  fetchAuthMe,
   fetchWorkspaceUsersDirectory,
   isAuthApiError,
   loginWithClerkToken,
@@ -13,7 +14,7 @@ import {
   clerkErrorToZh,
   isPasswordMatchesIdentifierError,
 } from "@/lib/clerk-errors";
-import { loadSessionToken, loadSessionUserId } from "@/workspace/session";
+import { clearSession, loadSessionToken, loadSessionUserId } from "@/workspace/session";
 
 const REMEMBER_USER_KEY = "fo-login-remember-user";
 
@@ -78,6 +79,18 @@ function LoginShell({ children }: { children: ReactNode }) {
       </div>
     </div>
   );
+}
+
+const CLERK_AUTO_KEY = "fo-clerk-auto-tried";
+
+async function redirectIfSessionValid(navigate: (to: string, opts: { replace: boolean }) => void) {
+  if (!loadSessionUserId() || !loadSessionToken()) return;
+  try {
+    const me = await fetchAuthMe();
+    if (me) navigate("/app/home", { replace: true });
+  } catch {
+    clearSession();
+  }
 }
 
 async function enterWorkspace() {
@@ -227,12 +240,15 @@ function PasswordAuthForm() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (loadSessionUserId() && loadSessionToken()) {
-      navigate("/app/home", { replace: true });
-      return;
-    }
+    let cancelled = false;
+    void redirectIfSessionValid((to, opts) => {
+      if (!cancelled) navigate(to, opts);
+    });
     const remembered = localStorage.getItem(REMEMBER_USER_KEY);
     if (remembered) setUsername(remembered);
+    return () => {
+      cancelled = true;
+    };
   }, [navigate]);
 
   const onSubmitForm = (e: FormEvent) => {
@@ -318,21 +334,26 @@ function ClerkAuthForm() {
     submitting || signInFetch === "fetching" || signUpFetch === "fetching";
 
   useEffect(() => {
-    if (loadSessionUserId() && loadSessionToken()) {
-      navigate("/app/home", { replace: true });
-      return;
-    }
+    let cancelled = false;
+    void redirectIfSessionValid((to, opts) => {
+      if (!cancelled) navigate(to, opts);
+    });
     const remembered = localStorage.getItem(REMEMBER_USER_KEY);
     if (remembered) {
       setUsername(remembered);
       if (remembered.includes("@")) setEmail(remembered);
     }
+    return () => {
+      cancelled = true;
+    };
   }, [navigate]);
 
   useEffect(() => {
     if (fromSwitch || !isLoaded || !isSignedIn) return;
     if (loadSessionToken()) return;
+    if (sessionStorage.getItem(CLERK_AUTO_KEY) === "1") return;
     if (autoExchanged.current) return;
+    sessionStorage.setItem(CLERK_AUTO_KEY, "1");
     autoExchanged.current = true;
     setSubmitting(true);
     void finishClerkLogin().catch((err) => {

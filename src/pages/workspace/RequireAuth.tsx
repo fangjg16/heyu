@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { GlobalDraftProgressDock } from "@/components/workspace/GlobalDraftProgressDock";
 import { fetchAuthMe, fetchWorkspaceUsersDirectory } from "@/lib/api-auth";
-import { loadSessionToken, loadSessionUserId } from "@/workspace/session";
+import { clearSession, loadSessionToken, loadSessionUserId } from "@/workspace/session";
 
 export default function RequireAuth() {
   const navigate = useNavigate();
@@ -21,6 +21,7 @@ export default function RequireAuth() {
         const me = await fetchAuthMe();
         if (cancelled) return;
         if (!me) {
+          clearSession();
           navigate("/app/login", { replace: true });
           return;
         }
@@ -31,7 +32,10 @@ export default function RequireAuth() {
         }
         if (!cancelled) setReady(true);
       } catch {
-        if (!cancelled) navigate("/app/login", { replace: true });
+        if (!cancelled) {
+          clearSession();
+          navigate("/app/login", { replace: true });
+        }
       }
     };
     void run();
