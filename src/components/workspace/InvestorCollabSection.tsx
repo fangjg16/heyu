@@ -487,9 +487,16 @@ export function InvestorCollabSection({
   };
 
   const wordingFields = () => ({
-    title:
-      stripCitationMarkers(title.trim()) ||
-      formatOpenQuestionForIssuer(sourceText).title,
+    title: (() => {
+      const typed = stripCitationMarkers(title.trim());
+      const parent = followUpId
+        ? items.find((row) => row.id === followUpId)
+        : undefined;
+      if (parent) {
+        return stripCitationMarkers(parent.title.trim()) || typed;
+      }
+      return typed || formatOpenQuestionForIssuer(sourceText).title;
+    })(),
     body:
       stripCitationMarkers(body.trim()) ||
       formatOpenQuestionForIssuer(sourceText).body,
@@ -596,7 +603,6 @@ export function InvestorCollabSection({
     setError(null);
     const cached = followUpSuggests[it.id];
     if (cached) {
-      setTitle(cached.title);
       setBody(cached.body);
       return;
     }
@@ -605,7 +611,6 @@ export function InvestorCollabSection({
       const s = await suggestCollabFollowUp(projectId, it.id);
       setFollowUpSuggests((m) => ({ ...m, [it.id]: s }));
       if (followUpIdRef.current === it.id) {
-        setTitle(s.title);
         setBody(s.body);
       }
     } catch (e) {
@@ -1010,7 +1015,7 @@ export function InvestorCollabSection({
   };
 
   const canSubmitWording =
-    Boolean(title.trim() && body.trim()) &&
+    Boolean((followUpId || title.trim()) && body.trim()) &&
     !(issuers.length > 0 && !assignedTo);
   const canSaveDraft = Boolean(title.trim() && body.trim());
 
@@ -1023,12 +1028,14 @@ export function InvestorCollabSection({
   }) => (
     <div className="space-y-2">
       {opts.lead}
-      <input
-        className="h-9 w-full rounded-lg border border-[rgba(78,66,57,0.12)] bg-white px-2 text-[13px]"
-        placeholder="对外中性标题"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-      />
+      {followUpId ? null : (
+        <input
+          className="h-9 w-full rounded-lg border border-[rgba(78,66,57,0.12)] bg-white px-2 text-[13px]"
+          placeholder="对外中性标题"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+      )}
       <textarea
         className="w-full rounded-lg border border-[rgba(78,66,57,0.12)] bg-white px-2 py-2 text-[13px]"
         rows={4}
