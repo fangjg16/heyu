@@ -17,8 +17,8 @@ function githubPagesSpaFallback(): Plugin {
 
 export default defineConfig({
   plugins: [react(), githubPagesSpaFallback()],
-  /** 自定义域名 heyu.hk 挂在站点根路径；旧地址 /heyu/ 由 GitHub 跳转到域名根 */
-  base: "/",
+  /** 项目页挂在 https://fangjg16.github.io/heyu/ ，资源必须带 /heyu/ 前缀 */
+  base: "/heyu/",
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },
   },
